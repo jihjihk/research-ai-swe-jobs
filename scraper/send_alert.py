@@ -22,7 +22,7 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).parent
+SCRIPT_DIR = Path(__file__).parent.parent  # project root (one level up from scraper/)
 CONF_FILE = SCRIPT_DIR / "alerts.conf"
 
 

@@ -6,28 +6,37 @@ Research project studying how AI coding agents are restructuring junior software
 
 ```
 research/
-├── scrape_linkedin_swe.py     # Main scraper — LinkedIn + Indeed
-├── harmonize.py               # Unifies all data sources into one schema
-├── run_daily.sh               # Cron wrapper (lock file, retries, log rotation)
-├── setup.sh                   # One-command setup for new machines
-├── exploratory-analysis.ipynb # EDA notebook (Kaggle, Revelio, scraped data)
-├── data/
-│   ├── unified.parquet        # Harmonized dataset (all sources, analysis-ready)
-│   ├── scraped/               # Daily scraper output
+├── README.md
+├── setup.sh                       # One-command setup for new machines
+├── alerts.conf                    # Alert channel configuration
+│
+├── scraper/                       # Scraping pipeline
+│   ├── scrape_linkedin_swe.py     # Main scraper — LinkedIn + Indeed
+│   ├── harmonize.py               # Unifies all data sources into one schema
+│   ├── send_alert.py              # Alert dispatcher (email, Slack, Discord, ntfy, file)
+│   └── run_daily.sh               # Cron wrapper (lock file, retries, log rotation)
+│
+├── notebooks/                     # Analysis
+│   └── exploratory-analysis.ipynb # EDA notebook (Kaggle, Revelio, scraped data)
+│
+├── docs/                          # Research documents
+│   ├── research-design-h1-h3.md   # Research questions & empirical strategy
+│   ├── research-review.md         # Literature review
+│   ├── validation-plan.md         # ML/stats validation approaches per RQ
+│   ├── data-access-and-prompts.md # Data sources & LLM prompts
+│   ├── session-summary.md         # Prior analysis session notes
+│   └── sources.txt                # Reference sources
+│
+├── data/                          # (gitignored)
+│   ├── unified.parquet            # Harmonized dataset (all sources, analysis-ready)
+│   ├── scraped/                   # Daily scraper output
 │   │   ├── YYYY-MM-DD_swe_jobs.csv
 │   │   ├── YYYY-MM-DD_non_swe_jobs.csv
-│   │   └── _seen_job_ids.json  # Dedup index
+│   │   └── _seen_job_ids.json     # Dedup index
 │   ├── kaggle-linkedin-jobs-2023-2024/
-│   ├── revelio/
-│   └── 2026-03-02-linkedin-scraped-sample.csv
-├── send_alert.py              # Alert dispatcher (email, Slack, Discord, ntfy, file)
-├── alerts.conf                # Alert channel configuration
-├── logs/                      # Scraper logs (auto-rotated, 30 days)
-├── research-design-h1-h3.md   # Research questions & empirical strategy
-├── research-review.md         # Literature review
-├── validation-plan.md         # ML/stats validation approaches per RQ
-├── data-access-and-prompts.md # Data sources & LLM prompts
-└── session-summary.md         # Prior analysis session notes
+│   └── revelio/
+│
+└── logs/                          # Scraper logs (auto-rotated, 30 days)
 ```
 
 ## Quick Start
@@ -37,7 +46,7 @@ research/
 ```bash
 git clone <repo-url> research
 cd research
-chmod +x setup.sh run_daily.sh
+chmod +x setup.sh scraper/run_daily.sh
 ./setup.sh
 ```
 
@@ -57,11 +66,11 @@ pip install python-jobspy pandas pyarrow
 mkdir -p data/scraped logs
 
 # Test
-python3 scrape_linkedin_swe.py --test
+python3 scraper/scrape_linkedin_swe.py --test
 
 # Install cron (runs daily at 6 AM)
-chmod +x run_daily.sh
-(crontab -l 2>/dev/null; echo "0 6 * * * $(pwd)/run_daily.sh >> $(pwd)/logs/cron.log 2>&1") | crontab -
+chmod +x scraper/run_daily.sh
+(crontab -l 2>/dev/null; echo "0 6 * * * $(pwd)/scraper/run_daily.sh >> $(pwd)/logs/cron.log 2>&1") | crontab -
 ```
 
 ## Scraper Usage
@@ -70,42 +79,42 @@ chmod +x run_daily.sh
 
 ```bash
 # Test (1 query, 1 city, 5 results per site — ~1 minute)
-python3 scrape_linkedin_swe.py --test
+python3 scraper/scrape_linkedin_swe.py --test
 
 # Quick run (4 queries x 10 cities — ~30 min for both sites)
-python3 scrape_linkedin_swe.py --quick
+python3 scraper/scrape_linkedin_swe.py --quick
 
 # Full run (12 queries x 20 cities — ~2-3 hours for both sites)
-python3 scrape_linkedin_swe.py
+python3 scraper/scrape_linkedin_swe.py
 
 # Single site only
-python3 scrape_linkedin_swe.py --sites linkedin
-python3 scrape_linkedin_swe.py --sites indeed
+python3 scraper/scrape_linkedin_swe.py --sites linkedin
+python3 scraper/scrape_linkedin_swe.py --sites indeed
 
 # More results per search
-python3 scrape_linkedin_swe.py --results 50
+python3 scraper/scrape_linkedin_swe.py --results 50
 
 # Catch up after a missed day
-python3 scrape_linkedin_swe.py --hours-old 48
+python3 scraper/scrape_linkedin_swe.py --hours-old 48
 
 # Skip harmonization (just scrape)
-python3 scrape_linkedin_swe.py --no-harmonize
+python3 scraper/scrape_linkedin_swe.py --no-harmonize
 ```
 
 ### Via the cron wrapper
 
 ```bash
-./run_daily.sh              # Default full run
-./run_daily.sh --quick      # Quick mode (~15 min)
-./run_daily.sh --catchup    # 48-hour lookback
+./scraper/run_daily.sh              # Default full run
+./scraper/run_daily.sh --quick      # Quick mode (~15 min)
+./scraper/run_daily.sh --catchup    # 48-hour lookback
 ```
 
 The wrapper also accepts `--sites` and `--no-harmonize`:
 
 ```bash
-./run_daily.sh --quick --sites indeed   # Quick, Indeed only
-./run_daily.sh --sites linkedin         # Full, LinkedIn only
-./run_daily.sh --catchup                # 48h lookback, both sites
+./scraper/run_daily.sh --quick --sites indeed   # Quick, Indeed only
+./scraper/run_daily.sh --sites linkedin         # Full, LinkedIn only
+./scraper/run_daily.sh --catchup                # 48h lookback, both sites
 ```
 
 The wrapper adds:
@@ -137,7 +146,7 @@ crontab -l | grep -v "run_daily.sh" | crontab -
 3. Splitting by city bypasses per-search result caps
 4. Sites are scraped sequentially with separate rate limits per site
 5. Only fetches postings from the last 24 hours (configurable via `--hours-old`)
-6. After scraping, automatically harmonizes all data (Kaggle + Apify + daily scrapes) into `data/unified.parquet`
+6. After scraping, automatically harmonizes all data (Kaggle + daily scrapes) into `data/unified.parquet`
 
 ### Anti-detection
 
@@ -265,9 +274,9 @@ Enabled by default. Writes JSON to `data/scraper_status.json` with `current` sta
 
 This scraper feeds data into a study of how AI coding agents are restructuring junior SWE roles. See:
 
-- `research-design-h1-h3.md` — Research questions and empirical strategy
-- `validation-plan.md` — ML approaches for each research question
-- `session-summary.md` — Prior analysis results
+- `docs/research-design-h1-h3.md` — Research questions and empirical strategy
+- `docs/validation-plan.md` — ML approaches for each research question
+- `docs/session-summary.md` — Prior analysis results
 
 ### Research questions
 

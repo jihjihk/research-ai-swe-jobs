@@ -110,7 +110,7 @@ ok "data/scraped/ and logs/ ready"
 # Step 5: Test scrape
 # ---------------------------------------------------------------------------
 info "Running test scrape (1 query, 1 city, 5 results)..."
-"$PYTHON" scrape_linkedin_swe.py --test
+"$PYTHON" scraper/scrape_linkedin_swe.py --test
 if [[ $? -eq 0 ]]; then
     ok "Test scrape succeeded"
     CSV_COUNT=$(ls data/scraped/*.csv 2>/dev/null | wc -l | tr -d ' ')
@@ -133,7 +133,7 @@ else
         VENV_PYTHON="$(command -v python3)"
         warn "No .venv found, using system python: $VENV_PYTHON"
     fi
-    RUN_SCRIPT="$SCRIPT_DIR/run_daily.sh"
+    RUN_SCRIPT="$SCRIPT_DIR/scraper/run_daily.sh"
 
     if [[ ! -f "$RUN_SCRIPT" ]]; then
         fail "run_daily.sh not found at $RUN_SCRIPT"
@@ -177,8 +177,8 @@ echo ""
 ok "Setup complete!"
 echo ""
 echo "  Quick commands:"
-echo "    ./run_daily.sh              # Run a full daily scrape now"
-echo "    python3 scrape_linkedin_swe.py --test   # Quick test (5 results)"
+echo "    ./scraper/run_daily.sh              # Run a full daily scrape now"
+echo "    python3 scraper/scrape_linkedin_swe.py --test   # Quick test (5 results)"
 echo "    crontab -l                  # Verify cron job"
 echo "    ls data/scraped/            # Check collected data"
 echo "    ls logs/                    # Check logs"

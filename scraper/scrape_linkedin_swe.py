@@ -28,13 +28,13 @@ from pathlib import Path
 import pandas as pd
 
 from jobspy import scrape_jobs
-from harmonize import harmonize_kaggle, harmonize_scraped, harmonize_apify
+from harmonize import harmonize_kaggle, harmonize_scraped
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent  # project root (one level up from scraper/)
 DATA_DIR = BASE_DIR / "data" / "scraped"
 LOG_DIR = BASE_DIR / "logs"
 DEDUP_FILE = DATA_DIR / "_seen_job_ids.json"
@@ -355,10 +355,6 @@ def run_scraper(args):
             kaggle_path = BASE_DIR / "data" / "kaggle-linkedin-jobs-2023-2024" / "postings.csv"
             if kaggle_path.exists():
                 parts.append(harmonize_kaggle(str(kaggle_path)))
-
-            apify_path = BASE_DIR / "data" / "2026-03-02-linkedin-scraped-sample.csv"
-            if apify_path.exists():
-                parts.append(harmonize_apify(str(apify_path)))
 
             parts.append(harmonize_scraped(str(DATA_DIR)))
 

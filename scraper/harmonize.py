@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent  # project root (one level up from scraper/)
 DATA_DIR = BASE_DIR / "data"
 SCRAPED_DIR = DATA_DIR / "scraped"
 
@@ -261,11 +261,6 @@ def run(args):
     kaggle_path = DATA_DIR / "kaggle-linkedin-jobs-2023-2024" / "postings.csv"
     if kaggle_path.exists() and not args.scraped_only:
         parts.append(harmonize_kaggle(str(kaggle_path)))
-
-    # Apify sample
-    apify_path = DATA_DIR / "2026-03-02-linkedin-scraped-sample.csv"
-    if apify_path.exists() and not args.scraped_only:
-        parts.append(harmonize_apify(str(apify_path)))
 
     # Scraped
     if SCRAPED_DIR.exists():

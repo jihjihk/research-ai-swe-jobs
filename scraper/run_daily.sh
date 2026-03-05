@@ -20,20 +20,21 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_DIR"
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-LOCK_FILE="$SCRIPT_DIR/.scraper.lock"
+LOCK_FILE="$PROJECT_DIR/.scraper.lock"
 LOCK_MAX_AGE_SECONDS=21600  # 6 hours — stale lock threshold (2 sites take longer)
 MAX_RETRIES=3
 RETRY_DELAY_BASE=300  # 5 minutes, doubles each retry
 LOG_RETENTION_DAYS=30
 
 # Determine Python binary
-if [[ -f "$SCRIPT_DIR/.venv/bin/python3" ]]; then
-    PYTHON="$SCRIPT_DIR/.venv/bin/python3"
+if [[ -f "$PROJECT_DIR/.venv/bin/python3" ]]; then
+    PYTHON="$PROJECT_DIR/.venv/bin/python3"
 elif command -v python3 &>/dev/null; then
     PYTHON="$(command -v python3)"
 else
@@ -122,9 +123,9 @@ acquire_lock() {
 # Log rotation
 # ---------------------------------------------------------------------------
 rotate_logs() {
-    if [[ -d "$SCRIPT_DIR/logs" ]]; then
-        find "$SCRIPT_DIR/logs" -name "*.log" -mtime +$LOG_RETENTION_DAYS -delete 2>/dev/null || true
-        deleted=$(find "$SCRIPT_DIR/logs" -name "*.log" -mtime +$LOG_RETENTION_DAYS 2>/dev/null | wc -l | tr -d ' ')
+    if [[ -d "$PROJECT_DIR/logs" ]]; then
+        find "$PROJECT_DIR/logs" -name "*.log" -mtime +$LOG_RETENTION_DAYS -delete 2>/dev/null || true
+        deleted=$(find "$PROJECT_DIR/logs" -name "*.log" -mtime +$LOG_RETENTION_DAYS 2>/dev/null | wc -l | tr -d ' ')
         if [[ "$deleted" -gt 0 ]]; then
             log "Rotated $deleted old log file(s)"
         fi
@@ -167,8 +168,8 @@ done
 # Post-run summary & alerts
 # ---------------------------------------------------------------------------
 TODAY=$(date +%Y-%m-%d)
-SWE_FILE="$SCRIPT_DIR/data/scraped/${TODAY}_swe_jobs.csv"
-ALERT_SCRIPT="$SCRIPT_DIR/send_alert.py"
+SWE_FILE="$PROJECT_DIR/data/scraped/${TODAY}_swe_jobs.csv"
+ALERT_SCRIPT="$SCRIPT_DIR/send_alert.py"  # send_alert.py is in scraper/
 
 swe_count=0
 total_count=0
@@ -182,7 +183,7 @@ else
 fi
 
 # Count non-SWE too for total
-NON_SWE_FILE="$SCRIPT_DIR/data/scraped/${TODAY}_non_swe_jobs.csv"
+NON_SWE_FILE="$PROJECT_DIR/data/scraped/${TODAY}_non_swe_jobs.csv"
 if [[ -f "$NON_SWE_FILE" ]]; then
     non_swe_count=$(($(wc -l < "$NON_SWE_FILE") - 1))
     total_count=$((swe_count + non_swe_count))
@@ -191,11 +192,11 @@ else
 fi
 
 # Count total accumulated data
-total_csvs=$(ls "$SCRIPT_DIR/data/scraped/"*_swe_jobs.csv 2>/dev/null | wc -l | tr -d ' ')
+total_csvs=$(ls "$PROJECT_DIR/data/scraped/"*_swe_jobs.csv 2>/dev/null | wc -l | tr -d ' ')
 log "Total daily files accumulated: $total_csvs"
 
 # Check unified dataset
-UNIFIED_FILE="$SCRIPT_DIR/data/unified.parquet"
+UNIFIED_FILE="$PROJECT_DIR/data/unified.parquet"
 if [[ -f "$UNIFIED_FILE" ]]; then
     unified_size=$(du -h "$UNIFIED_FILE" | cut -f1)
     log "Unified dataset: $UNIFIED_FILE ($unified_size)"
