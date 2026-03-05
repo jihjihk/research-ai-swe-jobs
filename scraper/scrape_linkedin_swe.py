@@ -332,6 +332,27 @@ def run_scraper(args):
     for df in [swe_jobs, non_swe]:
         df["scrape_date"] = today
 
+    # Save run manifest (full config for reproducibility)
+    manifest = {
+        "scrape_date": today,
+        "sites": sites,
+        "queries": queries,
+        "locations": locations,
+        "results_per_query": results_per,
+        "hours_old": hours_old,
+        "mode": "test" if args.test else ("quick" if args.quick else "full"),
+        "swe_count": len(swe_jobs),
+        "non_swe_count": len(non_swe),
+        "total_raw": len(combined),
+        "dedup_index_size": len(seen_ids),
+        "sites_collected": combined["site"].value_counts().to_dict() if "site" in combined.columns else {},
+        "timestamp": datetime.now().isoformat(),
+    }
+    manifest_file = DATA_DIR / f"{today}_manifest.json"
+    with open(manifest_file, "w") as f:
+        json.dump(manifest, f, indent=2)
+    logger.info(f"Saved run manifest to {manifest_file}")
+
     # Save daily CSVs
     swe_file = DATA_DIR / f"{today}_swe_jobs.csv"
     swe_jobs.to_csv(swe_file, index=False)

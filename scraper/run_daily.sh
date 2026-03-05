@@ -31,6 +31,7 @@ LOCK_MAX_AGE_SECONDS=21600  # 6 hours — stale lock threshold (2 sites take lon
 MAX_RETRIES=3
 RETRY_DELAY_BASE=300  # 5 minutes, doubles each retry
 LOG_RETENTION_DAYS=30
+S3_BUCKET="${S3_BUCKET:-}"  # set to "s3://your-bucket" to enable S3 sync
 
 # Determine Python binary
 if [[ -f "$PROJECT_DIR/.venv/bin/python3" ]]; then
@@ -233,6 +234,20 @@ if [[ $exit_code -eq 0 ]]; then
 else
     log "FAILED after $MAX_RETRIES attempts"
     send_alert "failure" "Scraper failed after $MAX_RETRIES attempts (mode=$MODE, exit=$exit_code)"
+fi
+
+# ---------------------------------------------------------------------------
+# S3 sync (if configured)
+# ---------------------------------------------------------------------------
+if [[ -n "$S3_BUCKET" ]] && [[ $exit_code -eq 0 ]]; then
+    log "Syncing data to $S3_BUCKET..."
+    if command -v aws &>/dev/null; then
+        aws s3 sync "$PROJECT_DIR/data/scraped/" "$S3_BUCKET/scraped/" --quiet 2>&1 | while read -r line; do log "  $line"; done
+        [[ -f "$PROJECT_DIR/data/scraper_status.json" ]] && aws s3 cp "$PROJECT_DIR/data/scraper_status.json" "$S3_BUCKET/scraper_status.json" --quiet
+        log "S3 sync complete"
+    else
+        log "WARN: aws CLI not found, skipping S3 sync"
+    fi
 fi
 
 log "Done (exit code $exit_code)"
