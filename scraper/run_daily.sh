@@ -166,6 +166,32 @@ while [[ $attempt -lt $MAX_RETRIES ]]; do
 done
 
 # ---------------------------------------------------------------------------
+# YC scraper (separate source, independent of LinkedIn/Indeed)
+# ---------------------------------------------------------------------------
+YC_SCRIPT="$SCRIPT_DIR/scrape_yc.py"
+yc_count=0
+
+if [[ -f "$YC_SCRIPT" ]]; then
+    log "Starting YC scraper..."
+    yc_args="--no-harmonize"  # harmonize once at the end
+    if [[ "$MODE" == "quick" ]]; then
+        yc_args="$yc_args --test"
+    fi
+
+    if $PYTHON "$YC_SCRIPT" $yc_args; then
+        YC_FILE="$PROJECT_DIR/data/scraped/$(date +%Y-%m-%d)_yc_jobs.csv"
+        if [[ -f "$YC_FILE" ]]; then
+            yc_count=$(($(wc -l < "$YC_FILE") - 1))
+            log "YC scrape succeeded: $yc_count jobs"
+        fi
+    else
+        log "WARN: YC scraper failed (non-fatal, continuing)"
+    fi
+else
+    log "YC scraper not found, skipping"
+fi
+
+# ---------------------------------------------------------------------------
 # Post-run summary & alerts
 # ---------------------------------------------------------------------------
 TODAY=$(date +%Y-%m-%d)
@@ -187,9 +213,13 @@ fi
 NON_SWE_FILE="$PROJECT_DIR/data/scraped/${TODAY}_non_swe_jobs.csv"
 if [[ -f "$NON_SWE_FILE" ]]; then
     non_swe_count=$(($(wc -l < "$NON_SWE_FILE") - 1))
-    total_count=$((swe_count + non_swe_count))
+    total_count=$((swe_count + non_swe_count + yc_count))
 else
-    total_count=$swe_count
+    total_count=$((swe_count + yc_count))
+fi
+
+if [[ $yc_count -gt 0 ]]; then
+    log "YC jobs today: $yc_count"
 fi
 
 # Count total accumulated data

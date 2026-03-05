@@ -11,7 +11,8 @@ research/
 ├── alerts.conf                    # Alert channel configuration
 │
 ├── scraper/                       # Scraping pipeline
-│   ├── scrape_linkedin_swe.py     # Main scraper — LinkedIn + Indeed
+│   ├── scrape_linkedin_swe.py     # LinkedIn + Indeed scraper (python-jobspy)
+│   ├── scrape_yc.py               # Y Combinator / Work at a Startup scraper
 │   ├── harmonize.py               # Unifies all data sources into one schema
 │   ├── send_alert.py              # Alert dispatcher (email, Slack, Discord, ntfy, file)
 │   └── run_daily.sh               # Cron wrapper (lock file, retries, log rotation)
@@ -24,15 +25,21 @@ research/
 │   ├── research-review.md         # Literature review
 │   ├── validation-plan.md         # ML/stats validation approaches per RQ
 │   ├── data-access-and-prompts.md # Data sources & LLM prompts
+│   ├── ec2-setup.md               # EC2 & S3 infrastructure docs
 │   ├── session-summary.md         # Prior analysis session notes
 │   └── sources.txt                # Reference sources
 │
 ├── data/                          # (gitignored)
 │   ├── unified.parquet            # Harmonized dataset (all sources, analysis-ready)
 │   ├── scraped/                   # Daily scraper output
-│   │   ├── YYYY-MM-DD_swe_jobs.csv
-│   │   ├── YYYY-MM-DD_non_swe_jobs.csv
-│   │   └── _seen_job_ids.json     # Dedup index
+│   │   ├── YYYY-MM-DD_swe_jobs.csv       # LinkedIn/Indeed SWE-matched jobs
+│   │   ├── YYYY-MM-DD_non_swe_jobs.csv   # LinkedIn/Indeed non-SWE jobs
+│   │   ├── YYYY-MM-DD_yc_jobs.csv        # YC jobs (all roles)
+│   │   ├── YYYY-MM-DD_manifest.json      # LinkedIn/Indeed run params
+│   │   ├── YYYY-MM-DD_yc_manifest.json   # YC run params
+│   │   ├── _seen_job_ids.json            # LinkedIn/Indeed dedup index
+│   │   ├── _seen_yc_ids.json             # YC dedup index
+│   │   └── _yc_scraper_state.json        # YC scan position tracker
 │   ├── kaggle-linkedin-jobs-2023-2024/
 │   └── revelio/
 │
@@ -53,7 +60,7 @@ chmod +x setup.sh scraper/run_daily.sh
 This will:
 1. Detect Python (>= 3.10 required)
 2. Create a virtual environment (`.venv/`)
-3. Install dependencies (`python-jobspy`, `pandas`, `pyarrow`)
+3. Install dependencies (`python-jobspy`, `pandas`, `pyarrow`, `requests`, `beautifulsoup4`)
 4. Run a test scrape to verify everything works
 5. Offer to install the daily cron job
 
@@ -62,20 +69,30 @@ This will:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install python-jobspy pandas pyarrow
+pip install python-jobspy pandas pyarrow requests beautifulsoup4
 mkdir -p data/scraped logs
 
 # Test
 python3 scraper/scrape_linkedin_swe.py --test
+python3 scraper/scrape_yc.py --test
 
 # Install cron (runs daily at 6 AM)
 chmod +x scraper/run_daily.sh
 (crontab -l 2>/dev/null; echo "0 6 * * * $(pwd)/scraper/run_daily.sh >> $(pwd)/logs/cron.log 2>&1") | crontab -
 ```
 
+## Data Sources
+
+| Source | Scraper | Output | Scope |
+|--------|---------|--------|-------|
+| **LinkedIn** | `scrape_linkedin_swe.py` | `*_swe_jobs.csv`, `*_non_swe_jobs.csv` | SWE + adjacent + control roles, 20 US cities |
+| **Indeed** | `scrape_linkedin_swe.py` | (same files) | Same queries, same cities |
+| **YC (Work at a Startup)** | `scrape_yc.py` | `*_yc_jobs.csv` | All roles at YC-funded startups |
+| **Kaggle** | (static download) | `kaggle-linkedin-jobs-2023-2024/` | Historical LinkedIn data (2023–2024) |
+
 ## Scraper Usage
 
-### Running manually
+### LinkedIn + Indeed
 
 ```bash
 # Test (1 query, 1 city, 5 results per site — ~1 minute)
@@ -84,12 +101,16 @@ python3 scraper/scrape_linkedin_swe.py --test
 # Quick run (4 queries x 10 cities — ~30 min for both sites)
 python3 scraper/scrape_linkedin_swe.py --quick
 
-# Full run (12 queries x 20 cities — ~2-3 hours for both sites)
+# Full run (10 SWE + 8 adjacent + 10 control queries x 20 cities — ~2-3 hours)
 python3 scraper/scrape_linkedin_swe.py
 
 # Single site only
 python3 scraper/scrape_linkedin_swe.py --sites linkedin
 python3 scraper/scrape_linkedin_swe.py --sites indeed
+
+# Run specific tiers only
+python3 scraper/scrape_linkedin_swe.py --tiers swe            # SWE only
+python3 scraper/scrape_linkedin_swe.py --tiers swe adjacent   # Skip control
 
 # More results per search
 python3 scraper/scrape_linkedin_swe.py --results 50
@@ -101,27 +122,38 @@ python3 scraper/scrape_linkedin_swe.py --hours-old 48
 python3 scraper/scrape_linkedin_swe.py --no-harmonize
 ```
 
+### YC (Work at a Startup)
+
+```bash
+# Test (scan ~70 job IDs — ~3 minutes)
+python3 scraper/scrape_yc.py --test
+
+# Full run (scan ~700+ IDs — ~30 minutes)
+python3 scraper/scrape_yc.py
+
+# Skip harmonization
+python3 scraper/scrape_yc.py --no-harmonize
+```
+
+The YC scraper works by scanning sequential job IDs on workatastartup.com. Each active job page contains structured JSON-LD data (title, company, salary, location, description, YC batch). It tracks the highest scanned ID across runs so it only scans new ranges.
+
 ### Via the cron wrapper
 
 ```bash
-./scraper/run_daily.sh              # Default full run
-./scraper/run_daily.sh --quick      # Quick mode (~15 min)
+./scraper/run_daily.sh              # Full run (LinkedIn + Indeed + YC)
+./scraper/run_daily.sh --quick      # Quick mode (YC runs in test mode)
 ./scraper/run_daily.sh --catchup    # 48-hour lookback
+./scraper/run_daily.sh --sites linkedin   # LinkedIn only (YC still runs)
 ```
 
-The wrapper also accepts `--sites` and `--no-harmonize`:
-
-```bash
-./scraper/run_daily.sh --quick --sites indeed   # Quick, Indeed only
-./scraper/run_daily.sh --sites linkedin         # Full, LinkedIn only
-./scraper/run_daily.sh --catchup                # 48h lookback, both sites
-```
+The wrapper runs LinkedIn/Indeed first, then YC as a separate step. If YC fails, it doesn't affect the main scrape.
 
 The wrapper adds:
 - **Lock file** — prevents overlapping runs; auto-clears stale locks (> 6 hours)
 - **Retries** — up to 3 attempts with exponential backoff (5 min, 10 min, 20 min)
 - **Log rotation** — deletes logs older than 30 days
 - **Post-run summary** — logs row count and accumulated file count
+- **S3 sync** — uploads results to S3 if `S3_BUCKET` is configured
 - **Alerts** — sends success/failure/warning notifications via configured channels
 
 ### Cron job management
@@ -139,36 +171,62 @@ crontab -l | grep -v "run_daily.sh" | crontab -
 
 ## How It Works
 
-### Scraping strategy
+### Query tiers (LinkedIn + Indeed)
 
-1. Scrapes **LinkedIn** (public pages, no login) and **Indeed** (public API)
-2. Runs multiple search queries (`software engineer`, `data engineer`, etc.) across US cities
-3. Splitting by city bypasses per-search result caps
-4. Sites are scraped sequentially with separate rate limits per site
-5. Only fetches postings from the last 24 hours (configurable via `--hours-old`)
-6. After scraping, automatically harmonizes all data (Kaggle + daily scrapes) into `data/unified.parquet`
+Queries are organized into priority tiers. Tier 1 runs first so if the scraper gets rate-limited, the most important data is already collected.
+
+| Tier | Queries | Purpose |
+|------|---------|---------|
+| **swe** | `software engineer`, `full stack engineer`, `frontend engineer`, `backend engineer`, `devops engineer`, `data engineer`, `machine learning engineer`, `AI engineer`, `mobile developer`, `founding engineer` | Primary research focus |
+| **adjacent** | `data scientist`, `data analyst`, `product manager`, `UX designer`, `QA engineer`, `security engineer`, `solutions engineer`, `technical program manager` | AI-exposed comparison group |
+| **control** | `civil engineer`, `mechanical engineer`, `electrical engineer`, `chemical engineer`, `registered nurse`, `accountant`, `financial analyst`, `marketing manager`, `human resources`, `sales representative` | Non-AI-exposed group for DiD |
+
+### SWE classification
+
+Titles from LinkedIn/Indeed are matched against a regex to split into SWE vs non-SWE files:
+
+```
+software engineer|software developer|swe|full-stack|front-end|back-end|
+web developer|mobile developer|devops|platform engineer|data engineer|
+ml engineer|machine learning engineer|site reliability|ai engineer|
+ai/ml engineer|llm engineer|agent engineer|applied ai engineer|
+prompt engineer|infrastructure engineer|founding engineer|
+member of technical staff|product engineer
+```
+
+The regex is broader than the search queries — it catches specific titles (e.g., "LLM engineer", "agent engineer") that appear in results from broader queries (e.g., "AI engineer").
+
+Non-SWE results are saved separately (`*_non_swe_jobs.csv`) for use as DiD control occupations.
+
+YC jobs are **not** split — all roles are saved in one file since the dataset is smaller and startup titles are often non-standard.
 
 ### Anti-detection
 
-| Measure | LinkedIn | Indeed |
-|---------|----------|-------|
-| Request delay | 8–20s random | 5–12s random |
-| Between-query pause | 15–30s | 10–20s |
-| Between-site pause | 30–60s | 30–60s |
-| User agent rotation | 5 browser UAs | 5 browser UAs |
-| Failure backoff | 60s × failure count | 45s × failure count |
-| Circuit breaker | 5 consecutive failures | 5 consecutive failures |
+| Measure | LinkedIn | Indeed | YC |
+|---------|----------|-------|----|
+| Request delay | 8–20s random | 5–12s random | 1.5–3.5s |
+| Between-query pause | 15–30s | 10–20s | 3–6s (every 10 requests) |
+| Between-site pause | 30–60s | 30–60s | n/a |
+| User agent rotation | 5 browser UAs | 5 browser UAs | 5 browser UAs |
+| Failure backoff | 60s × failure count | 45s × failure count | n/a |
+| Circuit breaker | 5 consecutive failures | 5 consecutive failures | 30 consecutive 404s |
 
 ### Deduplication
 
+**LinkedIn/Indeed:**
 - Each job gets a hash (LinkedIn job ID, or MD5 of title+company+location)
 - Hashes persist in `_seen_job_ids.json` across runs
 - Cross-query dedup within a run (by `job_url`)
-- Index capped at 500K entries to prevent unbounded growth
+- Index capped at 500K entries
+
+**YC:**
+- Tracks job IDs (numeric, from URL) in `_seen_yc_ids.json`
+- Expired jobs (HTTP 302) are marked so they aren't re-checked
+- `_yc_scraper_state.json` tracks the highest scanned ID to avoid re-scanning old ranges
 
 ### Output schema
 
-Each daily CSV contains these columns (from `python-jobspy`):
+**LinkedIn/Indeed** (`*_swe_jobs.csv` and `*_non_swe_jobs.csv`):
 
 | Column | Description |
 |--------|-------------|
@@ -189,17 +247,24 @@ Each daily CSV contains these columns (from `python-jobspy`):
 | `skills` | Listed skills |
 | `scrape_date` | Date this scrape ran |
 
-### SWE filtering
+**YC** (`*_yc_jobs.csv`):
 
-Titles are matched against this regex (same as the research notebook):
-
-```
-software engineer|software developer|swe|full-stack|front-end|back-end|
-web developer|mobile developer|devops|platform engineer|data engineer|
-ml engineer|machine learning engineer|site reliability
-```
-
-Non-SWE results are saved separately (`*_non_swe_jobs.csv`) for use as DiD control occupations.
+| Column | Description |
+|--------|-------------|
+| `source` | Always `yc_workatastartup` |
+| `id` | Numeric job ID |
+| `title` | Job title |
+| `company` | Company name |
+| `company_url` | Company website |
+| `location` | Location(s), pipe-separated |
+| `is_remote` | Remote flag |
+| `date_posted` | ISO timestamp |
+| `description` | Full description (plain text) |
+| `job_type` | FULL_TIME, PART_TIME, etc. |
+| `salary_currency` / `salary_min` / `salary_max` / `salary_unit` | Salary details |
+| `job_url` | Link to workatastartup.com listing |
+| `yc_batch` | YC batch (e.g., W24, S25) |
+| `scrape_date` | Date this scrape ran |
 
 ## Monitoring
 
@@ -215,10 +280,12 @@ ls -la .scraper.lock 2>/dev/null && echo "Running (PID: $(cat .scraper.lock))" |
 ```bash
 # Latest scrape stats
 tail -20 logs/scrape_$(date +%Y-%m-%d).log
+tail -20 logs/yc_$(date +%Y-%m-%d).log
 
 # Accumulated data summary
 echo "Total daily files: $(ls data/scraped/*_swe_jobs.csv 2>/dev/null | wc -l)"
 echo "Total SWE rows: $(cat data/scraped/*_swe_jobs.csv 2>/dev/null | wc -l)"
+echo "Total YC files: $(ls data/scraped/*_yc_jobs.csv 2>/dev/null | wc -l)"
 echo "Disk usage: $(du -sh data/scraped/)"
 ```
 
@@ -230,6 +297,7 @@ echo "Disk usage: $(du -sh data/scraped/)"
 | Circuit breaker triggered | Too many consecutive failures | Check logs; increase delays in config |
 | Stale lock file | Previous run crashed | Auto-clears after 6h, or `rm .scraper.lock` |
 | Missing cron output | Cron environment issue | Check `logs/cron.log`; ensure absolute paths |
+| YC scraper gets 0 jobs | Site structure changed | Check `logs/yc_*.log`; may need parser update |
 
 ## Alerts
 
@@ -246,22 +314,6 @@ The scraper sends alerts on success, failure, or suspiciously low job counts. Co
 | **ntfy.sh** | Just pick a topic name, install [ntfy app](https://ntfy.sh) | Free push notifications to phone, no signup |
 | **macOS** | Enable in `alerts.conf` | Desktop notifications (only works in GUI session) |
 
-### File alert for local agents
-
-Enabled by default. Writes JSON to `data/scraper_status.json` with `current` status and a rolling `history` (last 30 entries). Your openclaw agent or any local process can poll this file:
-
-```json
-{
-  "current": {
-    "status": "success",
-    "message": "Collected 486 SWE jobs, 667 total (mode=default)",
-    "timestamp": "2026-03-05T12:26:17",
-    "details": { "swe_count": 486, "total_count": 667, "attempt": 1 }
-  },
-  "history": [...]
-}
-```
-
 ### Alert triggers
 
 | Condition | Alert type |
@@ -269,6 +321,14 @@ Enabled by default. Writes JSON to `data/scraper_status.json` with `current` sta
 | Scrape completes normally | `success` |
 | Full run collects < 10 SWE jobs | `warning` (suspiciously low) |
 | Scraper fails after 3 retries | `failure` |
+
+## Infrastructure
+
+The scraper runs daily on EC2 with S3 for durable storage. See `docs/ec2-setup.md` for details.
+
+- **EC2:** t3.small in us-east-2, Amazon Linux 2023, cron at 6 AM UTC
+- **S3:** `s3://swe-labor-research` — stores daily CSVs, manifests, and scraper status
+- Local disk on EC2 is the staging area; S3 sync happens after each successful run
 
 ## Research Context
 
@@ -285,4 +345,3 @@ This scraper feeds data into a study of how AI coding agents are restructuring j
 3. Was there a structural break in late 2025?
 4. Is this SWE-specific or a broader labor market trend?
 5. What should replace the broken junior training pipeline?
-

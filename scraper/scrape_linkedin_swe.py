@@ -43,24 +43,59 @@ DEDUP_FILE = DATA_DIR / "_seen_job_ids.json"
 SWE_PATTERN = re.compile(
     r'(?i)\b(software\s*(engineer|developer|dev)|swe|full[- ]?stack|front[- ]?end|'
     r'back[- ]?end|web\s*developer|mobile\s*developer|devops|platform\s*engineer|'
-    r'data\s*engineer|ml\s*engineer|machine\s*learning\s*engineer|site\s*reliability)\b'
+    r'data\s*engineer|ml\s*engineer|machine\s*learning\s*engineer|site\s*reliability|'
+    r'ai\s*engineer|ai[/ ]ml\s*engineer|llm\s*engineer|agent\s*engineer|'
+    r'applied\s*ai\s*engineer|prompt\s*engineer|infrastructure\s*engineer|'
+    r'founding\s*engineer|member\s*of\s*technical\s*staff|product\s*engineer)\b'
 )
 
-# Search queries — multiple queries to maximize coverage
-SEARCH_QUERIES = [
-    "software engineer",
-    "software developer",
-    "full stack engineer",
-    "frontend engineer",
-    "backend engineer",
-    "devops engineer",
-    "platform engineer",
-    "data engineer",
-    "ML engineer",
-    "site reliability engineer",
-    "mobile developer",
-    "web developer",
-]
+# Search queries organized by priority tier.
+# Tier 1 runs first — if rate-limited, we still get the most important data.
+
+QUERY_TIERS = {
+    # Tier 1: Core SWE roles (primary research focus)
+    # Keep queries broad — the SWE_PATTERN regex handles fine-grained classification.
+    # Fewer queries = less time + rate-limit budget, same coverage.
+    "swe": [
+        "software engineer",        # catches SWE, SDE, software developer
+        "full stack engineer",       # catches full-stack, product engineer
+        "frontend engineer",         # catches front-end, web developer
+        "backend engineer",          # catches back-end, infrastructure
+        "devops engineer",           # catches SRE, platform engineer
+        "data engineer",             # catches data platform roles
+        "machine learning engineer", # catches ML, AI, LLM, applied AI
+        "AI engineer",               # catches agent engineer, prompt engineer
+        "mobile developer",          # iOS, Android
+        "founding engineer",         # startup-specific, distinct enough
+    ],
+    # Tier 2: Adjacent tech roles (AI-exposed comparison group)
+    "adjacent": [
+        "data scientist",
+        "data analyst",
+        "product manager",
+        "UX designer",
+        "QA engineer",
+        "security engineer",
+        "solutions engineer",       # catches forward deployment, sales engineer
+        "technical program manager", # catches TPM roles
+    ],
+    # Tier 3: Control occupations (non-AI-exposed, for DiD)
+    "control": [
+        "civil engineer",
+        "mechanical engineer",
+        "electrical engineer",
+        "chemical engineer",
+        "registered nurse",
+        "accountant",
+        "financial analyst",
+        "marketing manager",
+        "human resources",
+        "sales representative",
+    ],
+}
+
+# Default: all tiers in priority order
+SEARCH_QUERIES = QUERY_TIERS["swe"] + QUERY_TIERS["adjacent"] + QUERY_TIERS["control"]
 
 # US cities to split searches (bypasses per-search result caps)
 US_LOCATIONS = [
@@ -269,19 +304,23 @@ def run_scraper(args):
 
     # Determine queries and locations
     if args.test:
-        queries = SEARCH_QUERIES[:1]
+        queries = QUERY_TIERS["swe"][:1]
         locations = US_LOCATIONS[:1]
         results_per = 5
         logger.info("TEST MODE: 1 query, 1 location, 5 results")
     elif args.quick:
-        queries = SEARCH_QUERIES[:4]
+        queries = QUERY_TIERS["swe"][:4]
         locations = US_LOCATIONS[:10]
         results_per = args.results
         logger.info("QUICK MODE: 4 queries, 10 cities")
     else:
-        queries = SEARCH_QUERIES
+        # Build query list from selected tiers in priority order
+        queries = []
+        for tier in args.tiers:
+            queries.extend(QUERY_TIERS[tier])
         locations = US_LOCATIONS
         results_per = args.results
+        logger.info(f"Tiers: {', '.join(args.tiers)} ({len(queries)} queries)")
 
     hours_old = args.hours_old
 
@@ -341,6 +380,7 @@ def run_scraper(args):
         "results_per_query": results_per,
         "hours_old": hours_old,
         "mode": "test" if args.test else ("quick" if args.quick else "full"),
+        "tiers": args.tiers if not args.test and not args.quick else ["swe"],
         "swe_count": len(swe_jobs),
         "non_swe_count": len(non_swe),
         "total_raw": len(combined),
@@ -433,6 +473,9 @@ def main():
                         help="Only fetch jobs posted in the last N hours (default: 24)")
     parser.add_argument("--no-harmonize", action="store_true",
                         help="Skip harmonization step after scraping")
+    parser.add_argument("--tiers", nargs="+", default=["swe", "adjacent", "control"],
+                        choices=list(QUERY_TIERS.keys()),
+                        help="Query tiers to run (default: all). Runs in order, priority first.")
     args = parser.parse_args()
     run_scraper(args)
 
