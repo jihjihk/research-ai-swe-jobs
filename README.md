@@ -1,4 +1,4 @@
-# The Two-Regime Restructuring of Junior SWE Labor
+# The AI Restructuring of Junior SWE Labor
 
 Research project studying how AI coding agents are restructuring junior software engineer roles, using job postings data.
 
@@ -285,3 +285,4 @@ This scraper feeds data into a study of how AI coding agents are restructuring j
 3. Was there a structural break in late 2025?
 4. Is this SWE-specific or a broader labor market trend?
 5. What should replace the broken junior training pipeline?
+
