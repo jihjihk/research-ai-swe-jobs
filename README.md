@@ -324,11 +324,50 @@ The scraper sends alerts on success, failure, or suspiciously low job counts. Co
 
 ## Infrastructure
 
-The scraper runs daily on EC2 with S3 for durable storage. See `docs/ec2-setup.md` for details.
+The scraper runs daily on EC2 with S3 for durable storage. See `docs/ec2-setup.md` for full details.
 
 - **EC2:** t3.small in us-east-2, Amazon Linux 2023, cron at 6 AM UTC
 - **S3:** `s3://swe-labor-research` — stores daily CSVs, manifests, and scraper status
 - Local disk on EC2 is the staging area; S3 sync happens after each successful run
+
+### SSH into EC2
+
+```bash
+ssh -i ~/path/to/scraper-key.pem ec2-user@<PUBLIC_IP>
+```
+
+To find the public IP: **AWS Console** → **EC2** (us-east-2) → **Instances** → `swe-scraper`
+
+Once connected:
+
+```bash
+cd ~/research && source .env && source .venv/bin/activate
+
+# Check cron job
+crontab -l
+
+# Check today's logs
+tail -f logs/scrape_$(date +%Y-%m-%d).log
+
+# Run scraper manually
+./scraper/run_daily.sh
+
+# Pull latest code
+git pull origin main
+```
+
+### S3 data access
+
+```bash
+# List recent scrapes
+aws s3 ls s3://swe-labor-research/scraped/
+
+# Download all data locally
+aws s3 sync s3://swe-labor-research/scraped/ data/scraped/
+
+# Check scraper status
+aws s3 cp s3://swe-labor-research/scraper_status.json - | python3 -m json.tool
+```
 
 ## Research Context
 
