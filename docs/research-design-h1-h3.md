@@ -1,8 +1,10 @@
-# The Two-Regime Restructuring of Junior SWE Labor
+# The AI Restructuring of the SWE Seniority Ladder
 
 ## Core Thesis
 
-AI coding agents have not merely reduced demand for junior software engineers — they have structurally redefined what "junior" means. We use historical job postings data to show that entry-level SWE roles have undergone gradual scope inflation since 2020, culminating in a discrete regime shift following the deployment of production-grade coding agents in late 2025.
+AI coding agents have not merely reduced demand for junior software engineers — they have restructured the entire seniority ladder. Junior roles are disappearing or absorbing senior-level requirements. Senior roles are simultaneously shedding people-management responsibilities and gaining AI-orchestration ones. The result is a compression of the traditional hierarchy that mirrors prior platform shifts (mainframe → PC → web → mobile), each of which redefined what "senior engineer" meant.
+
+We use historical job postings data to show that (1) entry-level SWE roles have undergone scope inflation since 2020, culminating in a discrete regime shift after production-grade coding agents deployed in late 2025, and (2) senior SWE roles are shifting from human-management archetypes toward technical-orchestration archetypes — less mentorship, hiring, and team leadership; more system design, AI tooling, and agent orchestration.
 
 ---
 
@@ -37,6 +39,25 @@ Post-2022 layoffs, remote work normalization, and macro hiring slowdowns could c
 This is the prescriptive contribution. We derive training recommendations directly from empirical findings: if system design migrated to junior postings by 2024, curricula should front-load it. If AI literacy requirements are universal but vague, we propose concrete competency standards. Validated against cross-profession parallels (radiology, accounting, aviation, surgery).
 
 **Feasibility: Medium.** The recommendations are conditional on RQ1–RQ4 results. The cross-profession analysis is qualitative and draws on published case studies rather than new data collection. Testable predictions (RCTs, longitudinal studies) are proposed for future work, not executed here.
+
+### RQ6: Are senior SWE roles shedding management requirements and gaining AI-orchestration ones?
+
+If juniors are disappearing, seniors have fewer people to manage. We test whether senior SWE postings show declining frequency of people-management keywords (mentorship, coaching, hiring, team leadership, performance reviews) and rising frequency of AI-orchestration keywords (AI agents, LLM integration, prompt engineering, model evaluation, system design). This tests whether the "senior" archetype is shifting from people-manager to technical-orchestrator.
+
+**Feasibility: High.** Same data sources as RQ1–RQ2 — keyword frequency analysis on senior-tagged postings over time. Chen & Stratton (2026) provide corroborating evidence: they find task reallocation (more coding, less coordination) among senior developers after AI adoption, with no employment effects.
+
+### RQ7: Does the current restructuring follow the pattern of prior platform shifts?
+
+Each major platform transition redefined the senior engineer archetype:
+- **Mainframe era:** senior = hardware optimization, batch processing expertise
+- **PC/C era:** senior = systems programming, memory management
+- **Web/Java era:** senior = architecture, design patterns, team management
+- **Mobile/cloud era:** senior = cross-functional coordination, distributed systems
+- **AI era:** senior = AI orchestration, system design, less people management?
+
+We construct a longitudinal skill taxonomy from job postings to test whether the AI transition is producing a comparable archetypal shift — specifically, whether the new "senior" looks more like a technical systems architect than a people manager. This places our findings in the longer arc of computing history rather than treating AI as an unprecedented rupture.
+
+**Feasibility: Medium.** Pre-2020 data (Lightcast/Burning Glass) is needed for the full historical arc. The 2023–2026 window from our current data can establish the most recent shift. Historical comparison draws on published descriptions of prior-era role requirements (qualitative + BLS/O*NET occupation definitions over time).
 
 ---
 
@@ -97,6 +118,9 @@ This is the prescriptive contribution. We derive training recommendations direct
 | Junior-Senior similarity | Cosine similarity of junior vs. senior posting embeddings | 1 |
 | Individual skill prevalence | Per-skill frequency in junior postings over time (for task migration map) | 2 |
 | Description length | Median word count per posting | 1 |
+| Management keyword freq | Frequency of "mentorship," "coaching," "hiring," "team lead," "performance review" in senior postings | 6 |
+| AI-orchestration keyword freq | Frequency of "AI agent," "LLM," "prompt engineering," "model evaluation," "orchestration" in senior postings | 6 |
+| Senior archetype shift index | Ratio of AI-orchestration to management keywords in senior postings over time | 6, 7 |
 
 ### Independent Variables
 
@@ -148,6 +172,19 @@ Y_it = α + β₁(SWE) + β₂(PostAgent) + β₃(SWE × PostAgent) + γX + ε
 
 β₃ isolates SWE-specific change from macro trends.
 
+### RQ6: Senior Role Transformation
+
+```
+MgmtKeywords_it = α + β₁(Time) + β₂(PostAgent) + β₃(TimeSinceAgent) + γX + ε
+AIKeywords_it   = α + β₁(Time) + β₂(PostAgent) + β₃(TimeSinceAgent) + γX + ε
+```
+
+Same ITS framework as RQ3, applied to senior postings only. β₂ captures level shift in management vs. AI-orchestration keyword prevalence around the agent deployment date. We also compute the archetype shift index (AI/management keyword ratio) and test for a structural break.
+
+### RQ7: Historical Comparison
+
+Qualitative + descriptive. Construct a decade-by-decade summary of the modal "senior SWE" skill profile using O*NET, BLS occupation descriptions, and Lightcast data (where available). Compare the 2025–2026 shift magnitude and direction against prior platform transitions. This is contextualization, not causal identification.
+
 ---
 
 ## Expected Outputs
@@ -167,6 +204,10 @@ Y_it = α + β₁(SWE) + β₂(PostAgent) + β₃(SWE × PostAgent) + γX + ε
 | **Table 4** | Bai-Perron breakpoint dates |
 | **Table 5** | Placebo tests |
 | **Table 6** | DiD: SWE vs. control occupations |
+| **Fig 8** | Management vs. AI-orchestration keyword frequency in senior postings over time |
+| **Fig 9** | Senior archetype shift index (AI/management ratio) with breakpoint |
+| **Fig 10** | Historical comparison: senior SWE archetype by platform era |
+| **Table 7** | ITS estimates for management and AI-orchestration keywords in senior postings |
 
 ---
 
@@ -194,7 +235,11 @@ Y_it = α + β₁(SWE) + β₂(PostAgent) + β₃(SWE × PostAgent) + γX + ε
 
 2. **Endogenous breakpoint identification.** First application of Bai-Perron to the junior SWE labor market. The data identifies regime change — not the researcher.
 
-3. **Training framework.** Five principles for redesigning the junior pipeline, each derived from an empirical finding and validated against cross-profession precedents (radiology, accounting, aviation, surgery). See Appendix B.
+3. **Full-ladder restructuring.** We show that AI is not just eliminating junior roles — it is simultaneously redefining senior ones. The "senior SWE" archetype is shifting from people-manager to technical-orchestrator. This bidirectional compression has no precedent in the AI-and-labor literature, which focuses almost exclusively on displacement or augmentation at a single level.
+
+4. **Historical platform-shift framing.** We place the current restructuring in the context of prior computing transitions (mainframe → PC → web → mobile), each of which redefined what "senior" meant. This provides a framework for predicting how the current shift will stabilize.
+
+5. **Training framework.** Five principles for redesigning the junior pipeline, each derived from an empirical finding and validated against cross-profession precedents (radiology, accounting, aviation, surgery). See Appendix B.
 
 ---
 

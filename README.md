@@ -1,6 +1,6 @@
-# The AI Restructuring of Junior SWE Labor
+# The AI Restructuring of the SWE Seniority Ladder
 
-Research project studying how AI coding agents are restructuring junior software engineer roles, using job postings data.
+Research project studying how AI coding agents are restructuring software engineer roles across the entire seniority ladder — junior roles disappearing or absorbing senior requirements, senior roles shedding people-management and gaining AI-orchestration skills. Uses job postings data (Kaggle 2023–2024, daily LinkedIn/Indeed/YC scraping 2026+).
 
 ## Project Structure
 
@@ -369,9 +369,115 @@ aws s3 sync s3://swe-labor-research/scraped/ data/scraped/
 aws s3 cp s3://swe-labor-research/scraper_status.json - | python3 -m json.tool
 ```
 
-## Research Context
+## Accessing the data (collaborators)
 
-This scraper feeds data into a study of how AI coding agents are restructuring junior SWE roles. See:
+All scraped data is synced daily to S3. You need AWS credentials with read access to the bucket.
+
+### 1. Get credentials
+
+Ask the project lead for an IAM access key scoped to `s3://swe-labor-research` (read-only). Then configure:
+
+```bash
+aws configure
+# AWS Access Key ID: <your key>
+# AWS Secret Access Key: <your secret>
+# Default region: us-east-1
+# Default output format: json
+```
+
+### 2. Download the data
+
+```bash
+# Download all scraped data
+aws s3 sync s3://swe-labor-research/scraped/ data/scraped/
+
+# Download a specific day
+aws s3 cp s3://swe-labor-research/scraped/2026-03-17_swe_jobs.csv data/scraped/
+
+# Just list what's available
+aws s3 ls s3://swe-labor-research/scraped/ | tail -20
+```
+
+### 3. Build the unified dataset
+
+After downloading, rebuild the analysis-ready parquet:
+
+```bash
+source .venv/bin/activate
+python3 scraper/harmonize.py
+# Outputs: data/unified.parquet
+```
+
+The parquet file is not stored in S3 — it's rebuilt locally from the CSVs so you always get the latest harmonization logic.
+
+## Checking scraper health
+
+The scraper runs daily at 6 AM UTC on EC2. Here's how to check if it's working.
+
+### From your local machine (via S3)
+
+```bash
+# Check the latest scraper status (updated after each run)
+aws s3 cp s3://swe-labor-research/scraper_status.json - | python3 -m json.tool
+
+# See the most recent files — are dates current?
+aws s3 ls s3://swe-labor-research/scraped/ | tail -10
+
+# Count how many days of data we have
+aws s3 ls s3://swe-labor-research/scraped/ | grep "_swe_jobs.csv" | wc -l
+
+# Check file sizes (if a CSV is suspiciously small, the scrape may have been rate-limited)
+aws s3 ls s3://swe-labor-research/scraped/ --human-readable | grep "$(date +%Y-%m)" | head -20
+```
+
+### From EC2 (SSH in)
+
+```bash
+ssh -i ~/path/to/scraper-key.pem ec2-user@<PUBLIC_IP>
+# Get the public IP: AWS Console → EC2 (us-east-2) → Instances → swe-scraper
+
+cd ~/research && source .env && source .venv/bin/activate
+
+# Is the scraper running right now?
+ls -la .scraper.lock 2>/dev/null && echo "Running (PID: $(cat .scraper.lock))" || echo "Not running"
+
+# Check today's log
+tail -50 logs/scrape_$(date +%Y-%m-%d).log
+
+# Check the cron job is still installed
+crontab -l
+
+# Quick data health check
+echo "SWE files: $(ls data/scraped/*_swe_jobs.csv 2>/dev/null | wc -l)"
+echo "Latest SWE file: $(ls -t data/scraped/*_swe_jobs.csv 2>/dev/null | head -1)"
+echo "Disk usage: $(du -sh data/scraped/)"
+
+# Row counts for the last 7 days
+for f in $(ls -t data/scraped/*_swe_jobs.csv 2>/dev/null | head -7); do
+  echo "$(basename $f): $(($(wc -l < $f) - 1)) rows"
+done
+```
+
+### What to look for
+
+| Signal | Healthy | Unhealthy |
+|--------|---------|-----------|
+| Latest file date | Today or yesterday | 2+ days old |
+| SWE CSV row count | 200–2000+ rows | < 50 rows (rate-limited) or 0 |
+| `scraper_status.json` status | `success` | `failure` or `warning` |
+| Log file | Ends with "Done (exit code 0)" | Retries, errors, or missing |
+| Lock file | Absent (not currently running) | Present for 6+ hours (stuck) |
+
+### If something is wrong
+
+1. **No recent files** → SSH into EC2, check `crontab -l` and logs
+2. **Files exist but tiny** → LinkedIn is rate-limiting; check logs for "circuit breaker" or "0 results"
+3. **Scraper stuck** → `rm .scraper.lock` on EC2 and re-run manually
+4. **EC2 instance stopped** → Restart from AWS Console (us-east-2), IP will change
+
+## Research context
+
+This project studies how AI coding agents are restructuring SWE roles across the entire seniority ladder. See:
 
 - `docs/research-design-h1-h3.md` — Research questions and empirical strategy
 - `docs/validation-plan.md` — ML approaches for each research question
@@ -384,3 +490,5 @@ This scraper feeds data into a study of how AI coding agents are restructuring j
 3. Was there a structural break in late 2025?
 4. Is this SWE-specific or a broader labor market trend?
 5. What should replace the broken junior training pipeline?
+6. Are senior SWE roles shedding management requirements and gaining AI-orchestration ones?
+7. Does the current restructuring follow the pattern of prior platform shifts (mainframe → PC → web → mobile → AI)?

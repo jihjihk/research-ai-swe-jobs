@@ -31,6 +31,14 @@ LOCK_MAX_AGE_SECONDS=21600  # 6 hours — stale lock threshold (2 sites take lon
 MAX_RETRIES=3
 RETRY_DELAY_BASE=300  # 5 minutes, doubles each retry
 LOG_RETENTION_DAYS=30
+
+# Source .env if it exists (needed for cron, which has a minimal environment)
+if [[ -f "$PROJECT_DIR/.env" ]]; then
+    set -a
+    source "$PROJECT_DIR/.env"
+    set +a
+fi
+
 S3_BUCKET="${S3_BUCKET:-}"  # set to "s3://your-bucket" to enable S3 sync
 
 # Determine Python binary
