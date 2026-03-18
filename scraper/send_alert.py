@@ -23,6 +23,16 @@ DATA_DIR = PROJECT_DIR / "data"
 SCRAPED_DIR = DATA_DIR / "scraped"
 LOG_DIR = PROJECT_DIR / "logs"
 
+# Load .env if it exists (so SNS_TOPIC_ARN is available even without sourcing)
+ENV_FILE = PROJECT_DIR / ".env"
+if ENV_FILE.exists():
+    with open(ENV_FILE) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
+
 
 def get_today_files(today: str) -> dict:
     """Find today's scraped CSV files and return paths + row counts."""
@@ -114,11 +124,24 @@ def get_cumulative_stats() -> dict:
         stats["days_scraped"] = len(swe_files)
         stats["first_date"] = swe_files[0].name[:10]
         stats["last_date"] = swe_files[-1].name[:10]
+        # Total SWE rows across all files
+        total_rows = 0
+        for f in swe_files:
+            with open(f) as fh:
+                total_rows += sum(1 for _ in fh) - 1  # subtract header
+        stats["total_swe_rows"] = total_rows
 
     unified = DATA_DIR / "unified.parquet"
     if unified.exists():
         size_mb = unified.stat().st_size / (1024 * 1024)
         stats["unified_size"] = f"{size_mb:.1f} MB"
+        # Try to get row count from parquet metadata (fast, no full read)
+        try:
+            import pyarrow.parquet as pq
+            meta = pq.read_metadata(unified)
+            stats["unified_rows"] = meta.num_rows
+        except Exception:
+            pass
 
     return stats
 
@@ -171,12 +194,13 @@ def build_summary(args, today: str) -> str:
 
     # Trend comparison
     lines.append("--- Trend ---")
+    today_swe = files.get(f"{today}_swe_jobs.csv", {}).get("rows", 0) if files else 0
     yesterday_count = get_previous_day_count(today)
     avg_7d = get_7day_average(today)
     if yesterday_count is not None:
-        delta = args.swe_count - yesterday_count
+        delta = today_swe - yesterday_count
         sign = "+" if delta >= 0 else ""
-        lines.append(f"  vs yesterday: {sign}{delta} ({yesterday_count:,} -> {args.swe_count:,})")
+        lines.append(f"  vs yesterday: {sign}{delta} ({yesterday_count:,} -> {today_swe:,})")
     if avg_7d is not None:
         lines.append(f"  7-day avg: {avg_7d:,.0f} SWE jobs/day")
     if yesterday_count is None and avg_7d is None:
@@ -205,8 +229,12 @@ def build_summary(args, today: str) -> str:
         lines.append("--- Cumulative ---")
         if "days_scraped" in cum:
             lines.append(f"  Days scraped: {cum['days_scraped']} ({cum['first_date']} to {cum['last_date']})")
-        if "unified_size" in cum:
-            lines.append(f"  Unified dataset: {cum['unified_size']}")
+        if "total_swe_rows" in cum:
+            lines.append(f"  Total SWE rows (all CSVs): {cum['total_swe_rows']:,}")
+        if "unified_rows" in cum:
+            lines.append(f"  Unified parquet: {cum['unified_rows']:,} rows ({cum.get('unified_size', '?')})")
+        elif "unified_size" in cum:
+            lines.append(f"  Unified parquet: {cum['unified_size']}")
         lines.append("")
 
     # Errors
