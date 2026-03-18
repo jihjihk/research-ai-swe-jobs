@@ -8,13 +8,13 @@ Research project studying how AI coding agents are restructuring software engine
 research/
 ├── README.md
 ├── setup.sh                       # One-command setup for new machines
-├── alerts.conf                    # Alert channel configuration
+├── .env                           # Environment config (S3_BUCKET, SNS_TOPIC_ARN) — not in git
 │
 ├── scraper/                       # Scraping pipeline
 │   ├── scrape_linkedin_swe.py     # LinkedIn + Indeed scraper (python-jobspy)
 │   ├── scrape_yc.py               # Y Combinator / Work at a Startup scraper
 │   ├── harmonize.py               # Unifies all data sources into one schema
-│   ├── send_alert.py              # Alert dispatcher (email, Slack, Discord, ntfy, file)
+│   ├── send_alert.py              # Daily summary + SNS alerting
 │   └── run_daily.sh               # Cron wrapper (lock file, retries, log rotation)
 │
 ├── notebooks/                     # Analysis
@@ -153,8 +153,8 @@ The wrapper adds:
 - **Retries** — up to 3 attempts with exponential backoff (5 min, 10 min, 20 min)
 - **Log rotation** — deletes logs older than 30 days
 - **Post-run summary** — logs row count and accumulated file count
-- **S3 sync** — uploads results to S3 if `S3_BUCKET` is configured
-- **Alerts** — sends success/failure/warning notifications via configured channels
+- **S3 sync** — uploads daily CSVs, unified parquet, and status JSON to S3 if `S3_BUCKET` is configured
+- **Alerts** — sends daily summary email via AWS SNS (job counts, trends, data quality, sample postings)
 
 ### Cron job management
 
@@ -301,18 +301,37 @@ echo "Disk usage: $(du -sh data/scraped/)"
 
 ## Alerts
 
-The scraper sends alerts on success, failure, or suspiciously low job counts. Configure channels in `alerts.conf`.
+After each daily run, the scraper sends a summary email via AWS SNS with:
 
-### Supported channels
+- **Status**: success/failure/warning, retry count
+- **Today's counts**: SWE jobs, control jobs, YC jobs, total
+- **Trend**: comparison to yesterday and 7-day average
+- **Data quality**: fill rates for key fields (seniority, location, company)
+- **Sample postings**: 5 random job titles from today's scrape
+- **Cumulative stats**: total days scraped, date range, unified dataset size
+- **Errors**: recent error/warning lines from logs (if any)
 
-| Channel | Setup | Best for |
-|---------|-------|----------|
-| **File** (default) | Enabled by default, writes to `data/scraper_status.json` | Local agents (e.g., openclaw) watching for changes |
-| **Email** | Set SMTP credentials in `alerts.conf` | Gmail, Outlook, any SMTP server |
-| **Slack** | Create a [webhook URL](https://api.slack.com/messaging/webhooks) | Team notifications |
-| **Discord** | Channel settings > Integrations > Webhooks | Personal notifications |
-| **ntfy.sh** | Just pick a topic name, install [ntfy app](https://ntfy.sh) | Free push notifications to phone, no signup |
-| **macOS** | Enable in `alerts.conf` | Desktop notifications (only works in GUI session) |
+A JSON status file is also written to `data/scraper_status.json` and synced to S3 after each run.
+
+### Setup
+
+SNS alerting requires two environment variables in `~/research/.env` on EC2:
+
+```bash
+S3_BUCKET=s3://swe-labor-research
+SNS_TOPIC_ARN=arn:aws:sns:us-east-2:812064793967:scraper-alerts
+```
+
+To add a new email subscriber:
+
+```bash
+# On EC2:
+aws sns subscribe \
+  --topic-arn arn:aws:sns:us-east-2:812064793967:scraper-alerts \
+  --protocol email \
+  --notification-endpoint new-person@email.com
+# They must click the confirmation link in their inbox
+```
 
 ### Alert triggers
 
@@ -321,6 +340,17 @@ The scraper sends alerts on success, failure, or suspiciously low job counts. Co
 | Scrape completes normally | `success` |
 | Full run collects < 10 SWE jobs | `warning` (suspiciously low) |
 | Scraper fails after 3 retries | `failure` |
+
+### Test alerting
+
+```bash
+# Send a test email for a specific date
+source .venv/bin/activate
+python scraper/send_alert.py --status success --swe-count 100 --total-count 150 --attempt 1 --date 2026-03-17
+
+# Send a test for today
+python scraper/send_alert.py --status success --swe-count 0 --total-count 0 --attempt 1 --message "Test alert"
+```
 
 ## Infrastructure
 
@@ -408,7 +438,7 @@ python3 scraper/harmonize.py
 # Outputs: data/unified.parquet
 ```
 
-The parquet file is not stored in S3 — it's rebuilt locally from the CSVs so you always get the latest harmonization logic.
+The unified parquet is also synced to S3 daily (`s3://swe-labor-research/unified.parquet`), but rebuilding locally ensures you get the latest harmonization logic.
 
 ## Checking scraper health
 

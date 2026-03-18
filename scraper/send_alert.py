@@ -1,151 +1,250 @@
 #!/usr/bin/env python3
 """
-Send scraper alerts via configured channels.
+Send daily scraper summary via AWS SNS.
 
-Usage:
-    python send_alert.py --status success --message "Scraped 450 SWE jobs"
-    python send_alert.py --status failure --message "Circuit breaker hit after 5 failures"
-    python send_alert.py --status warning --message "Only 12 jobs collected (expected 200+)"
+Usage (called by run_daily.sh):
+    python send_alert.py --status success --swe-count 150 --total-count 200 --attempt 1
+    python send_alert.py --status failure --message "Scraper failed" --attempt 3
 
-Reads alerts.conf for enabled channels and credentials.
+Requires SNS_TOPIC_ARN in environment (set via .env).
 """
 
 import argparse
+import csv
 import json
 import os
-import smtplib
-import subprocess
+import random
 import sys
-import urllib.request
-import urllib.error
-from datetime import datetime
-from email.mime.text import MIMEText
+from datetime import datetime, timedelta
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).parent.parent  # project root (one level up from scraper/)
-CONF_FILE = SCRIPT_DIR / "alerts.conf"
+PROJECT_DIR = Path(__file__).parent.parent
+DATA_DIR = PROJECT_DIR / "data"
+SCRAPED_DIR = DATA_DIR / "scraped"
+LOG_DIR = PROJECT_DIR / "logs"
 
 
-def load_conf() -> dict:
-    """Parse alerts.conf into a dict (simple KEY=value format)."""
-    conf = {}
-    if not CONF_FILE.exists():
-        return conf
-    with open(CONF_FILE) as f:
+def get_today_files(today: str) -> dict:
+    """Find today's scraped CSV files and return paths + row counts."""
+    files = {}
+    for pattern in [f"{today}_swe_jobs.csv", f"{today}_non_swe_jobs.csv", f"{today}_yc_jobs.csv"]:
+        path = SCRAPED_DIR / pattern
+        if path.exists():
+            with open(path) as f:
+                reader = csv.reader(f)
+                header = next(reader, None)
+                rows = sum(1 for _ in reader)
+            files[pattern] = {"path": path, "rows": rows, "columns": len(header) if header else 0}
+    return files
+
+
+def get_previous_day_count(today: str) -> int | None:
+    """Get yesterday's SWE job count for comparison."""
+    yesterday = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    path = SCRAPED_DIR / f"{yesterday}_swe_jobs.csv"
+    if path.exists():
+        with open(path) as f:
+            return sum(1 for _ in f) - 1  # subtract header
+    return None
+
+
+def get_7day_average(today: str) -> float | None:
+    """Get 7-day average SWE job count."""
+    counts = []
+    for i in range(1, 8):
+        day = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=i)).strftime("%Y-%m-%d")
+        path = SCRAPED_DIR / f"{day}_swe_jobs.csv"
+        if path.exists():
+            with open(path) as f:
+                counts.append(sum(1 for _ in f) - 1)
+    return round(sum(counts) / len(counts), 1) if counts else None
+
+
+def get_sample_titles(today: str, n: int = 5) -> list[str]:
+    """Get random sample of job titles from today's SWE file."""
+    path = SCRAPED_DIR / f"{today}_swe_jobs.csv"
+    if not path.exists():
+        return []
+    with open(path) as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+    if not rows:
+        return []
+    sample = random.sample(rows, min(n, len(rows)))
+    titles = []
+    for r in sample:
+        title = r.get("title", r.get("job_title", "Unknown"))
+        company = r.get("company", r.get("company_name", ""))
+        loc = r.get("location", "")
+        line = f"  {title}"
+        if company:
+            line += f" @ {company}"
+        if loc:
+            line += f" ({loc})"
+        titles.append(line)
+    return titles
+
+
+def get_data_quality(today: str) -> dict:
+    """Check null rates for key fields in today's SWE file."""
+    path = SCRAPED_DIR / f"{today}_swe_jobs.csv"
+    if not path.exists():
+        return {}
+    with open(path) as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+    if not rows:
+        return {}
+
+    key_fields = ["seniority", "location", "company", "company_name", "salary", "skills_raw"]
+    quality = {}
+    for field in key_fields:
+        if field in rows[0]:
+            total = len(rows)
+            filled = sum(1 for r in rows if r.get(field, "").strip())
+            quality[field] = f"{round(filled / total * 100)}% filled"
+    return quality
+
+
+def get_cumulative_stats() -> dict:
+    """Stats on total accumulated data."""
+    stats = {}
+    swe_files = sorted(SCRAPED_DIR.glob("*_swe_jobs.csv"))
+    if swe_files:
+        stats["days_scraped"] = len(swe_files)
+        stats["first_date"] = swe_files[0].name[:10]
+        stats["last_date"] = swe_files[-1].name[:10]
+
+    unified = DATA_DIR / "unified.parquet"
+    if unified.exists():
+        size_mb = unified.stat().st_size / (1024 * 1024)
+        stats["unified_size"] = f"{size_mb:.1f} MB"
+
+    return stats
+
+
+def get_recent_errors(today: str, n: int = 5) -> list[str]:
+    """Get last N error/warning lines from today's log."""
+    if not LOG_DIR.exists():
+        return []
+    # Find today's log file
+    log_files = sorted(LOG_DIR.glob(f"*{today}*.log"), reverse=True)
+    if not log_files:
+        log_files = sorted(LOG_DIR.glob("*.log"), reverse=True)
+    if not log_files:
+        return []
+
+    errors = []
+    with open(log_files[0]) as f:
         for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                key, val = line.split("=", 1)
-                # Strip surrounding quotes
-                val = val.strip().strip('"').strip("'")
-                conf[key.strip()] = val
-    return conf
+            lower = line.lower()
+            if any(kw in lower for kw in ["error", "warn", "fail", "exception", "traceback"]):
+                errors.append(line.strip()[:120])
+    return errors[-n:]
 
 
-def send_email(conf: dict, subject: str, body: str):
-    host = conf.get("ALERT_EMAIL_SMTP_HOST", "smtp.gmail.com")
-    port = int(conf.get("ALERT_EMAIL_SMTP_PORT", "587"))
-    user = conf.get("ALERT_EMAIL_SMTP_USER", "")
-    passwd = conf.get("ALERT_EMAIL_SMTP_PASS", "")
-    from_addr = conf.get("ALERT_EMAIL_FROM", user)
-    to_addr = conf.get("ALERT_EMAIL_TO", "")
+def build_summary(args, today: str) -> str:
+    """Build the full summary email body."""
+    lines = []
+    status_icon = {"success": "OK", "failure": "FAILED", "warning": "WARNING"}[args.status]
 
-    if not all([user, passwd, to_addr]):
-        print("  [email] Missing credentials, skipping")
-        return
+    # Header
+    lines.append(f"=== SWE Job Scraper Daily Report ===")
+    lines.append(f"Date: {today}")
+    lines.append(f"Status: {status_icon}")
+    lines.append(f"Attempts: {args.attempt}")
+    if args.message:
+        lines.append(f"Note: {args.message}")
+    lines.append("")
 
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = from_addr
-    msg["To"] = to_addr
+    # Today's counts
+    lines.append("--- Today's Scrape ---")
+    files = get_today_files(today)
+    if files:
+        for name, info in files.items():
+            label = name.replace(f"{today}_", "").replace(".csv", "")
+            lines.append(f"  {label}: {info['rows']:,} jobs")
+        lines.append(f"  Total: {sum(f['rows'] for f in files.values()):,} jobs")
+    else:
+        lines.append("  No files found for today")
+    lines.append("")
 
-    try:
-        with smtplib.SMTP(host, port, timeout=30) as server:
-            server.starttls()
-            server.login(user, passwd)
-            server.sendmail(from_addr, [to_addr], msg.as_string())
-        print(f"  [email] Sent to {to_addr}")
-    except Exception as e:
-        print(f"  [email] Failed: {e}")
+    # Trend comparison
+    lines.append("--- Trend ---")
+    yesterday_count = get_previous_day_count(today)
+    avg_7d = get_7day_average(today)
+    if yesterday_count is not None:
+        delta = args.swe_count - yesterday_count
+        sign = "+" if delta >= 0 else ""
+        lines.append(f"  vs yesterday: {sign}{delta} ({yesterday_count:,} -> {args.swe_count:,})")
+    if avg_7d is not None:
+        lines.append(f"  7-day avg: {avg_7d:,.0f} SWE jobs/day")
+    if yesterday_count is None and avg_7d is None:
+        lines.append("  No prior data for comparison")
+    lines.append("")
 
+    # Data quality
+    quality = get_data_quality(today)
+    if quality:
+        lines.append("--- Data Quality ---")
+        for field, pct in quality.items():
+            lines.append(f"  {field}: {pct}")
+        lines.append("")
 
-def send_slack(conf: dict, subject: str, body: str, status: str):
-    url = conf.get("ALERT_SLACK_WEBHOOK_URL", "")
-    if not url:
-        print("  [slack] No webhook URL, skipping")
-        return
+    # Sample titles
+    samples = get_sample_titles(today)
+    if samples:
+        lines.append("--- Sample Postings ---")
+        for s in samples:
+            lines.append(s)
+        lines.append("")
 
-    icon = {"success": ":white_check_mark:", "failure": ":x:", "warning": ":warning:"}.get(status, ":bell:")
-    payload = json.dumps({
-        "text": f"{icon} *{subject}*\n```{body}```"
-    }).encode()
+    # Cumulative stats
+    cum = get_cumulative_stats()
+    if cum:
+        lines.append("--- Cumulative ---")
+        if "days_scraped" in cum:
+            lines.append(f"  Days scraped: {cum['days_scraped']} ({cum['first_date']} to {cum['last_date']})")
+        if "unified_size" in cum:
+            lines.append(f"  Unified dataset: {cum['unified_size']}")
+        lines.append("")
 
-    try:
-        req = urllib.request.Request(url, data=payload,
-                                     headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req, timeout=15)
-        print("  [slack] Sent")
-    except Exception as e:
-        print(f"  [slack] Failed: {e}")
+    # Errors
+    errors = get_recent_errors(today)
+    if errors:
+        lines.append("--- Recent Errors/Warnings ---")
+        for e in errors:
+            lines.append(f"  {e}")
+        lines.append("")
 
-
-def send_discord(conf: dict, subject: str, body: str, status: str):
-    url = conf.get("ALERT_DISCORD_WEBHOOK_URL", "")
-    if not url:
-        print("  [discord] No webhook URL, skipping")
-        return
-
-    icon = {"success": "\u2705", "failure": "\u274c", "warning": "\u26a0\ufe0f"}.get(status, "\U0001f514")
-    payload = json.dumps({
-        "content": f"{icon} **{subject}**\n```{body}```"
-    }).encode()
-
-    try:
-        req = urllib.request.Request(url, data=payload,
-                                     headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req, timeout=15)
-        print("  [discord] Sent")
-    except Exception as e:
-        print(f"  [discord] Failed: {e}")
-
-
-def send_ntfy(conf: dict, subject: str, body: str, status: str):
-    topic = conf.get("ALERT_NTFY_TOPIC", "")
-    server = conf.get("ALERT_NTFY_SERVER", "https://ntfy.sh")
-    if not topic:
-        print("  [ntfy] No topic, skipping")
-        return
-
-    priority = {"success": "low", "failure": "urgent", "warning": "high"}.get(status, "default")
-    tags = {"success": "white_check_mark", "failure": "x", "warning": "warning"}.get(status, "bell")
-    url = f"{server}/{topic}"
-
-    try:
-        req = urllib.request.Request(url, data=body.encode(), headers={
-            "Title": subject,
-            "Priority": priority,
-            "Tags": tags,
-        })
-        urllib.request.urlopen(req, timeout=15)
-        print("  [ntfy] Sent")
-    except Exception as e:
-        print(f"  [ntfy] Failed: {e}")
+    return "\n".join(lines)
 
 
-def send_file_alert(conf: dict, status: str, message: str, details: dict):
-    path = conf.get("ALERT_FILE_PATH", str(SCRIPT_DIR / "data" / "scraper_status.json"))
+def send_sns(topic_arn: str, subject: str, message: str):
+    """Publish to SNS topic."""
+    import boto3
+    client = boto3.client("sns")
+    client.publish(
+        TopicArn=topic_arn,
+        Subject=subject[:100],  # SNS subject limit
+        Message=message,
+    )
+    print(f"  [sns] Sent to {topic_arn}")
+
+
+def send_file_alert(status: str, message: str, swe_count: int, total_count: int):
+    """Write status to JSON file (for S3 sync / dashboard)."""
+    path = DATA_DIR / "scraper_status.json"
     payload = {
         "status": status,
         "message": message,
         "timestamp": datetime.now().isoformat(),
-        "details": details,
+        "swe_count": swe_count,
+        "total_count": total_count,
     }
 
-    # Append to history and keep last 30 entries
     history = []
-    if Path(path).exists():
+    if path.exists():
         try:
             with open(path) as f:
                 existing = json.load(f)
@@ -156,74 +255,41 @@ def send_file_alert(conf: dict, status: str, message: str, details: dict):
     history.append(payload)
     history = history[-30:]
 
-    output = {
-        "current": payload,
-        "history": history,
-    }
-
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump({"current": payload, "history": history}, f, indent=2)
     print(f"  [file] Written to {path}")
 
 
-def send_macos_notification(subject: str, body: str):
-    try:
-        # Truncate body for notification
-        short_body = body[:200].replace('"', '\\"')
-        subprocess.run([
-            "osascript", "-e",
-            f'display notification "{short_body}" with title "{subject}"'
-        ], timeout=5, capture_output=True)
-        print("  [macos] Sent")
-    except Exception as e:
-        print(f"  [macos] Failed: {e}")
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Send scraper alerts")
+    parser = argparse.ArgumentParser(description="Send scraper daily summary")
     parser.add_argument("--status", required=True, choices=["success", "failure", "warning"])
-    parser.add_argument("--message", required=True)
+    parser.add_argument("--message", default="")
     parser.add_argument("--swe-count", type=int, default=0)
     parser.add_argument("--total-count", type=int, default=0)
     parser.add_argument("--attempt", type=int, default=0)
+    parser.add_argument("--date", default=None, help="Report date (YYYY-MM-DD). Defaults to today.")
     args = parser.parse_args()
 
-    conf = load_conf()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    subject = f"[SWE Scraper] {args.status.upper()} — {now}"
-    body = (f"Status: {args.status}\n"
-            f"Time: {now}\n"
-            f"Message: {args.message}\n"
-            f"SWE jobs: {args.swe_count}\n"
-            f"Total jobs: {args.total_count}\n"
-            f"Attempt: {args.attempt}")
+    today = args.date or datetime.now().strftime("%Y-%m-%d")
+    subject = f"[SWE Scraper] {args.status.upper()} - {today} - {args.swe_count} SWE jobs"
+    summary = build_summary(args, today)
 
-    details = {
-        "swe_count": args.swe_count,
-        "total_count": args.total_count,
-        "attempt": args.attempt,
-    }
+    print(f"Sending alert: {args.status}")
+    print(summary)
 
-    print(f"Sending alert: {args.status} — {args.message}")
+    # Always write status file
+    send_file_alert(args.status, args.message, args.swe_count, args.total_count)
 
-    if conf.get("ALERT_EMAIL_ENABLED", "").lower() == "true":
-        send_email(conf, subject, body)
-
-    if conf.get("ALERT_SLACK_ENABLED", "").lower() == "true":
-        send_slack(conf, subject, body, args.status)
-
-    if conf.get("ALERT_DISCORD_ENABLED", "").lower() == "true":
-        send_discord(conf, subject, body, args.status)
-
-    if conf.get("ALERT_NTFY_ENABLED", "").lower() == "true":
-        send_ntfy(conf, subject, body, args.status)
-
-    if conf.get("ALERT_FILE_ENABLED", "").lower() == "true":
-        send_file_alert(conf, args.status, args.message, details)
-
-    if conf.get("ALERT_MACOS_ENABLED", "").lower() == "true":
-        send_macos_notification(subject, body)
+    # Send via SNS if configured
+    topic_arn = os.environ.get("SNS_TOPIC_ARN", "")
+    if topic_arn:
+        try:
+            send_sns(topic_arn, subject, summary)
+        except Exception as e:
+            print(f"  [sns] Failed: {e}", file=sys.stderr)
+    else:
+        print("  [sns] SNS_TOPIC_ARN not set, skipping")
 
 
 if __name__ == "__main__":
