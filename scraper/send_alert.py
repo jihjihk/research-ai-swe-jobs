@@ -38,7 +38,7 @@ def get_today_files(today: str) -> dict:
     return files
 
 
-def get_previous_day_count(today: str) -> int | None:
+def get_previous_day_count(today: str):
     """Get yesterday's SWE job count for comparison."""
     yesterday = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
     path = SCRAPED_DIR / f"{yesterday}_swe_jobs.csv"
@@ -48,7 +48,7 @@ def get_previous_day_count(today: str) -> int | None:
     return None
 
 
-def get_7day_average(today: str) -> float | None:
+def get_7day_average(today: str):
     """Get 7-day average SWE job count."""
     counts = []
     for i in range(1, 8):
@@ -60,7 +60,7 @@ def get_7day_average(today: str) -> float | None:
     return round(sum(counts) / len(counts), 1) if counts else None
 
 
-def get_sample_titles(today: str, n: int = 5) -> list[str]:
+def get_sample_titles(today: str, n: int = 5):
     """Get random sample of job titles from today's SWE file."""
     path = SCRAPED_DIR / f"{today}_swe_jobs.csv"
     if not path.exists():
@@ -123,7 +123,7 @@ def get_cumulative_stats() -> dict:
     return stats
 
 
-def get_recent_errors(today: str, n: int = 5) -> list[str]:
+def get_recent_errors(today: str, n: int = 5):
     """Get last N error/warning lines from today's log."""
     if not LOG_DIR.exists():
         return []
