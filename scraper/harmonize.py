@@ -46,14 +46,54 @@ UNIFIED_COLUMNS = [
     "company_industry", # industry (if available)
     "company_size",     # employee count (float)
     "job_url",          # link to posting
-    "is_swe",           # bool: matches SWE title regex
+    "job_group",        # "swe" | "control" | "adjacent" | "other"
+    "is_swe",           # bool: job_group == "swe"
+    "is_control",       # bool: job_group == "control"
 ]
 
+# ---------------------------------------------------------------------------
+# Classification patterns — must stay aligned with scrape_linkedin_swe.py
+# ---------------------------------------------------------------------------
+
+# SWE: matches the scraper's SWE_PATTERN (broader than original, includes AI roles)
 SWE_PATTERN = re.compile(
-    r'(?i)\b(software\s*(engineer|developer|dev)|swe|full[- ]?stack|front[- ]?end|'
+    r'(?i)\b(software\s*(engineer|developer|dev(elopment)?)|swe|full[- ]?stack|front[- ]?end|'
     r'back[- ]?end|web\s*developer|mobile\s*developer|devops|platform\s*engineer|'
-    r'data\s*engineer|ml\s*engineer|machine\s*learning\s*engineer|site\s*reliability)\b'
+    r'data\s*engineer|ml\s*engineer|machine\s*learning\s*engineer|site\s*reliability|'
+    r'ai\s*engineer|ai[/ ]ml\s*engineer|llm\s*engineer|agent\s*engineer|'
+    r'applied\s*ai\s*engineer|prompt\s*engineer|infrastructure\s*engineer|'
+    r'founding\s*engineer|member\s*of\s*technical\s*staff|product\s*engineer|'
+    r'cloud\s*engineer)\b'
 )
+
+# Control: non-AI-exposed occupations for DiD (matches scraper's control tier)
+CONTROL_PATTERN = re.compile(
+    r'(?i)\b(civil\s*engineer|mechanical\s*engineer|electrical\s*engineer|'
+    r'chemical\s*engineer|registered\s*nurse|accountant|'
+    r'financial\s*analyst|marketing\s*manager|'
+    r'human\s*resources|sales\s*representative|nurse\s*practitioner|nursing)\b'
+)
+
+# Adjacent: AI-exposed tech roles that are NOT SWE (comparison group, not control)
+ADJACENT_PATTERN = re.compile(
+    r'(?i)\b(data\s*scientist|data\s*analyst|product\s*manager|'
+    r'ux\s*designer|qa\s*engineer|quality\s*assurance|security\s*engineer|'
+    r'solutions\s*engineer|technical\s*program\s*manager|scrum\s*master|'
+    r'applied\s*scientist)\b'
+)
+
+
+def classify_title(title) -> str:
+    """Classify a job title into swe/control/adjacent/other."""
+    if not isinstance(title, str):
+        return "other"
+    if SWE_PATTERN.search(title):
+        return "swe"
+    if CONTROL_PATTERN.search(title):
+        return "control"
+    if ADJACENT_PATTERN.search(title):
+        return "adjacent"
+    return "other"
 
 
 def strip_markdown(text: str) -> str:
@@ -160,7 +200,9 @@ def harmonize_kaggle(path: str) -> pd.DataFrame:
     out["company_industry"] = None
     out["company_size"] = None
     out["job_url"] = df.get("job_posting_url", None)
-    out["is_swe"] = df["title"].apply(lambda t: bool(SWE_PATTERN.search(str(t))) if isinstance(t, str) else False)
+    out["job_group"] = df["title"].apply(classify_title)
+    out["is_swe"] = out["job_group"] == "swe"
+    out["is_control"] = out["job_group"] == "control"
 
     print(f"  Harmonized: {len(out):,} rows")
     return out
@@ -215,7 +257,9 @@ def harmonize_scraped(scraped_dir: str) -> pd.DataFrame:
     out["company_industry"] = df.get("company_industry")
     out["company_size"] = pd.to_numeric(df.get("company_num_employees"), errors="coerce")
     out["job_url"] = df.get("job_url")
-    out["is_swe"] = df["title"].apply(lambda t: bool(SWE_PATTERN.search(str(t))) if isinstance(t, str) else False)
+    out["job_group"] = df["title"].apply(classify_title)
+    out["is_swe"] = out["job_group"] == "swe"
+    out["is_control"] = out["job_group"] == "control"
 
     print(f"  Harmonized: {len(out):,} rows")
     return out
@@ -248,7 +292,9 @@ def harmonize_apify(path: str) -> pd.DataFrame:
     out["company_industry"] = df.get("industries")
     out["company_size"] = pd.to_numeric(df.get("companyEmployeesCount"), errors="coerce")
     out["job_url"] = df.get("link")
-    out["is_swe"] = df["title"].apply(lambda t: bool(SWE_PATTERN.search(str(t))) if isinstance(t, str) else False)
+    out["job_group"] = df["title"].apply(classify_title)
+    out["is_swe"] = out["job_group"] == "swe"
+    out["is_control"] = out["job_group"] == "control"
 
     print(f"  Harmonized: {len(out):,} rows")
     return out
@@ -290,10 +336,19 @@ def run(args):
     print("\n" + "=" * 60)
     print("QUALITY REPORT")
     print("=" * 60)
+
+    # Job group breakdown
+    print("\n--- JOB GROUP BREAKDOWN ---")
+    for group, count in unified["job_group"].value_counts().items():
+        print(f"  {group:15s} {count:>7,} ({count/len(unified):6.1%})")
+
     for src in unified["source"].unique():
         sub = unified[unified["source"] == src]
         swe = sub[sub["is_swe"]]
-        print(f"\n--- {src} (n={len(sub):,}, SWE={len(swe):,}) ---")
+        ctrl = sub[sub["is_control"]]
+        adj = sub[sub["job_group"] == "adjacent"]
+        other = sub[sub["job_group"] == "other"]
+        print(f"\n--- {src} (n={len(sub):,}, SWE={len(swe):,}, control={len(ctrl):,}, adjacent={len(adj):,}, other={len(other):,}) ---")
         for col in ["title", "description", "seniority", "date_posted",
                      "company_name", "location", "min_salary", "is_remote",
                      "company_industry", "company_size", "skills_raw"]:
@@ -309,6 +364,11 @@ def run(args):
             print(f"  SWE seniority dist:")
             for level, count in swe["seniority"].value_counts().head(6).items():
                 print(f"    {level or '(empty)':25s} {count:5d} ({count/len(swe):.1%})")
+
+        if len(ctrl) > 0:
+            print(f"  Control title dist (top 8):")
+            for title, count in ctrl["title"].value_counts().head(8).items():
+                print(f"    {title[:40]:40s} {count:5d}")
 
     # Cross-period comparison for SWE
     swe_all = unified[unified["is_swe"]]

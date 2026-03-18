@@ -281,6 +281,7 @@ if [[ -n "$S3_BUCKET" ]] && [[ $exit_code -eq 0 ]]; then
     log "Syncing data to $S3_BUCKET..."
     if command -v aws &>/dev/null; then
         aws s3 sync "$PROJECT_DIR/data/scraped/" "$S3_BUCKET/scraped/" --quiet 2>&1 | while read -r line; do log "  $line"; done
+        [[ -f "$PROJECT_DIR/data/unified.parquet" ]] && aws s3 cp "$PROJECT_DIR/data/unified.parquet" "$S3_BUCKET/unified.parquet" --quiet
         [[ -f "$PROJECT_DIR/data/scraper_status.json" ]] && aws s3 cp "$PROJECT_DIR/data/scraper_status.json" "$S3_BUCKET/scraper_status.json" --quiet
         log "S3 sync complete"
     else
