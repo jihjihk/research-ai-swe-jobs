@@ -16,7 +16,7 @@ import hashlib
 import re
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import pandas as pd
 
@@ -32,11 +32,14 @@ UNIFIED_COLUMNS = [
     "source",           # "scraped_linkedin_2026" | "scraped_indeed_2026" | "apify_2026"
     "scrape_date",      # date the data was collected (YYYY-MM-DD)
     "date_posted",      # date the job was posted (YYYY-MM-DD, may be null)
+    "date_posted_raw",  # raw site-provided posting date
+    "date_posted_quality_flag",  # valid | missing | parse_failed | future | stale_gt_60d
     "title",            # raw job title
     "company_name",     # company name
     "location",         # location string
     "seniority",        # normalized: entry level | associate | mid-senior level | director | executive | internship
     "work_type",        # full-time | part-time | contract | internship
+    "work_type_raw",    # raw employment type from source
     "is_remote",        # bool
     "description",      # plain text (markdown stripped)
     "description_raw",  # original description (markdown or HTML preserved)
@@ -47,10 +50,44 @@ UNIFIED_COLUMNS = [
     "company_industry", # industry (if available)
     "company_size",     # employee count (float)
     "job_url",          # link to posting
+    "opening_fingerprint",  # source-agnostic approximate opening key
+    "is_aggregator_posting",  # whether the employer looks like an aggregator/intermediary
+    "aggregator_name",  # normalized aggregator/intermediary label when detected
     "job_group",        # "swe" | "control" | "adjacent" | "other"
     "is_swe",           # bool: job_group == "swe"
     "is_control",       # bool: job_group == "control"
 ]
+
+AGGREGATOR_PATTERNS = [
+    (re.compile(r"(?i)\blensa\b"), "Lensa"),
+    (re.compile(r"(?i)\bjobs?\s+via\s+dice\b|\bvia\s+dice\b|\bdice\b"), "Dice"),
+    (re.compile(r"(?i)\bjobot\b"), "Jobot"),
+    (re.compile(r"(?i)\bjobright(?:\.ai)?\b"), "Jobright"),
+    (re.compile(r"(?i)\bziprecruiter\b"), "ZipRecruiter"),
+    (re.compile(r"(?i)\bebee\b"), "beBee"),
+    (re.compile(r"(?i)\btalentify\b"), "Talentify"),
+    (re.compile(r"(?i)\befinancialcareers\b"), "eFinancialCareers"),
+]
+
+COMPANY_SUFFIXES = {
+    "inc",
+    "incorporated",
+    "llc",
+    "corp",
+    "corporation",
+    "co",
+    "company",
+    "ltd",
+    "limited",
+    "plc",
+    "gmbh",
+    "ag",
+    "sa",
+    "lp",
+    "llp",
+    "pte",
+    "holdings",
+}
 
 # ---------------------------------------------------------------------------
 # Classification patterns — must stay aligned with scrape_linkedin_swe.py
@@ -171,6 +208,132 @@ def normalize_salary_to_annual(amount, pay_period) -> float:
     return amount * multipliers.get(period, 1)
 
 
+def normalize_entity_text(value) -> str:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    text = str(value).strip().lower()
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def normalize_company_for_fingerprint(value) -> str:
+    tokens = normalize_entity_text(value).split()
+    while tokens and tokens[-1] in COMPANY_SUFFIXES:
+        tokens.pop()
+    return " ".join(tokens)
+
+
+def clean_description(text: str) -> str:
+    if not isinstance(text, str):
+        return ""
+    return strip_html(strip_markdown(text))
+
+
+def normalize_location(value) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = re.sub(r"\s+", " ", value).strip()
+    text = re.sub(r",\s*US$", "", text, flags=re.IGNORECASE)
+    return text
+
+
+def parse_company_size(value) -> float:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return float("nan")
+    text = str(value).strip()
+    if not text or text.lower() in {"decline to state", "unknown", "n/a", "none"}:
+        return float("nan")
+
+    plus_match = re.fullmatch(r"([\d,]+)\+", text)
+    if plus_match:
+        return float(plus_match.group(1).replace(",", ""))
+
+    range_match = re.fullmatch(r"([\d,]+)\s*[-–]\s*([\d,]+)", text)
+    if range_match:
+        low = float(range_match.group(1).replace(",", ""))
+        high = float(range_match.group(2).replace(",", ""))
+        return (low + high) / 2
+
+    try:
+        return float(text.replace(",", ""))
+    except ValueError:
+        return float("nan")
+
+
+def normalize_work_type(value) -> str:
+    text = normalize_entity_text(value)
+    if not text:
+        return ""
+
+    labels: list[str] = []
+    checks = [
+        ("full-time", ["full time", "fulltime", "permanent"]),
+        ("part-time", ["part time", "parttime"]),
+        ("contract", ["contract", "contractor", "contract to hire"]),
+        ("internship", ["internship", "intern"]),
+        ("temporary", ["temporary", "temp"]),
+        ("volunteer", ["volunteer"]),
+        ("per-diem", ["per diem", "perdiem"]),
+        ("other", ["other"]),
+    ]
+    padded = f" {text} "
+    for label, patterns in checks:
+        if any(f" {pattern} " in padded for pattern in patterns):
+            labels.append(label)
+
+    if not labels:
+        return text
+
+    order = {name: i for i, name in enumerate([
+        "full-time", "part-time", "contract", "internship",
+        "temporary", "per-diem", "volunteer", "other",
+    ])}
+    labels = sorted(set(labels), key=lambda name: order[name])
+    return ", ".join(labels)
+
+
+def detect_aggregator_name(company_name) -> str:
+    text = "" if company_name is None else str(company_name).strip()
+    if not text:
+        return ""
+    for pattern, label in AGGREGATOR_PATTERNS:
+        if pattern.search(text):
+            return label
+    return ""
+
+
+def normalize_date_posted(raw_value, scrape_date_value) -> tuple[str | None, str]:
+    raw_text = "" if raw_value is None or (isinstance(raw_value, float) and pd.isna(raw_value)) else str(raw_value).strip()
+    if not raw_text:
+        return None, "missing"
+
+    parsed = pd.to_datetime(raw_value, errors="coerce")
+    if pd.isna(parsed):
+        return None, "parse_failed"
+
+    scrape_dt = pd.to_datetime(scrape_date_value, errors="coerce")
+    if not pd.isna(scrape_dt):
+        parsed_day = parsed.normalize()
+        scrape_day = scrape_dt.normalize()
+        if parsed_day > scrape_day:
+            return None, "future"
+        if (scrape_day - parsed_day).days > 60:
+            return None, "stale_gt_60d"
+
+    return parsed.strftime("%Y-%m-%d"), "valid"
+
+
+def make_opening_fingerprint(row) -> str:
+    parts = [
+        normalize_company_for_fingerprint(row.get("company_name")),
+        normalize_entity_text(row.get("title")),
+        normalize_entity_text(row.get("location")),
+        normalize_entity_text(row.get("date_posted")),
+        normalize_entity_text(row.get("work_type")),
+    ]
+    return hashlib.md5("|".join(parts).encode()).hexdigest()
+
+
 def canonicalize_job_url(raw_url) -> str:
     if not isinstance(raw_url, str):
         return ""
@@ -181,7 +344,17 @@ def canonicalize_job_url(raw_url) -> str:
         parts = urlsplit(raw_url)
     except ValueError:
         return raw_url
-    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path, "", ""))
+    query = ""
+    host = parts.netloc.lower()
+    if "indeed.com" in host:
+        stable_params = [
+            (key, value)
+            for key, value in parse_qsl(parts.query, keep_blank_values=False)
+            if key in {"jk", "vjk"}
+        ]
+        if stable_params:
+            query = urlencode(sorted(stable_params))
+    return urlunsplit((parts.scheme.lower(), host, parts.path, query, ""))
 
 
 def normalize_text_fragment(value, *, limit: int | None = None) -> str:
@@ -196,13 +369,17 @@ def normalize_text_fragment(value, *, limit: int | None = None) -> str:
 
 def make_snapshot_dedup_key(row) -> str:
     scrape_date = normalize_text_fragment(row.get("scrape_date"))
+    job_id = normalize_text_fragment(row.get("job_id"))
+    if job_id:
+        return f"{scrape_date}|{job_id}"
+
     job_url = canonicalize_job_url(row.get("job_url"))
     if job_url:
         return f"{scrape_date}|{job_url}"
 
-    job_id = normalize_text_fragment(row.get("job_id"))
-    if job_id:
-        return f"{scrape_date}|{job_id}"
+    opening_fingerprint = normalize_text_fragment(row.get("opening_fingerprint"))
+    if opening_fingerprint:
+        return f"{scrape_date}|{opening_fingerprint}"
 
     parts = [
         normalize_text_fragment(row.get("source")),
@@ -217,13 +394,17 @@ def make_snapshot_dedup_key(row) -> str:
 
 
 def make_posting_dedup_key(row) -> str:
+    job_id = normalize_text_fragment(row.get("job_id"))
+    if job_id:
+        return f"{normalize_text_fragment(row.get('source'))}|{job_id}"
+
     job_url = canonicalize_job_url(row.get("job_url"))
     if job_url:
         return job_url
 
-    job_id = normalize_text_fragment(row.get("job_id"))
-    if job_id:
-        return f"{normalize_text_fragment(row.get('source'))}|{job_id}"
+    opening_fingerprint = normalize_text_fragment(row.get("opening_fingerprint"))
+    if opening_fingerprint:
+        return opening_fingerprint
 
     parts = [
         normalize_text_fragment(row.get("source")),
@@ -242,28 +423,41 @@ def make_posting_dedup_key(row) -> str:
 def _harmonize_one_scraped_csv(df: pd.DataFrame) -> pd.DataFrame:
     """Transform a single raw scraped DataFrame into the unified schema."""
     out = pd.DataFrame()
+    scrape_date_series = df.get("scrape_date", pd.Series([datetime.now().strftime("%Y-%m-%d")] * len(df)))
+    raw_date_series = df.get("date_posted", pd.Series([None] * len(df)))
+    date_pairs = [
+        normalize_date_posted(raw_value, scrape_date_value)
+        for raw_value, scrape_date_value in zip(raw_date_series, scrape_date_series)
+    ]
+
     out["job_id"] = df["id"].astype(str)
     if "site" in df.columns:
         out["source"] = df["site"].apply(lambda s: f"scraped_{s}_2026" if pd.notna(s) else "scraped_2026")
     else:
         out["source"] = "scraped_2026"
-    out["scrape_date"] = df.get("scrape_date", datetime.now().strftime("%Y-%m-%d"))
-    out["date_posted"] = pd.to_datetime(df.get("date_posted"), errors="coerce").dt.strftime("%Y-%m-%d")
+    out["scrape_date"] = pd.Series(scrape_date_series, dtype="string")
+    out["date_posted"] = pd.Series([value for value, _ in date_pairs], dtype="string")
+    out["date_posted_raw"] = pd.Series(raw_date_series, dtype="string")
+    out["date_posted_quality_flag"] = pd.Series([flag for _, flag in date_pairs], dtype="string")
     out["title"] = df["title"]
     out["company_name"] = df.get("company", df.get("company_name"))
-    out["location"] = df["location"]
+    out["location"] = df["location"].apply(normalize_location)
     out["seniority"] = df.get("job_level", df.get("seniority", "")).apply(normalize_seniority)
-    out["work_type"] = df.get("job_type")
+    out["work_type_raw"] = df.get("job_type", pd.Series([None] * len(df)))
+    out["work_type"] = out["work_type_raw"].apply(normalize_work_type)
     out["is_remote"] = df.get("is_remote", False).fillna(False).astype(bool)
-    out["description"] = df["description"].apply(strip_markdown)
+    out["description"] = df["description"].apply(clean_description)
     out["description_raw"] = df["description"]
     out["skills_raw"] = df.get("skills")
     out["min_salary"] = pd.to_numeric(df.get("min_amount"), errors="coerce")
     out["max_salary"] = pd.to_numeric(df.get("max_amount"), errors="coerce")
     out["salary_currency"] = df.get("currency")
     out["company_industry"] = df.get("company_industry")
-    out["company_size"] = pd.to_numeric(df.get("company_num_employees"), errors="coerce")
+    out["company_size"] = df.get("company_num_employees", pd.Series([None] * len(df))).apply(parse_company_size)
     out["job_url"] = df.get("job_url")
+    out["aggregator_name"] = out["company_name"].apply(detect_aggregator_name)
+    out["is_aggregator_posting"] = out["aggregator_name"].ne("")
+    out["opening_fingerprint"] = out.apply(make_opening_fingerprint, axis=1)
     out["job_group"] = df["title"].apply(classify_title)
     out["is_swe"] = out["job_group"] == "swe"
     out["is_control"] = out["job_group"] == "control"
@@ -409,26 +603,41 @@ def harmonize_apify(path: str) -> pd.DataFrame:
     print(f"  Raw rows: {len(df):,}")
 
     out = pd.DataFrame()
+    scrape_date_series = df.get("postedAt", pd.Series([pd.NaT] * len(df)))
+    raw_date_series = df.get("postedAt", pd.Series([None] * len(df)))
+    date_pairs = [
+        normalize_date_posted(raw_value, scrape_date_value)
+        for raw_value, scrape_date_value in zip(raw_date_series, scrape_date_series)
+    ]
     out["job_id"] = df.get("id", df.index).astype(str)
     out["source"] = "apify_2026"
-    out["scrape_date"] = df.get("postedAt", pd.NaT)
-    out["date_posted"] = pd.to_datetime(df.get("postedAt"), errors="coerce").dt.strftime("%Y-%m-%d")
+    out["scrape_date"] = pd.Series(scrape_date_series, dtype="string")
+    out["date_posted"] = pd.Series([value for value, _ in date_pairs], dtype="string")
+    out["date_posted_raw"] = pd.Series(raw_date_series, dtype="string")
+    out["date_posted_quality_flag"] = pd.Series([flag for _, flag in date_pairs], dtype="string")
     out["title"] = df["title"]
     out["company_name"] = df.get("companyName", df.get("company_name"))
-    out["location"] = df["location"]
+    out["location"] = df["location"].apply(normalize_location)
     out["seniority"] = df.get("seniorityLevel", "").apply(normalize_seniority)
-    out["work_type"] = df.get("employmentType")
+    out["work_type_raw"] = df.get("employmentType", pd.Series([None] * len(df)))
+    out["work_type"] = out["work_type_raw"].apply(normalize_work_type)
     out["is_remote"] = df["location"].str.contains(r'(?i)remote', na=False)
     # Apify has HTML descriptions
-    out["description"] = df.get("descriptionText", df.get("descriptionHtml", "").apply(strip_html))
+    out["description"] = df.get(
+        "descriptionText",
+        df.get("descriptionHtml", "").apply(strip_html),
+    ).apply(clean_description)
     out["description_raw"] = df.get("descriptionHtml", df.get("descriptionText"))
     out["skills_raw"] = None
     out["min_salary"] = None
     out["max_salary"] = None
     out["salary_currency"] = None
     out["company_industry"] = df.get("industries")
-    out["company_size"] = pd.to_numeric(df.get("companyEmployeesCount"), errors="coerce")
+    out["company_size"] = df.get("companyEmployeesCount", pd.Series([None] * len(df))).apply(parse_company_size)
     out["job_url"] = df.get("link")
+    out["aggregator_name"] = out["company_name"].apply(detect_aggregator_name)
+    out["is_aggregator_posting"] = out["aggregator_name"].ne("")
+    out["opening_fingerprint"] = out.apply(make_opening_fingerprint, axis=1)
     out["job_group"] = df["title"].apply(classify_title)
     out["is_swe"] = out["job_group"] == "swe"
     out["is_control"] = out["job_group"] == "control"
@@ -490,6 +699,13 @@ def _print_quality_report(unified: pd.DataFrame):
                 rate = sub[col].notna().mean() if col in sub.columns else 0
                 non_empty = (sub[col].astype(str).str.strip().str.len() > 0).mean() if col in sub.columns else 0
                 print(f"  {col:25s} notna={rate:6.1%}  non-empty={non_empty:6.1%}")
+        if "is_aggregator_posting" in sub.columns:
+            aggregator_rate = sub["is_aggregator_posting"].fillna(False).mean()
+            print(f"  {'is_aggregator_posting':25s} {aggregator_rate:6.1%} flagged")
+        if "date_posted_quality_flag" in sub.columns:
+            print("  date_posted_quality_flag:")
+            for label, count in sub["date_posted_quality_flag"].fillna("(missing)").value_counts().head(8).items():
+                print(f"    {label:25s} {count:5d} ({count/len(sub):.1%})")
 
         if len(swe) > 0:
             print(f"  SWE seniority dist:")

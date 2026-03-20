@@ -4,7 +4,7 @@
 
 Three files comprising a research design for studying how AI coding agents are restructuring junior software engineer roles:
 
-- **research-design-h1-h3.md** — Five research questions, empirical strategy (ITS, DiD, Bai-Perron), variable definitions, expected outputs, threats to validity
+- **research-design-posting-restructuring.md** — Revised research questions, measurement strategy, and mixed-methods empirical design centered on posting-side restructuring
 - **research-review.md** — Literature review covering the flipped pyramid, supervision paradox, strategic abstraction in "AI literacy," psychological framing effects, and the GenAI divide
 - **sources.txt** — Eight annotated references (Brynjolfsson, Shen & Tamkin, Akanegbu, Chandar, Levanon et al., etc.)
 
@@ -60,9 +60,9 @@ Executed end-to-end across three datasets the user provided:
 
 ## What's Still Needed
 
-- **Pre-2023 posting text** at scale (Common Crawl parsing or Revelio academic access) for full temporal coverage
-- **More post-break months** (beyond Feb 2026) to power the ITS/Bai-Perron structural break test
-- **Embedding-based seniority classifier** trained on clean 2020–22 labels
+- **Pre-2023 posting text** at scale (Common Crawl parsing or Revelio academic access) for fuller historical coverage
+- **More post-break months** to strengthen any breakpoint claims
+- **Embedding-based seniority classifier** trained on the 2023-2024 benchmark dataset
 - **BERTopic** for emergent skill discovery beyond our keyword dictionary
-- **Synthetic control method** for a more defensible RQ4
+- **Hiring-side interview cohort** to validate JD authorship, screening, and ghost requirements
 - **FRED JOLTS data** — download CSVs locally from fred.stlouisfed.org for the JOLTS charts

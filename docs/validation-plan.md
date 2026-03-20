@@ -6,28 +6,30 @@ Every hypothesis implies a **measurable signal** in job posting text or metadata
 
 ---
 
-## RQ1: Are junior roles disappearing or being redefined?
+## RQ1: How are SWE postings restructuring across seniority levels?
 
 **What to look for in the data:**
-- Volume: monthly count of postings tagged junior/entry-level (by title keywords + experience ≤ 2 YoE).
-- Content drift: are "junior" postings in 2025–26 textually closer to what "mid-level" postings looked like in 2022–23?
+- Volume: monthly count of postings tagged junior/entry-level.
+- Composition: junior share of total SWE postings.
+- Content drift: are "junior" postings in 2025-26 textually closer to what "mid-level" or "senior" postings looked like in 2023-24?
+- Senior-role drift: are senior postings using less management language and more orchestration / review / architecture language?
 
-**Simple test:** Time-series plot of junior share (junior posts / total SWE posts). Two-sided: check both numerator decline and denominator growth.
+**Simple test:** Time-series plot of junior share plus a senior archetype shift index.
 
 **ML approach — Seniority Classifier:**
-Train a text classifier (fine-tuned BERT or SetFit with few-shot) on 2020–2022 postings where seniority labels are clean. Features: full posting text. Labels: junior / mid / senior. Then run inference on 2023–2026 postings. The key metric is **predicted-seniority drift** — what fraction of title-tagged "junior" postings the model classifies as mid or senior? Rising misclassification = redefinition, not disappearance.
+Train a text classifier (fine-tuned BERT or SetFit with few-shot) on 2023-2024 benchmark postings where seniority labels are relatively clean. Features: full posting text. Labels: junior / mid / senior. Then run inference on 2025-2026 postings. The key metric is **predicted-seniority drift** — what fraction of title-tagged "junior" postings the model classifies as mid or senior? Rising misclassification = redefinition, not disappearance.
 
-Why this works: it separates title inflation (cosmetic) from genuine content convergence (structural). If the classifier says a 2026 "Junior SWE" posting reads like a 2021 "Mid-Level SWE" posting, that's direct evidence of redefinition.
+Why this works: it separates title inflation (cosmetic) from genuine content convergence (structural). If the classifier says a 2026 "Junior SWE" posting reads like a 2023 "Mid-Level SWE" posting, that's direct evidence of redefinition.
 
 ---
 
-## RQ2: Which competencies migrated, and in what order?
+## RQ2: Which requirements migrated, and in what order?
 
 **What to look for:**
 - Per-skill prevalence curves in junior postings over time (monthly resolution).
 - Temporal ordering: which skills crossed 10% prevalence first?
 
-**Simple test:** Keyword/taxonomy counts from Lightcast's parsed skill fields. Plot prevalence by month for ~15 target skills (system design, CI/CD, cross-functional leadership, prompt engineering, etc.). Identify crossing points.
+**Simple test:** Keyword-dictionary counts on posting text. Plot prevalence by month for target skills and requirement bundles (system design, CI/CD, cross-functional leadership, prompt engineering, ownership language, mentorship language, etc.). Identify crossing points.
 
 **ML approach — Dynamic Topic Modeling + Skill Embedding Trajectories:**
 
@@ -37,35 +39,38 @@ Why this works: it separates title inflation (cosmetic) from genuine content con
 
 ---
 
-## RQ3: Structural break in late 2025?
+## RQ3: Do posting-side changes show breaks or sharp accelerations around the broader AI release era?
 
 **What to look for:**
-- A discrete level shift and/or slope change in junior posting share, skill breadth, or embedding similarity around Dec 2025.
+- A discrete level shift and/or slope change in junior posting share, scope inflation, senior archetype shift, or embedding similarity.
+- Breaks around a release era rather than one assumed universal date.
 
-**Simple test:** Bai-Perron endogenous breakpoint detection on the monthly time series. Supplement with Chow test at the hypothesized break date. Placebo tests at 6 arbitrary dates to confirm specificity.
+**Simple test:** Bai-Perron endogenous breakpoint detection on monthly series. Annotate candidate release windows rather than imposing one `Post-agent` date. Use placebo tests at arbitrary dates to confirm specificity.
 
 **ML approach — Change Point Detection via Bayesian Online Methods:**
 Use `ruptures` (Python) or a Bayesian online changepoint detector (BOCPD) on multivariate features simultaneously — posting volume, skill breadth, embedding centroid shift, AI-keyword prevalence. Multivariate detection has higher power than univariate Bai-Perron because it pools signals. If multiple feature streams independently flag the same quarter, that's stronger evidence than any single series.
 
-Sensitivity check: run BOCPD on a rolling window excluding the most recent 1, 2, 3 months to test whether the detected break is stable or an artifact of endpoint effects (critical given your ~3-month post-break window).
+Sensitivity check: run BOCPD on a rolling window excluding the most recent 1, 2, 3 months to test whether the detected break is stable or an artifact of endpoint effects.
 
 ---
 
-## RQ4: SWE-specific or broader trend?
+## RQ4: Do posting-side AI requirements outpace observed workplace AI usage, and what explains the gap?
 
 **What to look for:**
-- Whether the same signals (volume drop, skill breadth increase, embedding drift) appear in control occupations (civil eng, nursing, mech eng).
+- Whether posting-side AI mentions and AI-related requirements rise faster than observed occupation-level AI usage benchmarks.
+- Whether the gap differs by seniority, source, or metro.
+- Whether interviews suggest the gap reflects real workflow change, template inflation, or anticipatory beliefs.
 
-**Simple test:** Difference-in-differences. Treatment = SWE postings. Control = low-AI-exposure occupations (selected via Felten et al. 2023 AI exposure scores). Estimate the interaction term (SWE × PostAgent).
+**Simple test:** Build a posting-usage divergence index by comparing posting AI mention rates against external occupation-level usage benchmarks. Report this descriptively by seniority and over time.
 
-**ML approach — Synthetic Control Method:**
-Rather than hand-picking 3–4 control occupations, construct a **synthetic counterfactual** from a weighted combination of all non-AI-exposed occupations that best matches pre-treatment SWE trends. This is more defensible than arbitrary control selection and provides a single, optimized counterfactual. Implemented in Python via `SparseSC` or `SyntheticControlMethods`. The gap between actual SWE trajectory and synthetic control *is* the treatment effect.
+**ML / integration approach:**
+Use interview coding plus external usage benchmarks to adjudicate the mechanism behind divergence. If needed, add a secondary comparison to low-exposure non-SWE postings later, but do not make that the core design.
 
-Robustness: run placebo synthetic controls for each donor occupation. If many placebos show gaps as large as SWE's, the finding is not significant.
+Robustness: compare divergence patterns across LinkedIn-only, LinkedIn + Indeed pooled, and junior vs. senior subsamples.
 
 ---
 
-## RQ5: Training implications
+## RQ5: What follows for training and apprenticeship?
 
 **What to look for:**
 - The empirical outputs from RQ1–4 directly parameterize recommendations. No separate ML needed.
@@ -83,26 +88,26 @@ Robustness: run placebo synthetic controls for each donor occupation. If many pl
 | Seniority classifier | SetFit or fine-tuned BERT | Detect redefinition vs. disappearance |
 | Topic modeling | BERTopic | Emergent skill discovery |
 | Changepoint detection | `ruptures` + BOCPD | Multivariate structural break |
-| Causal inference | Synthetic control (`SparseSC`) | Isolate SWE-specific effect |
-| Skill extraction | Lightcast taxonomy + zero-shot NLI | Catch skills outside standard taxonomies |
+| Benchmark integration | External usage benchmarks + interview coding | Quantify and explain posting-usage divergence |
+| Skill extraction | Curated dictionaries + zero-shot NLI | Catch skills outside the predefined schema |
 
 ## Pipeline Order
 
 ```
-1. Ingest & clean (Lightcast dump → standardize fields, deduplicate)
+1. Ingest & clean (benchmark + scraped postings → standardize fields, deduplicate)
 2. Embed all postings (batch inference, cache embeddings)
-3. Train seniority classifier on 2020–22 labeled data
+3. Train seniority classifier on 2023-2024 benchmark data
 4. Run classifier on full corpus → redefinition metric (RQ1)
 5. Compute per-skill prevalence curves + BERTopic (RQ2)
 6. Time-series assembly → Bai-Perron + BOCPD (RQ3)
-7. Merge control occupations → DiD + synthetic control (RQ4)
+7. Compute posting-usage divergence + integrate interview evidence (RQ4)
 8. Synthesize into training framework (RQ5)
 ```
 
 ## Key Judgment Calls
 
-**Where ML adds value over simple methods:** RQ1 (classifier detects redefinition that keyword counts miss), RQ2 (BERTopic finds emergent skills), RQ3 (multivariate changepoint has more power), RQ4 (synthetic control beats hand-picked controls).
+**Where ML adds value over simple methods:** RQ1 (classifier detects redefinition that keyword counts miss), RQ2 (BERTopic finds emergent skills), RQ3 (multivariate changepoint has more power), RQ4 (zero-shot or embedding support can help classify AI-requirement language at scale).
 
-**Where simple methods suffice:** Posting volume trends (just counts), individual skill prevalence (keyword matching on Lightcast taxonomy), and RQ5 (qualitative synthesis).
+**Where simple methods suffice:** Posting volume trends, individual requirement prevalence from curated dictionaries, and RQ5 (qualitative synthesis).
 
-**What to watch out for:** The 3-month post-break window is the binding constraint on RQ3. Be transparent about statistical power. The seniority classifier must be validated on held-out 2020–22 data *before* being applied forward — otherwise you're measuring model drift, not labor market drift.
+**What to watch out for:** The post-break window is still the binding constraint on RQ3. Be transparent about statistical power. The seniority classifier must be validated on held-out benchmark data before being applied forward — otherwise you're measuring model drift, not labor market drift.

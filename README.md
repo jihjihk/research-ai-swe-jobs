@@ -22,7 +22,8 @@ research/
 │   └── exploratory-analysis.ipynb # EDA notebook (Kaggle, Revelio, scraped data)
 │
 ├── docs/                          # Research documents
-│   ├── research-design-h1-h3.md   # Research questions & empirical strategy
+│   ├── research-design-posting-restructuring.md # Research questions & empirical strategy
+│   ├── interview-design-mechanisms.md # Mixed-methods interview protocol
 │   ├── research-review.md         # Literature review
 │   ├── validation-plan.md         # ML/stats validation approaches per RQ
 │   ├── data-access-and-prompts.md # Data sources & LLM prompts
@@ -269,6 +270,7 @@ Empty result sets are treated as valid zero-yield tasks, not request failures.
 - `data/unified.parquet`
 - One row per globally unique posting
 - Best analog to the Kaggle / Hugging Face LinkedIn postings corpus
+- Includes quality / audit fields such as `date_posted_raw`, `date_posted_quality_flag`, `work_type_raw`, `opening_fingerprint`, `is_aggregator_posting`, and `aggregator_name`
 
 **Daily observations parquet**
 - `data/unified_observations.parquet`
@@ -287,12 +289,17 @@ Empty result sets are treated as valid zero-yield tasks, not request failures.
 | `company` | Company name |
 | `location` | Job location |
 | `date_posted` | When the job was posted |
+| `date_posted_raw` | Raw site-provided posting date |
+| `date_posted_quality_flag` | `valid`, `missing`, `parse_failed`, `future`, or `stale_gt_60d` |
 | `description` | Full job description (markdown) |
 | `job_level` | Seniority level (entry level, mid-senior level, etc.) |
 | `job_type` | Full-time, part-time, contract, etc. |
 | `is_remote` | Remote flag |
 | `min_amount` / `max_amount` | Salary range (when listed) |
 | `job_url` | Direct link to the posting |
+| `opening_fingerprint` | Approximate source-agnostic opening key for cross-source grouping |
+| `is_aggregator_posting` | Whether the row looks like an intermediary / reposting site |
+| `aggregator_name` | Normalized intermediary label when detected |
 | `company_industry` | Industry classification |
 | `company_num_employees` | Company size |
 | `skills` | Listed skills |
@@ -560,16 +567,14 @@ done
 
 This project studies how AI coding agents are restructuring SWE roles across the entire seniority ladder. See:
 
-- `docs/research-design-h1-h3.md` — Research questions and empirical strategy
+- `docs/research-design-posting-restructuring.md` — Research questions and empirical strategy
+- `docs/interview-design-mechanisms.md` — Interview design for mechanism evidence
 - `docs/validation-plan.md` — ML approaches for each research question
 - `docs/session-summary.md` — Prior analysis results
 
 ### Research questions
 
-1. Are junior SWE roles disappearing or being redefined?
-2. Which competencies migrated from senior to junior postings, and when?
-3. Was there a structural break in late 2025?
-4. Is this SWE-specific or a broader labor market trend?
-5. What should replace the broken junior training pipeline?
-6. Are senior SWE roles shedding management requirements and gaining AI-orchestration ones?
-7. Does the current restructuring follow the pattern of prior platform shifts (mainframe → PC → web → mobile → AI)?
+1. How did SWE postings restructure across seniority levels from 2023 to 2026?
+2. Which requirements moved downward into junior postings, and which senior-role responsibilities shifted toward AI-enabled orchestration?
+3. Do posting-side AI requirements outpace observed workplace AI usage?
+4. How do workers and hiring-side actors explain these changes?

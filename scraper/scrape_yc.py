@@ -89,6 +89,9 @@ STATE_FILE = DATA_DIR / "_yc_scraper_state.json"
 SCAN_AHEAD = 200
 # How far back from the lowest seed ID to scan (catch jobs we missed)
 SCAN_BACK = 500
+# How far around the current seed window to rescan even if state has drifted
+SEED_RESCAN_BACK = 50
+SEED_RESCAN_AHEAD = 20
 
 # Circuit breaker: stop scanning if too many consecutive 404s
 MAX_CONSECUTIVE_404 = 30
@@ -382,18 +385,40 @@ def run_scraper(args):
         max_seed = state.get("highest_scanned_id", 91500)
         min_seed = max_seed - 500
 
+    prev_highest = state.get("highest_scanned_id", 0)
+
     if args.test:
         # Test: scan a small range around the seeds
         scan_start = max_seed - 50
         scan_end = max_seed + 20
     else:
-        # Full: scan from where we left off (or back from seeds) to ahead of max
-        prev_highest = state.get("highest_scanned_id", 0)
-        scan_start = max(prev_highest - SCAN_BACK, min_seed - SCAN_BACK)
-        scan_end = max_seed + SCAN_AHEAD
+        # Full:
+        # 1. Always rescan around the current seed window.
+        # 2. If state has progressed beyond the visible seeds, continue scanning forward
+        #    from a recent trailing window near prev_highest.
+        seed_window_start = max(min_seed - SCAN_BACK, min_seed - SEED_RESCAN_BACK, 1)
+        seed_window_end = max_seed + SCAN_AHEAD
+        if prev_highest > seed_window_end:
+            scan_start = max(prev_highest - SCAN_BACK, 1)
+            scan_end = max(prev_highest + SCAN_AHEAD, seed_window_end)
+            logger.warning(
+                "Saved YC state is ahead of current seed IDs; scanning around the saved "
+                f"frontier instead of the lower seed window (prev_highest={prev_highest}, "
+                f"seed_max={max_seed})"
+            )
+        else:
+            scan_start = seed_window_start
+            scan_end = max(seed_window_end, prev_highest + SCAN_AHEAD)
+
+    scan_start = max(int(scan_start), 1)
+    scan_end = max(int(scan_end), scan_start)
 
     logger.info(f"Scan range: {scan_start} — {scan_end} ({scan_end - scan_start + 1} IDs)")
     logger.info(f"Previously seen: {len(seen_ids)} jobs")
+    logger.info(
+        f"Seed window: min_seed={min_seed}, max_seed={max_seed}, "
+        f"prev_highest={prev_highest}"
+    )
 
     # Step 3: Scan the ID range
     consecutive_404 = 0
@@ -468,6 +493,9 @@ def run_scraper(args):
             "scrape_date": today,
             "source": "yc_workatastartup",
             "mode": "test" if args.test else "full",
+            "seed_min_id": min_seed,
+            "seed_max_id": max_seed,
+            "prev_highest_scanned_id": prev_highest,
             "scan_range": [scan_start, scan_end],
             "ids_scanned": scanned,
             "ids_skipped": skipped,

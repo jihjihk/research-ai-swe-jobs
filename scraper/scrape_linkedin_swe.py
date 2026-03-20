@@ -29,7 +29,7 @@ import sys
 import tempfile
 import threading
 import time
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError, as_completed
 from dataclasses import dataclass
@@ -734,8 +734,11 @@ def save_seen_ids(seen: set[str]):
 
 
 def make_job_hash(row) -> str:
-    if pd.notna(row.get("id")):
-        return str(row["id"])
+    job_id = row.get("id")
+    if pd.notna(job_id):
+        job_id = str(job_id).strip()
+        if job_id:
+            return job_id
     job_url = canonicalize_job_url(row.get("job_url", ""))
     if job_url:
         return job_url
@@ -743,17 +746,21 @@ def make_job_hash(row) -> str:
 
 
 def make_output_dedup_keys(df: pd.DataFrame) -> pd.Series:
-    keys = pd.Series(index=df.index, dtype="object")
-    if "job_url" in df.columns:
-        keys = df["job_url"].fillna("").astype(str).map(canonicalize_job_url)
+    if "id" in df.columns:
+        keys = df["id"].fillna("").astype(str)
     else:
         keys = pd.Series([""] * len(df), index=df.index, dtype="object")
 
     missing = keys.eq("")
+    if "job_url" in df.columns:
+        canonical_urls = df["job_url"].fillna("").astype(str).map(canonicalize_job_url)
+        keys.loc[missing] = canonical_urls.loc[missing]
+        missing = keys.eq("")
+
     if "id" in df.columns:
         native_ids = df["id"].fillna("").astype(str)
         usable_ids = native_ids.ne("")
-        keys.loc[missing & usable_ids] = native_ids.loc[missing & usable_ids]
+        keys.loc[usable_ids] = native_ids.loc[usable_ids]
         missing = keys.eq("")
 
     if missing.any():
@@ -778,7 +785,17 @@ def canonicalize_job_url(raw_url) -> str:
         parts = urlsplit(raw_url)
     except ValueError:
         return raw_url
-    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path, "", ""))
+    query = ""
+    host = parts.netloc.lower()
+    if "indeed.com" in host:
+        stable_params = [
+            (key, value)
+            for key, value in parse_qsl(parts.query, keep_blank_values=False)
+            if key in {"jk", "vjk"}
+        ]
+        if stable_params:
+            query = urlencode(sorted(stable_params))
+    return urlunsplit((parts.scheme.lower(), host, parts.path, query, ""))
 
 
 def normalize_text_fragment(value, *, limit: int | None = None) -> str:
