@@ -19,6 +19,7 @@ Usage:
 
 import argparse
 import csv
+import html as html_lib
 import json
 import logging
 import random
@@ -158,24 +159,165 @@ def clean_html(html_str):
 # Scraping
 # ---------------------------------------------------------------------------
 
-def get_seed_job_ids(session):
-    """Get initial job IDs from the companies listing page."""
-    url = f"{BASE_URL}/companies?sortBy=created_desc&layout=list-compact"
+def parse_inertia_props(html_text):
+    """Extract Inertia.js props from the data-page attribute."""
+    match = re.search(r'data-page="([^"]+)"', html_text)
+    if not match:
+        return None
     try:
-        resp = session.get(url, timeout=30, allow_redirects=True)
-        resp.raise_for_status()
-        ids = [int(x) for x in set(re.findall(r'/jobs/(\d+)', resp.text))]
-        logger.info(f"Seed job IDs from companies page: {len(ids)}")
-        return sorted(ids)
-    except requests.RequestException as e:
-        logger.warning(f"Failed to fetch seed IDs: {e}")
-        return []
+        decoded = html_lib.unescape(match.group(1))
+        return json.loads(decoded).get("props", {})
+    except (json.JSONDecodeError, AttributeError):
+        return None
+
+
+def get_seed_job_ids(session):
+    """Get initial job IDs from the /jobs listing page (Inertia.js data-page)."""
+    # Try /jobs first (has job listings), fall back to homepage
+    for url in [f"{BASE_URL}/jobs", BASE_URL]:
+        try:
+            resp = session.get(url, timeout=30, allow_redirects=True)
+            resp.raise_for_status()
+
+            # Try Inertia.js data-page attribute (current site structure)
+            props = parse_inertia_props(resp.text)
+            if props and "jobs" in props:
+                ids = [int(j["id"]) for j in props["jobs"] if "id" in j]
+                if ids:
+                    logger.info(f"Seed job IDs from {url}: {len(ids)} (Inertia.js)")
+                    return sorted(ids)
+
+            # Fallback: regex for /jobs/{id} links in HTML
+            ids = [int(x) for x in set(re.findall(r'/jobs/(\d+)', resp.text))]
+            if ids:
+                logger.info(f"Seed job IDs from {url}: {len(ids)} (regex)")
+                return sorted(ids)
+
+        except requests.RequestException as e:
+            logger.warning(f"Failed to fetch seed IDs from {url}: {e}")
+            continue
+
+    logger.warning("Could not get seed IDs from any page")
+    return []
+
+
+def _parse_job_inertia(props, job_id, url):
+    """Extract job data from Inertia.js props (current site structure)."""
+    job_data = props.get("job", {})
+    company = props.get("company", {})
+    if not job_data or not job_data.get("title"):
+        return None
+
+    location = job_data.get("location", "")
+    is_remote = bool(job_data.get("remote") or "remote" in location.lower())
+
+    # Parse salary range string like "$120K - $180K"
+    salary_min = ""
+    salary_max = ""
+    salary_currency = ""
+    salary_range = job_data.get("salaryRange", "")
+    if salary_range:
+        salary_currency = "USD" if "$" in salary_range else ""
+        amounts = re.findall(r'[\d,.]+', salary_range.replace("K", "000").replace("k", "000"))
+        if len(amounts) >= 2:
+            salary_min = amounts[0].replace(",", "")
+            salary_max = amounts[1].replace(",", "")
+        elif len(amounts) == 1:
+            salary_min = amounts[0].replace(",", "")
+
+    # Extract YC batch from company data
+    yc_batch = company.get("batch", "")
+    if not yc_batch:
+        batch_match = re.search(r'\b([SWFX]\d{2})\b', company.get("name", ""))
+        if batch_match:
+            yc_batch = batch_match.group(1)
+
+    return {
+        "source": "yc_workatastartup",
+        "id": str(job_id),
+        "title": job_data.get("title", ""),
+        "company": company.get("name", job_data.get("companyName", "")),
+        "company_url": company.get("website", ""),
+        "location": location,
+        "is_remote": is_remote,
+        "date_posted": job_data.get("createdAt", job_data.get("postedAt", "")),
+        "description": clean_html(job_data.get("descriptionHtml", "")),
+        "job_type": job_data.get("jobType", job_data.get("type", "")),
+        "salary_currency": salary_currency,
+        "salary_min": salary_min,
+        "salary_max": salary_max,
+        "salary_unit": "YEAR",
+        "job_url": f"{BASE_URL}/jobs/{job_id}",
+        "yc_batch": yc_batch,
+        "scrape_date": today,
+    }
+
+
+def _parse_job_jsonld(resp_text, job_id, url):
+    """Extract job data from JSON-LD script tag (legacy site structure)."""
+    soup = BeautifulSoup(resp_text, "html.parser")
+    script = soup.find("script", type="application/ld+json")
+    if not script or not script.string:
+        return None
+
+    data = json.loads(script.string)
+    if data.get("@type") != "JobPosting":
+        return None
+
+    org = data.get("hiringOrganization", {})
+    salary = data.get("baseSalary", {})
+    salary_val = salary.get("value", {}) if isinstance(salary, dict) else {}
+    locations = data.get("jobLocation", [])
+    if isinstance(locations, dict):
+        locations = [locations]
+
+    loc_parts = []
+    for loc in locations:
+        addr = loc.get("address", {})
+        city = addr.get("addressLocality", "")
+        state = addr.get("addressRegion", "")
+        if city and state:
+            loc_parts.append(f"{city}, {state}")
+        elif city:
+            loc_parts.append(city)
+        elif state:
+            loc_parts.append(state)
+
+    is_remote = data.get("jobLocationType", "") == "TELECOMMUTE"
+    if is_remote:
+        loc_parts.append("Remote")
+
+    yc_batch = ""
+    batch_match = re.search(r'\(([SWFX]\d{2})\)', resp_text)
+    if batch_match:
+        yc_batch = batch_match.group(1)
+
+    return {
+        "source": "yc_workatastartup",
+        "id": str(job_id),
+        "title": data.get("title", ""),
+        "company": org.get("name", ""),
+        "company_url": org.get("sameAs", ""),
+        "location": " | ".join(loc_parts),
+        "is_remote": is_remote,
+        "date_posted": data.get("datePosted", ""),
+        "description": clean_html(data.get("description", "")),
+        "job_type": data.get("employmentType", ""),
+        "salary_currency": salary.get("currency", "") if isinstance(salary, dict) else "",
+        "salary_min": salary_val.get("minValue", "") if isinstance(salary_val, dict) else "",
+        "salary_max": salary_val.get("maxValue", "") if isinstance(salary_val, dict) else "",
+        "salary_unit": salary_val.get("unitText", "") if isinstance(salary_val, dict) else "",
+        "job_url": data.get("url", url),
+        "yc_batch": yc_batch,
+        "scrape_date": today,
+    }
 
 
 def fetch_job(session, job_id):
     """Fetch a single job page. Returns (status, job_dict_or_None).
 
-    - 200 with JSON-LD → active job, returns parsed data
+    Tries Inertia.js data-page first (current site), falls back to JSON-LD (legacy).
+    - 200 with job data → active job, returns parsed data
     - 302 → expired/closed job (redirects to company page)
     - 404 → ID doesn't exist
     """
@@ -192,72 +334,22 @@ def fetch_job(session, job_id):
         if resp.status_code != 200:
             return resp.status_code, None
 
-        # Parse JSON-LD
-        soup = BeautifulSoup(resp.text, "html.parser")
-        script = soup.find("script", type="application/ld+json")
-        if not script or not script.string:
-            return 200, None
+        # Try Inertia.js data-page first (current site structure)
+        props = parse_inertia_props(resp.text)
+        if props and "job" in props:
+            job = _parse_job_inertia(props, job_id, url)
+            if job:
+                return 200, job
 
-        data = json.loads(script.string)
-        if data.get("@type") != "JobPosting":
-            return 200, None
+        # Fallback to JSON-LD (legacy structure)
+        job = _parse_job_jsonld(resp.text, job_id, url)
+        if job:
+            return 200, job
 
-        # Extract fields
-        org = data.get("hiringOrganization", {})
-        salary = data.get("baseSalary", {})
-        salary_val = salary.get("value", {}) if isinstance(salary, dict) else {}
-        locations = data.get("jobLocation", [])
-        if isinstance(locations, dict):
-            locations = [locations]
-
-        # Build location string
-        loc_parts = []
-        for loc in locations:
-            addr = loc.get("address", {})
-            city = addr.get("addressLocality", "")
-            state = addr.get("addressRegion", "")
-            if city and state:
-                loc_parts.append(f"{city}, {state}")
-            elif city:
-                loc_parts.append(city)
-            elif state:
-                loc_parts.append(state)
-
-        is_remote = data.get("jobLocationType", "") == "TELECOMMUTE"
-        if is_remote and not loc_parts:
-            loc_parts.append("Remote")
-        elif is_remote:
-            loc_parts.append("Remote")
-
-        # Extract YC batch from company page URL or page content
-        yc_batch = ""
-        batch_match = re.search(r'\(([SWFX]\d{2})\)', resp.text)
-        if batch_match:
-            yc_batch = batch_match.group(1)
-
-        job = {
-            "source": "yc_workatastartup",
-            "id": str(job_id),
-            "title": data.get("title", ""),
-            "company": org.get("name", ""),
-            "company_url": org.get("sameAs", ""),
-            "location": " | ".join(loc_parts),
-            "is_remote": is_remote,
-            "date_posted": data.get("datePosted", ""),
-            "description": clean_html(data.get("description", "")),
-            "job_type": data.get("employmentType", ""),
-            "salary_currency": salary.get("currency", "") if isinstance(salary, dict) else "",
-            "salary_min": salary_val.get("minValue", "") if isinstance(salary_val, dict) else "",
-            "salary_max": salary_val.get("maxValue", "") if isinstance(salary_val, dict) else "",
-            "salary_unit": salary_val.get("unitText", "") if isinstance(salary_val, dict) else "",
-            "job_url": data.get("url", url),
-            "yc_batch": yc_batch,
-            "scrape_date": today,
-        }
-        return 200, job
+        return 200, None
 
     except json.JSONDecodeError:
-        logger.warning(f"Bad JSON-LD for job {job_id}")
+        logger.warning(f"Bad JSON for job {job_id}")
         return 200, None
     except requests.RequestException as e:
         logger.warning(f"Request failed for job {job_id}: {e}")

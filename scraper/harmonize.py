@@ -5,7 +5,6 @@ for cross-period analysis.
 
 Usage:
     python harmonize.py                          # Harmonize all available data
-    python harmonize.py --scraped-only           # Only process scraped data
     python harmonize.py --output data/unified.parquet
 
 Produces a single file with consistent column names, types, and text format
@@ -13,9 +12,11 @@ that can be fed directly into the analysis notebook.
 """
 
 import argparse
+import hashlib
 import re
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import pandas as pd
 
@@ -28,7 +29,7 @@ SCRAPED_DIR = DATA_DIR / "scraped"
 # ---------------------------------------------------------------------------
 UNIFIED_COLUMNS = [
     "job_id",           # unique identifier
-    "source",           # "kaggle_2024" | "scraped_2026" | "apify_2026"
+    "source",           # "scraped_linkedin_2026" | "scraped_indeed_2026" | "apify_2026"
     "scrape_date",      # date the data was collected (YYYY-MM-DD)
     "date_posted",      # date the job was posted (YYYY-MM-DD, may be null)
     "title",            # raw job title
@@ -170,72 +171,78 @@ def normalize_salary_to_annual(amount, pay_period) -> float:
     return amount * multipliers.get(period, 1)
 
 
-def harmonize_kaggle(path: str) -> pd.DataFrame:
-    """Load and harmonize the Kaggle LinkedIn dataset."""
-    print(f"Loading Kaggle data from {path}...")
-    df = pd.read_csv(path, low_memory=False)
-    print(f"  Raw rows: {len(df):,}")
-
-    out = pd.DataFrame()
-    out["job_id"] = df["job_id"].astype(str)
-    out["source"] = "kaggle_2024"
-    out["scrape_date"] = pd.to_datetime(df["listed_time"], unit="ms", errors="coerce").dt.strftime("%Y-%m-%d")
-    out["date_posted"] = pd.to_datetime(df["original_listed_time"], unit="ms", errors="coerce").dt.strftime("%Y-%m-%d")
-    out["title"] = df["title"]
-    out["company_name"] = df["company_name"]
-    out["location"] = df["location"]
-    out["seniority"] = df["formatted_experience_level"].apply(normalize_seniority)
-    out["work_type"] = df["formatted_work_type"]
-    out["is_remote"] = df["remote_allowed"].fillna(0).astype(bool)
-    out["description"] = df["description"]  # Kaggle is already plain text
-    out["description_raw"] = df["description"]
-    out["skills_raw"] = df["skills_desc"]
-    out["min_salary"] = df.apply(
-        lambda r: normalize_salary_to_annual(r.get("min_salary"), r.get("pay_period")), axis=1
-    )
-    out["max_salary"] = df.apply(
-        lambda r: normalize_salary_to_annual(r.get("max_salary"), r.get("pay_period")), axis=1
-    )
-    out["salary_currency"] = df["currency"]
-    out["company_industry"] = None
-    out["company_size"] = None
-    out["job_url"] = df.get("job_posting_url", None)
-    out["job_group"] = df["title"].apply(classify_title)
-    out["is_swe"] = out["job_group"] == "swe"
-    out["is_control"] = out["job_group"] == "control"
-
-    print(f"  Harmonized: {len(out):,} rows")
-    return out
+def canonicalize_job_url(raw_url) -> str:
+    if not isinstance(raw_url, str):
+        return ""
+    raw_url = raw_url.strip()
+    if not raw_url:
+        return ""
+    try:
+        parts = urlsplit(raw_url)
+    except ValueError:
+        return raw_url
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path, "", ""))
 
 
-def harmonize_scraped(scraped_dir: str) -> pd.DataFrame:
-    """Load and harmonize all daily scraped CSVs."""
-    scraped_path = Path(scraped_dir)
-    csv_files = sorted(scraped_path.glob("*_swe_jobs.csv")) + sorted(scraped_path.glob("*_non_swe_jobs.csv"))
+def normalize_text_fragment(value, *, limit: int | None = None) -> str:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    text = str(value).strip().lower()
+    text = re.sub(r"\s+", " ", text)
+    if limit is not None:
+        text = text[:limit]
+    return text
 
-    if not csv_files:
-        print(f"  No scraped CSVs found in {scraped_dir}")
-        return pd.DataFrame(columns=UNIFIED_COLUMNS)
 
-    print(f"Loading {len(csv_files)} scraped CSV(s) from {scraped_dir}...")
-    dfs = []
-    for f in csv_files:
-        try:
-            dfs.append(pd.read_csv(f, low_memory=False))
-        except Exception as e:
-            print(f"  WARN: Could not read {f.name}: {e}")
-    if not dfs:
-        return pd.DataFrame(columns=UNIFIED_COLUMNS)
+def make_snapshot_dedup_key(row) -> str:
+    scrape_date = normalize_text_fragment(row.get("scrape_date"))
+    job_url = canonicalize_job_url(row.get("job_url"))
+    if job_url:
+        return f"{scrape_date}|{job_url}"
 
-    df = pd.concat(dfs, ignore_index=True)
-    # Deduplicate across files
-    before = len(df)
-    df = df.drop_duplicates(subset=["job_url"], keep="first")
-    print(f"  Raw rows: {before:,} -> {len(df):,} after dedup")
+    job_id = normalize_text_fragment(row.get("job_id"))
+    if job_id:
+        return f"{scrape_date}|{job_id}"
 
+    parts = [
+        normalize_text_fragment(row.get("source")),
+        normalize_text_fragment(row.get("title")),
+        normalize_text_fragment(row.get("company_name")),
+        normalize_text_fragment(row.get("location")),
+        normalize_text_fragment(row.get("date_posted")),
+        normalize_text_fragment(row.get("description_raw"), limit=500),
+    ]
+    digest = hashlib.md5("|".join(parts).encode()).hexdigest()
+    return f"{scrape_date}|{digest}"
+
+
+def make_posting_dedup_key(row) -> str:
+    job_url = canonicalize_job_url(row.get("job_url"))
+    if job_url:
+        return job_url
+
+    job_id = normalize_text_fragment(row.get("job_id"))
+    if job_id:
+        return f"{normalize_text_fragment(row.get('source'))}|{job_id}"
+
+    parts = [
+        normalize_text_fragment(row.get("source")),
+        normalize_text_fragment(row.get("title")),
+        normalize_text_fragment(row.get("company_name")),
+        normalize_text_fragment(row.get("location")),
+        normalize_text_fragment(row.get("date_posted")),
+        normalize_text_fragment(row.get("description_raw"), limit=500),
+    ]
+    digest = hashlib.md5("|".join(parts).encode()).hexdigest()
+    return digest
+
+
+
+
+def _harmonize_one_scraped_csv(df: pd.DataFrame) -> pd.DataFrame:
+    """Transform a single raw scraped DataFrame into the unified schema."""
     out = pd.DataFrame()
     out["job_id"] = df["id"].astype(str)
-    # Tag source by site (linkedin vs indeed) if available
     if "site" in df.columns:
         out["source"] = df["site"].apply(lambda s: f"scraped_{s}_2026" if pd.notna(s) else "scraped_2026")
     else:
@@ -260,7 +267,137 @@ def harmonize_scraped(scraped_dir: str) -> pd.DataFrame:
     out["job_group"] = df["title"].apply(classify_title)
     out["is_swe"] = out["job_group"] == "swe"
     out["is_control"] = out["job_group"] == "control"
+    return out
 
+
+def harmonize_scraped(
+    scraped_dir: str,
+    output_path: Path | None = None,
+    observations_output_path: Path | None = None,
+) -> pd.DataFrame | None:
+    """Load and harmonize all daily scraped CSVs, one file at a time to limit memory.
+
+    `output_path` is the canonical postings table: one row per unique posting globally.
+    `observations_output_path` is the daily panel: one row per posting per scrape_date.
+
+    If either output path is given, writes parquet directly via pyarrow and returns None
+    (streaming mode — avoids holding all data in memory). Otherwise collects and returns
+    the canonical postings table (legacy mode for small datasets).
+    """
+    scraped_path = Path(scraped_dir)
+    # Use explicit prefix pattern to avoid *_swe_jobs.csv also matching *_non_swe_jobs.csv
+    swe_files = [f for f in sorted(scraped_path.glob("*_swe_jobs.csv")) if "_non_swe_jobs.csv" not in f.name]
+    non_swe_files = sorted(scraped_path.glob("*_non_swe_jobs.csv"))
+    csv_files = swe_files + non_swe_files
+
+    if not csv_files:
+        print(f"  No scraped CSVs found in {scraped_dir}")
+        if output_path or observations_output_path:
+            return None
+        return pd.DataFrame(columns=UNIFIED_COLUMNS)
+
+    print(f"Loading {len(csv_files)} scraped CSV(s) from {scraped_dir}...")
+
+    import gc
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    seen_snapshot_keys: set[str] = set()
+    seen_posting_keys: set[str] = set()
+    total_raw = 0
+    total_observations = 0
+    total_postings = 0
+    postings_writer = None
+    observations_writer = None
+
+    try:
+        for f in csv_files:
+            try:
+                raw = pd.read_csv(f, low_memory=False)
+            except Exception as e:
+                print(f"  WARN: Could not read {f.name}: {e}")
+                continue
+
+            total_raw += len(raw)
+            harmonized = _harmonize_one_scraped_csv(raw)
+            del raw
+            gc.collect()
+
+            # Preserve one observation per job per scrape date.
+            snapshot_keys = harmonized.apply(make_snapshot_dedup_key, axis=1)
+            observation_mask = ~snapshot_keys.isin(seen_snapshot_keys)
+            observations = harmonized[observation_mask].copy()
+            seen_snapshot_keys.update(snapshot_keys[observation_mask].tolist())
+            observation_count = len(observations)
+            total_observations += observation_count
+
+            posting_count = 0
+            postings = pd.DataFrame(columns=UNIFIED_COLUMNS)
+            if observation_count > 0:
+                posting_keys = observations.apply(make_posting_dedup_key, axis=1)
+                posting_mask = ~posting_keys.isin(seen_posting_keys)
+                postings = observations[posting_mask].copy()
+                seen_posting_keys.update(posting_keys[posting_mask].tolist())
+                posting_count = len(postings)
+                total_postings += posting_count
+
+            print(
+                f"  {f.name}: +{observation_count:,} observations, "
+                f"+{posting_count:,} canonical postings"
+            )
+
+            if observations_output_path and observation_count > 0:
+                table = pa.Table.from_pandas(observations, preserve_index=False)
+                if observations_writer is None:
+                    observations_writer = pq.ParquetWriter(
+                        str(observations_output_path), table.schema
+                    )
+                observations_writer.write_table(table)
+                del table
+
+            if output_path and posting_count > 0:
+                table = pa.Table.from_pandas(postings, preserve_index=False)
+                if postings_writer is None:
+                    postings_writer = pq.ParquetWriter(str(output_path), table.schema)
+                postings_writer.write_table(table)
+                del table
+            elif not output_path and not observations_output_path:
+                # Legacy mode — should only be used for small datasets
+                if not hasattr(harmonize_scraped, "_parts"):
+                    harmonize_scraped._parts = []
+                harmonize_scraped._parts.append(postings)
+
+            del postings
+            del observations
+            del harmonized
+            gc.collect()
+    finally:
+        if postings_writer:
+            postings_writer.close()
+        if observations_writer:
+            observations_writer.close()
+
+    print(
+        f"  Raw rows: {total_raw:,} -> {total_observations:,} observations "
+        f"-> {total_postings:,} canonical postings"
+    )
+
+    if output_path:
+        print(f"  Streamed {total_postings:,} canonical rows to {output_path}")
+    if observations_output_path:
+        print(
+            f"  Streamed {total_observations:,} observation rows "
+            f"to {observations_output_path}"
+        )
+    if output_path or observations_output_path:
+        return None
+
+    # Legacy mode
+    parts = getattr(harmonize_scraped, "_parts", [])
+    harmonize_scraped._parts = []
+    if not parts:
+        return pd.DataFrame(columns=UNIFIED_COLUMNS)
+    out = pd.concat(parts, ignore_index=True)
     print(f"  Harmonized: {len(out):,} rows")
     return out
 
@@ -301,43 +438,37 @@ def harmonize_apify(path: str) -> pd.DataFrame:
 
 
 def run(args):
-    parts = []
+    output = Path(args.output)
+    observations_output = Path(args.observations_output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    observations_output.parent.mkdir(parents=True, exist_ok=True)
 
-    # Kaggle
-    kaggle_path = DATA_DIR / "kaggle-linkedin-jobs-2023-2024" / "postings.csv"
-    if kaggle_path.exists() and not args.scraped_only:
-        parts.append(harmonize_kaggle(str(kaggle_path)))
-
-    # Scraped
-    if SCRAPED_DIR.exists():
-        parts.append(harmonize_scraped(str(SCRAPED_DIR)))
-
-    if not parts:
+    if not SCRAPED_DIR.exists():
         print("No data found to harmonize.")
         return
 
-    unified = pd.concat(parts, ignore_index=True)
+    # Stream directly to parquet to avoid OOM on small instances
+    harmonize_scraped(
+        str(SCRAPED_DIR),
+        output_path=output,
+        observations_output_path=observations_output,
+    )
 
-    # Final dedup across sources (same job might appear in Kaggle and scraped)
-    before = len(unified)
-    unified = unified.drop_duplicates(subset=["job_id"], keep="first")
-    print(f"\nCross-source dedup: {before:,} -> {len(unified):,}")
+    # Read back canonical output for quality report.
+    if output.exists():
+        unified = pd.read_parquet(output)
+        print(f"Saved to {output}")
+        if observations_output.exists():
+            print(f"Saved daily observations to {observations_output}")
+        _print_quality_report(unified)
 
-    # Save
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    if output.suffix == ".parquet":
-        unified.to_parquet(output, index=False)
-    else:
-        unified.to_csv(output, index=False)
-    print(f"Saved to {output}")
 
-    # Quality report
+def _print_quality_report(unified: pd.DataFrame):
+    """Print data quality summary."""
     print("\n" + "=" * 60)
     print("QUALITY REPORT")
     print("=" * 60)
 
-    # Job group breakdown
     print("\n--- JOB GROUP BREAKDOWN ---")
     for group, count in unified["job_group"].value_counts().items():
         print(f"  {group:15s} {count:>7,} ({count/len(unified):6.1%})")
@@ -370,7 +501,6 @@ def run(args):
             for title, count in ctrl["title"].value_counts().head(8).items():
                 print(f"    {title[:40]:40s} {count:5d}")
 
-    # Cross-period comparison for SWE
     swe_all = unified[unified["is_swe"]]
     if swe_all["source"].nunique() > 1:
         print(f"\n--- CROSS-PERIOD SWE COMPARISON ---")
@@ -384,9 +514,12 @@ def run(args):
 def main():
     parser = argparse.ArgumentParser(description="Harmonize LinkedIn job posting datasets")
     parser.add_argument("--output", default="data/unified.parquet",
-                        help="Output path (default: data/unified.parquet)")
-    parser.add_argument("--scraped-only", action="store_true",
-                        help="Only process scraped data")
+                        help="Canonical postings output path (default: data/unified.parquet)")
+    parser.add_argument(
+        "--observations-output",
+        default="data/unified_observations.parquet",
+        help="Daily observations output path (default: data/unified_observations.parquet)",
+    )
     args = parser.parse_args()
     run(args)
 

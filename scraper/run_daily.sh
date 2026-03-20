@@ -12,8 +12,8 @@
 # Usage:
 #   ./run_daily.sh                    # Normal daily run (all sites)
 #   ./run_daily.sh --catchup          # 48-hour lookback (missed a day)
-#   ./run_daily.sh --full             # Full run (all 12 queries x 20 cities)
-#   ./run_daily.sh --quick            # Quick run (4 queries x 10 cities)
+#   ./run_daily.sh --full             # Full run (28 queries x 26 metros)
+#   ./run_daily.sh --quick            # Quick run (4 queries x top 10 metros)
 #   ./run_daily.sh --sites linkedin   # LinkedIn only
 #   ./run_daily.sh --sites indeed     # Indeed only
 #
@@ -31,6 +31,7 @@ LOCK_MAX_AGE_SECONDS=21600  # 6 hours — stale lock threshold (2 sites take lon
 MAX_RETRIES=3
 RETRY_DELAY_BASE=300  # 5 minutes, doubles each retry
 LOG_RETENTION_DAYS=30
+SCRAPER_MAX_RUNTIME_SECONDS="${SCRAPER_MAX_RUNTIME_SECONDS:-21600}"  # 6 hours
 
 # Source .env if it exists (needed for cron, which has a minimal environment)
 if [[ -f "$PROJECT_DIR/.env" ]]; then
@@ -64,11 +65,10 @@ while [[ $# -gt 0 ]]; do
             MODE="catchup"
             shift ;;
         --full)
-            SCRAPER_ARGS="$SCRAPER_ARGS --results 25"
             MODE="full"
             shift ;;
         --quick)
-            SCRAPER_ARGS="$SCRAPER_ARGS --quick --results 25"
+            SCRAPER_ARGS="$SCRAPER_ARGS --quick"
             MODE="quick"
             shift ;;
         --sites)
@@ -157,13 +157,24 @@ while [[ $attempt -lt $MAX_RETRIES ]]; do
     attempt=$((attempt + 1))
     log "Attempt $attempt/$MAX_RETRIES..."
 
-    if $PYTHON "$SCRIPT_DIR/scrape_linkedin_swe.py" $SCRAPER_ARGS; then
+    if command -v timeout &>/dev/null; then
+        log "Running scraper with hard wall-clock timeout ${SCRAPER_MAX_RUNTIME_SECONDS}s"
+        SCRAPER_CMD=(timeout --signal=TERM --kill-after=300 "$SCRAPER_MAX_RUNTIME_SECONDS" "$PYTHON" "$SCRIPT_DIR/scrape_linkedin_swe.py")
+    else
+        SCRAPER_CMD=("$PYTHON" "$SCRIPT_DIR/scrape_linkedin_swe.py")
+    fi
+
+    if "${SCRAPER_CMD[@]}" $SCRAPER_ARGS; then
         exit_code=0
         log "Scrape succeeded on attempt $attempt"
         break
     else
         exit_code=$?
-        log "Scrape failed (exit code $exit_code) on attempt $attempt"
+        if [[ $exit_code -eq 124 ]]; then
+            log "Scrape timed out after ${SCRAPER_MAX_RUNTIME_SECONDS}s on attempt $attempt"
+        else
+            log "Scrape failed (exit code $exit_code) on attempt $attempt"
+        fi
 
         if [[ $attempt -lt $MAX_RETRIES ]]; then
             delay=$((RETRY_DELAY_BASE * (2 ** (attempt - 1))))
@@ -205,6 +216,7 @@ fi
 TODAY=$(date +%Y-%m-%d)
 SWE_FILE="$PROJECT_DIR/data/scraped/${TODAY}_swe_jobs.csv"
 ALERT_SCRIPT="$SCRIPT_DIR/send_alert.py"  # send_alert.py is in scraper/
+MANIFEST_FILE="$PROJECT_DIR/data/scraped/${TODAY}_manifest.json"
 
 swe_count=0
 total_count=0
@@ -234,13 +246,21 @@ fi
 total_csvs=$(ls "$PROJECT_DIR/data/scraped/"*_swe_jobs.csv 2>/dev/null | wc -l | tr -d ' ')
 log "Total daily files accumulated: $total_csvs"
 
-# Check unified dataset
+# Check unified datasets
 UNIFIED_FILE="$PROJECT_DIR/data/unified.parquet"
+OBSERVATIONS_FILE="$PROJECT_DIR/data/unified_observations.parquet"
 if [[ -f "$UNIFIED_FILE" ]]; then
     unified_size=$(du -h "$UNIFIED_FILE" | cut -f1)
     log "Unified dataset: $UNIFIED_FILE ($unified_size)"
 else
     log "WARN: Unified dataset not found at $UNIFIED_FILE"
+fi
+
+if [[ -f "$OBSERVATIONS_FILE" ]]; then
+    observations_size=$(du -h "$OBSERVATIONS_FILE" | cut -f1)
+    log "Unified observations: $OBSERVATIONS_FILE ($observations_size)"
+else
+    log "WARN: Unified observations dataset not found at $OBSERVATIONS_FILE"
 fi
 
 # ---------------------------------------------------------------------------
@@ -260,8 +280,28 @@ send_alert() {
     fi
 }
 
+rate_limit_total=0
+if [[ -f "$MANIFEST_FILE" ]]; then
+    rate_limit_total=$($PYTHON - <<'PY' "$MANIFEST_FILE"
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path) as f:
+        data = json.load(f)
+    print(int(data.get("rate_limit_summary", {}).get("total", 0)))
+except Exception:
+    print(0)
+PY
+)
+fi
+
 if [[ $exit_code -eq 0 ]]; then
-    if [[ $swe_count -lt 10 ]] && [[ "$MODE" != "quick" ]] && [[ "$MODE" != "default" || $swe_count -gt 0 ]]; then
+    if [[ $rate_limit_total -ge 3 ]]; then
+        log "WARNING: Repeated suspected rate limits detected ($rate_limit_total tasks)"
+        send_alert "warning" "Repeated suspected rate limits detected ($rate_limit_total tasks, mode=$MODE)"
+    elif [[ $swe_count -lt 10 ]] && [[ "$MODE" != "quick" ]] && [[ "$MODE" != "default" || $swe_count -gt 0 ]]; then
         # Suspiciously low count for a full run
         log "WARNING: Only $swe_count SWE jobs (expected more)"
         send_alert "warning" "Low yield: only $swe_count SWE jobs collected (mode=$MODE)"
@@ -282,6 +322,7 @@ if [[ -n "$S3_BUCKET" ]] && [[ $exit_code -eq 0 ]]; then
     if command -v aws &>/dev/null; then
         aws s3 sync "$PROJECT_DIR/data/scraped/" "$S3_BUCKET/scraped/" --quiet 2>&1 | while read -r line; do log "  $line"; done
         [[ -f "$PROJECT_DIR/data/unified.parquet" ]] && aws s3 cp "$PROJECT_DIR/data/unified.parquet" "$S3_BUCKET/unified.parquet" --quiet
+        [[ -f "$PROJECT_DIR/data/unified_observations.parquet" ]] && aws s3 cp "$PROJECT_DIR/data/unified_observations.parquet" "$S3_BUCKET/unified_observations.parquet" --quiet
         [[ -f "$PROJECT_DIR/data/scraper_status.json" ]] && aws s3 cp "$PROJECT_DIR/data/scraper_status.json" "$S3_BUCKET/scraper_status.json" --quiet
         log "S3 sync complete"
     else

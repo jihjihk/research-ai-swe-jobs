@@ -1,6 +1,6 @@
 # The AI Restructuring of the SWE Seniority Ladder
 
-Research project studying how AI coding agents are restructuring software engineer roles across the entire seniority ladder — junior roles disappearing or absorbing senior requirements, senior roles shedding people-management and gaining AI-orchestration skills. Uses job postings data (Kaggle 2023–2024, daily LinkedIn/Indeed/YC scraping 2026+).
+Research project studying how AI coding agents are restructuring software engineer roles across the entire seniority ladder. Uses a historical LinkedIn benchmark dataset (Kaggle / Hugging Face, 2023–2024) plus daily LinkedIn / Indeed / YC scraping in 2026+.
 
 ## Project Structure
 
@@ -13,9 +13,10 @@ research/
 ├── scraper/                       # Scraping pipeline
 │   ├── scrape_linkedin_swe.py     # LinkedIn + Indeed scraper (python-jobspy)
 │   ├── scrape_yc.py               # Y Combinator / Work at a Startup scraper
-│   ├── harmonize.py               # Unifies all data sources into one schema
+│   ├── harmonize.py               # Builds canonical postings + daily observations parquet files
 │   ├── send_alert.py              # Daily summary + SNS alerting
 │   └── run_daily.sh               # Cron wrapper (lock file, retries, log rotation)
+│   └── queue_full_detached.sh     # Durable fallback wrapper for today's full rerun
 │
 ├── notebooks/                     # Analysis
 │   └── exploratory-analysis.ipynb # EDA notebook (Kaggle, Revelio, scraped data)
@@ -30,7 +31,8 @@ research/
 │   └── sources.txt                # Reference sources
 │
 ├── data/                          # (gitignored)
-│   ├── unified.parquet            # Harmonized dataset (all sources, analysis-ready)
+│   ├── unified.parquet            # Canonical postings table (global dedupe)
+│   ├── unified_observations.parquet # Daily panel (one row per posting per scrape_date)
 │   ├── scraped/                   # Daily scraper output
 │   │   ├── YYYY-MM-DD_swe_jobs.csv       # LinkedIn/Indeed SWE-matched jobs
 │   │   ├── YYYY-MM-DD_non_swe_jobs.csv   # LinkedIn/Indeed non-SWE jobs
@@ -85,8 +87,8 @@ chmod +x scraper/run_daily.sh
 
 | Source | Scraper | Output | Scope |
 |--------|---------|--------|-------|
-| **LinkedIn** | `scrape_linkedin_swe.py` | `*_swe_jobs.csv`, `*_non_swe_jobs.csv` | SWE + adjacent + control roles, 20 US cities |
-| **Indeed** | `scrape_linkedin_swe.py` | (same files) | Same queries, same cities |
+| **LinkedIn** | `scrape_linkedin_swe.py` | `*_swe_jobs.csv`, `*_non_swe_jobs.csv` | SWE + adjacent + control roles across 26 US metro areas |
+| **Indeed** | `scrape_linkedin_swe.py` | (same files) | Same queries / metros, primarily ablation + robustness |
 | **YC (Work at a Startup)** | `scrape_yc.py` | `*_yc_jobs.csv` | All roles at YC-funded startups |
 | **Kaggle** | (static download) | `kaggle-linkedin-jobs-2023-2024/` | Historical LinkedIn data (2023–2024) |
 
@@ -98,10 +100,10 @@ chmod +x scraper/run_daily.sh
 # Test (1 query, 1 city, 5 results per site — ~1 minute)
 python3 scraper/scrape_linkedin_swe.py --test
 
-# Quick run (4 queries x 10 cities — ~30 min for both sites)
+# Quick run (4 queries x top 10 metros)
 python3 scraper/scrape_linkedin_swe.py --quick
 
-# Full run (10 SWE + 8 adjacent + 10 control queries x 20 cities — ~2-3 hours)
+# Full run (28 queries x 26 metros, LinkedIn + Indeed in parallel)
 python3 scraper/scrape_linkedin_swe.py
 
 # Single site only
@@ -112,14 +114,21 @@ python3 scraper/scrape_linkedin_swe.py --sites indeed
 python3 scraper/scrape_linkedin_swe.py --tiers swe            # SWE only
 python3 scraper/scrape_linkedin_swe.py --tiers swe adjacent   # Skip control
 
-# More results per search
+# More / fewer results per query-metro pair
 python3 scraper/scrape_linkedin_swe.py --results 50
+python3 scraper/scrape_linkedin_swe.py --results 100
 
 # Catch up after a missed day
 python3 scraper/scrape_linkedin_swe.py --hours-old 48
 
 # Skip harmonization (just scrape)
 python3 scraper/scrape_linkedin_swe.py --no-harmonize
+
+# Force sequential mode (debug / validation only)
+python3 scraper/scrape_linkedin_swe.py --sequential
+
+# Tighten resource guardrails on smaller machines
+python3 scraper/scrape_linkedin_swe.py --request-timeout-sec 180 --memory-soft-limit-mb 8192 --memory-hard-limit-mb 10240
 ```
 
 ### YC (Work at a Startup)
@@ -152,9 +161,31 @@ The wrapper adds:
 - **Lock file** — prevents overlapping runs; auto-clears stale locks (> 6 hours)
 - **Retries** — up to 3 attempts with exponential backoff (5 min, 10 min, 20 min)
 - **Log rotation** — deletes logs older than 30 days
-- **Post-run summary** — logs row count and accumulated file count
-- **S3 sync** — uploads daily CSVs, unified parquet, and status JSON to S3 if `S3_BUCKET` is configured
-- **Alerts** — sends daily summary email via AWS SNS (job counts, trends, data quality, sample postings)
+- **Post-run summary** — logs row counts plus both parquet outputs
+- **S3 sync** — uploads daily CSVs, `unified.parquet`, `unified_observations.parquet`, and status JSON to S3 if `S3_BUCKET` is configured
+- **Alerts** — sends daily summary email via AWS SNS, including repeated rate-limit warnings from the manifest
+
+Resource guardrails:
+- per-request timeout in the scraper (`--request-timeout-sec`, default `180`)
+- RSS soft limit in the scraper (`--memory-soft-limit-mb`, default `50%` of RAM) triggers flush + GC
+- RSS hard limit in the scraper (`--memory-hard-limit-mb`, default `65%` of RAM) aborts before the kernel OOM killer does
+- wrapper-level wall-clock timeout via `SCRAPER_MAX_RUNTIME_SECONDS` (default `21600`, i.e. 6 hours)
+
+### Durable reruns / detached execution
+
+If you are running a one-off full rerun from an interactive shell and want it to survive the session:
+
+```bash
+# Queue a durable follow-up around an already-running foreground scrape
+bash scraper/queue_full_detached.sh --wait-pid <SCRAPER_PID>
+
+# Or just queue a detached full rerun immediately
+bash scraper/queue_full_detached.sh
+```
+
+Behavior:
+- if today's foreground scrape finishes successfully, the queued job regenerates both parquet outputs
+- if the foreground scrape dies before producing today's manifest, the queued job starts a fresh detached `run_daily.sh --full`
 
 ### Cron job management
 
@@ -173,7 +204,7 @@ crontab -l | grep -v "run_daily.sh" | crontab -
 
 ### Query tiers (LinkedIn + Indeed)
 
-Queries are organized into priority tiers. Tier 1 runs first so if the scraper gets rate-limited, the most important data is already collected.
+Queries are organized into priority tiers. Work is shuffled across metros, but the tiering remains important for auditability and targeted reruns.
 
 | Tier | Queries | Purpose |
 |------|---------|---------|
@@ -204,25 +235,45 @@ YC jobs are **not** split — all roles are saved in one file since the dataset 
 
 | Measure | LinkedIn | Indeed | YC |
 |---------|----------|-------|----|
-| Request delay | 8–20s random | 5–12s random | 1.5–3.5s |
-| Between-query pause | 15–30s | 10–20s | 3–6s (every 10 requests) |
-| Between-site pause | 30–60s | 30–60s | n/a |
+| Rate cap | 6 req/min | 8 req/min | n/a |
+| Request delay | jobspy / site latency | jobspy / site latency | 1.5–3.5s |
 | User agent rotation | 5 browser UAs | 5 browser UAs | 5 browser UAs |
 | Failure backoff | 60s × failure count | 45s × failure count | n/a |
-| Circuit breaker | 5 consecutive failures | 5 consecutive failures | 30 consecutive 404s |
+| Circuit breaker | 5 consecutive true failures | 5 consecutive true failures | 30 consecutive 404s |
+| Rate-limit alerting | manifest + SNS warning | manifest + SNS warning | n/a |
+
+Empty result sets are treated as valid zero-yield tasks, not request failures.
 
 ### Deduplication
 
-**LinkedIn/Indeed:**
-- Each job gets a hash (LinkedIn job ID, or MD5 of title+company+location)
-- Hashes persist in `_seen_job_ids.json` across runs
-- Cross-query dedup within a run (by `job_url`)
+**LinkedIn/Indeed daily CSVs:**
+- Same-day output dedupe uses a hierarchy: native `id` -> canonicalized `job_url` -> stable content fingerprint
+- Canonical URLs strip query parameters so tracking URLs collapse to one posting
+- Daily reruns merge into today's CSVs instead of discarding earlier same-day data
+- `_seen_job_ids.json` is retained for ever-seen bookkeeping, but it does not suppress today's snapshot output
 - Index capped at 500K entries
 
 **YC:**
 - Tracks job IDs (numeric, from URL) in `_seen_yc_ids.json`
 - Expired jobs (HTTP 302) are marked so they aren't re-checked
 - `_yc_scraper_state.json` tracks the highest scanned ID to avoid re-scanning old ranges
+
+### Output datasets
+
+**Daily raw CSV snapshots**
+- `data/scraped/YYYY-MM-DD_swe_jobs.csv`
+- `data/scraped/YYYY-MM-DD_non_swe_jobs.csv`
+- `data/scraped/YYYY-MM-DD_yc_jobs.csv`
+
+**Canonical parquet**
+- `data/unified.parquet`
+- One row per globally unique posting
+- Best analog to the Kaggle / Hugging Face LinkedIn postings corpus
+
+**Daily observations parquet**
+- `data/unified_observations.parquet`
+- One row per posting per `scrape_date`
+- Use this for survival / repost / duration analyses, not as the primary public benchmark table
 
 ### Output schema
 
