@@ -1,6 +1,6 @@
 # Literature Review
 
-This file summarizes the external literature most relevant to the project. It is not the canonical statement of the paper design. For the project's claims and methods, see `docs/research-design-posting-restructuring.md`.
+This file summarizes the external literature most relevant to the project. It is not the canonical statement of the paper design. For the project's claims and methods, see `docs/1-research-design.md`.
 
 ## 1. What Prior Labor-Market Papers Actually Measure
 

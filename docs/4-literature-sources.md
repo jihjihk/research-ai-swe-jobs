@@ -1,6 +1,6 @@
 # Literature Sources
 
-This file is the project bibliography. It supports `docs/literature-review.md`, the research design, and future paper drafts.
+This file is the project bibliography. It supports `docs/3-literature-review.md`, the research design, and future paper drafts.
 
 ## Core labor economics / AI-and-labor
 

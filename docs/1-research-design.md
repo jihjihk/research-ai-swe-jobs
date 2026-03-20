@@ -1,6 +1,12 @@
-# Research Design: Employer-Side Restructuring of SWE Roles in the AI Era
+# Research Design
 
-This is the **canonical project design doc**. It defines the paper's claims, research questions, constructs, and empirical strategy. For literature context, see `docs/literature-review.md`. For operational measurement details, see `docs/analysis-validation-plan.md`.
+This is the **canonical project design doc**. It defines the paper's claims, research questions, constructs, and empirical strategy. The intended reading order for active research docs is:
+
+1. `docs/1-research-design.md`
+2. `docs/2-interview-design-mechanisms.md`
+3. `docs/3-literature-review.md`
+4. `docs/4-literature-sources.md`
+5. `docs/5-publication-targets-2026-2027.md`
 
 ## Core Claim
 
@@ -126,7 +132,7 @@ Requirements listed in postings that hiring-side actors describe as aspirational
 
 This is one of the most novel pieces of the project and should be validated qualitatively, not inferred from text alone.
 
-Operational definitions, annotation strategy, and model choices live in `docs/analysis-validation-plan.md`. This file stays focused on the paper design rather than implementation detail.
+Detailed measurement planning has been archived for now. This file stays focused on the paper design rather than implementation detail.
 
 ## Empirical Strategy
 
@@ -223,7 +229,7 @@ Specifically, interviews should test:
 - whether senior work has shifted from mentoring to review / orchestration
 - whether observed posting changes reflect actual work or anticipatory narrative
 
-The hiring-side cohort is essential here. Protocol details live in `docs/interview-design-mechanisms.md`.
+The hiring-side cohort is essential here. Protocol details live in `docs/2-interview-design-mechanisms.md`.
 
 ## Threats to Validity and Mitigations
 

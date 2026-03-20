@@ -22,14 +22,14 @@ research/
 │   └── exploratory-analysis.ipynb # EDA notebook (Kaggle, Revelio, scraped data)
 │
 ├── docs/                          # Research documents
-│   ├── research-design-posting-restructuring.md # Canonical research questions & empirical strategy
-│   ├── interview-design-mechanisms.md # Mixed-methods interview protocol
-│   ├── analysis-validation-plan.md # Measurement and validation plan
-│   ├── literature-review.md       # Literature review
-│   ├── literature-sources.md      # Reference list
+│   ├── 1-research-design.md       # Canonical research design
+│   ├── 2-interview-design-mechanisms.md # Canonical interview / mixed-methods design
+│   ├── 3-literature-review.md     # Literature review
+│   ├── 4-literature-sources.md    # Reference list
+│   ├── 6-methods-learning.md      # Methodology learning guide from prior notes
 │   ├── data-sources-and-prompts.md # Public data options & prompts
 │   ├── infrastructure-setup.md    # EC2 & S3 infrastructure docs
-│   ├── publication-targets-2026-2027.md # Venue strategy and deadlines
+│   ├── 5-publication-targets-2026-2027.md # Venue strategy and deadlines
 │   └── archive/                   # Historical notes and superseded drafts
 │
 ├── data/                          # (gitignored)
@@ -568,11 +568,14 @@ done
 
 This project studies how AI coding agents are restructuring SWE roles across the entire seniority ladder. See:
 
-- `docs/research-design-posting-restructuring.md` — Research questions and empirical strategy
-- `docs/interview-design-mechanisms.md` — Interview design for mechanism evidence
-- `docs/analysis-validation-plan.md` — Measurement and validation plan
-- `docs/literature-review.md` — Literature review
-- `docs/publication-targets-2026-2027.md` — Conference and venue strategy
+- `docs/1-research-design.md` — Canonical research questions and empirical strategy
+- `docs/2-interview-design-mechanisms.md` — Canonical interview design for mechanism evidence
+- `docs/3-literature-review.md` — Literature review
+- `docs/4-literature-sources.md` — Reference list
+- `docs/5-publication-targets-2026-2027.md` — Conference and venue strategy
+- `docs/6-methods-learning.md` — Methodology learning guide tied to the March 6 notes
+- `docs/infrastructure-setup.md` — Scraper infrastructure and operations
+- `docs/archive/2026-03/analysis-validation-plan.md` — Archived measurement / validation plan
 
 ### Research questions
 

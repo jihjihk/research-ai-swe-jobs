@@ -4,7 +4,7 @@
 
 Three files comprising a research design for studying how AI coding agents are restructuring junior software engineer roles:
 
-- **research-design-posting-restructuring.md** — Revised research questions, measurement strategy, and mixed-methods empirical design centered on posting-side restructuring
+- **1-research-design.md** — Revised research questions, measurement strategy, and mixed-methods empirical design centered on employer-side restructuring
 - **research-review.md** — Literature review covering the flipped pyramid, supervision paradox, strategic abstraction in "AI literacy," psychological framing effects, and the GenAI divide
 - **sources.txt** — Eight annotated references (Brynjolfsson, Shen & Tamkin, Akanegbu, Chandar, Levanon et al., etc.)
 
