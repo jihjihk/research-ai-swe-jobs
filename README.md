@@ -22,14 +22,15 @@ research/
 │   └── exploratory-analysis.ipynb # EDA notebook (Kaggle, Revelio, scraped data)
 │
 ├── docs/                          # Research documents
-│   ├── research-design-posting-restructuring.md # Research questions & empirical strategy
+│   ├── research-design-posting-restructuring.md # Canonical research questions & empirical strategy
 │   ├── interview-design-mechanisms.md # Mixed-methods interview protocol
-│   ├── research-review.md         # Literature review
-│   ├── validation-plan.md         # ML/stats validation approaches per RQ
-│   ├── data-access-and-prompts.md # Data sources & LLM prompts
-│   ├── ec2-setup.md               # EC2 & S3 infrastructure docs
-│   ├── session-summary.md         # Prior analysis session notes
-│   └── sources.txt                # Reference sources
+│   ├── analysis-validation-plan.md # Measurement and validation plan
+│   ├── literature-review.md       # Literature review
+│   ├── literature-sources.md      # Reference list
+│   ├── data-sources-and-prompts.md # Public data options & prompts
+│   ├── infrastructure-setup.md    # EC2 & S3 infrastructure docs
+│   ├── publication-targets-2026-2027.md # Venue strategy and deadlines
+│   └── archive/                   # Historical notes and superseded drafts
 │
 ├── data/                          # (gitignored)
 │   ├── unified.parquet            # Canonical postings table (global dedupe)
@@ -412,7 +413,7 @@ python scraper/send_alert.py --status success --swe-count 0 --total-count 0 --at
 
 ## Infrastructure
 
-The scraper runs daily on EC2 with S3 for durable storage. See `docs/ec2-setup.md` for full details.
+The scraper runs daily on EC2 with S3 for durable storage. See `docs/infrastructure-setup.md` for full details.
 
 - **EC2:** t3.small in us-east-2, Amazon Linux 2023, cron at 6 AM UTC
 - **S3:** `s3://swe-labor-research` — stores daily CSVs, manifests, and scraper status
@@ -569,12 +570,13 @@ This project studies how AI coding agents are restructuring SWE roles across the
 
 - `docs/research-design-posting-restructuring.md` — Research questions and empirical strategy
 - `docs/interview-design-mechanisms.md` — Interview design for mechanism evidence
-- `docs/validation-plan.md` — ML approaches for each research question
-- `docs/session-summary.md` — Prior analysis results
+- `docs/analysis-validation-plan.md` — Measurement and validation plan
+- `docs/literature-review.md` — Literature review
+- `docs/publication-targets-2026-2027.md` — Conference and venue strategy
 
 ### Research questions
 
-1. How did SWE postings restructure across seniority levels from 2023 to 2026?
+1. How did employer-side SWE requirements restructure across seniority levels from 2023 to 2026?
 2. Which requirements moved downward into junior postings, and which senior-role responsibilities shifted toward AI-enabled orchestration?
-3. Do posting-side AI requirements outpace observed workplace AI usage?
+3. Do employer-side AI requirements outpace observed workplace AI usage?
 4. How do workers and hiring-side actors explain these changes?

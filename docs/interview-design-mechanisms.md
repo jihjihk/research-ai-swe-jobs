@@ -1,5 +1,7 @@
 # Interview Design: Mechanisms of SWE Posting Restructuring
 
+This is the **canonical qualitative design doc**. It defines the interview cohorts, protocol logic, elicitation materials, and analytic role of the qualitative study within the mixed-methods paper.
+
 ## Purpose
 
 This qualitative study is the mechanism arm of the project. The quantitative analysis establishes **what changed in SWE postings**. The interviews explain:

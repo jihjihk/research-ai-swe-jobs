@@ -1,8 +1,10 @@
-# Validation Plan: What to Look For & ML/AI Approaches
+# Analysis Validation Plan
+
+This is the **operational measurement doc**. It translates the research design into observables, labeling tasks, model choices, and robustness checks. It should not restate the full paper narrative.
 
 ## Guiding Principle
 
-Every hypothesis implies a **measurable signal** in job posting text or metadata. This plan maps each RQ to concrete observables, the simplest credible test, and a more powerful ML approach where warranted.
+Every construct in the research design needs a measurable signal in posting text or metadata. This plan maps each RQ to concrete observables, the simplest credible test, and a more powerful ML approach where warranted.
 
 ---
 
@@ -16,10 +18,10 @@ Every hypothesis implies a **measurable signal** in job posting text or metadata
 
 **Simple test:** Time-series plot of junior share plus a senior archetype shift index.
 
-**ML approach — Seniority Classifier:**
+**ML approach — Seniority classifier:**
 Train a text classifier (fine-tuned BERT or SetFit with few-shot) on 2023-2024 benchmark postings where seniority labels are relatively clean. Features: full posting text. Labels: junior / mid / senior. Then run inference on 2025-2026 postings. The key metric is **predicted-seniority drift** — what fraction of title-tagged "junior" postings the model classifies as mid or senior? Rising misclassification = redefinition, not disappearance.
 
-Why this works: it separates title inflation (cosmetic) from genuine content convergence (structural). If the classifier says a 2026 "Junior SWE" posting reads like a 2023 "Mid-Level SWE" posting, that's direct evidence of redefinition.
+Why this works: it separates title inflation from genuine content convergence.
 
 ---
 
@@ -31,15 +33,15 @@ Why this works: it separates title inflation (cosmetic) from genuine content con
 
 **Simple test:** Keyword-dictionary counts on posting text. Plot prevalence by month for target skills and requirement bundles (system design, CI/CD, cross-functional leadership, prompt engineering, ownership language, mentorship language, etc.). Identify crossing points.
 
-**ML approach — Dynamic Topic Modeling + Skill Embedding Trajectories:**
+**ML approach — Dynamic topic modeling + skill embedding trajectories:**
 
-1. **BERTopic with temporal binning.** Cluster posting text by quarter. Track which topic clusters appear in junior postings over time. Advantage over keyword counting: captures emergent skills not in your predefined dictionary (you don't know what you don't know).
+1. **BERTopic with temporal binning.** Cluster posting text by quarter. Track which topic clusters appear in junior postings over time.
 
-2. **Skill embedding trajectories.** Embed each posting with a sentence transformer (e.g., `all-MiniLM-L6-v2`). For each skill term, compute its average context embedding in junior vs. senior postings per quarter. Measure when the junior-context embedding for "system design" converges with the senior-context embedding — this captures not just mention frequency but whether the skill is used in the same *way* (ownership vs. exposure).
+2. **Skill embedding trajectories.** Embed each posting with a sentence transformer (e.g., `all-MiniLM-L6-v2`). For each skill term, compute its average context embedding in junior vs. senior postings per quarter. Measure when the junior-context embedding for "system design" converges with the senior-context embedding.
 
 ---
 
-## RQ3: Do posting-side changes show breaks or sharp accelerations around the broader AI release era?
+## RQ3: Do employer-side changes show breaks or sharp accelerations around the broader AI release era?
 
 **What to look for:**
 - A discrete level shift and/or slope change in junior posting share, scope inflation, senior archetype shift, or embedding similarity.
@@ -47,23 +49,23 @@ Why this works: it separates title inflation (cosmetic) from genuine content con
 
 **Simple test:** Bai-Perron endogenous breakpoint detection on monthly series. Annotate candidate release windows rather than imposing one `Post-agent` date. Use placebo tests at arbitrary dates to confirm specificity.
 
-**ML approach — Change Point Detection via Bayesian Online Methods:**
-Use `ruptures` (Python) or a Bayesian online changepoint detector (BOCPD) on multivariate features simultaneously — posting volume, skill breadth, embedding centroid shift, AI-keyword prevalence. Multivariate detection has higher power than univariate Bai-Perron because it pools signals. If multiple feature streams independently flag the same quarter, that's stronger evidence than any single series.
+**ML approach — Change point detection via Bayesian online methods:**
+Use `ruptures` (Python) or a Bayesian online changepoint detector (BOCPD) on multivariate features simultaneously: posting volume, skill breadth, embedding centroid shift, and AI-keyword prevalence.
 
 Sensitivity check: run BOCPD on a rolling window excluding the most recent 1, 2, 3 months to test whether the detected break is stable or an artifact of endpoint effects.
 
 ---
 
-## RQ4: Do posting-side AI requirements outpace observed workplace AI usage, and what explains the gap?
+## RQ4: Do employer-side AI requirements outpace observed workplace AI usage, and what explains the gap?
 
 **What to look for:**
-- Whether posting-side AI mentions and AI-related requirements rise faster than observed occupation-level AI usage benchmarks.
+- Whether employer-side AI mentions and AI-related requirements rise faster than observed occupation-level AI usage benchmarks.
 - Whether the gap differs by seniority, source, or metro.
 - Whether interviews suggest the gap reflects real workflow change, template inflation, or anticipatory beliefs.
 
-**Simple test:** Build a posting-usage divergence index by comparing posting AI mention rates against external occupation-level usage benchmarks. Report this descriptively by seniority and over time.
+**Simple test:** Build an employer-requirement / worker-usage divergence index by comparing AI mention rates in employer-side requirements against external occupation-level usage benchmarks. Report this descriptively by seniority and over time.
 
-**ML / integration approach:**
+**Integration approach:**
 Use interview coding plus external usage benchmarks to adjudicate the mechanism behind divergence. If needed, add a secondary comparison to low-exposure non-SWE postings later, but do not make that the core design.
 
 Robustness: compare divergence patterns across LinkedIn-only, LinkedIn + Indeed pooled, and junior vs. senior subsamples.
@@ -88,7 +90,7 @@ Robustness: compare divergence patterns across LinkedIn-only, LinkedIn + Indeed 
 | Seniority classifier | SetFit or fine-tuned BERT | Detect redefinition vs. disappearance |
 | Topic modeling | BERTopic | Emergent skill discovery |
 | Changepoint detection | `ruptures` + BOCPD | Multivariate structural break |
-| Benchmark integration | External usage benchmarks + interview coding | Quantify and explain posting-usage divergence |
+| Benchmark integration | External usage benchmarks + interview coding | Quantify and explain employer-requirement / worker-usage divergence |
 | Skill extraction | Curated dictionaries + zero-shot NLI | Catch skills outside the predefined schema |
 
 ## Pipeline Order
@@ -100,7 +102,7 @@ Robustness: compare divergence patterns across LinkedIn-only, LinkedIn + Indeed 
 4. Run classifier on full corpus → redefinition metric (RQ1)
 5. Compute per-skill prevalence curves + BERTopic (RQ2)
 6. Time-series assembly → Bai-Perron + BOCPD (RQ3)
-7. Compute posting-usage divergence + integrate interview evidence (RQ4)
+7. Compute employer-requirement / worker-usage divergence + integrate interview evidence (RQ4)
 8. Synthesize into training framework (RQ5)
 ```
 
@@ -110,4 +112,4 @@ Robustness: compare divergence patterns across LinkedIn-only, LinkedIn + Indeed 
 
 **Where simple methods suffice:** Posting volume trends, individual requirement prevalence from curated dictionaries, and RQ5 (qualitative synthesis).
 
-**What to watch out for:** The post-break window is still the binding constraint on RQ3. Be transparent about statistical power. The seniority classifier must be validated on held-out benchmark data before being applied forward — otherwise you're measuring model drift, not labor market drift.
+**What to watch out for:** The post-break window is still the binding constraint on RQ3. Be transparent about statistical power. The seniority classifier must be validated on held-out benchmark data before being applied forward.

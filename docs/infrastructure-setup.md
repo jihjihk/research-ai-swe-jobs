@@ -1,4 +1,6 @@
-# EC2 & S3 Infrastructure
+# Infrastructure Setup
+
+This file documents the production scraping environment: EC2, S3, and the operational commands used to monitor or recover the pipeline.
 
 ## EC2 Instance
 

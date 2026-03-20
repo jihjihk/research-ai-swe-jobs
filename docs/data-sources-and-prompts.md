@@ -1,8 +1,10 @@
-# Data Access Without Lightcast: Public Datasets, Scraping Strategy & LLM Prompts
+# Data Sources and Prompt Templates
+
+This file is a supporting planning document. It catalogs external data options, historical backfill strategies, and reusable prompt templates. It is not the canonical research design or analysis plan.
 
 ---
 
-## Part 1: Public / Free Datasets Worth Using
+## Public Datasets Worth Using
 
 ### Tier A — Directly usable for your RQs
 
@@ -33,7 +35,11 @@
 
 ---
 
-## Part 2: Scraping Your Own Dataset
+## Scraping and Historical Coverage
+
+### Historical note
+
+Some sections below describe broader options explored before the current scraper pipeline was stabilized. Keep them as reference material, not as the canonical description of the live system.
 
 ### Recommended tool: JobSpy (open source)
 
@@ -75,7 +81,7 @@ The hiQ Labs v. LinkedIn ruling (2022) established that scraping publicly availa
 
 ---
 
-## Part 3: LLM Prompts
+## Prompt Templates
 
 ### Prompt 1: Finding and evaluating public datasets
 

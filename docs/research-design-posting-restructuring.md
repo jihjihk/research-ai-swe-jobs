@@ -1,8 +1,10 @@
-# Research Design: SWE Posting Restructuring in the AI Era
+# Research Design: Employer-Side Restructuring of SWE Roles in the AI Era
+
+This is the **canonical project design doc**. It defines the paper's claims, research questions, constructs, and empirical strategy. For literature context, see `docs/literature-review.md`. For operational measurement details, see `docs/analysis-validation-plan.md`.
 
 ## Core Claim
 
-The strongest publishable claim this project can make is about **posting-side restructuring**, not direct employment effects. From 2023 to 2026, software engineering job postings appear to have changed in ways that:
+The strongest publishable claim this project can make is about **employer-side restructuring**, not direct employment effects. From 2023 to 2026, software engineering job postings appear to have changed in ways that:
 
 - narrow the junior rung by reducing junior share and inflating junior scope
 - redefine senior roles away from classic people-management language and toward AI-enabled orchestration, review, and systems responsibility
@@ -10,19 +12,19 @@ The strongest publishable claim this project can make is about **posting-side re
 
 This design treats break detection and causal timing as supporting evidence, not the sole backbone of the paper.
 
-## What This Paper Is and Is Not
+## Paper Scope
 
-### What it is
+This project is:
 
-- A longitudinal study of SWE posting content and posting composition
-- A new dataset paper plus a substantive empirical paper
-- A mixed-methods account of how employers, workers, and hiring-side actors explain the changes
+- a longitudinal study of SWE posting content and posting composition
+- a dataset paper plus a substantive empirical paper
+- a mixed-methods account of how employers, workers, and hiring-side actors explain the changes
 
-### What it is not
+This project is not:
 
-- Not a direct estimate of AI's effect on employment levels or wages
-- Not a replication of Brynjolfsson et al. using payroll data
-- Not a clean causal estimate that one specific model release changed the labor market on a single date
+- a direct estimate of AI's effect on employment levels or wages
+- a replication of Brynjolfsson et al. using payroll data
+- a clean causal estimate that one specific model release changed the labor market on a single date
 
 ## Available Data Assets
 
@@ -42,11 +44,11 @@ This design treats break detection and causal timing as supporting evidence, not
 
 The design below assumes only the data we actually control.
 
-## Primary Research Questions
+## Research Questions
 
-### RQ1: Posting-side restructuring
+### RQ1: Employer-side restructuring
 
-How did SWE postings restructure across seniority levels from 2023 to 2026?
+How did employer-side SWE requirements restructure across seniority levels from 2023 to 2026?
 
 Primary focus:
 
@@ -68,9 +70,9 @@ Primary focus:
 - AI-tool proficiency
 - mentorship / hiring / team-lead language
 
-### RQ3: Posting-usage divergence
+### RQ3: Employer-requirement / worker-usage divergence
 
-Do posting-side AI requirements outpace observed workplace AI usage, consistent with anticipatory restructuring?
+Do employer-side AI requirements outpace observed workplace AI usage, consistent with anticipatory restructuring?
 
 This is a comparison between two different objects:
 
@@ -114,9 +116,9 @@ Candidate indicators:
 
 ### Posting-usage divergence
 
-The gap between AI-related requirements in postings and observed AI usage in comparable occupation groups.
+The gap between employer-side AI requirements and observed AI usage in comparable occupation groups.
 
-This should be framed as a **divergence index**, not a direct treatment effect.
+This should be framed as an **employer-requirement / worker-usage divergence index**, not a direct treatment effect.
 
 ### Ghost requirements
 
@@ -124,36 +126,7 @@ Requirements listed in postings that hiring-side actors describe as aspirational
 
 This is one of the most novel pieces of the project and should be validated qualitatively, not inferred from text alone.
 
-## Measurement Strategy
-
-### Core text measures
-
-- seniority labels from title plus content-based classifier
-- AI-requirement dictionary
-- management-language dictionary
-- orchestration-language dictionary
-- ownership / architecture / systems-design dictionary
-- experience requirement extraction
-- description length and skill-breadth measures
-
-### Validation strategy
-
-Build a hand-labeled validation set for:
-
-- seniority
-- AI requirement mentions
-- management vs. orchestration language
-- ghost-requirement cues
-
-Use LLM-assisted extraction only after manual schema design and agreement checks on a labeled subset.
-
-### Advanced robustness layers
-
-- sentence-embedding similarity between junior and senior postings
-- topic modeling or clustering for emergent themes
-- source-specific estimates for LinkedIn and Indeed before pooled models
-
-These are robustness layers, not the primary identification strategy.
+Operational definitions, annotation strategy, and model choices live in `docs/analysis-validation-plan.md`. This file stays focused on the paper design rather than implementation detail.
 
 ## Empirical Strategy
 
@@ -199,7 +172,7 @@ Brynjolfsson et al., Acemoglu et al., and Hampole et al. provide useful external
 - online vacancy composition
 - task exposure and labor-demand effects
 
-We should compare our findings to theirs, but not present our posting-only design as a direct replication of their employment or firm-level estimates.
+We should compare our findings to theirs, but not present our employer-side vacancy design as a direct replication of their employment or firm-level estimates.
 
 ### 5. Sensitivity analyses
 
@@ -210,7 +183,7 @@ We should compare our findings to theirs, but not present our posting-only desig
 - dedupe and repost sensitivity
 - measures using canonical postings vs. daily observations
 
-## Expected Outputs
+## Outputs
 
 ### Main paper figures
 
@@ -219,7 +192,7 @@ We should compare our findings to theirs, but not present our posting-only desig
 3. Senior archetype shift index over time
 4. Junior-senior embedding similarity over time
 5. Requirement migration heatmap by seniority and period
-6. Posting-usage divergence plot
+6. Employer-requirement / worker-usage divergence plot
 7. Source-specific robustness plots
 8. Annotated break-analysis plot with candidate release windows
 
@@ -250,7 +223,7 @@ Specifically, interviews should test:
 - whether senior work has shifted from mentoring to review / orchestration
 - whether observed posting changes reflect actual work or anticipatory narrative
 
-The hiring-side cohort is essential here.
+The hiring-side cohort is essential here. Protocol details live in `docs/interview-design-mechanisms.md`.
 
 ## Threats to Validity and Mitigations
 
@@ -270,8 +243,8 @@ The hiring-side cohort is essential here.
 The most defensible novel contribution is a combination of three things:
 
 1. **A new longitudinal SWE postings dataset** with transparent scraping, harmonization, dedupe, and canonical-posting outputs.
-2. **A new measurement framework** for junior scope inflation, senior archetype shift, posting-usage divergence, and ghost requirements.
-3. **A mixed-methods mechanism account** that links posting-side restructuring to worker experience and hiring-side decision-making.
+2. **A new measurement framework** for junior scope inflation, senior archetype shift, employer-requirement / worker-usage divergence, and ghost requirements.
+3. **A mixed-methods mechanism account** that links employer-side restructuring to worker experience and hiring-side decision-making.
 
 That is more credible and more original than a stronger-sounding but weaker causal claim.
 
@@ -292,7 +265,7 @@ Lead with:
 
 - junior scope inflation
 - senior archetype shift
-- posting-usage divergence
+- employer-requirement / worker-usage divergence
 - mixed-methods mechanism evidence
 
 ### What to avoid in the abstract
@@ -305,5 +278,5 @@ Lead with:
 
 - "We document rapid restructuring in SWE postings"
 - "We find the junior rung narrowing and senior roles shifting in content"
-- "These posting-side changes appear larger and faster than observed AI usage benchmarks"
+- "These employer-side changes appear larger and faster than observed AI usage benchmarks"
 - "Interviews suggest a mix of real workflow change and anticipatory employer beliefs"
