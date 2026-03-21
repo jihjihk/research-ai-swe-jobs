@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Stage 5: Classification (SWE detection + seniority imputation)  -- V2
+Stage 5: Classification (SWE / SWE-adjacent / control + seniority imputation)  -- V2
 
 Redesigned based on manual review of 100 postings and LLM classification
 of 500 Tier 2 titles.
 
 Changes from V1:
-  - Seniority: multi-signal classifier applied UNIFORMLY (never prefers native).
-    Title keywords > YOE extraction > description language > unknown.
-    Cross-validation column flags native disagreements.
+  - Seniority: explicit-signal classifier applied uniformly (never prefers native).
+    Title keywords > explicit description signals > unknown.
+    YOE is extracted for contradiction flags only; it does NOT drive the enum.
   - SWE: Tier 2 now uses LLM-validated title lookup (500 titles) plus
     split thresholds (>= 0.85 = SWE, 0.70-0.85 = SWE_ADJACENT).
 
@@ -88,6 +88,16 @@ SWE_EXCLUDE = re.compile(
     r')\b'
 )
 
+CONTROL_PATTERN = re.compile(
+    r'(?i)\b('
+    r'civil\s*engineer|mechanical\s*engineer|'
+    r'nurse|registered\s*nurse|nursing|'
+    r'electrical\s*engineer|chemical\s*engineer|'
+    r'accountant|accounting|'
+    r'financial\s*analyst'
+    r')\b'
+)
+
 # O*NET SOC 15-1252 reference titles for embedding similarity
 SWE_REFS = [
     "Software Engineer", "Software Developer", "Software Development Engineer",
@@ -126,9 +136,11 @@ TECH_PREFILTER = re.compile(
 # 5a. SWE Classification -- Build Lookup
 # ---------------------------------------------------------------------------
 
-def build_swe_lookup(input_path: Path) -> dict:
+def build_swe_lookup(input_path: Path) -> tuple[dict, dict]:
     """
-    Build lookup: title_normalized -> (is_swe, is_swe_adjacent, confidence, tier)
+    Build lookups from raw title:
+      - swe_lookup -> (is_swe, is_swe_adjacent, confidence, tier)
+      - control_lookup -> bool
 
     Tier 1: Regex (SWE_INCLUDE / SWE_EXCLUDE)
     Tier 2a: LLM-validated title lookup (500 titles)
@@ -152,19 +164,18 @@ def build_swe_lookup(input_path: Path) -> dict:
     else:
         log.warning(f"  LLM title lookup not found at {TIER2_LOOKUP_PATH}")
 
-    # Collect unique titles with their existing regex classification
+    # Collect unique raw titles and classify directly from the title text.
     pf = pq.ParquetFile(input_path)
-    title_swe = {}   # title -> is_swe (from regex in stage1)
-    title_control = {}  # title -> is_control
+    title_swe = {}
+    title_control = {}
 
-    for batch in pf.iter_batches(batch_size=CHUNK_SIZE,
-                                  columns=["title_normalized", "is_swe", "is_control"]):
+    for batch in pf.iter_batches(batch_size=CHUNK_SIZE, columns=["title"]):
         chunk = batch.to_pandas()
-        for _, row in chunk[["title_normalized", "is_swe", "is_control"]].drop_duplicates().iterrows():
-            t = row["title_normalized"]
+        for title in chunk["title"].dropna().astype(str).str.lower().str.strip().drop_duplicates():
+            t = title
             if t not in title_swe:
-                title_swe[t] = bool(row["is_swe"])
-                title_control[t] = bool(row["is_control"])
+                title_swe[t] = bool(SWE_INCLUDE.search(t)) and not bool(SWE_EXCLUDE.search(t))
+                title_control[t] = bool(CONTROL_PATTERN.search(t))
         del chunk, batch
         gc.collect()
 
@@ -177,7 +188,7 @@ def build_swe_lookup(input_path: Path) -> dict:
     log.info(f"  Tier 1 (regex) SWE: {len(regex_swe):,}")
     log.info(f"  Control group titles: {len(control_titles):,}")
 
-    # Build initial lookup for regex-classified
+    # Build initial lookup for regex-classified titles.
     # Format: title -> (is_swe, is_swe_adjacent, confidence, tier)
     lookup = {}
     for t in regex_swe:
@@ -229,7 +240,7 @@ def build_swe_lookup(input_path: Path) -> dict:
     for t in non_candidates:
         lookup[t] = (False, False, 0.0, "unresolved")
 
-    del title_swe, title_control, all_titles, still_unresolved, non_candidates
+    del title_swe, all_titles, still_unresolved, non_candidates
     gc.collect()
 
     # -----------------------------------------------------------------------
@@ -304,23 +315,28 @@ def build_swe_lookup(input_path: Path) -> dict:
     elapsed = time.time() - t0
     log.info(f"  SWE lookup built in {elapsed:.1f}s ({len(lookup):,} entries)")
 
-    return lookup
+    return lookup, title_control
 
 
 # ---------------------------------------------------------------------------
 # 5b. Seniority Classification -- Multi-signal, uniform
 # ---------------------------------------------------------------------------
 
-# Title keyword patterns -- these MUST work (V1 failure #1)
+# Title keyword patterns -- explicit signals only
 TITLE_INTERN = re.compile(r'\b(intern|internship|co-?op)\b', re.IGNORECASE)
 TITLE_DIRECTOR = re.compile(
     r'\b(director|vp|vice\s*president|head\s+of|chief|cto|cio)\b', re.IGNORECASE
 )
 TITLE_SENIOR = re.compile(
-    r'\b(senior|sr\.?|staff|principal|distinguished|fellow)\b', re.IGNORECASE
+    r'\b(senior|sr\.?|staff|principal|distinguished|fellow|architect)\b', re.IGNORECASE
 )
 TITLE_LEAD = re.compile(
-    r'\b(lead\b|tech\s*lead|team\s*lead|engineering\s*lead)\b', re.IGNORECASE
+    r'\b('
+    r'tech\s*lead|engineering\s*lead|'
+    r'lead\s+(?:software|data|platform|backend|back[- ]?end|frontend|front[- ]?end|'
+    r'full[- ]?stack|devops|qa|test|ml|ai|cloud|infrastructure|systems?)'
+    r')\b',
+    re.IGNORECASE
 )
 TITLE_JUNIOR = re.compile(
     r'\b(junior|jr\.?|new\s*grad|entry[- ]?level|early\s*career)\b', re.IGNORECASE
@@ -331,32 +347,38 @@ TITLE_ASSOCIATE = re.compile(r'\bassociate\b', re.IGNORECASE)
 TITLE_LEVEL_HIGH = re.compile(
     r'(?:engineer|developer|swe|sde)\s*(?:iii|iv|v|[3-9])\b', re.IGNORECASE
 )
-TITLE_LEVEL_MID = re.compile(
+TITLE_LEVEL_SENIOR = re.compile(
     r'(?:engineer|developer|swe|sde)\s*ii\b', re.IGNORECASE
 )
-TITLE_LEVEL_ENTRY = re.compile(
+TITLE_LEVEL_ASSOCIATE = re.compile(
     r'(?:engineer|developer|swe|sde)\s*i\b', re.IGNORECASE
 )
 
-# Description YOE patterns
+# Description YOE patterns for contradiction checks only
 YOE_PATTERN = re.compile(
-    r'(\d+)\+?\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|professional|relevant|proven|work)',
+    r'(\d+)(?:\s*[-–]\s*\d+)?\+?\s*(?:years?|yrs?)\s*(?:of\s+)?'
+    r'(?:experience|professional|relevant|proven|work|working)',
     re.IGNORECASE
 )
 
-# Description responsibility language
-SENIOR_LANGUAGE = re.compile(
-    r'\b(architect\s+(?:and\s+)?design|design\s+systems|lead\s+a\s+team|'
-    r'mentor(?:ing)?|technical\s+direction|strategic\s+(?:direction|vision)|'
-    r'cross[- ]?functional\s+lead|own\s+the\s+(?:architecture|roadmap)|'
-    r'drive\s+technical|10\+?\s*years?)\b',
+# Description explicit seniority cues only
+DESC_ENTRY = re.compile(
+    r'\b(junior|jr\.?|intern(?:ship)?|co-?op|new\s*grad|entry[- ]?level|early\s*career)\b',
     re.IGNORECASE
 )
-ENTRY_LANGUAGE = re.compile(
-    r'\b(recent\s+graduate|learning\s+environment|career\s+starter|'
-    r'under\s+(?:direct\s+)?supervision|no\s+experience\s+(?:required|necessary)|'
-    r'0[- ]?2?\s*years?\s*(?:of\s+)?experience|entry[- ]?level\s+(?:position|role)|'
-    r'new\s+to\s+(?:the\s+)?(?:field|industry|workforce))\b',
+DESC_ASSOCIATE = re.compile(
+    r'(?:engineer|developer|swe|sde)\s*i\b|'
+    r'\bassociate\s+(?:engineer|developer|software|qa|test|data|ml|ai|devops|'
+    r'cloud|platform|backend|back[- ]?end|frontend|front[- ]?end|full[- ]?stack)\b',
+    re.IGNORECASE
+)
+DESC_MID_SENIOR = re.compile(
+    r'\b(senior|sr\.?|staff|principal)\b|'
+    r'(?:engineer|developer|swe|sde)\s*(?:ii|iii|iv|v|[2-9])\b',
+    re.IGNORECASE
+)
+DESC_DIRECTOR = re.compile(
+    r'\b(director|vp|vice\s*president|head\s+of|chief|cto|cio)\b',
     re.IGNORECASE
 )
 
@@ -368,10 +390,8 @@ def classify_seniority(title: str, description: str) -> tuple:
 
     Returns (seniority_level, source, confidence).
 
-    Seniority levels: entry level, associate, mid-senior level, director,
-                      executive, internship, unknown
-    Source: title_keyword, title_level_number, description_yoe,
-            description_language, unknown
+    Seniority levels: entry, associate, mid-senior, director, unknown
+    Source: title_keyword, title_level_number, description_explicit, unknown
     Confidence: 0.0-1.0
     """
     title_str = str(title).lower().strip() if pd.notna(title) else ""
@@ -379,62 +399,68 @@ def classify_seniority(title: str, description: str) -> tuple:
 
     # --- Signal 1: Title keywords (confidence 0.95) ---
 
-    # Internship first (very distinctive)
     if TITLE_INTERN.search(title_str):
-        return ("internship", "title_keyword", 0.95)
+        return ("entry", "title_keyword", 0.95)
 
-    # Director / executive level
     if TITLE_DIRECTOR.search(title_str):
         return ("director", "title_keyword", 0.95)
 
-    # Senior-level keywords: senior, sr, staff, principal, distinguished, fellow
     if TITLE_SENIOR.search(title_str):
-        # Check it's not "senior associate" being misread -- "senior" wins
-        return ("mid-senior level", "title_keyword", 0.95)
+        return ("mid-senior", "title_keyword", 0.95)
 
-    # Lead roles map to mid-senior
     if TITLE_LEAD.search(title_str):
-        return ("mid-senior level", "title_keyword", 0.95)
+        return ("mid-senior", "title_keyword", 0.95)
 
-    # Level numbers (before junior check, because "Engineer I" is entry)
+    # Level numbers
     if TITLE_LEVEL_HIGH.search(title_str):
-        return ("mid-senior level", "title_level_number", 0.95)
-    if TITLE_LEVEL_MID.search(title_str):
+        return ("mid-senior", "title_level_number", 0.95)
+    if TITLE_LEVEL_SENIOR.search(title_str):
+        return ("mid-senior", "title_level_number", 0.95)
+    if TITLE_LEVEL_ASSOCIATE.search(title_str):
         return ("associate", "title_level_number", 0.95)
-    if TITLE_LEVEL_ENTRY.search(title_str):
-        return ("entry level", "title_level_number", 0.95)
 
-    # Junior keywords
     if TITLE_JUNIOR.search(title_str):
-        return ("entry level", "title_keyword", 0.95)
+        return ("entry", "title_keyword", 0.95)
 
-    # Associate (only when not preceded by "senior" -- already handled above)
     if TITLE_ASSOCIATE.search(title_str):
         return ("associate", "title_keyword", 0.95)
 
-    # --- Signal 2: Description years-of-experience (confidence 0.80) ---
+    # --- Signal 2: explicit description cues only (confidence 0.70) ---
     if desc_str:
-        year_matches = YOE_PATTERN.findall(desc_str)
-        reasonable = [int(y) for y in year_matches if 0 < int(y) <= 20]
-        if reasonable:
-            min_years = min(reasonable)
-            if min_years <= 2:
-                return ("entry level", "description_yoe", 0.80)
-            elif min_years <= 4:
-                return ("associate", "description_yoe", 0.80)
-            elif min_years <= 7:
-                return ("mid-senior level", "description_yoe", 0.80)
-            else:  # 8+
-                return ("mid-senior level", "description_yoe", 0.90)
-
-    # --- Signal 3: Description responsibility language (confidence 0.70) ---
-    if desc_str:
-        if SENIOR_LANGUAGE.search(desc_str):
-            return ("mid-senior level", "description_language", 0.70)
-        if ENTRY_LANGUAGE.search(desc_str):
-            return ("entry level", "description_language", 0.70)
+        if DESC_DIRECTOR.search(desc_str):
+            return ("director", "description_explicit", 0.70)
+        if DESC_MID_SENIOR.search(desc_str):
+            return ("mid-senior", "description_explicit", 0.70)
+        if DESC_ASSOCIATE.search(desc_str):
+            return ("associate", "description_explicit", 0.70)
+        if DESC_ENTRY.search(desc_str):
+            return ("entry", "description_explicit", 0.70)
 
     return ("unknown", "unknown", 0.0)
+
+
+def extract_min_yoe(description: str):
+    """Extract the minimum reasonable YOE mention from text."""
+    if pd.isna(description) or str(description).strip() == "":
+        return np.nan
+
+    matches = YOE_PATTERN.findall(str(description).lower())
+    years = [int(y) for y in matches if 0 < int(y) <= 20]
+    if not years:
+        return np.nan
+    return float(min(years))
+
+
+def has_yoe_contradiction(seniority: str, yoe_extracted) -> bool:
+    """Flag obviously inflated YOE requirements for lower-level roles."""
+    if pd.isna(yoe_extracted):
+        return False
+
+    if seniority == "entry" and yoe_extracted >= 3:
+        return True
+    if seniority == "associate" and yoe_extracted >= 5:
+        return True
+    return False
 
 
 def build_seniority_title_lookup(input_path: Path) -> dict:
@@ -488,12 +514,10 @@ def build_seniority_title_lookup(input_path: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 SENIORITY_3LEVEL = {
-    "entry level": "junior",
-    "internship": "junior",
+    "entry": "junior",
     "associate": "mid",
-    "mid-senior level": "senior",
+    "mid-senior": "senior",
     "director": "senior",
-    "executive": "senior",
     "unknown": "unknown",
 }
 
@@ -508,13 +532,16 @@ def map_3level(seniority: str) -> str:
 
 # Normalize native seniority labels for comparison
 NATIVE_NORMALIZE = {
-    "mid senior": "mid-senior level",
-    "mid-senior level": "mid-senior level",
-    "entry level": "entry level",
+    "mid senior": "mid-senior",
+    "mid-senior level": "mid-senior",
+    "mid-senior": "mid-senior",
+    "entry level": "entry",
+    "entry": "entry",
     "associate": "associate",
     "director": "director",
-    "executive": "executive",
-    "internship": "internship",
+    "executive": "director",
+    "internship": "entry",
+    "intern": "entry",
 }
 
 
@@ -547,6 +574,7 @@ def streaming_write(
     output_path: Path,
     swe_lookup: dict,
     seniority_title_lookup: dict,
+    control_lookup: dict,
 ):
     """
     Stream chunks, apply lookups + description-based seniority fallback,
@@ -565,6 +593,14 @@ def streaming_write(
     seniority_source_counts = Counter()
     seniority_level_counts = Counter()
     cross_check_counts = Counter()
+    swe_by_source_counts = Counter()
+    adj_by_source_counts = Counter()
+    total_by_source_counts = Counter()
+    swe_only_tier_counts = Counter()
+    adj_only_tier_counts = Counter()
+    seniority_3level_counts = Counter()
+    swe_seniority_3level_counts = Counter()
+    disagreement_pairs = Counter()
 
     for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
         chunk = batch.to_pandas()
@@ -590,6 +626,7 @@ def streaming_write(
         # CRITICAL: Use raw 'title' column (not title_normalized) because
         # title_normalized strips seniority prefixes (Senior, Sr, Lead, etc.)
         title_lower = chunk["title"].fillna("").str.lower().str.strip()
+        chunk["is_control"] = title_lower.map(lambda t: control_lookup.get(t, False)).astype(bool)
         title_results = title_lower.map(
             lambda t: seniority_title_lookup.get(t, None)
         )
@@ -598,6 +635,14 @@ def streaming_write(
         seniority_sources = []
         seniority_confidences = []
 
+        description_text = chunk["description_core"].where(
+            chunk["description_core"].notna(),
+            chunk["description"],
+        )
+
+        yoe_values = []
+        yoe_contradictions = []
+
         for idx in range(n):
             tr = title_results.iloc[idx]
             if tr is not None:
@@ -605,20 +650,22 @@ def streaming_write(
                 seniority_sources.append(tr[1])
                 seniority_confidences.append(tr[2])
             else:
-                # Fall back to full classifier with description
                 title_val = title_lower.iloc[idx]
-                desc_val = chunk["description"].iloc[idx]
-                level, source, conf = classify_seniority(
-                    title_val,
-                    desc_val if pd.notna(desc_val) else ""
-                )
+                desc_val = description_text.iloc[idx]
+                level, source, conf = classify_seniority(title_val, desc_val if pd.notna(desc_val) else "")
                 seniority_levels.append(level)
                 seniority_sources.append(source)
                 seniority_confidences.append(conf)
 
+            yoe_val = extract_min_yoe(description_text.iloc[idx])
+            yoe_values.append(yoe_val)
+            yoe_contradictions.append(has_yoe_contradiction(seniority_levels[-1], yoe_val))
+
         chunk["seniority_imputed"] = seniority_levels
         chunk["seniority_source"] = seniority_sources
         chunk["seniority_confidence"] = np.array(seniority_confidences, dtype=np.float64)
+        chunk["yoe_extracted"] = np.array(yoe_values, dtype=np.float64)
+        chunk["yoe_seniority_contradiction"] = np.array(yoe_contradictions, dtype=bool)
 
         # seniority_final = seniority_imputed (uniform classifier is canonical)
         chunk["seniority_final"] = chunk["seniority_imputed"]
@@ -650,6 +697,32 @@ def streaming_write(
         # ---- 5c: 3-level bucketing ----
         chunk["seniority_3level"] = chunk["seniority_final"].apply(map_3level)
 
+        # Count by source/platform
+        source_keys = chunk["source"].fillna("unknown") + "|" + chunk["source_platform"].fillna("unknown")
+        for key, count in source_keys.value_counts().items():
+            total_by_source_counts[key] += int(count)
+        for key, count in source_keys[chunk["is_swe"]].value_counts().items():
+            swe_by_source_counts[key] += int(count)
+        for key, count in source_keys[chunk["is_swe_adjacent"]].value_counts().items():
+            adj_by_source_counts[key] += int(count)
+
+        for tier, count in chunk.loc[chunk["is_swe"], "swe_classification_tier"].value_counts().items():
+            swe_only_tier_counts[tier] += int(count)
+        for tier, count in chunk.loc[chunk["is_swe_adjacent"], "swe_classification_tier"].value_counts().items():
+            adj_only_tier_counts[tier] += int(count)
+        for level, count in chunk["seniority_3level"].value_counts().items():
+            seniority_3level_counts[level] += int(count)
+        for level, count in chunk.loc[chunk["is_swe"], "seniority_3level"].value_counts().items():
+            swe_seniority_3level_counts[level] += int(count)
+
+        disagree_mask = chunk["seniority_cross_check"] == "native_disagrees"
+        disagree_chunk = pd.DataFrame({
+            "native": chunk.loc[disagree_mask, "seniority_native"].apply(normalize_native),
+            "ours": chunk.loc[disagree_mask, "seniority_imputed"],
+        }).fillna("missing")
+        for row in disagree_chunk.itertuples(index=False):
+            disagreement_pairs[(row.native, row.ours)] += 1
+
         # ---- Force float64 on numeric columns for schema consistency ----
         chunk["swe_confidence"] = chunk["swe_confidence"].astype(np.float64)
         chunk["seniority_confidence"] = chunk["seniority_confidence"].astype(np.float64)
@@ -672,7 +745,21 @@ def streaming_write(
     elapsed = time.time() - t0
     log.info(f"  Write pass complete: {written:,} rows in {elapsed:.1f}s")
 
-    return written, swe_tier_counts, seniority_source_counts, seniority_level_counts, cross_check_counts
+    return {
+        "written": written,
+        "swe_tier_counts": swe_tier_counts,
+        "seniority_source_counts": seniority_source_counts,
+        "seniority_level_counts": seniority_level_counts,
+        "cross_check_counts": cross_check_counts,
+        "swe_by_source_counts": swe_by_source_counts,
+        "adj_by_source_counts": adj_by_source_counts,
+        "total_by_source_counts": total_by_source_counts,
+        "swe_only_tier_counts": swe_only_tier_counts,
+        "adj_only_tier_counts": adj_only_tier_counts,
+        "seniority_3level_counts": seniority_3level_counts,
+        "swe_seniority_3level_counts": swe_seniority_3level_counts,
+        "disagreement_pairs": disagreement_pairs,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -682,16 +769,26 @@ def streaming_write(
 def generate_report(
     input_path: Path,
     output_path: Path,
-    swe_tier_counts: Counter,
-    seniority_source_counts: Counter,
-    seniority_level_counts: Counter,
-    cross_check_counts: Counter,
-    written: int,
+    report_stats: dict,
 ):
     """Post-write validation and detailed reporting."""
     log.info("\n" + "=" * 60)
     log.info("STAGE 5 REPORT")
     log.info("=" * 60)
+
+    written = report_stats["written"]
+    swe_tier_counts = report_stats["swe_tier_counts"]
+    seniority_source_counts = report_stats["seniority_source_counts"]
+    seniority_level_counts = report_stats["seniority_level_counts"]
+    cross_check_counts = report_stats["cross_check_counts"]
+    swe_by_source_counts = report_stats["swe_by_source_counts"]
+    adj_by_source_counts = report_stats["adj_by_source_counts"]
+    total_by_source_counts = report_stats["total_by_source_counts"]
+    swe_only_tier_counts = report_stats["swe_only_tier_counts"]
+    adj_only_tier_counts = report_stats["adj_only_tier_counts"]
+    seniority_3level_counts = report_stats["seniority_3level_counts"]
+    swe_seniority_3level_counts = report_stats["swe_seniority_3level_counts"]
+    disagreement_pairs = report_stats["disagreement_pairs"]
 
     # --- SWE classification report ---
     log.info("\n--- 5a. SWE Classification ---")
@@ -706,57 +803,44 @@ def generate_report(
     log.info(f"  {'-'*25} {'-'*10} {'-'*8}")
     log.info(f"  {'TOTAL':<25} {total:>10,}")
 
-    # Read back for cross-tabs
-    log.info("\n  Reading output for cross-tabs...")
-    pf = pq.ParquetFile(output_path)
-    frames = []
-    for batch in pf.iter_batches(batch_size=CHUNK_SIZE,
-                                  columns=["source", "is_swe", "is_swe_adjacent", "is_control",
-                                           "swe_classification_tier",
-                                           "seniority_imputed", "seniority_final",
-                                           "seniority_source", "seniority_confidence",
-                                           "seniority_native", "seniority_3level",
-                                           "seniority_cross_check"]):
-        frames.append(batch.to_pandas())
-    df = pd.concat(frames, ignore_index=True)
-
     # SWE by data source
     log.info("\n  SWE counts by data source:")
-    swe_by_source = df.groupby("source")["is_swe"].agg(["sum", "count"])
-    swe_by_source["pct"] = swe_by_source["sum"] / swe_by_source["count"] * 100
     log.info(f"  {'Source':<30} {'SWE':>8} {'Total':>10} {'Pct':>8}")
     log.info(f"  {'-'*30} {'-'*8} {'-'*10} {'-'*8}")
-    for src, row in swe_by_source.iterrows():
-        log.info(f"  {src:<30} {int(row['sum']):>8,} {int(row['count']):>10,} {row['pct']:>7.1f}%")
-    total_swe = int(swe_by_source["sum"].sum())
-    total_rows = int(swe_by_source["count"].sum())
+    total_swe = 0
+    total_rows = 0
+    for src in sorted(total_by_source_counts):
+        swe = swe_by_source_counts.get(src, 0)
+        total = total_by_source_counts.get(src, 0)
+        total_swe += swe
+        total_rows += total
+        pct = swe / total * 100 if total else 0
+        log.info(f"  {src:<30} {swe:>8,} {total:>10,} {pct:>7.1f}%")
     log.info(f"  {'-'*30} {'-'*8} {'-'*10} {'-'*8}")
     log.info(f"  {'TOTAL':<30} {total_swe:>8,} {total_rows:>10,} {total_swe/total_rows*100:>7.1f}%")
 
     # SWE-adjacent by data source
     log.info("\n  SWE-adjacent counts by data source:")
-    adj_by_source = df.groupby("source")["is_swe_adjacent"].agg(["sum", "count"])
-    adj_by_source["pct"] = adj_by_source["sum"] / adj_by_source["count"] * 100
     log.info(f"  {'Source':<30} {'Adjacent':>8} {'Total':>10} {'Pct':>8}")
     log.info(f"  {'-'*30} {'-'*8} {'-'*10} {'-'*8}")
-    for src, row in adj_by_source.iterrows():
-        log.info(f"  {src:<30} {int(row['sum']):>8,} {int(row['count']):>10,} {row['pct']:>7.1f}%")
-    total_adj = int(adj_by_source["sum"].sum())
+    total_adj = 0
+    for src in sorted(total_by_source_counts):
+        adj = adj_by_source_counts.get(src, 0)
+        total = total_by_source_counts.get(src, 0)
+        total_adj += adj
+        pct = adj / total * 100 if total else 0
+        log.info(f"  {src:<30} {adj:>8,} {total:>10,} {pct:>7.1f}%")
     log.info(f"  {'-'*30} {'-'*8} {'-'*10} {'-'*8}")
     log.info(f"  {'TOTAL':<30} {total_adj:>8,} {total_rows:>10,} {total_adj/total_rows*100:>7.1f}%")
 
     # SWE by classification tier
     log.info("\n  SWE classification tier breakdown (SWE=True only):")
-    swe_rows = df[df["is_swe"]]
-    tier_dist = swe_rows["swe_classification_tier"].value_counts()
-    for tier, count in tier_dist.items():
+    for tier, count in swe_only_tier_counts.most_common():
         log.info(f"    {tier:<25} {count:>10,}")
 
     # SWE-adjacent by classification tier
     log.info("\n  SWE-adjacent tier breakdown (is_swe_adjacent=True only):")
-    adj_rows = df[df["is_swe_adjacent"]]
-    adj_tier_dist = adj_rows["swe_classification_tier"].value_counts()
-    for tier, count in adj_tier_dist.items():
+    for tier, count in adj_only_tier_counts.most_common():
         log.info(f"    {tier:<25} {count:>10,}")
 
     # --- Seniority report ---
@@ -765,8 +849,7 @@ def generate_report(
     log.info(f"  {'Source':<25} {'Rows':>10} {'Pct':>8}")
     log.info(f"  {'-'*25} {'-'*10} {'-'*8}")
     total_sen = sum(seniority_source_counts.values())
-    for src in ["title_keyword", "title_level_number", "description_yoe",
-                "description_language", "unknown"]:
+    for src in ["title_keyword", "title_level_number", "description_explicit", "unknown"]:
         c = seniority_source_counts.get(src, 0)
         pct = c / total_sen * 100 if total_sen > 0 else 0
         log.info(f"  {src:<25} {c:>10,} {pct:>7.1f}%")
@@ -775,8 +858,7 @@ def generate_report(
 
     # Seniority level distribution
     log.info(f"\n  Seniority level distribution:")
-    for level in ["entry level", "associate", "mid-senior level", "director",
-                  "executive", "internship", "unknown"]:
+    for level in ["entry", "associate", "mid-senior", "director", "unknown"]:
         c = seniority_level_counts.get(level, 0)
         pct = c / total_sen * 100 if total_sen > 0 else 0
         log.info(f"    {level:<25} {c:>10,} ({pct:.1f}%)")
@@ -787,15 +869,14 @@ def generate_report(
 
     # Seniority 3-level distribution
     log.info(f"\n  Seniority 3-level distribution:")
-    s3_dist = df["seniority_3level"].value_counts()
-    for val, count in s3_dist.items():
-        log.info(f"    {val:<25} {count:>10,} ({count/len(df)*100:.1f}%)")
+    for val, count in seniority_3level_counts.most_common():
+        log.info(f"    {val:<25} {count:>10,} ({count/written*100:.1f}%)")
 
     # Seniority 3-level for SWE only
     log.info(f"\n  Seniority 3-level for SWE only:")
-    swe_sen = swe_rows["seniority_3level"].value_counts()
-    for val, count in swe_sen.items():
-        log.info(f"    {val:<25} {count:>10,} ({count/len(swe_rows)*100:.1f}%)")
+    for val, count in swe_seniority_3level_counts.most_common():
+        pct = count / total_swe * 100 if total_swe else 0
+        log.info(f"    {val:<25} {count:>10,} ({pct:.1f}%)")
 
     # Cross-validation report
     log.info(f"\n--- Cross-validation: native vs classifier ---")
@@ -808,24 +889,18 @@ def generate_report(
         log.info(f"  {cc:<25} {c:>10,} {pct:>7.1f}%")
 
     # Disagreement details
-    has_native = df[df["seniority_cross_check"] == "native_disagrees"]
-    if len(has_native) > 0:
-        log.info(f"\n  Disagreement breakdown ({len(has_native):,} rows):")
-        native_norm = has_native["seniority_native"].apply(normalize_native)
-        ct = pd.crosstab(native_norm, has_native["seniority_imputed"],
-                          margins=True)
-        log.info(f"\n  Native (rows) vs Ours (cols):\n{ct.to_string()}")
+    if disagreement_pairs:
+        total_disagree = sum(disagreement_pairs.values())
+        log.info(f"\n  Disagreement breakdown ({total_disagree:,} rows):")
+        for (native, ours), count in disagreement_pairs.most_common(20):
+            log.info(f"    native={native:<12} ours={ours:<12} {count:>8,}")
 
     # Agreement rate where native exists
-    has_any_native = df[df["seniority_cross_check"] != "no_native"]
-    if len(has_any_native) > 0:
-        agree = (has_any_native["seniority_cross_check"] == "agrees").sum()
-        total_with_native = len(has_any_native)
+    total_with_native = total_cc - cross_check_counts.get("no_native", 0)
+    if total_with_native > 0:
+        agree = cross_check_counts.get("agrees", 0)
         log.info(f"\n  Agreement rate (where native exists): {agree/total_with_native:.1%} "
                  f"({agree:,}/{total_with_native:,})")
-
-    del df, frames
-    gc.collect()
 
 
 # ---------------------------------------------------------------------------
@@ -834,7 +909,7 @@ def generate_report(
 
 def run_stage5():
     log.info("=" * 60)
-    log.info("STAGE 5: Classification V2 (SWE + Seniority)")
+    log.info("STAGE 5: Classification V2 (SWE / SWE-adjacent / control + Seniority)")
     log.info("=" * 60)
 
     input_path = INTERMEDIATE_DIR / "stage4_dedup.parquet"
@@ -845,7 +920,7 @@ def run_stage5():
     log.info(f"Input: {total_rows:,} rows")
 
     # Phase 1: Build SWE lookup (includes embedding computation)
-    swe_lookup = build_swe_lookup(input_path)
+    swe_lookup, control_lookup = build_swe_lookup(input_path)
     gc.collect()
 
     # Phase 2: Build seniority title lookup
@@ -853,23 +928,23 @@ def run_stage5():
     gc.collect()
 
     # Phase 3: Stream chunks, apply lookups, write output
-    written, swe_tier_counts, seniority_source_counts, seniority_level_counts, cross_check_counts = \
-        streaming_write(input_path, output_path, swe_lookup, seniority_title_lookup)
+    report_stats = streaming_write(
+        input_path,
+        output_path,
+        swe_lookup,
+        seniority_title_lookup,
+        control_lookup,
+    )
 
     # Free lookups
-    del swe_lookup, seniority_title_lookup
+    del swe_lookup, seniority_title_lookup, control_lookup
     gc.collect()
 
     # Phase 4: Report
-    generate_report(
-        input_path, output_path,
-        swe_tier_counts, seniority_source_counts,
-        seniority_level_counts, cross_check_counts,
-        written
-    )
+    generate_report(input_path, output_path, report_stats)
 
     log.info(f"\nOutput: {output_path}")
-    log.info(f"Rows written: {written:,}")
+    log.info(f"Rows written: {report_stats['written']:,}")
     log.info("Stage 5 complete.")
 
 

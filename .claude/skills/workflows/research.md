@@ -10,17 +10,18 @@ Use this for questions like:
 - How do Lightcast/Burning Glass studies handle seniority classification?
 - What validation approaches do scraping-based labor studies use?
 
-This is NOT for general literature review (that lives in `docs/sources.txt`) or for exploratory "learn about X" tasks. Every research task should produce actionable methodological guidance.
+This is NOT for general literature review (that lives in `docs/4-literature-sources.md`) or for exploratory "learn about X" tasks. Every research task should produce actionable methodological guidance.
 
 ---
 
 ## Project Context
 
 Before any research, read these files to understand the study's framework:
-- `docs/research-design-h1-h3.md` — research questions and hypotheses
-- `docs/validation-plan.md` — planned analytical approaches
-- `docs/sources.txt` — known sources (do not duplicate)
-- `docs/research-*.md` — prior research syntheses (avoid re-covering the same ground)
+- `docs/1-research-design.md` — canonical research design (RQ1-RQ4)
+- `docs/plan-exploration.md` — validation and exploration approaches
+- `docs/plan-analysis.md` — analysis and robustness approaches
+- `docs/4-literature-sources.md` — known sources (do not duplicate)
+- `docs/3-literature-review.md` — existing literature review
 
 ---
 

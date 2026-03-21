@@ -16,6 +16,7 @@ Output: intermediate/stage4_dedup.parquet
 import gc
 import hashlib
 import logging
+import re
 import time
 from pathlib import Path
 
@@ -55,6 +56,41 @@ def _hash_text(text: str) -> str:
     return hashlib.md5(text.encode("utf-8", errors="replace")).hexdigest()
 
 
+def _normalize_title_for_dedup(title: str) -> str:
+    """Normalize titles for dedup without deleting level or discipline words."""
+    if not isinstance(title, str):
+        return ""
+    value = title.lower().strip()
+    value = re.sub(r"\s*[-–—]\s*(remote|hybrid|onsite|on-site)\s*$", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"[^a-z0-9+#/& ]+", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
+
+
+def _titles_are_near_duplicates(a: str, b: str) -> bool:
+    """Precision-first fuzzy match for titles within the same company/location."""
+    if not a or not b:
+        return False
+
+    token_set = fuzz.token_set_ratio(a, b)
+    if token_set < FUZZY_TITLE_THRESHOLD:
+        return False
+
+    # Block pairs whose only difference is a meaningful title token
+    # like mechanical/electrical or senior/junior.
+    a_tokens = set(a.split())
+    b_tokens = set(b.split())
+    only_a = a_tokens - b_tokens
+    only_b = b_tokens - a_tokens
+    if len(only_a) == 1 and len(only_b) == 1:
+        diff_a = next(iter(only_a))
+        diff_b = next(iter(only_b))
+        if len(diff_a) >= 3 and len(diff_b) >= 3 and fuzz.ratio(diff_a, diff_b) < 75:
+            return False
+
+    return fuzz.ratio(a, b) >= 75
+
+
 def _count_filled(row: pd.Series, cols: list[str]) -> int:
     """Count how many of the given columns have non-null, non-empty values."""
     count = 0
@@ -81,9 +117,9 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
 
     # Columns needed for dedup decisions (lightweight)
     key_cols = [
-        "job_id", "source", "title_normalized", "company_name_normalized",
+        "job_id", "source", "title", "title_normalized", "company_name_normalized",
         "location", "description_length", "description_core",
-        "min_salary", "max_salary", "skills_raw", "seniority_native",
+        "skills_raw", "seniority_native",
     ]
 
     pf = pq.ParquetFile(input_path)
@@ -99,6 +135,7 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
 
         # Compute hash of description_core, then drop the heavy column
         chunk["desc_hash"] = chunk["description_core"].apply(_hash_text)
+        chunk["title_dedup"] = chunk["title"].apply(_normalize_title_for_dedup)
         chunk.drop(columns=["description_core"], inplace=True)
 
         frames.append(chunk)
@@ -138,7 +175,7 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
     # Work on the non-job_id-dup rows
     df_work = df.drop(index=list(drop_jobid))
     dup_exact = df_work.duplicated(
-        subset=["title_normalized", "company_name_normalized", "location"],
+        subset=["title_dedup", "company_name_normalized", "location"],
         keep="first",
     )
     n_exact_dup = dup_exact.sum()
@@ -165,7 +202,7 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
     df_remaining = df.loc[sorted(remaining_indices)].copy()
 
     # Vectorized completeness score for tie-breaking
-    completeness_cols = ["min_salary", "max_salary", "skills_raw", "seniority_native"]
+    completeness_cols = ["skills_raw", "seniority_native"]
     _comp = pd.DataFrame(index=df_remaining.index)
     for c in completeness_cols:
         col = df_remaining[c]
@@ -203,7 +240,7 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
             skipped_large += 1
             continue
 
-        titles = group["title_normalized"].values
+        titles = group["title_dedup"].values
         indices = group.index.values
         completeness = group["_completeness"].values
         desc_lengths = group["description_length"].values
@@ -219,9 +256,7 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
                     continue
 
                 fuzzy_comparisons += 1
-                score = fuzz.token_set_ratio(titles[i], titles[j])
-
-                if score >= FUZZY_TITLE_THRESHOLD:
+                if _titles_are_near_duplicates(titles[i], titles[j]):
                     fuzzy_matches += 1
                     # Keep the row with more complete fields; break ties by description length
                     if (completeness[j] > completeness[i]) or \

@@ -18,6 +18,7 @@ import gc
 import re
 import logging
 import time
+from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
@@ -134,6 +135,18 @@ def _is_boilerplate_paragraph(para: str) -> bool:
     return False
 
 
+def _strip_eeo_safely(text: str) -> str:
+    """Remove obvious EEO boilerplate without collapsing the whole description."""
+    paras = re.split(r'\n\s*\n', text)
+    cleaned = '\n\n'.join(p for p in paras if not _EEO_RE.search(p)).strip()
+    if cleaned:
+        return cleaned
+
+    # Some sources collapse the full description into a single paragraph.
+    # In that case, dropping the whole paragraph would zero out valid content.
+    lines = [line for line in text.split('\n') if not _EEO_RE.search(line)]
+    cleaned = '\n'.join(lines).strip()
+    return cleaned or text.strip()
 def extract_core(text: str) -> str:
     """Extract core job content, stripping boilerplate sections and EEO."""
     if not isinstance(text, str) or len(text) < 50:
@@ -165,7 +178,8 @@ def extract_core(text: str) -> str:
     # No headers detected — strip boilerplate paragraphs individually
     if types_found == {'unknown'}:
         paras = re.split(r'\n\s*\n', text)
-        return '\n\n'.join(p for p in paras if not _is_boilerplate_paragraph(p)).strip()
+        cleaned = '\n\n'.join(p for p in paras if not _is_boilerplate_paragraph(p)).strip()
+        return cleaned or _strip_eeo_safely(text)
 
     # Keep relevant sections, strip boilerplate from each
     parts = []
@@ -180,8 +194,7 @@ def extract_core(text: str) -> str:
 
     # Fallback: if we stripped too aggressively
     if len(result) < 100 and len(text) > 200:
-        paras = re.split(r'\n\s*\n', text)
-        return '\n\n'.join(p for p in paras if not _EEO_RE.search(p)).strip()
+        return _strip_eeo_safely(text)
 
     return result
 
@@ -211,13 +224,6 @@ def run_stage3():
     input_path = INTERMEDIATE_DIR / "stage2_aggregators.parquet"
     output_path = INTERMEDIATE_DIR / "stage3_boilerplate.parquet"
 
-    # Load company name lookup (small — 3.4 MB)
-    lookup_path = INTERMEDIATE_DIR / "company_name_lookup.parquet"
-    lookup = None
-    if lookup_path.exists():
-        lookup = pd.read_parquet(lookup_path)
-        log.info(f"  Company name lookup loaded: {len(lookup):,} rows")
-
     # Get total row count without loading the file
     pf = pq.ParquetFile(input_path)
     total_rows = pf.metadata.num_rows
@@ -229,29 +235,25 @@ def run_stage3():
     t0 = time.time()
 
     # Stats accumulators
-    stats = {src: {"full": [], "core": []} for src in
-             ["kaggle_arshkon_2024", "kaggle_asaniczka_2024", "scraped_linkedin_2026", "scraped_indeed_2026"]}
+    stats = defaultdict(lambda: {"full": [], "core": [], "removal_pct": []})
     flag_counts = {"ok": 0, "over_removed": 0, "under_removed": 0, "empty_core": 0}
 
     for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
         chunk = batch.to_pandas()
 
-        # Join company name lookup
-        if lookup is not None:
-            chunk = chunk.merge(lookup, on="company_name", how="left")
-            chunk["company_name_normalized"] = chunk["company_name_normalized"].fillna(chunk["company_name"])
-        else:
-            chunk["company_name_normalized"] = chunk["company_name"]
-
         # Process
         chunk = process_chunk(chunk)
 
-        # Accumulate stats (SWE only)
-        for src in stats:
-            swe_mask = (chunk["source"] == src) & (chunk["is_swe"])
-            if swe_mask.any():
-                stats[src]["full"].extend(chunk.loc[swe_mask, "description_length"].tolist())
-                stats[src]["core"].extend(chunk.loc[swe_mask, "core_length"].tolist())
+        # Accumulate stats by source for all rows; Stage 3 should not own occupation logic.
+        removal_pct = 1 - (
+            chunk["core_length"] / chunk["description_length"].clip(lower=1)
+        )
+        for src in chunk["source"].dropna().unique():
+            src_mask = chunk["source"] == src
+            if src_mask.any():
+                stats[src]["full"].extend(chunk.loc[src_mask, "description_length"].tolist())
+                stats[src]["core"].extend(chunk.loc[src_mask, "core_length"].tolist())
+                stats[src]["removal_pct"].extend((removal_pct.loc[src_mask] * 100).tolist())
 
         for flag in ["ok", "over_removed", "under_removed", "empty_core"]:
             flag_counts[flag] += (chunk["boilerplate_flag"] == flag).sum()
@@ -276,12 +278,16 @@ def run_stage3():
 
     # --- Report stats ---
     log.info("\n--- BOILERPLATE REMOVAL SUMMARY ---")
-    log.info(f"  {'Source':<30} {'Full':>8} {'Core':>8} {'Removed':>8}")
+    log.info(f"  {'Source':<24} {'Full':>8} {'Core':>8} {'Removed':>8} {'Removed%':>9}")
     for src, vals in stats.items():
         if vals["full"]:
             full_med = float(np.median(vals["full"]))
             core_med = float(np.median(vals["core"]))
-            log.info(f"  {src:<30} {full_med:>8.0f} {core_med:>8.0f} {full_med-core_med:>8.0f}")
+            removed_pct_med = float(np.median(vals["removal_pct"]))
+            log.info(
+                f"  {src:<24} {full_med:>8.0f} {core_med:>8.0f} "
+                f"{full_med-core_med:>8.0f} {removed_pct_med:>8.1f}%"
+            )
 
     log.info(f"\n  Boilerplate flags:")
     for flag, count in sorted(flag_counts.items()):

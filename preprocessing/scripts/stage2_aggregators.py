@@ -3,7 +3,6 @@
 Stage 2: Aggregator / Staffing Company Handling
 
 Identifies and flags aggregator/staffing company postings.
-Strips aggregator-specific boilerplate where possible.
 Attempts to extract real employer from description.
 
 Input:  intermediate/stage1_unified.parquet
@@ -15,7 +14,6 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
@@ -38,14 +36,20 @@ AGGREGATORS = {
     # Job boards / aggregators
     "lensa", "jobs via dice", "dice", "jobot", "cybercoders",
     "hired", "ziprecruiter", "talentally", "ladders",
-    "efinancialcareers", "ventureloop", "builtin",
+    "efinancialcareers", "ventureloop", "builtin", "jobs for humanity",
+    "jobs via efinancialcareers", "clearancejobs", "clickjobs.io",
     # Staffing companies
     "actalent", "randstad", "robert half", "teksystems",
     "kforce", "insight global", "motion recruitment", "harnham",
     "apex systems", "modis", "experis", "manpowergroup",
     "kelly services", "adecco", "hays", "michael page",
     "collabera", "infosys bpm", "wipro", "tata consultancy",
+    "tata consultancy services", "tata consultancy services (tcs)",
     "cognizant", "capgemini", "revature", "smoothstack",
+    "recruiting from scratch", "aston carter", "solomon page",
+    "creative circle", "applicantz", "aditi consulting",
+    "ask consulting", "inspyr solutions", "net2source inc.",
+    "net2source inc", "net2source",
     # Data annotation / crowdwork (suspected non-traditional SWE)
     "dataannotation", "data annotation", "appen", "scale ai",
     "remotasks", "clickworker",
@@ -54,24 +58,39 @@ AGGREGATORS = {
 # Patterns for fuzzy matching aggregator names
 AGGREGATOR_PATTERNS = [
     re.compile(r'(?i)\blensa\b'),
+    re.compile(r'(?i)\bjobs?\s+via\b'),
     re.compile(r'(?i)\bjobs?\s*via\s*dice\b'),
+    re.compile(r'(?i)\bjobs?\s*via\s*efinancialcareers\b'),
     re.compile(r'(?i)\b(dice|dice\.com)\b'),
     re.compile(r'(?i)\bjobot\b'),
     re.compile(r'(?i)\bcybercoders\b'),
+    re.compile(r'(?i)\bclickjobs(?:\.io)?\b'),
+    re.compile(r'(?i)\bclearancejobs\b'),
     re.compile(r'(?i)\bziprecruiter\b'),
+    re.compile(r'(?i)\bjobs?\s+for\s+humanity\b'),
     re.compile(r'(?i)\bactalent\b'),
+    re.compile(r'(?i)\baston\s*carter\b'),
     re.compile(r'(?i)\brandstad\b'),
     re.compile(r'(?i)\brobert\s*half\b'),
     re.compile(r'(?i)\bteksystems\b'),
     re.compile(r'(?i)\bkforce\b'),
     re.compile(r'(?i)\binsight\s*global\b'),
     re.compile(r'(?i)\bapex\s*systems\b'),
+    re.compile(r'(?i)\bsolomon\s+page\b'),
+    re.compile(r'(?i)\bcreative\s+circle\b'),
+    re.compile(r'(?i)\brecruiting\s+from\s+scratch\b'),
     re.compile(r'(?i)\bdata\s*annotation\b'),
     re.compile(r'(?i)\brevature\b'),
     re.compile(r'(?i)\bsmoothstack\b'),
     re.compile(r'(?i)\btalentally\b'),
     re.compile(r'(?i)\bharnham\b'),
     re.compile(r'(?i)\bmotion\s*recruitment\b'),
+    re.compile(r'(?i)\baditi\s+consulting\b'),
+    re.compile(r'(?i)\bask\s+consulting\b'),
+    re.compile(r'(?i)\binspyr\s+solutions\b'),
+    re.compile(r'(?i)\bnet2source(?:\s+inc\.?)?\b'),
+    re.compile(r'(?i)\btata\s+consultancy(?:\s+services)?(?:\s+\(tcs\))?\b'),
+    re.compile(r'(?i)\bapplicantz\b'),
 ]
 
 
@@ -90,28 +109,6 @@ def is_aggregator(company_name: str) -> bool:
     return False
 
 
-# ---------------------------------------------------------------------------
-# Aggregator boilerplate strippers
-# ---------------------------------------------------------------------------
-
-# Lensa prepends self-description before actual job content
-LENSA_BOILERPLATE = re.compile(
-    r'(?is)^.*?lensa\s+(is|helps|partners|connects).*?(?=\n\n|\r\n\r\n|about\s+the\s+(role|position|job)|job\s+description|responsibilities|overview)',
-    re.DOTALL
-)
-
-# Dice wraps in templates
-DICE_BOILERPLATE = re.compile(
-    r'(?is)^.*?(dice\s+(is|connects|helps)|posted\s+by\s+dice).*?(?=\n\n|\r\n\r\n|job\s+(summary|description)|about\s+the\s+role)',
-    re.DOTALL
-)
-
-# Generic staffing boilerplate at the end
-STAFFING_FOOTER = re.compile(
-    r'(?is)(about\s+(actalent|randstad|robert\s+half|teksystems|kforce|insight\s+global|apex|harnham|revature|smoothstack).*?)$',
-    re.DOTALL
-)
-
 # Real employer extraction patterns
 REAL_EMPLOYER_PATTERNS = [
     # "Our client, [Company Name], is..."
@@ -126,6 +123,47 @@ REAL_EMPLOYER_PATTERNS = [
     re.compile(r'(?i)(?:job|position|role)\s+(?:is\s+)?(?:with|at|for)\s+([A-Z][A-Za-z0-9\s&.,-]+?)(?:\.|,|\s+in\b|\s+located)'),
 ]
 
+BAD_EMPLOYER_TERMS = re.compile(
+    r'(?i)\b('
+    r'client|clients|company|companies|organization|team|role|position|opportunity|'
+    r'seeking|looking|hiring|available|access|extension|contract|'
+    r'engineer|developer|manager|director|architect|scientist|analyst|'
+    r'specialist|consultant|administrator|technician|recruiter|designer|'
+    r'located|location|remote|hybrid|onsite|site|week|weeks|sector|industry|'
+    r'ownership|detail\s+oriented|direct\s+client|integrators'
+    r')\b'
+)
+
+ORG_SUFFIX_HINT = re.compile(
+    r'(?i)\b('
+    r'inc|llc|ltd|corp|corporation|company|co|group|systems|solutions|'
+    r'technologies|technology|labs|lab|health|partners|holdings|bank|'
+    r'university|international|networks|software|services'
+    r')\.?\b'
+)
+
+LEADING_FRAGMENT = re.compile(r'(?i)^(in|at|for|with|to|on|of|from)\b')
+
+
+def _clean_employer_candidate(candidate: str) -> str:
+    cleaned = candidate.strip(" \t\n\r-.,:;()[]{}\"'")
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    return cleaned
+
+
+def _looks_like_organization_name(candidate: str) -> bool:
+    if LEADING_FRAGMENT.match(candidate):
+        return False
+    tokens = candidate.split()
+    if len(tokens) == 0 or len(tokens) > 6:
+        return False
+    uppercase_tokens = sum(1 for token in tokens if any(ch.isupper() for ch in token))
+    if ORG_SUFFIX_HINT.search(candidate):
+        return True
+    if len(tokens) == 1:
+        return uppercase_tokens == 1 and tokens[0].isalpha()
+    return uppercase_tokens >= 2
+
 
 def extract_real_employer(description: str, company_name: str) -> str | None:
     """Try to extract the real employer from an aggregator posting description."""
@@ -135,31 +173,18 @@ def extract_real_employer(description: str, company_name: str) -> str | None:
     for pattern in REAL_EMPLOYER_PATTERNS:
         match = pattern.search(description[:2000])  # Only check first 2000 chars
         if match:
-            employer = match.group(1).strip()
-            # Basic validation: not the aggregator itself, reasonable length
-            if (len(employer) > 2 and len(employer) < 80
-                    and not is_aggregator(employer)
-                    and employer.lower() != company_name.lower()):
+            employer = _clean_employer_candidate(match.group(1))
+            # Precision-first validation: reject obvious fragments and role phrases.
+            if (
+                2 < len(employer) < 80
+                and any(ch.isupper() for ch in employer)
+                and _looks_like_organization_name(employer)
+                and not BAD_EMPLOYER_TERMS.search(employer)
+                and not is_aggregator(employer)
+                and employer.lower() != company_name.lower()
+            ):
                 return employer
     return None
-
-
-def strip_aggregator_boilerplate(description: str, company_name: str) -> str:
-    """Remove known aggregator boilerplate from descriptions."""
-    if not isinstance(description, str):
-        return description
-
-    name_lower = (company_name or "").lower()
-
-    if "lensa" in name_lower:
-        description = LENSA_BOILERPLATE.sub("", description)
-    elif "dice" in name_lower:
-        description = DICE_BOILERPLATE.sub("", description)
-
-    # Strip staffing company "About Us" footers
-    description = STAFFING_FOOTER.sub("", description)
-
-    return description.strip()
 
 
 # ---------------------------------------------------------------------------
@@ -191,8 +216,7 @@ def run_stage2():
     agg_df = df[df["is_aggregator"]]
     log.info("\n  Top aggregator companies:")
     for company, count in agg_df["company_name"].value_counts().head(20).items():
-        swe_count = agg_df.loc[agg_df["company_name"] == company, "is_swe"].sum()
-        log.info(f"    {company}: {count:,} total, {swe_count:,} SWE")
+        log.info(f"    {company}: {count:,}")
 
     # --- Extract real employers ---
     log.info("\nExtracting real employers from aggregator descriptions...")
@@ -212,44 +236,9 @@ def run_stage2():
     for _, row in extracted_df.iterrows():
         log.info(f"    {row['company_name']} -> {row['real_employer']} ({row['title'][:50]})")
 
-    # --- Strip aggregator boilerplate ---
-    log.info("\nStripping aggregator boilerplate...")
-    df["description_pre_agg_strip"] = df.loc[agg_mask, "description_length"].copy()
-    df.loc[agg_mask, "description"] = df.loc[agg_mask].apply(
-        lambda r: strip_aggregator_boilerplate(r["description"], r["company_name"]),
-        axis=1,
-    )
-    # Update description length
-    df["description_length"] = df["description"].str.len()
-
-    # Report length changes for aggregator postings
-    if agg_count > 0:
-        pre_len = df.loc[agg_mask, "description_pre_agg_strip"]
-        post_len = df.loc[agg_mask, "description_length"]
-        # Only report where pre_len was set
-        valid_mask = agg_mask & pre_len.notna()
-        if valid_mask.sum() > 0:
-            change = (post_len[valid_mask] - pre_len[valid_mask])
-            log.info(f"  Boilerplate stripped: median change = {change.median():.0f} chars")
-
-    # Drop helper column
-    df.drop(columns=["description_pre_agg_strip"], inplace=True, errors="ignore")
-
-    # --- SWE aggregator analysis ---
-    swe_agg = df[df["is_swe"] & df["is_aggregator"]]
-    swe_total = df["is_swe"].sum()
-    log.info(f"\n  SWE postings from aggregators: {len(swe_agg):,} / {swe_total:,} ({len(swe_agg)/swe_total:.1%})")
-
-    # DataAnnotation special analysis
-    da_mask = df["company_name"].str.contains(r'(?i)data\s*annotation', na=False)
-    da_count = da_mask.sum()
-    da_swe = (da_mask & df["is_swe"]).sum()
-    log.info(f"\n  DataAnnotation: {da_count:,} total, {da_swe:,} SWE")
-    if da_swe > 0:
-        da_titles = df.loc[da_mask & df["is_swe"], "title"].value_counts().head(5)
-        log.info("    Top SWE titles from DataAnnotation:")
-        for title, count in da_titles.items():
-            log.info(f"      {title}: {count:,}")
+    # DataAnnotation remains a flagged special case for sensitivity analysis.
+    da_count = df["company_name"].str.contains(r'(?i)data\s*annotation', na=False).sum()
+    log.info(f"\n  DataAnnotation postings flagged: {da_count:,}")
 
     # --- Save ---
     output_path = INTERMEDIATE_DIR / "stage2_aggregators.parquet"

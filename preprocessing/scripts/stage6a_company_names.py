@@ -308,15 +308,22 @@ def meaningful_overlap(a: str, b: str) -> bool:
     a_tokens = set(a.split())
     b_tokens = set(b.split())
 
-    # If either name is a single token, skip the guard —
-    # similarity score alone should decide.
-    if len(a_tokens) <= 1 or len(b_tokens) <= 1:
-        return True
-
     shared = a_tokens & b_tokens
     meaningful = shared - GENERIC_WORDS
     only_a = a_tokens - b_tokens
     only_b = b_tokens - a_tokens
+
+    # Single-token fuzzy merges are usually too risky.
+    # Known safe cases should be handled by exact normalization or aliases.
+    if len(a_tokens) == 1 and len(b_tokens) == 1:
+        return a == b
+    if len(a_tokens) == 1 or len(b_tokens) == 1:
+        return False
+
+    # Short names that share only one token are frequently distinct firms
+    # with the same family name or prefix (e.g. Canva/Canvas-style issues).
+    if len(shared) <= 1 and min(len(a_tokens), len(b_tokens)) <= 2:
+        return False
 
     # Guard 1: No meaningful shared tokens at all
     if len(shared) > 0 and len(meaningful) == 0:
@@ -370,6 +377,18 @@ def meaningful_overlap(a: str, b: str) -> bool:
             # they're probably different identifiers
             if (len(diff_a) >= 3 and len(diff_b) >= 3 and
                     fuzz.ratio(diff_a, diff_b) < 75):
+                return False
+
+        # Shared generic tails like "Marketing Group" should not override a
+        # clearly different lead token.
+        if len(only_a) == 1 and len(only_b) == 1 and len(shared) <= 2:
+            diff_a = next(iter(only_a))
+            diff_b = next(iter(only_b))
+            if (
+                len(diff_a) >= 4
+                and len(diff_b) >= 4
+                and fuzz.ratio(diff_a, diff_b) < 85
+            ):
                 return False
 
     # Guard 3: Subset with distinguishing extra token.

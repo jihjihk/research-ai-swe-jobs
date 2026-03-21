@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stages 6b-6e, 7, 8: Location normalization, salary validation, date validation,
+Stages 6b-6d, 7, 8: Location normalization, date validation,
 language detection, temporal alignment, and quality flags.
 
 All operations are per-row with no cross-row dependencies, so chunked
@@ -14,6 +14,7 @@ gc.collect() after each chunk.  All new numeric columns forced to float64.
 """
 
 import gc
+import hashlib
 import logging
 import re
 import string
@@ -24,6 +25,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from langdetect import DetectorFactory, LangDetectException, detect
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -82,20 +84,18 @@ STATE_NAME_TO_ABBR = {
     "district of columbia": "DC",
 }
 
-# Date ranges per source (for stage 6d)
+# Date ranges per (source, platform) for stage 6d
 DATE_RANGES = {
-    "kaggle_arshkon_2024":   (pd.Timestamp("2024-03-01"), pd.Timestamp("2024-05-01")),
-    "kaggle_asaniczka_2024": (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-02-01")),
-    "scraped_linkedin_2026": (pd.Timestamp("2026-03-01"), pd.Timestamp("2026-04-01")),
-    "scraped_indeed_2026":   (pd.Timestamp("2026-03-01"), pd.Timestamp("2026-04-01")),
+    ("kaggle_arshkon", "linkedin"):   (pd.Timestamp("2024-04-01"), pd.Timestamp("2024-05-01")),
+    ("kaggle_asaniczka", "linkedin"): (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-02-01")),
+    ("scraped", "linkedin"):          (pd.Timestamp("2026-03-20"), pd.Timestamp("2026-12-31")),
+    ("scraped", "indeed"):            (pd.Timestamp("2026-03-20"), pd.Timestamp("2026-12-31")),
 }
 
-# Period mapping (for stage 7)
+# Period mapping for historical sources; scraped is derived from scrape_date
 SOURCE_PERIOD = {
-    "kaggle_asaniczka_2024": "2024-01",
-    "kaggle_arshkon_2024":   "2024-04",
-    "scraped_linkedin_2026": "2026-03",
-    "scraped_indeed_2026":   "2026-03",
+    "kaggle_asaniczka": "2024-01",
+    "kaggle_arshkon":   "2024-04",
 }
 
 # Remote indicators in location strings
@@ -113,7 +113,7 @@ YEARS_EXP_RE = re.compile(
     re.IGNORECASE,
 )
 
-# ASCII printable characters for language heuristic
+DetectorFactory.seed = 0
 ASCII_PRINTABLE = set(string.printable)
 
 
@@ -205,35 +205,13 @@ def normalize_location(loc: str, is_remote_existing: bool):
 
 
 # ---------------------------------------------------------------------------
-# Stage 6c: Salary validation
+# Stage 6c: Date validation
 # ---------------------------------------------------------------------------
-def validate_salary(min_sal, max_sal, is_swe: bool) -> bool:
-    """Return True if salary is valid (or missing). False if outlier."""
-    # Only flag SWE roles
-    if not is_swe:
-        return True
-
-    # If both are NaN, nothing to validate
-    if pd.isna(min_sal) and pd.isna(max_sal):
-        return True
-
-    # Check whichever is available
-    for sal in [min_sal, max_sal]:
-        if pd.notna(sal):
-            if sal < 20_000 or sal > 1_000_000:
-                return False
-
-    return True
-
-
-# ---------------------------------------------------------------------------
-# Stage 6d: Date validation
-# ---------------------------------------------------------------------------
-def validate_dates(row_source, scrape_date_str, date_posted_str):
+def validate_dates(row_source, row_platform, scrape_date_str, date_posted_str):
     """Return a date_flag string. 'ok' if valid, else describes the issue."""
     flags = []
 
-    date_range = DATE_RANGES.get(row_source)
+    date_range = DATE_RANGES.get((row_source, row_platform))
     if date_range is None:
         return "unknown_source"
 
@@ -255,31 +233,33 @@ def validate_dates(row_source, scrape_date_str, date_posted_str):
 
 
 # ---------------------------------------------------------------------------
-# Stage 6e: Language detection (ASCII heuristic)
+# Stage 6d: Language detection
 # ---------------------------------------------------------------------------
-def detect_language_heuristic(text) -> str:
-    """Return 'en' if text looks English (>=80% ASCII printable), else 'non_en'.
-    Returns 'unknown' for empty/missing text.
-    """
+def detect_language(text):
+    """Return True/False for English/non-English, or pd.NA if unknown."""
     if pd.isna(text) or not isinstance(text, str) or len(text.strip()) == 0:
-        return "unknown"
+        return pd.NA
 
     text = text.strip()
     if len(text) == 0:
-        return "unknown"
+        return pd.NA
 
+    # Fast pre-check: extremely low ASCII share is almost never English.
     ascii_count = sum(1 for c in text if c in ASCII_PRINTABLE)
     ratio = ascii_count / len(text)
+    if ratio < 0.60:
+        return False
 
-    if ratio < 0.80:
-        return "non_en"
-    return "en"
+    try:
+        return detect(text[:5000]) == "en"
+    except LangDetectException:
+        return pd.NA
 
 
 # ---------------------------------------------------------------------------
 # Stage 8: Ghost job detection
 # ---------------------------------------------------------------------------
-def detect_ghost_job(seniority_3level: str, description_core) -> str:
+def detect_ghost_job(seniority_3level: str, yoe_extracted, yoe_contradiction: bool) -> str:
     """Detect ghost jobs: entry-level title with high experience requirement.
 
     Returns 'high', 'medium', or 'low'.
@@ -287,19 +267,12 @@ def detect_ghost_job(seniority_3level: str, description_core) -> str:
     if seniority_3level != "junior":
         return "low"
 
-    if pd.isna(description_core) or not isinstance(description_core, str):
+    if pd.isna(yoe_extracted):
         return "low"
 
-    # Find all years-of-experience mentions
-    matches = YEARS_EXP_RE.findall(description_core)
-    if not matches:
-        return "low"
-
-    max_years = max(int(y) for y in matches)
-
-    if max_years >= 5:
+    if yoe_extracted >= 5:
         return "high"
-    elif max_years >= 3:
+    if yoe_contradiction or yoe_extracted >= 3:
         return "medium"
     return "low"
 
@@ -321,11 +294,29 @@ def assess_description_quality(description_core) -> str:
     return "ok"
 
 
+def build_description_hash(text):
+    """Stable sha256 hash of the full description used for LLM caching."""
+    if pd.isna(text) or not isinstance(text, str) or text.strip() == "":
+        return None
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def derive_period(row_source, scrape_date):
+    """Map rows into analysis periods."""
+    if row_source == "scraped":
+        ts = pd.to_datetime(scrape_date, errors="coerce")
+        if pd.isna(ts):
+            return "unknown"
+        return ts.strftime("%Y-%m")
+
+    return SOURCE_PERIOD.get(row_source, "unknown")
+
+
 # ---------------------------------------------------------------------------
 # Main processing
 # ---------------------------------------------------------------------------
 def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply all stage 6b-6e, 7, 8 transformations to a chunk."""
+    """Apply all stage 6b-6d, 7, 8 transformations to a chunk."""
 
     # ---- Stage 6b: Location normalization ----
     loc_results = df.apply(
@@ -337,25 +328,26 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
     df["state_normalized"] = loc_results["state_normalized"]
     df["country_extracted"] = loc_results["country_extracted"]
     # Update is_remote: True if already True OR location string indicates remote
-    df["is_remote"] = df["is_remote"] | loc_results["is_remote_location"].fillna(False)
+    df["is_remote"] = df["is_remote"].fillna(False) | loc_results["is_remote_location"].fillna(False)
 
-    # ---- Stage 6c: Salary validation ----
-    df["salary_validated"] = df.apply(
-        lambda row: validate_salary(row["min_salary"], row["max_salary"], row["is_swe"]),
-        axis=1,
-    )
-
-    # ---- Stage 6d: Date validation ----
+    # ---- Stage 6c: Date validation ----
     df["date_flag"] = df.apply(
-        lambda row: validate_dates(row["source"], row["scrape_date"], row["date_posted"]),
+        lambda row: validate_dates(
+            row["source"], row["source_platform"], row["scrape_date"], row["date_posted"]
+        ),
         axis=1,
     )
 
-    # ---- Stage 6e: Language detection (ASCII heuristic) ----
-    df["lang_detected"] = df["description_core"].apply(detect_language_heuristic)
+    # ---- Stage 6d: Language detection ----
+    df["is_english"] = df["description_core"].apply(detect_language).astype("boolean")
+    df["description_hash"] = df["description"].apply(build_description_hash)
 
     # ---- Stage 7: Temporal alignment ----
-    df["period"] = df["source"].map(SOURCE_PERIOD).fillna("unknown")
+    df["period"] = df.apply(lambda row: derive_period(row["source"], row["scrape_date"]), axis=1)
+    df["posting_age_days"] = (
+        pd.to_datetime(df["scrape_date"], errors="coerce")
+        - pd.to_datetime(df["date_posted"], errors="coerce")
+    ).dt.days.astype("float64")
 
     # scrape_week: ISO week from scrape_date
     scrape_ts = pd.to_datetime(df["scrape_date"], errors="coerce")
@@ -363,7 +355,9 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
 
     # ---- Stage 8: Quality flags ----
     df["ghost_job_risk"] = df.apply(
-        lambda row: detect_ghost_job(row["seniority_3level"], row["description_core"]),
+        lambda row: detect_ghost_job(
+            row["seniority_3level"], row["yoe_extracted"], bool(row["yoe_seniority_contradiction"])
+        ),
         axis=1,
     )
 
@@ -372,13 +366,9 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Data provenance
-    df["preprocessing_version"] = "1.0"
+    df["preprocessing_version"] = "3.0"
     df["dedup_method"] = "stage4_title_company_deduplicated"
     df["boilerplate_removed"] = True
-
-    # Force new numeric columns to float64
-    for col in ["scrape_week"]:
-        df[col] = df[col].astype("float64")
 
     return df
 
@@ -386,7 +376,7 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
 def main():
     t0 = time.time()
     log.info("=" * 70)
-    log.info("Stages 6b-6e, 7, 8: Normalize, temporal align, quality flags")
+    log.info("Stages 6b-6d, 7, 8: Normalize, temporal align, quality flags")
     log.info("=" * 70)
     log.info(f"Input:  {INPUT_PATH}")
     log.info(f"Output: {OUTPUT_PATH}")
@@ -403,7 +393,6 @@ def main():
     stats = {
         "remote_updated": 0,
         "state_extracted": 0,
-        "salary_invalid": 0,
         "date_flagged": 0,
         "non_english": 0,
         "ghost_high": 0,
@@ -432,9 +421,8 @@ def main():
         # Collect stats
         stats["remote_updated"] += int(df["is_remote"].sum() - remote_before)
         stats["state_extracted"] += int(df["state_normalized"].notna().sum())
-        stats["salary_invalid"] += int((~df["salary_validated"]).sum())
         stats["date_flagged"] += int((df["date_flag"] != "ok").sum())
-        stats["non_english"] += int((df["lang_detected"] == "non_en").sum())
+        stats["non_english"] += int((df["is_english"] == False).sum())
         stats["ghost_high"] += int((df["ghost_job_risk"] == "high").sum())
         stats["ghost_medium"] += int((df["ghost_job_risk"] == "medium").sum())
         stats["desc_empty"] += int((df["description_quality_flag"] == "empty").sum())
@@ -473,7 +461,6 @@ def main():
     log.info("--- Summary ---")
     log.info(f"  Remote postings updated from location string: {stats['remote_updated']:,}")
     log.info(f"  US state extracted: {stats['state_extracted']:,}")
-    log.info(f"  Salary outliers flagged (SWE only): {stats['salary_invalid']:,}")
     log.info(f"  Date flags (non-ok): {stats['date_flagged']:,}")
     log.info(f"  Non-English descriptions: {stats['non_english']:,}")
     log.info(f"  Ghost job risk HIGH: {stats['ghost_high']:,}")

@@ -1,920 +1,751 @@
-# Pre-Processing Pipeline
+# Pre-Processing Pipeline v3: LLM-Augmented
 
-Date: 2026-03-19
+Date: 2026-03-21
 Status: Draft — ready for review before implementation
+Supersedes: v2 (2026-03-20), v1 (2026-03-19)
 
-This document covers Stages 1-8: transforming raw data into the analysis-ready `unified.parquet` dataset. For validation and exploration, see `plan-exploration.md`. For hypothesis testing, see `plan-analysis.md`.
+This document covers the preprocessing pipeline that transforms raw data into the analysis-ready `unified.parquet` and `unified_observations.parquet` datasets. For validation and exploration, see `plan-exploration.md`. For hypothesis testing, see `plan-analysis.md`.
+
+## What changed from v2
+
+The v2 pipeline assumed a single data schema across sources and relied on the scraper harmonizer for schema unification. The v3 redesign corrects several data inventory errors and restructures the pipeline around verified source schemas:
+
+- **Research questions updated:** RQ1-RQ4 as defined in `docs/1-research-design.md` (employer-side restructuring, task/requirement migration, employer-requirement/worker-usage divergence, mechanisms). Replaces the old RQ1-RQ7 from the retired `docs/research-design-h1-h3.md`.
+- **Data sources narrowed to three:** Kaggle arshkon, Kaggle asaniczka, and scraped current-format files. No YC, no Apify.
+- **Legacy scraped data dropped:** Mar 5-18 data used 25 results/query and lacked search metadata columns (`search_query`, `query_tier`, `search_metro_id`, etc.). Stage 1 should load all matching scraped dates in the current 41-column format and skip incompatible legacy files.
+- **Stage 1 rewritten:** Pipeline owns all schema unification across three different source schemas. It ingests approved rows equivalently, does not filter by occupation class, and does NOT rely on `scraper/harmonize.py`.
+- **Two outputs:** `unified.parquet` (canonical postings, one row per unique posting) + `unified_observations.parquet` (daily panel, one row per posting per scrape_date). Keep both because posting-level and observation-level analyses have different units of observation.
+- **Asaniczka limitations documented:** Only two seniority levels present (Mid senior: 17,045; Associate: 1,124). No entry-level postings exist in this dataset, which limits its use as a historical baseline for junior-share analysis (RQ1), but the source still contributes SWE-adjacent and control-occupation rows.
+
+The LLM augmentation stages (9-12) are architecturally unchanged from v2. Prompt design, seniority classification rationale, and the 3-tier review protocol carry forward.
 
 ---
 
 ## Context
 
-This document specifies the preprocessing pipeline (Stages 1-8) that transforms raw data into the analysis-ready `unified.parquet` dataset. The current implementation (`harmonize.py`) handles basic schema unification and URL dedup. This document specifies the full pipeline needed for publication quality.
+**Project state (as of 2026-03-21):** The scraper upgraded to 100 results/query and the new 41-column format on March 20, 2026. The v1 preprocessing pipeline produced an initial `data/unified.parquet` (1.2M rows, 53 columns) from the old data. This v3 pipeline will rebuild from scratch using only the three verified sources below.
 
-**Project state (as of 2026-03-19):** The scraper has been running continuously since March 5, 2026. We are currently building the preprocessing and analysis pipeline while data collection continues. The scraper will run through April 2026 and beyond, which means:
-- **Seasonality is not a blocking concern.** Once April 2026 data is collected, we can compare April 2024 (Kaggle) vs. April 2026 (scraped) — same month, 2-year gap. The March 2026 data serves as pipeline development material and will supplement the April-to-April primary comparison.
-- **The pipeline must be ready before the "important" data starts arriving.** April 2026 is our target comparison window. All preprocessing, validation, and analysis code should be tested and working on March data before then.
+**Key constraint:** Seasonality is not a blocking concern. Once April 2026 data is collected, we can compare April 2024 (Kaggle arshkon) vs. April 2026 (scraped) — same month, 2-year gap. March 2026 data serves as pipeline development material and supplements the primary comparison.
 
-**Research questions:** RQ1-RQ7 as defined in `docs/research-design-h1-h3.md`.
-
----
-
-## Data inventory (corrected after investigation)
-
-### What we actually have
-
-| | Kaggle (arshkon) | Kaggle (asaniczka) — TO DOWNLOAD | Scraped |
-|---|---|---|---|
-| **Source** | `arshkon/linkedin-job-postings` | `asaniczka/1-3m-linkedin-jobs-and-skills-2024` | Our daily scraper |
-| **Total rows** | 123,849 | ~1.3M | ~100K SWE-file + ~86K non-SWE-file (14 days) |
-| **Date range** | **April 2024 only** | January 2024 (need to verify span) | March 5-18, 2026 (ongoing) |
-| **SWE postings** | ~3,466 | ~30-40K estimated | ~14,391 unique |
-| **Platform** | LinkedIn only | LinkedIn only | LinkedIn (60K) + Indeed (41K) |
-| **Seniority** | 66.5% labeled | Has `job_level` field | LI: 100% labeled; Indeed: 0% |
-| **Skills** | 98% null in main; companion has 35 coarse categories | Augmented skills in `job_skills.csv` | Extract from description |
-| **Descriptions** | Yes (full text) | Has `job_summary.csv` (need to verify if full descriptions) | Yes (full text) |
-| **Size** | 493MB | ~2GB (compressed) | ~584MB |
-
-**Primary analysis platform decision:** LinkedIn only. Indeed data is used for sensitivity analyses only (see resolved decisions below).
-
-### The 1.3M dataset (asaniczka) — download and evaluate
-
-The [asaniczka/1-3m-linkedin-jobs-and-skills-2024](https://www.kaggle.com/datasets/asaniczka/1-3m-linkedin-jobs-and-skills-2024) dataset contains 3 CSVs:
-- `linkedin_job_postings.csv` — main postings file with `job_title`, `company`, `job_location`, `job_level`, `job_type`, `first_seen`, `job_link`
-- `job_skills.csv` — augmented skills per posting (structured, mapped)
-- `job_summary.csv` — may contain descriptions or summaries (need to verify after download)
-
-**Why this matters:** At 1.3M rows (vs. 124K for arshkon), this gives us ~10x more baseline data. If it spans multiple months of 2024, we get within-2024 trend analysis. Its augmented skills data could replace or supplement our ESCO-based extraction for the baseline period.
-
-**Evaluation steps after download:**
-1. Check actual date range — does `first_seen` span multiple months of 2024?
-2. Check whether `job_summary.csv` has full descriptions or just summaries
-3. Check field overlap with arshkon dataset — are they from the same scraper?
-4. Count SWE postings using our expanded SWE_PATTERN
-5. Compare seniority distributions and company overlap with arshkon
-6. If it subsumes the arshkon dataset (same or broader coverage, same period), use asaniczka as primary baseline and arshkon as validation cross-reference
-7. If they cover different time windows, combine them for broader temporal coverage
-
-### Critical corrections to prior assumptions
-
-**1. The Kaggle dataset is a single cross-sectional snapshot from April 2024, not a multi-year panel.**
-
-Investigation confirms: the [arshkon/linkedin-job-postings](https://www.kaggle.com/datasets/arshkon/linkedin-job-postings) dataset (v13, last updated August 2024) contains 123,849 postings. The underlying [scraper](https://github.com/ArshKA/LinkedIn-Job-Scraper) runs as a "continuous stream" that captures whatever is currently live on LinkedIn. LinkedIn only displays active/recent postings — so the dataset is a snapshot of jobs visible on LinkedIn around April 5-20, 2024, not a historical archive of all jobs posted during 2023-2024. The "2023-2024" title refers to the project timeframe, not the data's temporal span.
-
-Date evidence:
-- `listed_time`: 99.9% of rows fall between April 5-20, 2024 (scrape window)
-- `original_listed_time`: 98.5% are April 2024, 1.5% are March 2024, 19 rows are Dec 2023-Feb 2024 (these are long-lived postings still active when scraped)
-- Zero rows from 2023 in `listed_time`; only 3 rows from 2023 in `original_listed_time`
-
-**This means:**
-- We cannot do within-Kaggle trend analysis (no monthly time series)
-- Same-month comparison (March vs. March) is impossible — effectively zero March SWE postings in Kaggle
-- The comparison is April 2024 vs. March 2026, a 23-month gap with a 1-month seasonal offset
-- All prior documentation describing this as "2023-2024 data" must be corrected
-- The 123,849 rows IS the full dataset (matches Kaggle's description of "124,000+ postings") — we are not missing data
-
-**Potential supplementary dataset:** [asaniczka/1-3m-linkedin-jobs-and-skills-2024](https://www.kaggle.com/datasets/asaniczka/1-3m-linkedin-jobs-and-skills-2024) contains 1.3M LinkedIn postings from 2024 with augmented skills data (~2GB). If this dataset has broader temporal coverage (multiple months of 2024), it could give us the within-2024 trend analysis we're missing. It would also increase our baseline SWE sample from ~3,134 to potentially 30-40K+. **Decision needed:** Should we download and evaluate this dataset as a supplement or replacement for the arshkon dataset?
-
-**2. The `_swe_jobs.csv` files are split by query tier, not by title pattern.** The scraper runs 28 queries across 3 tiers (SWE, adjacent, control). Results from Tier 1 SWE queries go to `_swe_jobs.csv`; Tier 2+3 go to `_non_swe_jobs.csv`. Within the SWE file, 98.1% of titles match the SWE regex — the 1.9% leakage is LinkedIn/Indeed returning non-SWE results for SWE queries. The non-SWE file contains a mix of adjacent roles (9.2%), control occupations (17.5%), and other results (73.2%).
-
-**3. Description lengths differ significantly between datasets.** Kaggle SWE median: 3,242 chars. Scraped SWE (LinkedIn): 5,036 chars. This 55% difference could be (a) real scope inflation, (b) different scraping methods capturing different content, or (c) boilerplate differences. **This is a major confounder for RQ1 description complexity analysis.**
-
-**Investigation plan for description length discrepancy (must complete before any length-based analysis):**
-1. **Matched-pair comparison (10 pairs, LLM-assisted):** Find 10 companies appearing in both datasets. For each, pull one SWE posting from each period. LLM compares side-by-side: "Is the 2026 description genuinely longer, or does it include more boilerplate/formatting? What content differences exist?" Human reviews the LLM's comparison summaries.
-2. **Boilerplate-stripped comparison:** After Stage 3 (boilerplate removal), re-compare `description_core` lengths. If the gap narrows substantially, the difference was boilerplate, not content.
-3. **Check Kaggle truncation:** Examine the max description length distribution in Kaggle data. If there's a suspicious cliff at a specific character count (e.g., 5,000 or 10,000 chars), the Kaggle scraper may have truncated.
-4. **Check formatting differences:** Kaggle descriptions may be pre-stripped of HTML/markdown. Our scraper captures raw markdown. After stripping markdown, the lengths may converge.
-5. **Cross-reference with asaniczka dataset:** If the 1.3M dataset has descriptions, compare their lengths against the arshkon dataset for the same time period. If they differ, it's scraper-dependent.
-
-**4. Indeed and LinkedIn have complementary but asymmetric data.** Indeed provides salary (76%) but no seniority (0%). LinkedIn provides seniority (100%) but almost no salary (4%). Combining them without accounting for this creates compositional artifacts.
-
-**5. Aggregators are present in BOTH datasets.** Kaggle top SWE companies include DataAnnotation (168), Dice (35), Apex Systems (29), TEKsystems (15), Insight Global (14). Scraped top includes Lensa (16), Jobs via Dice (29). The aggregator problem is not limited to scraped data.
-
-**6. Company concentration differs.** Kaggle SWE top-5 companies = 12.6% of postings. Scraped SWE top-5 = 30.2%. The scraped data is more concentrated, which could bias skill/seniority distributions if those companies have unusual posting patterns.
-
-### Kaggle companion files (available, currently unused)
-
-| File | Rows | Content | Joinable? |
-|---|---|---|---|
-| `companies/companies.csv` | ~22MB | company_id, name, description, company_size, state, country, city | Yes via `company_id` in postings |
-| `companies/employee_counts.csv` | employee_count, follower_count per company | Yes via `company_id` |
-| `companies/company_industries.csv` | Industry associations per company | Yes via `company_id` |
-| `jobs/job_industries.csv` | industry_id per job_id | Yes — covers 99.3% of SWE postings |
-| `jobs/job_skills.csv` | skill_abr per job_id (35 coarse categories like IT, ENG, SALE) | Yes — covers 98.3% of SWE postings; too coarse for skill migration analysis |
-| `jobs/salaries.csv` | Structured salary data per job_id | Yes — may fill some salary gaps |
-| `jobs/benefits.csv` | Benefits per job_id | Yes |
-| `mappings/industries.csv` | 422 industry_id → industry_name mappings | Lookup table |
-| `mappings/skills.csv` | 35 skill_abr → skill_name mappings | Lookup table |
-
-**Action:** Join `job_industries` + `companies` to populate `company_industry` and `company_size` for Kaggle rows. The `job_skills` are too coarse (35 categories) for our skill migration analysis but useful for broad occupation validation.
-
-### Lessons from Kaggle community preprocessing
-
-Research into how other Kaggle projects preprocess these LinkedIn datasets reveals that community preprocessing is **extremely basic** compared to what publication-quality research requires:
-
-- **Standard Kaggle approach:** Drop duplicates on job_id, handle missing values (drop or fill), drop irrelevant columns, basic type conversion. No boilerplate removal, no near-dedup, no aggregator handling, no cross-dataset validation.
-- **No one does boilerplate stripping.** EEO statements, "About Us" sections, and benefits boilerplate are left in descriptions. This inflates word counts and corrupts topic models. Our pipeline addresses this in Stage 3.
-- **No one validates seniority labels.** Projects use LinkedIn's native `job_level` field as-is, including the 23-33% "not applicable" entries. Our pipeline applies uniform imputation (Stage 5b).
-- **Skills are typically keyword-counted, not taxonomy-mapped.** Most projects count occurrences of hand-picked keywords ("Python", "AWS"). Our pipeline uses ESCO-mapped extraction (Stage 10e) for structured, comparable skill analysis.
-- **Dedup is always exact.** No near-duplicate detection. Given that Lightcast reports up to 80% raw duplication, this is a significant gap that inflates sample sizes.
-
-**Implication:** Our preprocessing pipeline is substantially more rigorous than anything in the Kaggle ecosystem. This is appropriate for a research paper but means we cannot rely on community code for preprocessing — we build it ourselves.
+**Research questions:** RQ1-RQ4 as defined in `docs/1-research-design.md`:
+- RQ1: Employer-side restructuring (junior share/volume, junior scope inflation, senior role redefinition, source/metro heterogeneity)
+- RQ2: Task and requirement migration (which requirements moved down/shifted)
+- RQ3: Employer-requirement / worker-usage divergence
+- RQ4: Mechanisms (interview-based, qualitative — not addressed by this pipeline)
 
 ---
 
-## Pipeline overview
+## Data inventory
+
+### Source 1: Kaggle arshkon
+
+| Field | Value |
+|---|---|
+| **Path** | `data/kaggle-linkedin-jobs-2023-2024/postings.csv` |
+| **Total rows** | 123,849 |
+| **Date range** | April 2024 (single-month snapshot; the "2023-2024" title refers to the project timeframe) |
+| **Platform** | LinkedIn only |
+| **SWE postings** | ~3,466 (~2.1% title match rate among 165K unique titles) |
+| **ID column** | `job_id` (integer) |
+| **Title** | `title` |
+| **Description** | `description` (inline, full text) |
+| **Seniority** | `formatted_experience_level` ("Mid-Senior level", "Entry level", "Associate", "Director", "Internship", "Executive", "Not Applicable"); 66.5% populated |
+| **Date** | `listed_time` (epoch milliseconds) |
+| **Company** | `company_name`, `company_id` |
+| **Location** | `location` |
+| **Companion files** | `jobs/job_industries.csv` (99.3% coverage via `job_id`), `companies/companies.csv` (`company_size`, `state`, `city` via `company_id`), `companies/employee_counts.csv` (`employee_count` via `company_id`), `mappings/industries.csv` (422 industry_id to industry_name) |
+
+### Source 2: Kaggle asaniczka
+
+| Field | Value |
+|---|---|
+| **Path** | `data/kaggle-asaniczka-1.3m/` |
+| **Total rows** | ~1.35M |
+| **Date range** | January 12-17, 2024 |
+| **Platform** | LinkedIn only |
+| **SWE postings** | 18,169 US SWE matches (~1.3% match rate among US postings) |
+| **ID column** | `job_link` (URL string) |
+| **Title** | `job_title` |
+| **Description** | NOT inline. Descriptions in separate `job_summary.csv` — join on `job_link`. 96.2% coverage. |
+| **Seniority** | `job_level` — only TWO values present: "Mid senior" (17,045 SWE matches) and "Associate" (1,124 SWE matches). NO entry-level postings exist. |
+| **Date** | `first_seen` (YYYY-MM-DD format) |
+| **Company** | `company` |
+| **Location** | `job_location` |
+| **Salary** | None |
+| **Company metadata** | None (no company size, no industry) |
+| **Skills** | `job_skills.csv` (join on `job_link`) |
+| **Filtering required** | `search_country == "United States"` |
+| **Other columns** | `search_city`, `search_country`, `search_position`, `job_type` |
+
+**Critical limitation for RQ1:** This dataset contains zero entry-level postings. It cannot serve as a historical baseline for junior posting share or junior scope inflation. It is useful for mid-senior and associate-level content analysis only (RQ2 requirement migration within those levels).
+
+### Source 3: Scraped current-format files
+
+| Field | Value |
+|---|---|
+| **Path** | `data/scraped/YYYY-MM-DD_{swe,non_swe}_jobs.csv` |
+| **Total rows** | ~3,680 SWE rows/day + ~30,888 non-SWE rows/day |
+| **Date range** | March 20, 2026 onward (ongoing) |
+| **Platform** | LinkedIn + Indeed |
+| **ID column** | `id` (string) |
+| **Title** | `title` |
+| **Description** | `description` (inline, full text) |
+| **Columns** | 41 columns total |
+| **Search metadata** | `search_query`, `query_tier`, `search_metro_id`, `search_metro_name`, `search_metro_region`, `search_location` |
+| **Scrape metadata** | `scrape_date`, `site` (linkedin/indeed) |
+| **Query design** | 100 results/query, 26 metros |
+| **Cross-day overlap** | ~40% of IDs reappear across days |
+
+**Platform-specific field availability (scraped):**
+
+| Field | LinkedIn | Indeed |
+|---|---|---|
+| `job_level` | 100% | 0% |
+| `company_industry` | 100% | 0% |
+| `description` | 100% | 100% |
+| `date_posted` | 2.8% | 100% |
+| `company_num_employees` | 0% | 91% |
+
+**File structure note:** The `_swe_jobs.csv` and `_non_swe_jobs.csv` split reflects query tier, not title pattern. SWE files contain Tier 1 SWE query results; non-SWE files contain Tier 2+3 results. Scraper-level dedup already removes duplicate IDs within each day.
+
+### Dropped: old scraped data (Mar 5-18)
+
+The scraper ran from March 5-18 with 25 results/query and an older CSV format lacking `search_query`, `query_tier`, `search_metro_id`, `search_metro_name`, `search_metro_region`, and `search_location` columns. This data is excluded from the v3 pipeline. The upgrade to 100 results/query on March 20 means the new data has 4x the coverage per query and includes the search metadata needed for metro-level analysis.
+
+### Cross-source notes
+
+1. **Description lengths differ by ~55% between Kaggle and scraped** (Kaggle SWE median: 3,242 chars; scraped SWE LinkedIn: 5,036 chars). Could be real scope inflation, scraping differences, or boilerplate. Investigation plan unchanged from v1.
+2. **Aggregators present across sources.** Kaggle: DataAnnotation (168), Dice (35), Apex Systems (29). Scraped: Lensa, Jobs via Dice. DataAnnotation alone is 5.4% of Kaggle SWE postings.
+3. **Primary analysis platform:** LinkedIn only. Indeed data is used for sensitivity analyses only. Both Kaggle sources are LinkedIn-only, so LinkedIn-only analysis provides the cleanest cross-period comparison.
+
+---
+
+## Pipeline architecture
 
 ```
-Raw Data (Kaggle CSV + daily scraped CSVs)
-  │
-  ├─ Stage 1: Ingest & Schema Unification
-  ├─ Stage 2: Aggregator / Staffing Company Handling
-  ├─ Stage 3: Boilerplate Removal
-  ├─ Stage 4: Deduplication (within-dataset + cross-dataset)
-  ├─ Stage 5: Classification (SWE detection + seniority imputation)
-  ├─ Stage 6: Field Normalization & Validation
-  ├─ Stage 7: Temporal Alignment
-  ├─ Stage 8: Quality Flags & Filtering
-  │
-  ▼
-Analysis-Ready Dataset (unified.parquet)
-  + quality_report.json
-  + preprocessing_log.txt
+Raw Data (3 sources: arshkon CSV, asaniczka CSV+joins, daily scraped CSVs)
+  |
+  +-- Stage 1: Ingest & Schema Unification          [REWRITTEN for v3]
+  |     +-- 1a: Arshkon ingest + companion joins
+  |     +-- 1b: Asaniczka ingest + description/skills joins
+  |     +-- 1c: Scraped ingest (all current-format files, LinkedIn + Indeed)
+  |     +-- 1d: Schema unification to canonical columns
+  +-- Stage 2: Aggregator / Staffing Handling        [UNCHANGED from v1]
+  +-- Stage 3: Rule-Based Boilerplate Removal        [UNCHANGED from v1]
+  +-- Stage 4: Deduplication                         [UNCHANGED from v1]
+  +-- Stage 5: Rule-Based Classification             [UNCHANGED from v1]
+  +-- Stage 6: Field Normalization                   [UNCHANGED from v1]
+  +-- Stage 7: Temporal Alignment                    [UNCHANGED from v1]
+  +-- Stage 8: Quality Flags                         [UNCHANGED from v1]
+  |
+  v
+intermediate/stage8_final.parquet (rule-based pipeline output)
+  |
+  +-- Stage 9: LLM Pre-Filtering                    [UNCHANGED from v2]
+  +-- Stage 10: LLM Classification (single call)    [UNCHANGED from v2]
+  +-- Stage 11: LLM Response Integration             [UNCHANGED from v2]
+  +-- Stage 12: Three-Way Validation                 [UNCHANGED from v2]
+  |
+  v
+data/unified.parquet          (canonical postings: one row per unique posting)
+data/unified_observations.parquet  (daily panel: one row per posting per scrape_date)
+  + data/quality_report.json
+  + data/preprocessing_log.txt
 ```
 
-Each stage produces logged counts (rows in → rows out, rows flagged) so we can report the full data funnel in our methodology section.
+**Design principle:** The rule-based pipeline (Stages 1-8) runs first and produces complete rule-based outputs. The LLM layer (Stages 9-12) runs on top, adding LLM-derived columns alongside rule-based columns. This means:
+- The pipeline works end-to-end without any LLM calls (rule-based fallback)
+- LLM outputs are additive — they never overwrite rule-based columns
+- We can run ablation studies comparing rule-based vs. LLM vs. both
+- If an LLM call fails for a posting, the rule-based values remain
+
+**Two output files:**
+- `unified.parquet`: One row per unique posting. For Kaggle sources, each posting appears once. For scraped data, each unique `id` appears once with its first-seen metadata. This is the primary analysis file.
+- `unified_observations.parquet`: One row per posting per scrape_date. Only meaningful for scraped data (Kaggle sources appear once). Tracks when postings appear/disappear from search results. Supports posting-duration analysis and daily-panel sensitivity checks.
+
+Each stage produces logged counts (rows in, rows out, rows flagged) for the methodology section.
 
 ---
 
-## Stage 1: Ingest & schema unification
+## Stage 1: Ingest and schema unification (rewritten)
 
-**What exists:** `harmonize.py` already maps both datasets to a 20-column unified schema.
+This is the major structural change in v3. Each source has a different schema, different ID format, different description storage, and different field availability. Stage 1 handles each source independently, then unifies to canonical columns.
 
-**What needs to change:**
+Stage 1 is a source-agnostic ingest layer, not an occupation classifier. It should keep approved rows from each source, normalize schema and provenance, and leave occupation classification to Stage 5.
 
-### 1a. SWE_PATTERN consistency
+### Stage 1a: Arshkon ingest
 
-The harmonizer's `SWE_PATTERN` is missing terms that the scraper uses. The scraper includes `ai\s*engineer`, `llm\s*engineer`, `agent\s*engineer`, `applied\s*ai\s*engineer`, `prompt\s*engineer`, `founding\s*engineer`, `member\s*of\s*technical\s*staff`, `product\s*engineer`. The harmonizer does not.
+**Input:** `data/kaggle-linkedin-jobs-2023-2024/postings.csv` + companion files.
 
-**Action:** Use a single canonical `SWE_PATTERN` defined in one place, imported by both scraper and harmonizer. The expanded pattern (from the scraper) should be the canonical one.
+**Steps:**
+1. Load `postings.csv`. Apply the source-specific joins and ingest normalization only; do not filter historical rows by occupation class.
+2. Join `jobs/job_industries.csv` on `job_id` to get `industry_id`.
+3. Join `mappings/industries.csv` on `industry_id` to get `industry_name`.
+4. Join `companies/companies.csv` on `company_id` to get `company_size`, `state`, `city`.
+5. Join `companies/employee_counts.csv` on `company_id` to get `employee_count`.
+6. Convert `listed_time` from epoch milliseconds to date.
+7. Preserve `formatted_experience_level` as `seniority_raw`.
+8. Map `formatted_experience_level` to canonical seniority in `seniority_native`: "Entry level" -> "entry", "Associate" -> "associate", "Mid-Senior level" -> "mid-senior", "Director" -> "director", "Internship" -> "intern", "Executive" -> "executive", "Not Applicable" -> null. Unmapped values should remain null in `seniority_native`, not passed through as raw strings.
 
-### 1b. Additional columns needed
+**Output columns mapped:**
+- `uid` <- `"arshkon_" + str(job_id)`
+- `source` <- `"kaggle_arshkon"`
+- `source_platform` <- `"linkedin"`
+- `title` <- `title`
+- `description_raw` <- original `description`
+- `description` <- normalized working copy of `description`
+- `company_name` <- `company_name`
+- `location` <- `location`
+- `date_posted` <- converted from `listed_time`
+- `seniority_raw` <- original `formatted_experience_level`
+- `seniority_native` <- mapped from `formatted_experience_level`
+- `company_industry` <- from companion join
+- `company_size` <- numeric `employee_count`
+- `company_size_raw` <- `employee_count`
+- `company_size_category` <- companion `company_size`
+- `scrape_date` <- null (not applicable)
+- `site` <- `"linkedin"`
+- `search_query`, `query_tier`, `search_metro_id`, `search_metro_name`, `search_metro_region`, `search_location` <- all null
 
-Add these columns during ingest (they feed downstream stages):
+### Stage 1b: Asaniczka ingest
 
-| Column | Purpose | Source |
-|--------|---------|--------|
-| `source_platform` | linkedin / indeed / kaggle | Split from `source` |
-| `salary_source` | employer / platform-imputed / missing | Scraped data has this; Kaggle needs heuristic |
-| `description_length` | Character count of clean description | Computed |
-| `posting_age_days` | Days between date_posted and scrape_date | Computed |
-| `title_normalized` | Lowercased, stripped of level indicators | For dedup |
+**Input:** `data/kaggle-asaniczka-1.3m/` main file + `job_summary.csv` + `job_skills.csv`.
 
-### 1c. Kaggle companion file joins
+**Steps:**
+1. Load main postings file.
+2. Filter to `search_country == "United States"`.
+3. Apply source-specific ingest normalization only; do not filter by occupation class.
+4. Join `job_summary.csv` on `job_link` to get descriptions. Log the 3.8% of postings without descriptions. These remain in the dataset with null descriptions.
+5. Join `job_skills.csv` on `job_link` to get skills (stored as a separate column for later analysis).
+6. Preserve `job_level` as `seniority_raw`.
+7. Map `job_level` to canonical seniority in `seniority_native`: "Mid senior" -> "mid-senior", "Associate" -> "associate". All other values -> null.
 
-Current harmonizer sets `company_industry = None` and `company_size = None` for Kaggle data. Investigation confirmed that companion files exist and are joinable:
-- `jobs/job_industries.csv` → join via `job_id` → covers 99.3% of SWE postings
-- `companies/companies.csv` → join via `company_id` → provides `company_size`, `state`, `city`
-- `companies/employee_counts.csv` → join via `company_id` → provides `employee_count`
-- `mappings/industries.csv` → lookup table (422 industry_id → industry_name)
+**Output columns mapped:**
+- `uid` <- `"asaniczka_" + sha256(job_link)[:16]` (URL is too long for an ID; hash it)
+- `source` <- `"kaggle_asaniczka"`
+- `source_platform` <- `"linkedin"`
+- `title` <- `job_title`
+- `description_raw` <- from `job_summary.csv` join (null if no match)
+- `description` <- normalized working copy of `description_raw`
+- `company_name` <- `company`
+- `location` <- `job_location`
+- `date_posted` <- `first_seen` (already YYYY-MM-DD)
+- `seniority_raw` <- original `job_level`
+- `seniority_native` <- mapped from `job_level`
+- `company_industry` <- null (not available)
+- `company_size` <- null (not available)
+- `scrape_date` <- null
+- `site` <- `"linkedin"`
+- `search_query` <- `search_position` (closest equivalent)
+- `query_tier` <- null
+- `search_metro_id` <- null
+- `search_metro_name` <- `search_city`
+- `search_metro_region` <- null
+- `search_location` <- null
+- `asaniczka_skills` <- from `job_skills.csv` join (supplementary column)
 
-**Action:** Join these during ingest to populate `company_industry` and `company_size` for Kaggle rows. This enables industry-controlled and company-size-controlled comparisons in Stage 9g and Stage 12.
+**Note on missing entry-level data:** The absence of entry-level postings in asaniczka is a data characteristic, not a filtering error. The original dataset simply does not contain postings labeled below "Associate." This must be documented in the methodology and accounted for when interpreting junior-share trends (RQ1). Arshkon is the only historical source with entry-level postings, but both historical Kaggle sources remain useful for later occupation classification and control analyses.
+
+### Stage 1c: Scraped ingest (current-format files)
+
+**Input:** `data/scraped/YYYY-MM-DD_{swe,non_swe}_jobs.csv` files in the current 41-column format.
+
+**Steps:**
+1. Glob for all CSV files matching the date pattern. Do not hard-code a month boundary.
+2. Skip YC files and skip incompatible legacy scraped files that do not match the current 41-column schema.
+3. Load each valid file. The `scrape_date` is extracted from the filename.
+4. Both `_swe_jobs.csv` and `_non_swe_jobs.csv` are loaded (the file split reflects query tier, not SWE classification — Stage 5 handles classification).
+5. Preserve `job_level` as `seniority_raw`.
+6. Map `job_level` to canonical seniority in `seniority_native`: "entry level" -> "entry", "mid-senior level" -> "mid-senior", "associate" -> "associate", "director" -> "director". Unmapped values should remain null. For Indeed rows (`site == "indeed"`), `job_level` is expected to be null.
+7. For the daily panel output (`unified_observations.parquet`), keep all rows including cross-day duplicates.
+8. For the canonical output (`unified.parquet`), deduplicate by `id`: keep the first occurrence of each unique ID with its earliest `scrape_date`.
+
+**Output columns mapped:**
+- `uid` <- `site + "_" + id`
+- `source` <- `"scraped"`
+- `source_platform` <- `site` ("linkedin" or "indeed")
+- `title` <- `title`
+- `description_raw` <- original `description`
+- `description` <- normalized working copy of `description_raw`
+- `company_name` <- `company`
+- `location` <- `location`
+- `date_posted` <- `date_posted` (sparse for LinkedIn: 2.8%)
+- `seniority_raw` <- original `job_level`
+- `seniority_native` <- mapped from `job_level` (null for Indeed)
+- `company_industry` <- `company_industry` (LinkedIn only)
+- `company_size` <- parsed numeric `company_num_employees` (Indeed only)
+- `company_size_raw` <- original `company_num_employees`
+- `scrape_date` <- from filename
+- `site` <- `site`
+- `search_query` <- `search_query`
+- `query_tier` <- `query_tier`
+- `search_metro_id` <- `search_metro_id`
+- `search_metro_name` <- `search_metro_name`
+- `search_metro_region` <- `search_metro_region`
+- `search_location` <- `search_location`
+
+### Stage 1d: Schema unification
+
+Concatenate outputs from 1a, 1b, and 1c into a single dataframe with canonical columns. Verify:
+- All rows have a non-null `uid`
+- All rows have a non-null `source`
+- All rows have a non-null `title`
+- Log null rates for key ingest fields by source, including `description`, `description_raw`, `seniority_raw`, and `seniority_native`
+- Log description-join coverage and seniority-mapping coverage by source
+
+**Memory note:** Use pyarrow for all reads. Process asaniczka in chunks (1.35M rows). Never load the full asaniczka dataset into pandas at once.
 
 ---
 
-## Stage 2: Aggregator / staffing company handling
+## Stages 2-8: Rule-based pipeline
 
-**Problem identified:** 9% of scraped data comes from aggregators (Lensa: 16 postings, Jobs via Dice: 29, Actalent, TalentAlly, etc.). These create two problems:
+These stages are implemented and working from v1. Summary:
 
-1. **Boilerplate contamination**: Lensa prepends ~150 words of self-description ("Lensa is a career site that helps job seekers...") before the actual job content. Dice wraps postings in a "job summary" template.
+| Stage | Module | Purpose |
+|---|---|---|
+| 1 | `stage1_ingest.py` | Schema unification (rewritten for v3 — see above) |
+| 2 | `stage2_aggregators.py` | Aggregator flagging, real employer extraction |
+| 3 | `stage3_boilerplate.py` | Section-based boilerplate removal (regex) |
+| 4 | `stage4_dedup.py` | Exact + near-duplicate detection |
+| 5 | `stage5_classification.py` | 3-tier occupation classification (SWE / SWE-adjacent / control; regex + LLM lookup + embedding), multi-signal seniority |
+| 6 | `stage678_normalize_temporal_flags.py` | Location/date normalization, language detection |
+| 7 | (same file) | Period assignment, posting age computation |
+| 8 | (same file) | Ghost job heuristics, description quality flags |
 
-2. **Employer attribution**: The real employer is buried inside the description (e.g., Lensa posting for Amazon, Dice posting for Raytheon). Company-level analysis would group these under the aggregator rather than the actual employer.
+**Rule-based columns produced (preserved as ablation baselines):**
+- `is_swe`, `is_swe_adjacent`, `swe_confidence`, `swe_classification_tier`
+- `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_3level`
+- `description_core` (boilerplate-stripped)
+- `ghost_job_risk`
 
-### 2a. Identify aggregators
+---
 
-Maintain a curated list of known aggregator/staffing company names:
+## Stage 9: LLM pre-filtering
 
-```python
-AGGREGATORS = {
-    'Lensa', 'Jobs via Dice', 'Dice', 'Jobot', 'CyberCoders',
-    'Hired', 'ZipRecruiter', 'Actalent', 'TalentAlly', 'Randstad',
-    'Robert Half', 'TEKsystems', 'Kforce', 'Insight Global',
-    'Motion Recruitment', 'Harnham', 'Jack & Jill',
+### Goal
+
+Reduce the number of LLM calls from the full posting count to ~10-50K that actually need LLM review. We can afford thousands of LLM calls, but not hundreds of thousands.
+
+### Pre-filter rules
+
+Apply these filters sequentially. A posting is **skipped** (no LLM call) if it matches any skip condition:
+
+**1. Obvious non-SWE (skip LLM entirely):**
+Titles matching `SWE_EXCLUDE` AND not matching `SWE_INCLUDE`. These are civil engineers, mechanical engineers, sales engineers, etc. Classify as non-SWE with high confidence. Rule-based classification is sufficient.
+
+**2. Non-English postings (skip LLM entirely):**
+Detected by `langdetect` in Stage 6e. Exclude from both LLM and analysis.
+
+**3. Duplicate descriptions (cache hit):**
+After dedup (Stage 4), many surviving postings share identical descriptions (same role at different locations, or reposted). Cache LLM responses by `sha256(description_text)`. Identical descriptions get the same classification without a second call.
+
+**4. High-confidence rule-based agreement (skip if rules are clear):**
+If all of the following are true, skip LLM:
+- SWE classification: `swe_classification_tier == "regex"` (high-confidence regex match)
+- Seniority: `seniority_source` starts with `"title_"` (clear signal from title keywords or level numbers)
+- Ghost job: `ghost_job_risk == "low"` AND no title-seniority contradiction
+
+These postings have unambiguous rule-based labels. LLM adds no value.
+
+**Postings that MUST go to the LLM:**
+- Any posting where `swe_classification_tier` is `"embedding_adjacent"` or `"unresolved"` (ambiguous SWE classification)
+- Any posting where `seniority_source` is `"description_yoe"`, `"description_language"`, or `"unknown"` (no clear title signal for seniority)
+- Any posting flagged `ghost_job_risk == "high"` (validate the high-risk flag)
+- All postings go through LLM for boilerplate removal (the rule-based remover misses front-matter boilerplate in ~20-25% of cases)
+
+**Revised estimate:** After pre-filtering, the LLM will process approximately:
+- ~10-50K postings for the full 4-task bundle (SWE + seniority + boilerplate + ghost)
+- Additional postings for boilerplate-only LLM processing (where SWE/seniority are already clear but boilerplate removal needs improvement)
+
+In practice, we should profile the first 100 calls, then extrapolate volume and cost before running the full batch.
+
+### Description dedup for caching
+
+Before sending to the LLM, compute `sha256(description_text)` for all candidate postings. Group by hash. For each unique hash, send only one LLM call and apply the result to all postings sharing that hash. This is the single biggest volume reducer.
+
+---
+
+## Stage 10: LLM classification (single bundled call)
+
+### Architecture
+
+One LLM call per posting performs all four tasks simultaneously on the **full job description** (not truncated). This avoids the truncation bias that plagued the v1 LLM validation (which used only the first 300-500 characters).
+
+### Model selection
+
+- **Primary:** GPT-5.4 mini via the CLI:
+  ```bash
+  codex exec --full-auto --config model=gpt-5.4-mini "<prompt>" --skip-git-repo-check
+  ```
+- **Alternative:** Claude Haiku via `claude -p` (Max plan, $200/month) if Codex doesn't work or has reliability issues.
+- **Validation model:** GPT-5.4 (full) for the three-way comparison (Stage 12).
+
+### Prompt design
+
+```
+You are a labor economics research assistant classifying job postings.
+Perform ALL FOUR tasks below on this job posting. Return ONLY valid JSON.
+
+TASK 1 — SWE CLASSIFICATION
+Classify this role into exactly one category:
+- "SWE": The role's primary function is writing, designing, or maintaining
+  software. Includes: software engineers, full-stack developers,
+  frontend/backend engineers, mobile developers, ML engineers, data engineers
+  who primarily write code, DevOps engineers whose description emphasizes
+  writing code for infrastructure. Test: does this person spend most of their
+  time producing or maintaining code?
+- "SWE_ADJACENT": Technical roles that involve some code but where coding is
+  not the primary function. Includes: data analysts who write SQL/Python,
+  DevOps focused on operations rather than code, QA/SDET roles, technical
+  program managers, solutions architects. Test: this person uses code as a
+  tool but their primary output is not software.
+- "NOT_SWE": Roles where software development is not a meaningful part of
+  the job. Includes: hardware engineers, civil/mechanical/electrical
+  engineers, sales engineers, support engineers, project managers,
+  non-technical roles. Also includes roles with misleading titles (e.g.,
+  "Systems Engineer - Train Control" at a transit agency).
+
+Edge cases:
+- Firmware engineers: SWE if primarily writing firmware code, SWE_ADJACENT if
+  primarily hardware integration
+- "Systems Engineer": depends entirely on description
+- Data engineers: SWE if building data pipelines in code, SWE_ADJACENT if
+  managing/analyzing data
+
+TASK 2 — SENIORITY CLASSIFICATION
+Look ONLY for explicit seniority signals in the title and description:
+- "junior", "jr", "intern", "new grad", "entry-level", "early career" -> "entry"
+- "associate", "I", "1" (as a level code) -> "associate"
+- "senior", "sr", "II", "2", "staff", "principal", "lead", "architect" -> "mid-senior"
+- "director", "VP", "head of", "chief" -> "director"
+- No clear signal -> "unknown"
+
+IMPORTANT: Do NOT infer seniority from:
+- Responsibilities, tech stack complexity, or team size
+- Years-of-experience requirements (companies inflate YOE)
+- Company reputation or typical leveling
+When in doubt, classify as "unknown". We want high precision, not high recall.
+
+TASK 3 — BOILERPLATE IDENTIFICATION
+Identify which parts of the description are boilerplate vs. core job content.
+Boilerplate includes: company overview/About Us, EEO/diversity statements,
+benefits/compensation sections, application instructions, recruiter platform
+framing (e.g., "This is a job that [name] is recruiting for..."), corporate
+mission/values statements.
+Core job content includes: role description, responsibilities, requirements,
+qualifications, nice-to-haves, tech stack.
+
+Return the core job content ONLY. Rules:
+- Do NOT paraphrase. Return exact text from the original description.
+- Preserve the original formatting and line breaks.
+- If the entire description is core content, return it unchanged.
+- If the entire description is boilerplate, return an empty string.
+
+TASK 4 — GHOST JOB ASSESSMENT
+Assess whether this posting's requirements are realistic for its stated level:
+- "realistic": Requirements match the stated or apparent seniority level
+- "inflated": Requirements are significantly higher than what the stated
+  level would normally demand (e.g., entry-level title asking for 5+ years,
+  or a junior role requiring expertise in 10+ technologies)
+- "ghost_likely": Strong signals this is not a genuine open position
+  (impossibly broad requirements, contradictory signals, copy-paste template
+  with no specific details)
+
+If the seniority is unclear, assess based on what a reasonable interpretation
+of the role would require.
+
+---
+
+TITLE: {title}
+COMPANY: {company}
+DESCRIPTION:
+{full_description}
+
+---
+
+Respond with this exact JSON structure:
+{
+  "swe_classification": "SWE" | "SWE_ADJACENT" | "NOT_SWE",
+  "seniority": "entry" | "associate" | "mid-senior" | "director" | "unknown",
+  "description_core": "<exact text from original, boilerplate removed>",
+  "ghost_assessment": "realistic" | "inflated" | "ghost_likely"
 }
 ```
 
-**Action:** Flag rows with `is_aggregator = True`. Do NOT remove them by default — instead, run sensitivity analyses with and without aggregator postings.
+### Seniority classification — design rationale
 
-### 2b. Extract real employer from aggregator descriptions
+This is the most important design change from v1. The LLM validation showed that inferring seniority from responsibilities produces garbage (87/100 classified as mid-senior when given truncated descriptions). The new approach:
 
-For Lensa: the actual employer name and job content follows their standard boilerplate. Pattern: strip everything before the first paragraph break after "Lensa partners with DirectEmployers..." or similar.
+**What the LLM does:** Looks for explicit seniority signals only — title keywords, level codes, explicit "entry-level" or "senior" language. Maps to the enum. Defaults to "unknown" when ambiguous.
 
-For Dice: the real content follows "job summary:" and the employer is typically referenced as "Our client is [Company]".
+**What the LLM does NOT do:** Infer seniority from responsibilities, tech stack complexity, team size, YOE requirements, or company reputation.
 
-**Action:** Write aggregator-specific boilerplate strippers. Extract `real_employer` where possible. Log extraction success rate.
+**Why:** The research goal is to understand how companies label and frame their roles at different seniority levels. We need clean seniority labels that reflect the company's intent, not reverse-engineered "true" seniority. Later analysis examines how skills/requirements differ by seniority — for that, we need labels that aren't derived from the very signals we're analyzing.
 
-### 2c. Validation (3-tier — see review protocol)
+**Seniority enum mapping:**
+- junior / intern / new grad / entry-level -> entry
+- associate / I / 1 -> associate
+- senior / sr / II / 2 / staff / principal / lead -> mid-senior
+- director / VP / head of -> director
+- No clear signal -> unknown
 
-- **Tier 1:** Flag all AGGREGATORS list matches automatically.
-- **Tier 2:** LLM reviews 100 aggregator postings — extracts real employer name, verifies boilerplate was stripped, checks if job content is preserved. Prompt: "Given this aggregator posting, what is the real employer? Was the job content preserved after boilerplate removal? Any issues?"
-- **Tier 3:** Human reviews 20 items the LLM flagged as problematic + 10 random "clean" items.
+YOE mentions do NOT drive the enum. An "entry-level" posting asking for "3+ years" is still classified as entry, and separately flagged as potentially inflated in ghost job assessment.
 
-**Decision point:** If aggregator postings are mostly duplicates of direct postings from the same employer (i.e., Amazon posts directly AND Lensa reposts it), they should be deduplicated against the direct posting. If they surface unique jobs not posted directly, keep them. The LLM can help identify this by comparing aggregator postings against direct postings from the same employer.
+### Three seniority ablations
 
----
+Preserve all three seniority signals for analysis:
 
-## Stage 3: Boilerplate removal
-
-**Problem:** Job descriptions contain large blocks of repeated text that inflate description length metrics and text similarity scores:
-- Company "About Us" sections (repeat across all postings from that company)
-- EEO/diversity statements ("We are an equal opportunity employer...")
-- Benefits sections ("We offer competitive salary, 401(k)...")
-- Application instructions ("To apply, visit...")
-- Salary/location appendices (Lensa appends multi-location salary tables)
-
-### 3a. Section-based removal
-
-Most job descriptions follow a loose template:
-
-```
-[About the company]      ← boilerplate (repeats per company)
-[About the role]         ← KEEP
-[Responsibilities]       ← KEEP
-[Requirements]           ← KEEP
-[Nice-to-haves]          ← KEEP
-[Benefits/compensation]  ← boilerplate (repeats per company)
-[EEO statement]          ← boilerplate (near-identical across all companies)
-[Application info]       ← boilerplate
-```
-
-**Action:** Build a section classifier that identifies and tags each section. Keep role/responsibilities/requirements/nice-to-haves. Strip or tag the rest.
-
-**Approach — regex-based section splitting:**
-
-```python
-SECTION_HEADERS = [
-    (r'(?i)(about\s+(us|the\s+company|our\s+company))', 'about_company'),
-    (r'(?i)(about\s+the\s+(role|position|job|opportunity))', 'about_role'),
-    (r'(?i)(responsibilities|what\s+you.?ll\s+do|your\s+role|the\s+role)', 'responsibilities'),
-    (r'(?i)(requirements?|qualifications?|what\s+you.?ll\s+need|must\s+have|minimum)', 'requirements'),
-    (r'(?i)(nice\s+to\s+have|preferred|bonus|plus)', 'nice_to_have'),
-    (r'(?i)(benefits?|perks|what\s+we\s+offer|compensation|we\s+offer)', 'benefits'),
-    (r'(?i)(equal\s+opportunity|eeo|diversity|we\s+are\s+an?\s+equal)', 'eeo'),
-    (r'(?i)(how\s+to\s+apply|to\s+apply|application)', 'application'),
-]
-```
-
-Store both `description_full` (original) and `description_core` (role + responsibilities + requirements + nice-to-haves only). Use `description_core` for all text analysis; use `description_full` only for section-aware analyses.
-
-### 3b. EEO statement fingerprinting
-
-EEO statements are nearly identical across companies. Build a small set of EEO fingerprints (5-10 common variants) and strip matching paragraphs.
-
-### 3c. Intra-company boilerplate detection
-
-For companies with 3+ postings, compute paragraph-level hashes. Any paragraph appearing in >80% of a company's postings is company boilerplate. Strip it.
-
-**This is important for:** description length analysis (RQ1 scope inflation), text embedding quality, and any NLP that uses full descriptions.
-
-### 3d. Validation (3-tier — see review protocol)
-
-- **Tier 1:** Compute description length before/after removal. Flag any posting where >80% of content was stripped (possible over-removal) or <10% was stripped (possible under-removal).
-- **Tier 2:** LLM reviews 200 post-removal descriptions. Prompt: "Compare the original and stripped description. Was any actual job requirement removed? Was boilerplate left in? Rate: over-stripped / under-stripped / correct." Focus on postings near the over/under-removal thresholds.
-- **Tier 3:** Human reviews 30 items LLM flagged as over- or under-stripped + 10 random "correct" items.
-
-Report: median description length before vs. after boilerplate removal, by source. Also report the LLM-assessed accuracy rate on the 200-item sample.
-
----
-
-## Stage 4: Deduplication
-
-**Why this is critical:** Lightcast reports deduplicating up to 80% of raw scraped postings. Without rigorous dedup, volume counts are meaningless, and text analyses are biased toward frequently-reposted jobs.
-
-### 4a. Within-dataset exact dedup
-
-**Scraped data:**
-- Already deduplicated by `job_url` within each daily CSV
-- Cross-day dedup via `_seen_job_ids.json` (182K IDs)
-- **Gap:** Same job posted with different IDs on LinkedIn vs. Indeed. Same role posted by employer directly AND by aggregator. Different locations for the same role at the same company.
-
-**Kaggle data:**
-- Dedup status unknown (provenance undocumented)
-- Has `job_id` field — check uniqueness
-
-**Action:** Apply exact dedup on `(title_normalized, company_name_normalized, location)` within a 60-day rolling window (industry standard per Lightcast). Log dedup counts.
-
-### 4b. Near-duplicate detection
-
-Same job with slightly different titles ("Software Engineer" vs. "Software Engineer - Remote"), different formatting, or description edits.
-
-**Tiered approach (per Abdelaal et al. 2024, F1=0.94):**
-
-1. **Title similarity**: RapidFuzz `token_set_ratio` ≥ 85 on normalized titles
-2. **Company match**: RapidFuzz `token_set_ratio` ≥ 85 on company names (handles "JPMC" / "JPMorgan" / "J.P. Morgan Chase")
-3. **Description similarity**: If title+company match, check description cosine similarity ≥ 0.70 (TF-IDF or sentence embeddings)
-
-**Candidates are near-duplicates if:** title match AND company match AND (same location OR description similarity ≥ 0.70).
-
-**Keep rule:** Keep the posting with the most complete fields (non-null salary, seniority label, etc.). If tied, keep the earliest posting.
-
-### 4c. Multi-location posting handling
-
-**Observed:** 38.6% of scraped rows have duplicate title+company combos, often differing only in location. These represent one role posted in multiple cities (e.g., "Software Engineer @ Google" in SF, NYC, Seattle).
-
-**Options:**
-- **Option A (default):** Keep all location variants. They represent distinct labor demand in each metro. This is standard in the literature (Hershbein & Kahn 2018 count each posting-location pair).
-- **Option B (sensitivity):** Collapse to one row per unique (title, company, description) regardless of location. Report results under both options.
-
-**Action:** Flag `is_multi_location = True` for postings sharing (title, company, description_hash) across 2+ locations. Run sensitivity analyses both ways.
-
-### 4d. LinkedIn "Reposted" handling
-
-Scraped data may include postings marked "Reposted X days ago" by LinkedIn. These are employer-refreshed listings that could be months old. The `date_posted` field may reflect the repost date, not the original date.
-
-**Action:** If the scraped data captures a "reposted" indicator, flag it. For temporal analysis, note that reposted jobs inflate recent-period counts.
-
-### 4e. Dedup reporting
-
-Report a dedup funnel table in the methodology section:
-
-```
-                    Kaggle      Scraped     Total
-Raw rows            123,849     ~187,000    ~311,000
-SWE title match     3,466       14,391      17,857
-After exact dedup   X           X           X
-After near-dedup    X           X           X
-After aggregator    X           X           X
-  dedup
-Final SWE           X           X           X
-Final Control       X           X           X
-```
-
----
-
-## Stage 5: Classification
-
-### 5a. SWE detection — multi-tier approach
-
-**Problem with regex-only:** A regex on titles is fast and transparent but fundamentally brittle. It fails on novel titles, misses titles with non-standard phrasing ("Software Development Engineer", Amazon's standard SWE title — 16+ false negatives per day), and can't handle ambiguous cases where the title alone is insufficient ("Engineer" at a software company vs. "Engineer" at a construction company). The regex approach also drifts over time as new title conventions emerge (e.g., "AI Agent Developer" in 2026 didn't exist in 2024).
-
-**Our classification needs:** We need a binary SWE/non-SWE classifier that:
-- Handles the long tail of title variations
-- Works consistently across both time periods (April 2024 and March 2026)
-- Is transparent and reproducible (reviewers need to understand it)
-- Provides confidence scores (not just binary labels) for sensitivity analysis
-- Can also classify into SWE / SWE-adjacent / control / other for the DiD design
-
-**Proposed: 3-tier classification pipeline**
-
-```
-Tier 1: Regex (fast, deterministic, handles obvious cases)
-  ↓ unmatched or low-confidence titles
-Tier 2: Embedding similarity (handles the long tail)
-  ↓ still ambiguous
-Tier 3: Description-based classification (resolves edge cases)
-  ↓
-Final label + confidence score
-```
-
-#### Tier 1: Improved regex (handles ~85% of postings)
-
-The regex serves as the fast, deterministic first pass. Most SWE titles are unambiguous and a well-designed regex catches them.
-
-```python
-SWE_INCLUDE = re.compile(
-    r'(?i)\b('
-    r'software\s*(engineer|developer|dev|development\s*engineer)|'
-    r'swe\b|full[- ]?stack|front[- ]?end\s*(engineer|developer)|'
-    r'back[- ]?end\s*(engineer|developer)|'
-    r'web\s*(developer|engineer)|mobile\s*(developer|engineer)|'
-    r'devops\s*(engineer)?|platform\s*engineer|'
-    r'data\s*engineer|ml\s*engineer|machine\s*learning\s*engineer|'
-    r'site\s*reliability\s*(engineer)?|'
-    r'ai\s*engineer|llm\s*engineer|agent\s*engineer|'
-    r'applied\s*(ai|ml)\s*engineer|prompt\s*engineer|'
-    r'infrastructure\s*engineer|cloud\s*engineer|'
-    r'founding\s*engineer|member\s*of\s*technical\s*staff|'
-    r'product\s*engineer|systems?\s*engineer'
-    r')\b'
-)
-
-SWE_EXCLUDE = re.compile(
-    r'(?i)\b('
-    r'sales\s*engineer|support\s*engineer|field\s*(service|engineer)|'
-    r'customer\s*(success|support)\s*engineer|'
-    r'solutions?\s*(architect|engineer)|'
-    r'systems?\s*administrator|'
-    r'civil\s*engineer|mechanical\s*engineer|electrical\s*engineer|'
-    r'chemical\s*engineer|industrial\s*engineer|'
-    r'audio\s*engineer|recording\s*engineer|sound\s*engineer|'
-    r'network\s*engineer|hardware\s*engineer'
-    r')\b'
-)
-```
-
-Regex output: `swe_regex = True / False / excluded`. Titles that match `SWE_INCLUDE` and NOT `SWE_EXCLUDE` are classified SWE with high confidence. Excluded titles are classified non-SWE with high confidence. Everything else goes to Tier 2.
-
-#### Tier 2: Embedding similarity to SOC reference titles (handles ~10% more)
-
-**Concept:** Encode all job titles using a sentence transformer, then measure cosine similarity to a curated set of SWE reference titles drawn from O\*NET SOC codes.
-
-**SOC codes for SWE (from O\*NET/BLS):**
-- 15-1252: Software Developers (primary)
-- 15-1253: Software Quality Assurance Analysts and Testers
-- 15-1254: Web Developers
-- 15-1255: Web and Digital Interface Designers (borderline)
-- 15-1211: Computer Systems Analysts (borderline)
-- 15-1256: Software Quality Assurance Analysts (overlap with 15-1253)
-- 15-1299: Computer Occupations, All Other
-
-**Reference title set:** For each SOC code, O\*NET provides "sample reported titles" — the actual titles real workers use. For 15-1252 alone: "Application Developer", "Application Integration Engineer", "Developer", "DevOps Engineer", "Infrastructure Engineer", "Software Architect", "Software Developer", "Software Development Engineer", "Software Engineer", "Systems Engineer". Combine these across all SWE-relevant SOC codes to build a reference set of ~50-80 canonical SWE titles.
-
-**Implementation:**
-
-```python
-from sentence_transformers import SentenceTransformer
-
-model = SentenceTransformer('TechWolf/JobBERT-v2')  # job-domain fine-tuned, 1024d
-
-# Encode reference titles (once, cached)
-swe_refs = [
-    "Software Engineer", "Software Developer", "Software Development Engineer",
-    "Full Stack Developer", "Frontend Engineer", "Backend Engineer",
-    "DevOps Engineer", "Data Engineer", "ML Engineer", "AI Engineer",
-    "Site Reliability Engineer", "Platform Engineer", "Cloud Engineer",
-    "Mobile Developer", "Infrastructure Engineer", "Software Architect",
-    # ... expand from O*NET sample titles for SOC 15-1252 through 15-1256
-]
-ref_embeddings = model.encode(swe_refs)
-
-# For each unresolved title from Tier 1:
-title_embedding = model.encode(title)
-similarities = cosine_similarity([title_embedding], ref_embeddings)[0]
-max_similarity = similarities.max()
-
-# Classification:
-# > 0.70: SWE (high confidence)
-# 0.50 - 0.70: SWE-probable (send to Tier 3 for confirmation)
-# < 0.50: not SWE
-```
-
-**Why this works better than regex:**
-- "Software Development Engineer" → high similarity to "Software Developer" and "Software Engineer" (catches the Amazon false negative)
-- "Applied AI Research Scientist" → moderate similarity (correctly ambiguous — Tier 3 resolves)
-- "Mechanical Integration Leader" → low similarity (correctly excluded)
-- Robust to novel title phrasings because it measures semantic similarity, not lexical patterns
-- The reference set is grounded in an authoritative taxonomy (O\*NET), not researcher intuition
-
-**Threshold calibration:** Run Tier 2 on the titles where we already have regex labels (high-confidence SWE and high-confidence non-SWE from Tier 1). Use this to calibrate the similarity thresholds — find the threshold that maximizes agreement with regex on unambiguous cases. Then apply that threshold to ambiguous cases.
-
-#### Tier 3: Description-based classification (resolves the remaining ~5%)
-
-For titles still ambiguous after Tier 2 (similarity 0.50-0.70, or contradictory signals), use the job description to make the final call.
-
-**Option A: Zero-shot NLI classifier (no training needed)**
-
-```python
-from transformers import pipeline
-
-classifier = pipeline("zero-shot-classification",
-                      model="facebook/bart-large-mnli")
-
-result = classifier(
-    description_core[:512],  # truncate to first 512 tokens
-    candidate_labels=["software engineering job", "non-software engineering job"],
-    hypothesis_template="This is a {}."
-)
-# result['scores'] gives probability for each label
-```
-
-**Pros:** No training data needed. Works out of the box. Reproducible.
-**Cons:** Slow (~0.5s per posting on CPU). May be overconfident on boilerplate-heavy descriptions.
-
-**Option B: SetFit few-shot classifier (small training set, fast inference)**
-
-```python
-from setfit import SetFitModel, SetFitTrainer
-
-# Train on ~50-100 labeled examples (25 SWE, 25 non-SWE, 50 ambiguous)
-model = SetFitModel.from_pretrained("TechWolf/JobBERT-v2")
-trainer = SetFitTrainer(model=model, train_dataset=labeled_set)
-trainer.train()
-
-# Inference is fast (same speed as sentence transformer encoding)
-predictions = model.predict(descriptions)
-```
-
-**Pros:** Needs only 50-100 labeled examples to reach ~90%+ accuracy. Fast inference after training. Learns from description content, not just title.
-**Cons:** Requires a labeled training set (but we need one anyway for validation).
-
-**Option C: SOC code assignment via `occupationcoder` (external tool)**
-
-The [occupationcoder](https://github.com/aeturrell/occupationcoder) package (Bank of England) assigns SOC codes given title + description + sector. We could assign SOC codes to all postings and define SWE as any posting with SOC 15-12XX codes.
-
-**Pros:** Grounded in an official taxonomy. Assigns fine-grained codes we can use for other analyses.
-**Cons:** Uses UK SOC 2010 (not US SOC 2018). Bag-of-words approach, less accurate than embeddings. Would need adaptation for US occupational codes.
-
-**Recommendation:** Use Option B (SetFit) for Tier 3. It requires minimal labeled data, inference is fast, and it learns from descriptions — which is exactly what we need for ambiguous titles. The labeled examples we create for validation (Stage 9e) can double as training data.
-
-#### Tier output and confidence scoring
-
-Every posting gets three fields:
-
-| Field | Values | Source |
+| Column | Source | Primary use |
 |---|---|---|
-| `is_swe` | True / False | Final binary label |
-| `swe_confidence` | 0.0 - 1.0 | Confidence score |
-| `swe_classification_tier` | regex / embedding / description | Which tier made the call |
+| `seniority_llm` | LLM classification (new, primary) | Main analysis variable |
+| `seniority_imputed` | Rule-based classifier (existing) | Ablation baseline |
+| `seniority_native` | Canonically mapped native/source-provided label | Cross-validation |
+| `seniority_raw` | Original source label before mapping | Mapping audit / refinement |
 
-Confidence scoring:
-- Tier 1 regex match (include, no exclude): `confidence = 0.95`
-- Tier 1 regex match (exclude): `confidence = 0.95` (confident non-SWE)
-- Tier 2 embedding similarity > 0.70: `confidence = similarity_score`
-- Tier 2 embedding similarity < 0.50: `confidence = 1.0 - similarity_score`
-- Tier 3 SetFit/NLI: `confidence = model_probability`
+### Boilerplate removal — verbatim constraint
 
-**Sensitivity analysis:** Run core analyses at confidence thresholds of 0.50 (inclusive, more postings), 0.70 (moderate), and 0.90 (strict, fewer postings). If findings hold across all thresholds, the classification isn't driving the results.
+The LLM must return exact substrings of the original description. After receiving the response, programmatically verify:
 
-#### SWE-adjacent vs. control taxonomy
+1. Split the LLM's `description_core` into sentences.
+2. Check that each sentence appears verbatim in the original `description` (allow minor whitespace differences).
+3. If >10% of sentences fail the verbatim check, fall back to the rule-based `description_core` for that posting.
+4. Log the fallback rate.
 
-The same 3-tier approach classifies into a broader taxonomy needed for DiD (RQ4):
+**Two boilerplate columns for ablation:**
 
-| Category | SOC codes | Examples |
-|---|---|---|
-| **SWE** (treatment) | 15-1252, 15-1253, 15-1254 | Software Engineer, QA Engineer, Web Developer |
-| **SWE-adjacent** (AI-exposed tech) | 15-1211, 15-1221, 15-1231, 15-1241, 15-1299 | Data Scientist, Sysadmin, Data Analyst, DBA |
-| **Control** (low AI-exposure) | 17-2051, 17-2141, 29-1141, 13-2011 | Civil Engineer, Mechanical Engineer, Registered Nurse, Accountant |
-| **Other** | Everything else | |
+| Column | Source |
+|---|---|
+| `description_core` | Rule-based removal (existing, Stage 3) |
+| `description_core_llm` | LLM-based removal (new, Stage 10) |
 
-For the embedding approach, build separate reference title sets for each category. A posting's category is the one with the highest similarity. This replaces the current approach of having separate regex patterns for SWE and control.
+Analysis will run on both and compare results.
 
-#### Validation protocol for the classifier (3-tier — see review protocol)
+### Improving the rule-based seniority classifier
 
-1. **Gold-standard annotation (LLM pre-labeled + human corrected):**
-   - Sample 500 postings stratified by classification tier and confidence level. Oversample from the ambiguous zone (confidence 0.40-0.70).
-   - **Tier 2 (LLM):** Claude Sonnet pre-labels each posting: SWE / SWE-adjacent / control / other, with reasoning. Prompt includes title, first 500 chars of description, and company name.
-   - **Tier 3 (Human):** Annotator reviews LLM labels, correcting disagreements. This is 5-10x faster than labeling from scratch.
-   - Compute Cohen's kappa between LLM and human. If kappa > 0.80, LLM is a reliable second annotator.
+Apply these improvements from the LLM validation report (implemented in Stage 5 regardless of LLM augmentation):
 
-2. **Per-tier accuracy:** Report precision/recall/F1 for each classification tier separately. If Tier 1 (regex) has 98% precision but Tier 3 (description) has 75% precision, that's important context.
+1. **YOE cross-check column:** Regex for "X+ years", "X-Y years experience" patterns. Extract the minimum YOE mentioned. Compare against imputed seniority level and flag contradictions (e.g., entry-level title + 5+ YOE requirement). This feeds ghost job detection, not seniority assignment.
 
-3. **Cross-period consistency:** Run the classifier on both datasets. If the SWE detection rate differs dramatically, investigate via LLM: have it review 100 borderline postings from each period and explain why they're SWE or not. Check for systematic period-specific patterns.
-
-4. **Error analysis (LLM-assisted):** For every false positive and false negative in the gold-standard sample, LLM categorizes the error type:
-   - Title ambiguity (e.g., "Engineer" without qualifier)
-   - Novel title (e.g., "AI Agent Orchestrator" — not in reference set)
-   - Aggregator confusion (e.g., staffing company title differs from actual role)
-   - Description mismatch (title says SWE but description is project management)
-   Human reviews the LLM's error categorizations for the most consequential errors.
-
-5. **Comparison with SOC-based approach:** As a robustness check, run `occupationcoder` or a similar SOC mapper on a sample and compare its SWE classification against ours. Agreement rate establishes external validity.
-
-#### Implementation notes
-
-- **Speed:** Tier 1 (regex) processes all ~200K postings in seconds. Tier 2 (embedding with JobBERT-v2) processes ~5K titles per minute on CPU. Tier 3 (SetFit) processes ~3K descriptions per minute on CPU. Total pipeline: ~15-20 minutes for full dataset.
-- **Reproducibility:** Pin model versions (e.g., `TechWolf/JobBERT-v2` from HuggingFace, specific commit hash). Cache all embeddings. Log the reference title sets. This ensures re-running the pipeline produces identical results.
-- **The reference title set is a researcher decision.** Document it exhaustively. It should be grounded in O\*NET sample titles, supplemented with titles observed in our data that were manually verified as SWE. Publish it in the appendix.
-
-### 5b. Seniority imputation
-
-**Current approach:** Rule-based classifier using title keywords (primary) + description years-of-experience (fallback). Validated at ~80% accuracy against LinkedIn's own labels on the labeled subset.
-
-**What needs to happen for rigor:**
-
-1. **Apply uniformly:** The same `impute_seniority()` function must run on both Kaggle and scraped data. Currently, the notebook applies it only to scraped data and uses Kaggle's native `formatted_experience_level` directly. This creates a systematic difference — we'd be comparing LinkedIn's classifier (April 2024) against our classifier (March 2026).
-
-2. **Gold-standard validation (3-tier — see review protocol):** Sample 500 postings stratified by (source, predicted seniority, title ambiguity). LLM pre-labels seniority from title + description with reasoning. Human corrects LLM labels. Compute kappa between LLM and human, then evaluate our imputer against the corrected gold standard. Report per-class precision/recall.
-
-3. **Report imputation rate:** What fraction of each dataset required imputation vs. had a native label? If the imputation rate differs between periods (e.g., 27% in 2026 vs. X% in Kaggle), that itself is a measurement artifact that could drive apparent seniority shifts.
-
-4. **Three-level bucketing:** For cross-period comparison, use the 3-level scheme (junior / mid / senior) rather than the 6-level scheme. Finer granularity amplifies classifier noise.
-
-**Decision point:** Should we use our `impute_seniority()` for ALL postings (ignoring native labels), or use native labels where available and impute only where missing? The research docs recommend the former (retroactive classification — apply one classifier uniformly). This is the Lightcast approach.
-
-**Recommendation:** Use our imputer as the canonical seniority variable. Keep native labels as a separate column for validation and sensitivity analysis.
-
-**Future upgrade path:** The same 3-tier approach used for SWE detection (regex → embedding → description classifier) could be applied to seniority. Tier 2 would measure similarity to reference titles per seniority level (O\*NET provides "Job Zone" ratings that map to seniority). Tier 3 would use a SetFit classifier trained on LinkedIn's native labels. This is lower priority than improving SWE detection because (a) our rule-based imputer already validates at ~80% against LinkedIn labels and (b) the 3-level bucketing (junior/mid/senior) is coarse enough to absorb most misclassification noise. But if seniority classification accuracy becomes a reviewer concern, this is the path forward.
-
-### 5c. Control occupation detection
-
-**Current approach:** `CONTROL_PATTERN` regex for civil/mechanical/electrical/chemical engineers and nurses.
-
-**Risk:** Control occupations may have very different LinkedIn posting rates than SWE. The DiD design (RQ4) requires adequate coverage in both datasets.
-
-**Action:** After classification, report control occupation counts by source. If any control group has <100 postings in either period, it's too thin for DiD and should be flagged.
-
-### 5d. Embedding model validation
-
-**Why:** The plan uses [JobBERT-v2](https://huggingface.co/TechWolf/JobBERT-v2) as the default embedding model for title classification (Stage 5a Tier 2), exploration (Stage 10), and analysis (Stage 11). Before committing to it, we should validate that it outperforms general-purpose alternatives on OUR data.
-
-**Critical finding from research:** JobBERT-v2 has a **max sequence length of 64 tokens** — it is designed for job titles, NOT full descriptions. For description-level embeddings (topic modeling, content convergence, drift measurement), we need a different model or a dual-model approach.
-
-**Candidate models to benchmark:**
-
-| Model | Dimension | Max tokens | Domain | Notes |
-|---|---|---|---|---|
-| `TechWolf/JobBERT-v2` | 1024 | 64 | Job titles + skills | Fine-tuned on 5.5M job title pairs. Best for title-level tasks. |
-| `TechWolf/JobBERT-v3` | 1024 | 64 | Multilingual job titles | 21M training pairs. Multilingual. May be overkill for English-only. |
-| `sentence-transformers/all-mpnet-base-v2` | 768 | 384 | General purpose | Strong general-purpose baseline. Handles full descriptions. |
-| `sentence-transformers/all-MiniLM-L6-v2` | 384 | 256 | General purpose | Fast, smaller. Good for rapid iteration. |
-| `intfloat/e5-large-v2` | 1024 | 512 | General purpose | Top MTEB scores. Handles long descriptions. |
-| `BAAI/bge-large-en-v1.5` | 1024 | 512 | General purpose | Competitive with e5-large. |
-
-**Benchmark protocol:**
-
-1. **Title classification task:** Sample 200 titles with known SWE/non-SWE labels (from gold-standard annotation). Embed with each model. Run k-NN (k=5) against the O\*NET reference title set. Measure precision@5 and recall@5. JobBERT-v2 should win here.
-
-2. **Seniority separation task:** Embed 500 postings with known seniority labels. Compute silhouette score for junior/mid/senior clusters. The model that best separates seniority levels in embedding space is best for our content convergence analysis.
-
-3. **Description similarity task:** Take 50 known duplicate pairs (from near-dedup) and 50 random non-duplicate pairs. Embed full descriptions with each model. Compute AUC for duplicate detection. Models with 64-token limits will perform poorly here — confirming we need a description-capable model.
-
-**Expected outcome — dual-model approach:**
-- **JobBERT-v2** for all title-level tasks: SWE classification (Tier 2), title similarity, title clustering
-- **all-mpnet-base-v2** or **e5-large-v2** for all description-level tasks: topic modeling, content convergence, skill extraction context, embedding drift
-
-Cache both sets of embeddings. Use the appropriate model for each downstream task.
+2. **Entry-level strict filter:** For entry-level-specific analysis, filter to postings where the title contains explicit junior signals: "Junior", "Entry", "New Grad", "I" (as a level), "Intern", "Associate". This reduces noise from mislabeled postings.
 
 ---
 
-## Stage 6: Field normalization & validation
+## Stage 11: LLM response integration
 
-### 6a. Company name standardization
+### Caching
 
-**Problem:** Same company appears as "JPMorgan Chase", "JPMC", "J.P. Morgan Chase & Co.", "JP Morgan".
+- **Cache key:** `sha256(description_text)`
+- **Cache storage:** SQLite database at `preprocessing/cache/llm_responses.db`
+  - Schema: `(hash TEXT PRIMARY KEY, model TEXT, prompt_version TEXT, response_json TEXT, timestamp TEXT, tokens_used INTEGER)`
+- **On re-run:** Check cache first. Only call LLM for uncached descriptions.
+- **Cache invalidation:** If the prompt changes (tracked by `prompt_version`), re-run all cached entries with the new prompt. Keep old entries for comparison.
 
-**Action:** RapidFuzz `token_set_ratio` with threshold ~85 to group variants. Build a lookup table of canonical company names. Needed for firm-level analysis and intra-company boilerplate detection (Stage 3).
+### Robustness
 
-### 6b. Location normalization
+- **Rate limiting:** Respect API limits. Configurable delay between calls (default: 0.5s for Codex, 1.0s for Claude).
+- **Retry:** Exponential backoff on transient errors (rate limits, timeouts). Max 3 retries per call.
+- **Parse validation:** Every response must parse as valid JSON with exactly the four expected fields and valid enum values. Malformed responses are logged to `preprocessing/logs/llm_errors.jsonl` and excluded from the final data. The rule-based values remain for these postings.
+- **Profiling run:** Before the full batch, run the first 100 calls and report:
+  - Mean/P95 latency per call
+  - Error rate
+  - Mean tokens per request (input + output)
+  - Estimated total cost for the full batch
+  - Any systematic parse failures
+  - Review 10 random responses manually for quality
 
-**Problem:** Locations appear as "San Francisco, CA", "San Francisco Bay Area", "SF Bay Area", "San Francisco, California, United States". Remote jobs have inconsistent location strings.
+### Memory constraint
 
-**Action:** Normalize to `(metro area, state, country)` tuples. Map metro areas. Flag remote postings separately (don't conflate remote with any geographic metro).
+31GB RAM limit. Continue using pyarrow chunked I/O:
+- Process LLM calls in batches of 1,000 descriptions
+- Write results incrementally to `preprocessing/intermediate/llm_responses.parquet`
+- Final merge with `stage8_final.parquet` is a streaming join on row index
 
-### 6c. Salary validation (low priority)
+### Integration into unified.parquet
 
-**Note:** Salary is NOT a primary analysis variable for this study. Our core RQs focus on seniority distributions, skill migration, and structural breaks — none of which depend on salary data. Salary analysis is secondary and conditional on data availability.
+After all LLM calls complete, merge LLM-derived columns into the final output:
 
-**Problem:**
-- Kaggle salary: 27.9% coverage for SWE (mostly annual, some hourly)
-- Scraped LinkedIn: 4% coverage (near-useless)
-- Scraped Indeed: 76% coverage (but these are platform-imputed estimates in many cases, not employer-provided)
-- Platform-imputed wages inflated apparent coverage by ~520% per Hazell & Taska (2023)
-
-**Action (if salary is used at all):**
-1. Flag `salary_source` = employer vs. platform-imputed vs. missing. The scraped data has a `salary_source` field — use it.
-2. Winsorize or flag salary outliers: annual salary outside $20K-$1M for SWE roles is suspicious.
-3. Do NOT impute missing salaries. Report salary coverage rate per period and treat any salary analysis as conditional on observability with explicit MNAR caveat (Azar et al. 2022, Hazell & Taska 2023).
-4. If salary analysis is attempted, restrict to Indeed-only (76% coverage) or employer-provided-only subsets, and caveat heavily.
-
-### 6d. Date validation
-
-**Problem:**
-- Kaggle `listed_time` range: April 5-20, 2024 (scrape window). `original_listed_time`: 98.5% April, 1.5% March, 19 rows Dec 2023-Feb 2024 (long-lived postings still active when scraped).
-- Scraped `date_posted` may be null or reflect repost dates.
-
-**Action:** Validate all dates fall within expected ranges (Kaggle: 2024-03-24 to 2024-04-20; scraped: 2026-03-01 to 2026-03-31). Flag and investigate out-of-range dates. For the 19 Kaggle rows with pre-March `original_listed_time`, keep them but flag — they are persistent postings, not representative of their original posting date.
-
-### 6e. Description language detection
-
-**Assumption:** All postings are English-language US jobs. But scraped data from LinkedIn may include non-English postings or non-US locations that slipped through geographic filters.
-
-**Action:** Run a lightweight language detector (e.g., `langdetect`) on descriptions. Flag non-English postings. Report the rate and exclude from text analysis.
-
----
-
-## Stage 7: Temporal alignment
-
-### 7a. The date range problem (CRITICAL)
-
-**The Kaggle data is a single-month snapshot (April 2024), not a multi-year dataset.** Same-month comparison (March vs. March) is impossible. Our actual comparison is:
-
-| | Kaggle | Scraped |
-|---|---|---|
-| Date range | April 2024 | March 2026 |
-| Gap | 23 months |
-| Seasonal offset | April vs. March (1 month) |
-| SWE sample | ~3,466 | ~14,391 unique |
-
-**Primary comparison:** April 2024 vs. April 2026 (once April 2026 scraping completes). Same month, 2-year gap. No seasonal offset.
-
-**Current state:** March 2026 data is available now for pipeline development and testing. April 2026 data will be the primary comparison window. March 2026 data supplements the analysis and provides a secondary comparison.
-
-**Seasonality is not a blocking concern.** The scraper runs continuously. By late April 2026, we'll have a full month of April data for the primary same-month comparison. March 2026 data is used for:
-- Building and testing the full preprocessing + analysis pipeline
-- Secondary comparison (April 2024 vs. March 2026, 1-month seasonal offset)
-- Within-2026 stability check (March vs. April scraped data should show similar distributions)
-
-**Action:** Create a `period` column. For the primary analysis, use `2024-04` (Kaggle) vs. `2026-04` (scraped April). For secondary analysis, include `2026-03`. Correct all prior documentation that says "2023-2024".
-
-### 7b. Proportions over counts
-
-All cross-period metrics must be expressed as shares:
-- Junior share = junior SWE postings / total SWE postings
-- Skill prevalence = postings mentioning skill X / total SWE postings at seniority level Y
-- Never compare raw counts between periods with different sample sizes
-
-The Kaggle SWE sample (~3,466) is ~4.2x smaller than the scraped SWE sample (~14,391). This asymmetry affects confidence intervals but not point estimates when using proportions.
-
-### 7c. Within-period stability (scraped data only)
-
-We have 14 days of scraped data. Check whether the daily distributions are stable:
-- Does the seniority mix change day-to-day?
-- Does the SWE/non-SWE ratio change?
-- Are there day-of-week effects?
-
-If daily distributions are stable, we can pool all 14 days confidently. If they fluctuate, we should report the variance and consider date-level fixed effects.
-
----
-
-## Stage 8: Quality flags & filtering
-
-### 8a. Ghost job detection
-
-Per CRS Report IF12977 (2025), 18-27% of US online job listings are estimated to be ghost jobs. The rate is higher for entry-level tech.
-
-**Heuristic flags:**
-- Entry-level title + 5+ years experience required in description
-- Entry-level title + salary > $180K (75th percentile for mid-senior SWE)
-- Posting age > 90 days (if computable)
-- No application URL or instructions
-
-We need to research more characteristics of ghost job postings to apply better filtering.
-
-**Action:** Flag `ghost_job_risk = low | medium | high`. Do not remove — run sensitivity analyses with and without high-risk flagged postings.
-
-### 8b. Minimum description quality
-
-- Flag postings with `description_core` < 50 words after boilerplate removal (likely incomplete or template-only)
-- Flag postings where description is entirely boilerplate (no core job content detected)
-
-### 8c. Data provenance flags
-
-For every row, record:
-- `preprocessing_version`: Pipeline version (for reproducibility)
-- `dedup_method`: How it survived dedup (first seen / kept by completeness / etc.)
-- `seniority_source`: native_label | imputed_title | imputed_description | unknown
-- `is_aggregator`: Whether the posting came from a staffing/aggregator company
-- `boilerplate_removed`: Whether boilerplate stripping was applied
-
----
-
----
-
-## Review protocol: 3-tier validation strategy
-
-Every quality check in this pipeline uses a 3-tier approach that maximizes coverage while keeping human effort manageable. This replaces pure manual spot-checking with a scalable LLM-assisted pipeline.
-
-### The 3 tiers
-
-```
-Tier 1: Rule-based validation (automated, full dataset)
-  ↓ flagged items
-Tier 2: LLM review (automated, hundreds to thousands of items)
-  ↓ items LLM flags as problematic or uncertain
-Tier 3: Human review (small sample, only what matters)
+```python
+# For each row in stage8_final.parquet:
+# If LLM response exists for this description_hash:
+row["swe_classification_llm"] = response["swe_classification"]
+row["seniority_llm"] = response["seniority"]
+row["description_core_llm"] = response["description_core"]
+row["ghost_assessment_llm"] = response["ghost_assessment"]
+# Else: these columns remain null (rule-based values are always present)
 ```
 
-**Tier 1 — Rule-based (runs on every row):** Deterministic checks that catch obvious problems. Example: description < 50 chars, salary < $10K, title matches SWE_EXCLUDE, seniority label contradicts years-of-experience. These are fast and catch the bulk of issues.
-
-**Tier 2 — LLM review (runs on hundreds-thousands of items):** For checks that require judgment (e.g., "Is this description real job content or mostly boilerplate?", "Does this seniority label match the description?"), use Claude via the CLI. This scales the "human eye" to cover far more data than manual review allows.
-
-**Implementation — Claude Code CLI:**
-```bash
-# Single-item review
-claude -p "Given this job posting title and description, classify:
-1. Is this a software engineering role? (yes/no/borderline)
-2. What seniority level? (entry/mid/senior/unknown)
-3. Is this a ghost job? (yes/no/maybe — check if requirements are unrealistic for stated level)
-4. Quality issues? (boilerplate-only/spam/non-english/duplicate-template/none)
-
-Title: ${TITLE}
-Description (first 500 chars): ${DESC}
-
-Respond as JSON." --output-format json
-
-# Batch processing with rate limiting
-for id in $(cat sample_ids.txt); do
-    claude -p "$(build_prompt $id)" --output-format json >> results.jsonl
-    sleep 0.5  # rate limiting
-done
-```
-
-**Rate limiting considerations:** Anthropic Max plan ($200/month). Haiku is ~$0.25/M input tokens. A 500-char description ≈ 150 tokens. 1,000 reviews ≈ 150K tokens ≈ $0.04. Even 10,000 reviews costs < $0.50. Rate limit is the constraint, not cost — add 0.5-1s delay between calls.
-
-**Tier 3 — Human review (targeted):** Only review items that Tier 2 flagged as problematic or uncertain. Also review a random sample of Tier 2's "clean" outputs (10-20 items) to validate the LLM's judgment. If the LLM's error rate on the random sample exceeds 10%, expand human review scope.
-
-### Spot-check table (with tier assignments)
-
-| Check | Tier 1 (rule-based) | Tier 2 (LLM, sample size) | Tier 3 (human) |
-|-------|---|---|---|
-| **SWE classification** | Regex match/exclude flags | 500 ambiguous titles — LLM classifies SWE/non-SWE with reasoning | 50 items LLM flagged as borderline + 20 random "confident" items |
-| **Seniority imputation** | Title keyword match + years-of-experience extraction | 500 postings — LLM reads title+description, assigns seniority | 50 items LLM disagreed with our imputer + 20 random agreements |
-| **Boilerplate removal** | Section header regex; paragraph hash dedup | 200 post-removal descriptions — LLM checks "was any real job content stripped?" | 30 items LLM flagged as potentially over-stripped |
-| **Aggregator handling** | Company name in AGGREGATORS list | 100 aggregator postings — LLM extracts real employer name from description | 20 items to verify LLM's employer extraction |
-| **Near-dedup** | Exact match on (title, company, location) | 200 candidate pairs — LLM judges "same job or different?" | 30 pairs LLM was uncertain about |
-| **Ghost job flags** | Entry-level + 5yr+ experience OR salary > $150K | 300 entry-level postings — LLM rates "realistic requirements for entry-level?" | 30 items where LLM and rules disagreed |
-| **Description quality** | Length < 50 chars; language detection | 200 short/suspicious descriptions — LLM reads and tags quality | 20 items to validate LLM tags |
-| **Gold-standard annotation** | N/A | LLM labels 500 postings (SWE, seniority, skills) as initial annotations | Human annotator corrects LLM labels; compute kappa between LLM and human |
-
-### Gold-standard annotation with LLM pre-labeling
-
-The gold-standard annotation set (needed for classifier validation, Stage 9e) uses LLM pre-labeling to dramatically reduce human effort:
-
-1. **Sample 500 postings** stratified by source, predicted seniority, and classification confidence.
-2. **LLM pre-labels** each posting for: SWE/non-SWE, seniority level, top 5 skills, ghost job risk, quality flags. Use Claude Sonnet for higher accuracy on this critical task.
-3. **Human annotator reviews LLM labels**, correcting where they disagree. This is 5-10x faster than labeling from scratch.
-4. **Compute inter-rater reliability** between LLM and human (Cohen's kappa). If kappa > 0.80, the LLM is reliable enough to serve as a second annotator. If kappa < 0.60, expand human review.
-5. **Adjudicate disagreements** to produce the final gold standard.
-
-**Critical warning (Ashwin et al. 2025):** LLM coding errors are NOT random — they correlate with text characteristics. Always validate against human labels before trusting LLM annotations at scale. The kappa check in step 4 is non-negotiable.
-
 ---
 
----
+## Stage 12: Three-way validation
 
-## Implementation order
+### Goal
 
-Stages have dependencies. Recommended sequence:
+For each of the four tasks, compare three classifiers to pick the best approach, identify biases, and quantify agreement.
 
-```
-1. Schema unification (Stage 1)            ← update harmonize.py, join Kaggle companions
-   ↓
-2. Aggregator handling (Stage 2)            ← new module
-   ↓
-3. Company name standardization (6a)        ← needed for boilerplate detection
-   ↓
-4. Boilerplate removal (Stage 3)            ← new module
-   ↓
-5. Deduplication (Stage 4)                  ← new module, depends on clean text
-   ↓
-6. Classification (Stage 5)                 ← update existing, apply uniformly
-   ↓
-7. Field normalization (Stage 6b-6e)        ← new logic in harmonize.py
-   ↓
-8. Temporal alignment (Stage 7)             ← computed columns
-   ↓
-9. Quality flags (Stage 8)                  ← new module
-   ↓
-10. Spot-checks (3-tier: rules → LLM → human, after pipeline runs)
-```
+### Classifiers compared
 
-**Parallelizable:** Stages 2, 3, and 6a can be developed in parallel. Stage 4 depends on 2 and 3.
+| | Classifier A | Classifier B | Classifier C |
+|---|---|---|---|
+| SWE classification | Rule-based (regex + embedding) | GPT-5.4 mini | GPT-5.4 (full) |
+| Seniority | Rule-based (multi-signal) | GPT-5.4 mini | GPT-5.4 (full) |
+| Boilerplate | Rule-based (section headers) | GPT-5.4 mini | GPT-5.4 (full) |
+| Ghost job | Rule-based (heuristic flags) | GPT-5.4 mini | GPT-5.4 (full) |
 
-**Iteration:** Validation results (see `plan-exploration.md`, Stage 9) may trigger re-runs of preprocessing. Build the pipeline to be re-runnable end-to-end.
+### Sample design
+
+100-200 postings per task, stratified by:
+- **Source dataset:** Kaggle arshkon, Kaggle asaniczka, scraped LinkedIn, scraped Indeed
+- **Ambiguity level:** Oversample from the ambiguous zone (e.g., embedding similarity 0.50-0.85 for SWE, seniority_source = "unknown" for seniority)
+- **Classification disagreement:** Oversample cases where rule-based and GPT-5.4 mini disagree
+
+### Report format
+
+For each task:
+
+1. **Agreement matrix:** 3x3 (or larger) contingency table showing pairwise agreement counts.
+2. **Cohen's kappa:** Between each pair (A-B, A-C, B-C). Kappa > 0.80 = strong agreement; 0.60-0.80 = moderate; < 0.60 = weak.
+3. **Categorized disagreements:** For every disagreement, categorize the error type:
+   - Definitional disagreement (different but defensible interpretations)
+   - Genuine misclassification by one classifier
+   - Edge case that needs a policy decision
+4. **Disagreement examples:** 5-10 representative examples per category with full context.
+
+### Decision criteria
+
+- If GPT-5.4 mini and GPT-5.4 (full) agree > 95% of the time, use mini for production (cheaper).
+- If one LLM systematically outperforms on a specific task, use that LLM for that task.
+- Where rule-based and LLM agree, the classification is high-confidence.
+- Where they disagree, the LLM response is preferred for seniority and ghost job (where rules are weakest). Rule-based is preferred for SWE classification (where regex has 95%+ precision on unambiguous cases).
+
+### Using LLM findings to improve rules
+
+After the validation:
+- Extract new regex patterns from LLM disagreements (new `SWE_EXCLUDE` terms, new aggregator names)
+- Add new entries to the `AGGREGATORS` list based on LLM-identified staffing companies
+- Document every rule change with the LLM evidence that motivated it
+- Re-run the rule-based pipeline with updated rules and measure improvement
 
 ---
 
 ## Output specification
 
-The pipeline produces:
-
 ### Primary output: `data/unified.parquet`
 
-All columns from current schema, plus:
-- `source_platform`, `period`, `posting_age_days`
-- `description_core` (boilerplate-stripped)
-- `title_normalized`, `company_name_normalized`, `location_normalized`
-- `seniority_imputed` (our classifier, applied to all rows)
-- `seniority_native` (LinkedIn's label where available)
-- `salary_source`, `salary_validated` (bool)
-- `is_swe`, `is_control`, `is_aggregator`, `is_multi_location`
-- `ghost_job_risk`, `description_quality_flag`
-- `seniority_source`, `dedup_method`, `preprocessing_version`
+One row per unique posting across all sources.
+
+**Core columns:**
+- `uid`, `source`, `source_platform`, `site`
+- `title`, `title_normalized`, `company_name`, `company_name_normalized`
+- `location`, `location_normalized`, `date_posted`, `description`, `description_raw`, `description_length`
+- `seniority_raw`, `seniority_native`, `company_industry`, `company_size`, `company_size_raw`, `company_size_category`
+- `search_query`, `query_tier`, `search_metro_id`, `search_metro_name`, `search_metro_region`, `search_location`
+- `scrape_date` (first seen, for scraped data; null for Kaggle)
+
+**Rule-based classification columns:**
+- `is_swe`, `is_swe_adjacent`, `is_control`, `swe_confidence`, `swe_classification_tier`
+- `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_final`, `seniority_3level`
+- `seniority_cross_check`
+- `is_aggregator`, `real_employer`, `is_multi_location`
+- `description_core` (rule-based boilerplate removal)
+- `posting_age_days`, `period`
+- `ghost_job_risk`
+- `description_quality_flag`, `dedup_method`, `preprocessing_version`
+- `is_english`, `description_hash`
+
+**LLM-derived columns:**
+
+| Column | Type | Values | Source |
+|---|---|---|---|
+| `swe_classification_llm` | string | SWE / SWE_ADJACENT / NOT_SWE / null | LLM Stage 10 |
+| `seniority_llm` | string | entry / associate / mid-senior / director / unknown / null | LLM Stage 10 |
+| `description_core_llm` | string | Verbatim-extracted core content / null | LLM Stage 10 |
+| `ghost_assessment_llm` | string | realistic / inflated / ghost_likely / null | LLM Stage 10 |
+| `llm_model` | string | Model name that produced the classification / null | LLM Stage 10 |
+| `llm_prompt_version` | string | Prompt version hash / null | LLM Stage 10 |
+| `yoe_extracted` | float | Minimum years-of-experience mentioned in description / null | Stage 5 improvement |
+| `yoe_seniority_contradiction` | bool | True if YOE contradicts seniority label | Stage 5 improvement |
+
+**Null values in LLM columns** mean that posting was not sent to the LLM (pre-filtered out with high-confidence rule-based classification) or the LLM call failed. In either case, the rule-based columns provide the classification.
+
+**Asaniczka-specific column:**
+- `asaniczka_skills` — skills from `job_skills.csv` join (null for other sources)
+
+### Secondary output: `data/unified_observations.parquet`
+
+One row per posting per scrape_date. Columns:
+- `uid`, `scrape_date`, `source`, `source_platform`
+- All other columns from `unified.parquet` (denormalized for query convenience)
+
+For Kaggle sources, each posting has one observation row (scrape_date = null). For scraped data, a posting that appears on 5 different scrape dates has 5 rows. This supports:
+- Posting duration analysis (how long postings stay active)
+- Daily composition snapshots
+- Sensitivity analysis: canonical postings vs. daily observations
+
+Do not replace this with an array-of-dates column inside `unified.parquet`. The daily panel is a different unit of observation and is much easier to query, aggregate, and join when each appearance is a row. If storage becomes a concern, the compact alternative is a thin `uid`/`scrape_date` appearances table, not a list-valued column in the canonical posting file.
+
+### Analysis variable selection guide
+
+| Analysis need | Primary variable | Ablation variables |
+|---|---|---|
+| Is this a SWE role? | `is_swe` (rule-based, high precision) | `swe_classification_llm` |
+| What seniority level? | `seniority_llm` (where available), else `seniority_imputed` | `seniority_native`, `seniority_imputed` |
+| Clean description text | `description_core_llm` (where available), else `description_core` | `description_core`, `description` (full) |
+| Is this a ghost job? | `ghost_assessment_llm` (where available), else `ghost_job_risk` | `ghost_job_risk` |
 
 ### Quality report: `data/quality_report.json`
 
 ```json
 {
-  "pipeline_version": "1.0",
-  "run_date": "2026-03-18",
+  "pipeline_version": "3.0",
+  "run_date": "2026-03-21",
   "funnel": {
-    "kaggle_raw": 3382601,
-    "kaggle_after_dedup": "...",
+    "arshkon_raw": "...",
+    "arshkon_swe": "...",
+    "asaniczka_raw": "...",
+    "asaniczka_us_filtered": "...",
+    "asaniczka_swe": "...",
+    "asaniczka_description_join_rate": "...",
     "scraped_raw": "...",
-    "scraped_after_dedup": "...",
+    "scraped_linkedin": "...",
+    "scraped_indeed": "...",
+    "scraped_after_crossday_dedup": "...",
     "final_swe": "...",
     "final_control": "..."
   },
+  "llm_stats": {
+    "total_unique_descriptions": "...",
+    "descriptions_sent_to_llm": "...",
+    "descriptions_pre_filtered": "...",
+    "llm_calls_made": "...",
+    "cache_hits": "...",
+    "parse_failures": "...",
+    "verbatim_check_failures": "...",
+    "mean_latency_ms": "...",
+    "total_tokens": "...",
+    "estimated_cost": "..."
+  },
   "classification_rates": {
-    "swe_rate_kaggle": "...",
-    "swe_rate_scraped": "...",
-    "seniority_imputation_rate_kaggle": "...",
-    "seniority_imputation_rate_scraped": "..."
+    "swe_rate_rules": "...",
+    "swe_rate_llm": "...",
+    "seniority_unknown_rate_rules": "...",
+    "seniority_unknown_rate_llm": "..."
   },
-  "missing_data": {
-    "salary_missing_kaggle": "...",
-    "salary_missing_scraped": "...",
-    "description_missing": "...",
-    "seniority_unknown_after_imputation": "..."
-  },
-  "aggregator_stats": {
-    "total_flagged": "...",
-    "real_employer_extracted": "..."
+  "validation": {
+    "swe_kappa_rules_vs_mini": "...",
+    "swe_kappa_mini_vs_full": "...",
+    "seniority_kappa_rules_vs_mini": "...",
+    "seniority_kappa_mini_vs_full": "..."
   },
   "boilerplate_stats": {
-    "median_chars_removed": "...",
-    "median_length_before": "...",
-    "median_length_after": "..."
+    "median_chars_removed_rules": "...",
+    "median_chars_removed_llm": "...",
+    "verbatim_check_pass_rate": "..."
+  },
+  "source_specific": {
+    "arshkon_seniority_distribution": "...",
+    "asaniczka_seniority_distribution": "...",
+    "scraped_linkedin_seniority_distribution": "...",
+    "scraped_indeed_seniority_null_rate": "..."
   }
 }
 ```
@@ -925,21 +756,136 @@ Human-readable log of every stage: rows in, rows out, rows flagged, decisions ma
 
 ---
 
-## Resolved decisions
+## Sensitivity analyses
 
-These questions were open; decisions are now recorded here for reference.
+These are baked into the pipeline design, not afterthoughts:
+
+| Sensitivity check | What it tests | How |
+|---|---|---|
+| **LinkedIn-only estimates** | Platform composition artifact | Filter to `source_platform == "linkedin"` for all analyses |
+| **LinkedIn + Indeed pooled** | Whether Indeed changes the story | Pool both platforms, control for `source_platform` |
+| **Dedup sensitivity** | Whether dedup threshold matters | Run analyses at 0.60, 0.70, 0.80 cosine thresholds |
+| **Canonical vs. daily observations** | Whether repost-weighting matters | Compare `unified.parquet` results to `unified_observations.parquet` results |
+| **Metro-balanced subsamples** | Whether metro composition drives results | Resample to equal metro representation |
+| **Exclude aggregators** | Whether staffing firms distort signals | Filter to `is_aggregator == False` |
+| **Arshkon-only historical baseline** | Whether asaniczka's missing entry-level biases trends | Run RQ1 junior-share analysis using only arshkon as historical baseline |
+| **Rule-based vs. LLM classification** | Whether classification method drives results | Run key analyses with both `seniority_imputed` and `seniority_llm` |
+
+---
+
+## Implementation order
+
+```
+Phase 1: Rule-based pipeline rebuild
+  1. Stage 1 rewrite (3 source schemas)           NEW for v3
+     - 1a: Arshkon ingest + companion joins
+     - 1b: Asaniczka ingest + description/skills joins
+     - 1c: Scraped ingest (all current-format files)
+     - 1d: Schema unification
+     |
+  2. Stages 2-8 (re-run on new Stage 1 output)    Existing code, new input
+     - Verify all stages handle new uid format
+     - Verify all stages handle null fields from asaniczka
+     |
+  Output: intermediate/stage8_final.parquet
+
+Phase 2: LLM augmentation
+  3. Stage 9: Pre-filtering script                 depends on: stage8_final.parquet
+     - Compute description hashes
+     - Apply skip conditions
+     - Output: candidate list with description hashes
+     |
+  4. Profiling run (100 calls)                     depends on: Stage 9
+     - Test both Codex and Claude CLI
+     - Measure latency, cost, parse reliability
+     - Manual review of 10 responses
+     - Decision: which model to use
+     |
+  5. Stage 10: Full LLM batch                      depends on: profiling run
+     - Run all candidate descriptions through chosen model
+     - Cache responses in SQLite
+     - Log errors separately
+     |
+  6. Stage 11: Integration                         depends on: Stage 10
+     - Merge LLM columns into stage8_final.parquet
+     - Run verbatim checks on boilerplate removal
+     - Produce unified.parquet + unified_observations.parquet
+     |
+  7. Stage 12: Three-way validation                depends on: Stage 11
+     - Sample stratified postings
+     - Run GPT-5.4 (full) on the validation sample
+     - Compute agreement matrices and kappa
+     - Produce validation report
+
+Phase 3: Rule improvement
+  8. Extract patterns from LLM disagreements
+  9. Update SWE_EXCLUDE, AGGREGATORS, boilerplate regexes
+  10. Re-run Stages 1-8 with updated rules
+  11. Re-run Stages 9-12 to measure improvement
+```
+
+**Critical path:** The Stage 1 rewrite (step 1) is the gate for everything else. The profiling run (step 4) is the gate for the full LLM batch.
+
+---
+
+## Review protocol: 3-tier validation
+
+Every quality check uses a 3-tier approach.
+
+```
+Tier 1: Rule-based validation (automated, full dataset)
+  | flagged items
+Tier 2: LLM review (automated, hundreds to thousands of items)
+  | items LLM flags as problematic or uncertain
+Tier 3: Human review (small sample, only what matters)
+```
+
+**Tier 1:** Deterministic checks on every row. Example: description < 50 chars, title-seniority contradictions.
+
+**Tier 2:** LLM reviews flagged items. With the v3 pipeline, the Stage 10 LLM call itself serves as Tier 2 for classification tasks. Additional Tier 2 reviews for edge cases use the same CLI interface.
+
+**Tier 3:** Human reviews items where Tier 2 was uncertain or flagged issues. Also reviews a random sample of Tier 2's "clean" outputs (10-20 items) to validate LLM judgment. If LLM error rate on the random sample exceeds 10%, expand human review scope.
+
+### Spot-check table
+
+| Check | Tier 1 | Tier 2 (LLM) | Tier 3 (human) |
+|---|---|---|---|
+| **SWE classification** | Regex match/exclude | Stage 10 LLM classification on full description | 50 disagreements + 20 random agreements |
+| **Seniority** | Title keyword match + YOE extraction | Stage 10 LLM explicit-signals-only classification | 50 disagreements + 20 random agreements |
+| **Boilerplate** | Section header regex; paragraph-level filtering | Stage 10 LLM full-text boilerplate identification | 30 verbatim-check failures + 10 random passes |
+| **Ghost job** | Entry-level + 5yr+ experience heuristic | Stage 10 LLM ghost assessment | 30 rule-LLM disagreements |
+| **Aggregator** | Company name in AGGREGATORS list | 100 aggregator postings — LLM extracts real employer | 20 verification items |
+
+### Gold-standard annotation
+
+Sample 500 postings stratified by source, predicted seniority, and classification confidence. LLM pre-labels all four tasks. Human corrects LLM labels. Compute inter-rater kappa. If kappa > 0.80, LLM is reliable as a second annotator. If kappa < 0.60, expand human review.
+
+**Warning (Ashwin et al. 2025):** LLM coding errors are NOT random — they correlate with text characteristics. Always validate against human labels before trusting LLM annotations at scale.
+
+---
+
+## Resolved decisions
 
 | # | Question | Decision | Rationale |
 |---|---|---|---|
-| 1 | **Kaggle date range** | Download and evaluate the 1.3M asaniczka dataset. Use it as primary baseline if it has broader coverage. Keep arshkon for cross-reference. | 10x more data, augmented skills, potentially broader temporal span. |
-| 2 | **Indeed inclusion** | **LinkedIn-only for primary analysis.** Indeed for sensitivity only. | Eliminates platform composition artifact. Kaggle is LinkedIn-only, so primary comparison should be LinkedIn-to-LinkedIn. |
-| 3 | **Description length discrepancy** | Investigate through LLM-assisted matched-pair comparison + automated checks (see investigation plan in data inventory section). Do not draw length-based conclusions until resolved. | 55% gap could be scraping artifact. |
-| 4 | **Seniority classification** | Use our imputer as canonical for all rows. Keep native labels as separate column for validation/sensitivity. | Retroactive classification (Lightcast approach). Avoids comparing two different classifiers across periods. |
-| 5 | **"Software Development Engineer"** | Expanded SWE_PATTERN catches it. Verify during Stage 5 implementation. | Amazon's standard SWE title; confirmed false negative in current pattern. |
-| 6 | **Kaggle companion files** | Join during ingest (Stage 1c). | Confirmed joinable. 99.3% industry coverage, company size/location. |
+| 1 | **Historical baseline sources** | Use both Kaggle datasets. Arshkon is the primary historical baseline for entry-level analysis (RQ1). Asaniczka provides mid-senior/associate content for RQ2. | Asaniczka has zero entry-level postings — cannot support junior-share analysis. Arshkon has full seniority distribution. |
+| 2 | **Indeed inclusion** | LinkedIn-only for primary analysis. Indeed for sensitivity only. | Both Kaggle sources are LinkedIn-only. LinkedIn-only analysis provides cleanest cross-period comparison. |
+| 3 | **Description length discrepancy** | Investigate through LLM-assisted matched-pair comparison + automated checks. Do not draw length-based conclusions until resolved. | 55% gap could be scraping artifact. |
+| 4 | **Seniority classification** | Three ablations: LLM-classified (primary), rule-based imputed, LinkedIn native. | Addresses v1 validation failure (32% agreement). LLM uses explicit signals only. |
+| 5 | **SWE classification approach** | Rule-based remains primary (high precision on unambiguous cases). LLM adds coverage for ambiguous cases. | v1 validation showed 64% raw agreement but 83% when collapsing SWE+adjacent. The boundary is the problem, not the core classification. |
+| 6 | **Kaggle arshkon companion files** | Join during ingest (Stage 1a). | Confirmed joinable. 99.3% industry coverage. |
 | 7 | **Multi-location postings** | Keep all variants as default. Sensitivity-test collapsing. | Literature standard (Hershbein & Kahn 2018). |
-| 8 | **Aggregator postings** | Keep and flag. Sensitivity-test excluding. | 9% of scraped, ~15% of Kaggle SWE. Too high to ignore, too low to remove by default. |
-| 9 | **DataAnnotation dominance** | Flag and sensitivity-test excluding. LLM reviews 20 DataAnnotation postings to determine if they're real SWE jobs or data annotation/crowdwork. Human verifies 5 of the LLM's assessments. | 168 postings = 5.4% of Kaggle SWE. May be crowdwork, not traditional SWE. |
-| 10 | **Boilerplate removal** | Start with regex. Upgrade to LLM if spot-checks show poor accuracy. | Regex is fast, reproducible, and sufficient for most patterns. |
-| 11 | **Near-dedup threshold** | Use literature standard (0.70 cosine). Calibrate on labeled pairs if time permits. | Abdelaal et al. 2024 achieved F1=0.94 with similar thresholds. |
-| 12 | **Embedding model** | Dual-model approach: JobBERT-v2 for titles, general-purpose model (all-mpnet-base-v2 or e5-large-v2) for descriptions. Validate with benchmark in Stage 5d. | JobBERT-v2 has 64-token limit — great for titles, cannot handle descriptions. |
+| 8 | **Aggregator postings** | Keep and flag. Sensitivity-test excluding. | Present across all sources. |
+| 9 | **DataAnnotation dominance** | Flag and sensitivity-test excluding. | 168 postings = 5.4% of Kaggle SWE. May be crowdwork. |
+| 10 | **Boilerplate removal** | Rule-based + LLM as dual columns for ablation. | v1 regex works for tail-end boilerplate but misses front-matter. LLM handles both. |
+| 11 | **Near-dedup threshold** | Literature standard (0.70 cosine). | Abdelaal et al. 2024, F1=0.94. |
+| 12 | **Embedding model** | Dual-model: JobBERT-v2 for titles, general-purpose for descriptions. | JobBERT-v2 has 64-token limit. |
+| 13 | **LLM model for classification** | GPT-5.4 mini primary, GPT-5.4 full for validation. Claude Haiku as fallback. | Cost-effective for thousands of calls. Validation uses the stronger model. |
+| 14 | **LLM boilerplate constraint** | Verbatim extraction only, no paraphrasing. Programmatic check. | Ensures the LLM doesn't introduce artifacts into the text we analyze. |
+| 15 | **Seniority from YOE** | YOE is extracted but NOT used for seniority assignment. Used only for contradiction flagging and ghost job detection. | Companies inflate YOE requirements. Using YOE to assign seniority would bake that inflation into the labels. |
+| 16 | **Old scraped data (Mar 5-18)** | Skip incompatible legacy scraped files, but do not hard-code a month/date ceiling for current-format files. | Old format lacked search metadata columns. Current-format scraped data should be loaded for any available date once it matches the 41-column schema. |
+| 17 | **Schema unification ownership** | Pipeline Stage 1 handles all three schemas independently. Does NOT rely on `scraper/harmonize.py`. | Each source has a different schema. Centralizing in the pipeline ensures reproducibility and makes schema differences explicit. |
+| 18 | **Asaniczka description join** | Left join `job_summary.csv` on `job_link`. Postings without descriptions (3.8%) remain with null description. Preserve `description_raw` separately from the normalized working `description` column. | Dropping them would bias against postings that lost their descriptions. Keeping a raw text column preserves source fidelity while later stages operate on a normalized working copy. |
+| 19 | **Two output files** | `unified.parquet` (canonical) + `unified_observations.parquet` (daily panel). | Canonical postings are the primary unit of analysis. Daily observations support duration analysis and sensitivity checks per the research design, and row-wise observations are much easier to query than list-valued appearance columns. |
+| 20 | **Asaniczka ID format** | Hash `job_link` URL to create a fixed-length ID: `"asaniczka_" + sha256(job_link)[:16]`. | Raw URLs are too long and unwieldy as IDs. Hash preserves uniqueness. |
+| 21 | **Raw vs mapped seniority** | Preserve the original source label in `seniority_raw` and store the canonical mapping in `seniority_native`. Unmapped values should stay null in `seniority_native`. | This keeps Stage 1 faithful to source data while preserving a normalized cross-source field for downstream deduplication, cross-checking, and validation. |
