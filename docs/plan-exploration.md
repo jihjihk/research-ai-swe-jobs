@@ -682,6 +682,7 @@ Sample 500 postings (stratified: 100 arshkon SWE, 100 asaniczka SWE, 150 scraped
 
 1. **Run the same exploration on control occupations:**
    - Embedding space, Fightin' Words, topic modeling, skill extraction -- all on civil engineering, nursing, mechanical engineering postings
+   - Default text inputs for controls should use `description_core_llm` when available, with rule-based `description_core` retained as the ablation/fallback text column
    - The key question: do control occupations show the same patterns (AI skill emergence, scope inflation, seniority compression)?
    - If they do, SWE findings are confounded. If they don't, we have comparative evidence.
 

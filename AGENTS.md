@@ -1,6 +1,6 @@
 # SWE Labor Market Research — Project Instructions
 
-Last updated: 2026-03-21
+Last updated: 2026-03-23
 
 ## Project Charter
 
@@ -62,12 +62,17 @@ Academic writing, research design, literature review, interview protocol, method
 - Stage 1 is ingest, schema unification, provenance, and date handling only.
 - Stage 1 should treat approved historical sources equivalently and remain extensible to future sources.
 - Stage 1 must not define analytical occupation samples or filter rows by SWE/non-SWE/control class.
+- Stage 2 owns aggregator detection, `real_employer` extraction, and `company_name_effective` derivation. It must not own company canonicalization for dedup.
 - Stage 3 owns rule-based boilerplate removal only: it reads the working `description`, preserves it unchanged, and writes `description_core` plus Stage 3 quality flags.
 - Stage 3 must not own company-name normalization, occupation classification, source-specific text rules, or row filtering.
 - Stage 5 is the first occupation-classification boundary. `is_swe`, `is_swe_adjacent`, and `is_control` belong there.
 - Analytical samples are defined after classification, in later preprocessing, validation, or analysis steps.
 - Canonical postings and daily observations are both first-class outputs. Do not collapse them into one dataset.
 - Stage 4 owns posting-level deduplication. Later stages must not silently change analytical row cardinality.
+- Stage 4 owns canonicalization of `company_name_effective` into `company_name_canonical` for opening-level matching, plus exact duplicate removal, same-location near-duplicate resolution, and `is_multi_location` flagging for canonical postings.
+- Stage 4 may use normalized company/title/location fields and description-derived support signals to make posting-level dedup decisions, but it must not redefine daily observations or analytical samples.
+- Stage 4 must not take over Stage 1 ingest responsibilities, Stage 2 aggregator handling, or Stage 5 occupation classification.
+- Stages 6-8 are row-preserving enrichment stages only. They may add normalization, temporal, quality, and provenance columns, but they must not silently change row cardinality or define analytical samples.
 - Stages 9-12 own LLM augmentation only: prefiltering, LLM calling, integration, and validation.
 - Stage 10 may deduplicate LLM calls by `description_hash` or another cache key to reduce API volume, but that is call deduplication only, not posting deduplication.
 - Stage 10 intermediate outputs may be one row per unique cache key, as long as Stage 11 reattaches those outputs back to every matching posting row.
@@ -121,28 +126,25 @@ Academic writing, research design, literature review, interview protocol, method
 
 | Stage | Script | Status | Notes |
 |---|---|---|---|
-| 1 | `stage1_ingest.py` | Redesigned, needs validation | Pure ingest/schema unification, new scraped format, asaniczka join, drop YC |
-| 2 | `stage2_aggregators.py` | Revalidated on current data | Raw `description` preserved; expanded aggregator list/patterns on current sources |
+| 1 | `stage1_ingest.py` | Revalidated on current data | Pure ingest/schema unification; raw vs mapped seniority preserved; raw descriptions preserved; current-format scraped files loaded, legacy files skipped |
+| 2 | `stage2_aggregators.py` | Revalidated on current data | Raw `description` preserved; expanded aggregator list/patterns on current sources; derives `company_name_effective` |
 | 3 | `stage3_boilerplate.py` | Needs improvement | ~44% accuracy |
-| 4 | `stage4_dedup.py` | Needs re-validation | 0.70 cosine threshold |
-| 5 | `stage5_classification.py` | Needs improvement | SWE: 64%, Seniority: 32% |
-| 6-8 | `stage678_normalize_temporal_flags.py` | Needs re-validation | |
-| 9-12 | LLM stages | Scaffolded | Never tested |
-| final | `stage_final_output.py` | Needs re-validation | Produces `unified.parquet` and `unified_observations.parquet` |
+| 4 | `stage4_dedup.py` | Rebuilt on current data | Canonicalizes `company_name_effective` and applies description-supported key-first dedup; needs validation sampling |
+| 5 | `stage5_classification.py` | Reworked on current data; still needs validation | SWE title-key contract aligned to `title_normalized`; title lookup artifact validated/deduped; description-based fallback tightened; `seniority_final` now applies strong-title/native-backfill/title-prior resolution for SWE-adjacent and control rows; core seniority still needs follow-up calibration |
+| 6-8 | `stage678_normalize_temporal_flags.py` | Revalidated on current data | Row-preserving field normalization, temporal alignment, and quality/provenance flags; `posting_age_days` computed here |
+| 9-12 | LLM stages | Stage 9-11 reworked and wired into orchestration; still needs larger validation | Stage 9 now does fixed-universe forward routing with control extraction by default and technical-corpus classification skip logic; Stage 10/11 honor task-specific routing and Stage 11 feeds the final canonical output path; Stage 12 remains scaffolded / smoke-tested rather than production-validated |
+| final | `stage_final_output.py` | Revalidated on current data | Produces `unified.parquet` and `unified_observations.parquet` |
 
-Current `unified.parquet`: old build from old data. Needs rebuild on current sources.
+Current `unified.parquet` and `unified_observations.parquet`: rebuilt on current sources after the Stage 1 redesign and salary-field removal.
 
 ### Known Issues
 
-- [ ] Stage 1 redesign needs validation on current data
-- [ ] Stage 1 should load all available current-format scraped files, while skipping legacy Mar 5-18 files and YC
-- [ ] Stage 1 output currently still carries `is_swe` despite the Stage 5 classification boundary
 - [ ] Asaniczka has no entry-level seniority labels
-- [ ] Asaniczka description join (`job_summary.csv`) not yet validated end-to-end
 - [ ] Seniority classifier accuracy is poor (32%)
 - [ ] Boilerplate removal accuracy is poor (~44%)
-- [ ] Current outputs have not yet been rebuilt and validated on current data, including `unified_observations.parquet`
-- [ ] LLM stages (9-12) never tested on real data
+- [ ] Stage 4 was rebuilt with description-supported dedup logic and still needs validation sampling on real pairs
+- [ ] LLM stages (9-12) still need broader validation on real data before a full-batch run
+- [ ] Stage 12 validation remains scaffolded / smoke-tested and is not yet part of the default runner
 
 ### Priorities
 

@@ -3,10 +3,12 @@
 Stage 2: Aggregator / Staffing Company Handling
 
 Identifies and flags aggregator/staffing company postings.
-Attempts to extract real employer from description.
+Attempts to extract real employer from description and derives the
+`company_name_effective` field used for Stage 4 canonicalization and dedup.
 
 Input:  intermediate/stage1_unified.parquet
-Output: intermediate/stage2_aggregators.parquet (adds is_aggregator, real_employer columns)
+Output: intermediate/stage2_aggregators.parquet
+        (adds is_aggregator, real_employer, company_name_effective columns)
 """
 
 import re
@@ -228,6 +230,16 @@ def run_stage2():
     )
     extracted = df.loc[agg_mask, "real_employer"].notna().sum()
     log.info(f"  Real employer extracted: {extracted:,} / {agg_count:,} ({extracted/max(agg_count,1):.1%})")
+
+    # Main-pipeline company field for Stage 4 canonicalization and dedup.
+    df["company_name_effective"] = df["real_employer"]
+    effective_missing = df["company_name_effective"].isna() | df["company_name_effective"].astype(str).str.strip().eq("")
+    df.loc[effective_missing, "company_name_effective"] = df.loc[effective_missing, "company_name"]
+    effective_from_real = int(df["real_employer"].notna().sum())
+    log.info(
+        "  company_name_effective uses extracted real employer for %s rows",
+        f"{effective_from_real:,}",
+    )
 
     # Sample of extractions
     extracted_df = df.loc[agg_mask & df["real_employer"].notna(),

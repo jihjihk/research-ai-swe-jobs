@@ -131,12 +131,14 @@ Raw Data (3 sources: arshkon CSV, asaniczka CSV+joins, daily scraped CSVs)
   |     +-- 1c: Scraped ingest (all current-format files, LinkedIn + Indeed)
   |     +-- 1d: Schema unification to canonical columns
   +-- Stage 2: Aggregator / Staffing Handling        [UNCHANGED from v1]
+  |     +-- derives `company_name_effective` = `real_employer` else `company_name`
   +-- Stage 3: Rule-Based Boilerplate Removal        [UNCHANGED from v1]
-  +-- Stage 4: Deduplication                         [UNCHANGED from v1]
+  +-- Stage 4: Company Canonicalization + Dedup      [UPDATED key-first dedup]
+  |     +-- builds `company_name_canonical` from `company_name_effective`
   +-- Stage 5: Rule-Based Classification             [UNCHANGED from v1]
-  +-- Stage 6: Field Normalization                   [UNCHANGED from v1]
-  +-- Stage 7: Temporal Alignment                    [UNCHANGED from v1]
-  +-- Stage 8: Quality Flags                         [UNCHANGED from v1]
+  +-- Stage 6: Field Normalization                   [row-preserving]
+  +-- Stage 7: Temporal Alignment                    [row-preserving]
+  +-- Stage 8: Quality Flags                         [row-preserving]
   |
   v
 intermediate/stage8_final.parquet (rule-based pipeline output)
@@ -153,11 +155,11 @@ data/unified_observations.parquet  (daily panel: one row per posting per scrape_
   + data/preprocessing_log.txt
 ```
 
-**Design principle:** The rule-based pipeline (Stages 1-8) runs first and produces complete rule-based outputs. The LLM layer (Stages 9-12) runs on top, adding LLM-derived columns alongside rule-based columns. This means:
-- The pipeline works end-to-end without any LLM calls (rule-based fallback)
-- LLM outputs are additive — they never overwrite rule-based columns
-- We can run ablation studies comparing rule-based vs. LLM vs. both
-- If an LLM call fails for a posting, the rule-based values remain
+**Design principle:** The rule-based pipeline (Stages 1-8) runs first and produces the baseline corpus plus fallback labels. The LLM layer (Stages 9-12) is a separate augmentation layer that can be validated independently; the baseline output remains usable without it, but the intended production analysis dataset adds LLM-derived columns alongside rule-based columns once the LLM stages are trusted. This means:
+- Stages 1-8 remain necessary because they define the baseline corpus, cache keys, and fallback labels
+- The default production pipeline does not stop at Stage 8; it continues through Stages 9-11 before writing `unified.parquet`
+- LLM outputs are additive — they do not erase the rule-based columns, which remain for ablations and failure fallback
+- If an LLM call fails for a posting, the rule-based values remain and the LLM columns stay null
 
 **Two output files:**
 - `unified.parquet`: One row per unique posting. For Kaggle sources, each posting appears once. For scraped data, each unique `id` appears once with its first-seen metadata. This is the primary analysis file.
@@ -304,13 +306,13 @@ These stages are implemented and working from v1. Summary:
 | Stage | Module | Purpose |
 |---|---|---|
 | 1 | `stage1_ingest.py` | Schema unification (rewritten for v3 — see above) |
-| 2 | `stage2_aggregators.py` | Aggregator flagging, real employer extraction |
+| 2 | `stage2_aggregators.py` | Aggregator flagging, real employer extraction, `company_name_effective` derivation |
 | 3 | `stage3_boilerplate.py` | Section-based boilerplate removal (regex) |
-| 4 | `stage4_dedup.py` | Exact + near-duplicate detection |
+| 4 | `stage4_dedup.py` | Company canonicalization plus posting-level dedup for canonical postings: exact IDs, exact opening duplicates, same-location near-duplicates, multi-location flagging |
 | 5 | `stage5_classification.py` | 3-tier occupation classification (SWE / SWE-adjacent / control; regex + LLM lookup + embedding), multi-signal seniority |
-| 6 | `stage678_normalize_temporal_flags.py` | Location/date normalization, language detection |
-| 7 | (same file) | Period assignment, posting age computation |
-| 8 | (same file) | Ghost job heuristics, description quality flags |
+| 6 | `stage678_normalize_temporal_flags.py` | Location parsing, remote inference into `is_remote_inferred`, metro enrichment |
+| 7 | (same file) | Period assignment, posting age computation, scrape week |
+| 8 | (same file) | Date/language quality flags, description hash, ghost-job heuristics, description quality flags, provenance |
 
 **Rule-based columns produced (preserved as ablation baselines):**
 - `is_swe`, `is_swe_adjacent`, `swe_confidence`, `swe_classification_tier`
@@ -318,58 +320,224 @@ These stages are implemented and working from v1. Summary:
 - `description_core` (boilerplate-stripped)
 - `ghost_job_risk`
 
+### Stage 4: Deduplication boundary
+
+Stage 4 is the posting-level dedup boundary for the canonical dataset. It owns:
+- canonicalization of `company_name_effective` into `company_name_canonical` for opening-level matching
+- exact duplicate removal by unified posting ID
+- exact opening dedup using normalized company, title, location, and matching description support
+- same-location near-duplicate resolution as a narrower fallback when description support agrees
+- `is_multi_location` flagging for postings that share the same canonical opening across multiple locations
+
+Stage 4 consumes the Stage 2 `company_name_effective` field. Stage 2 owns aggregator detection and `real_employer` extraction; Stage 4 owns canonicalizing that effective employer label for dedup.
+
+Stage 4 does **not** own daily observation dedup beyond the Stage 1 scraped canonicalization boundary, aggregator detection, occupation classification, or later analytical sample definition.
+
+Current implementation note: Stage 4 now uses a key-first, description-supported dedup design rather than the older cosine-threshold framing. Description is a supporting signal inside company/title/location candidate sets, not a standalone dedup key.
+
+---
+
+### Stage 6: Field normalization contract
+
+Stage 6 is row-preserving. It consumes Stage 5 rows one-for-one and must not add,
+drop, merge, or reorder postings.
+
+Stage 6 owns:
+- parsing `location` into `city_extracted`, `state_normalized`, and `country_extracted`
+- inferring `is_remote_inferred` from remote markers in the location string
+- deriving posting-location `metro_area` plus `metro_source` and `metro_confidence`
+
+Stage 6 input assumptions:
+- `location` is the raw normalized location string from Stage 1
+- `is_remote` is the Stage 1 normalized source-provided remote flag
+- `search_metro_*` remains query metadata from Stage 1, not posting geography
+
+Stage 6 output semantics:
+- `is_remote` remains the source-provided normalized flag from Stage 1
+- `is_remote_inferred` is a separate boolean set from location-text cues only
+- `metro_area` is a posting-location metro label aligned to the study metro frame
+  when Stage 6 can infer one
+- `metro_source` records how the metro was assigned (`search_metro`,
+  `manual_alias`, `city_state_lookup`, or `unresolved`)
+- `metro_confidence` is a coarse confidence tier for the metro assignment
+- location parsing is best-effort row-level enrichment, not a dedup or sample-definition step
+
+Stage 6 does not own:
+- rewriting `is_remote`
+- canonicalizing company/title/location for dedup
+- occupation classification or analytical sample selection
+
+### Stage 7: Temporal alignment contract
+
+Stage 7 is row-preserving. It adds time-derived fields but does not filter rows or
+change the unit of observation.
+
+Stage 7 owns:
+- `period`
+- `posting_age_days`
+- `scrape_week`
+
+Stage 7 output semantics:
+- `period` is source-driven for historical Kaggle rows and derived from `scrape_date`
+  for scraped rows
+- `posting_age_days` is populated here, not in Stage 1; it is mainly meaningful for
+  scraped rows that have both `scrape_date` and `date_posted`
+- `scrape_week` is the ISO week of `scrape_date`
+
+Stage 7 does not own:
+- date-quality judgments beyond producing time-derived fields
+- observation expansion into the daily panel
+
+### Stage 8: Quality, utility, and provenance contract
+
+Stage 8 is row-preserving. It adds quality flags, LLM-support utility fields, and
+row-level provenance markers.
+
+Stage 8 owns:
+- `date_flag`
+- `is_english`
+- `description_hash`
+- `ghost_job_risk`
+- `description_quality_flag`
+- `preprocessing_version`, `dedup_method`, `boilerplate_removed`
+
+Stage 8 output semantics:
+- `date_flag` is a row-level validation summary for `scrape_date` and `date_posted`
+- `description_hash` is the stable hash used for LLM caching and reattachment
+- `ghost_job_risk` is a rule-based heuristic derived from Stage 5 fields:
+  `seniority_3level`, `yoe_extracted`, and `yoe_seniority_contradiction`
+- `ghost_job_risk` values are `low`, `medium`, or `high`
+
+Stage 8 does not own:
+- row filtering or analytical exclusion decisions
+- recomputing classification labels
+- redefining canonical postings or daily observations
+
 ---
 
 ## Stage 9: LLM pre-filtering
 
 ### Goal
 
-Reduce the number of LLM calls from the full posting count to ~10-50K that actually need LLM review. We can afford thousands of LLM calls, but not hundreds of thousands.
+Reduce the number of LLM calls to the subset where they materially improve the production dataset. Stage 9 is not a binary send/skip filter. It is a forward-only task router over a fixed default analysis universe.
 
-### Pre-filter rules
+### Fixed default analysis universe
 
-Apply these filters sequentially. A posting is **skipped** (no LLM call) if it matches any skip condition:
+The default LLM routing universe is:
+- `source_platform == "linkedin"`
+- `is_english == True`
+- raw `description` is present
 
-**1. Obvious non-SWE (skip LLM entirely):**
-Titles matching `SWE_EXCLUDE` AND not matching `SWE_INCLUDE`. These are civil engineers, mechanical engineers, sales engineers, etc. Classify as non-SWE with high confidence. Rule-based classification is sufficient.
+Within that universe, the default production path includes:
+- all Stage 5 `is_swe == True` rows
+- all Stage 5 `is_swe_adjacent == True` rows
+- all Stage 5 `is_control == True` rows for text cleaning only
 
-**2. Non-English postings (skip LLM entirely):**
-Detected by `langdetect` in Stage 6e. Exclude from both LLM and analysis.
+Rows outside that universe stay in the dataset, but they are not part of the default LLM routing path.
 
-**3. Duplicate descriptions (cache hit):**
-After dedup (Stage 4), many surviving postings share identical descriptions (same role at different locations, or reposted). Cache LLM responses by `sha256(description_text)`. Identical descriptions get the same classification without a second call.
+This explicitly excludes:
+- non-English rows
+- rows with null/empty raw `description`
+- Indeed rows in the default production path
+- unresolved Stage 5 rows as a default LLM-recovery target
 
-**4. High-confidence rule-based agreement (skip if rules are clear):**
-If all of the following are true, skip LLM:
-- SWE classification: `swe_classification_tier == "regex"` (high-confidence regex match)
-- Seniority: `seniority_source` starts with `"title_"` (clear signal from title keywords or level numbers)
-- Ghost job: `ghost_job_risk == "low"` AND no title-seniority contradiction
+Unresolved-row recovery is moved to a separate audit/sensitivity workflow, not the core pipeline. Stage 9 does not route rows back in after Stage 11.
 
-These postings have unambiguous rule-based labels. LLM adds no value.
+### Task routing model
 
-**Postings that MUST go to the LLM:**
-- Any posting where `swe_classification_tier` is `"embedding_adjacent"` or `"unresolved"` (ambiguous SWE classification)
-- Any posting where `seniority_source` is `"description_yoe"`, `"description_language"`, or `"unknown"` (no clear title signal for seniority)
-- Any posting flagged `ghost_job_risk == "high"` (validate the high-risk flag)
-- All postings go through LLM for boilerplate removal (the rule-based remover misses front-matter boilerplate in ~20-25% of cases)
+Stage 9 assigns two independent task flags:
+- `needs_llm_classification`
+- `needs_llm_extraction`
 
-**Revised estimate:** After pre-filtering, the LLM will process approximately:
-- ~10-50K postings for the full 4-task bundle (SWE + seniority + boilerplate + ghost)
-- Additional postings for boilerplate-only LLM processing (where SWE/seniority are already clear but boilerplate removal needs improvement)
+This is the key design change. Boilerplate extraction and classification are routed separately.
 
-In practice, we should profile the first 100 calls, then extrapolate volume and cost before running the full batch.
+### Row-family routing rules
+
+**1. SWE rows (`is_swe == True`):**
+- `needs_llm_extraction = True`
+- `needs_llm_classification = True` only when the rule-based labels are not already high-confidence
+
+**2. SWE-adjacent rows (`is_swe_adjacent == True`):**
+- `needs_llm_extraction = True`
+- `needs_llm_classification = True` only when the rule-based labels are not already high-confidence
+
+**3. Control rows (`is_control == True`):**
+- `needs_llm_extraction = True`
+- `needs_llm_classification = False` by default
+
+Controls stay in the default LLM text-cleaning path because cross-occupation comparisons need clean text, but control-wide LLM seniority is not required for the default production analysis path.
+
+### Classification skip logic inside the technical corpus
+
+For the default technical corpus (`is_swe` or `is_swe_adjacent`), skip LLM classification when all of the following are true:
+- `swe_classification_tier` is one of `regex`, `embedding_high`, or `embedding_llm`
+- `seniority_source` starts with `title_`
+- `ghost_job_risk == "low"`
+
+These rows keep rule-based occupation and seniority labels in the default dataset, while still receiving LLM boilerplate extraction.
+
+Route LLM classification when any of the following are true:
+- `swe_classification_tier == "embedding_adjacent"`
+- `seniority_source` is `unknown` or `description_explicit`
+- `ghost_job_risk != "low"`
+
+### Hard LLM exclusions
+
+Set both task flags to `False` when:
+- `is_english != True`
+- raw `description` is null/empty
+- `source_platform != "linkedin"` in the default run
 
 ### Description dedup for caching
 
-Before sending to the LLM, compute `sha256(description_text)` for all candidate postings. Group by hash. For each unique hash, send only one LLM call and apply the result to all postings sharing that hash. This is the single biggest volume reducer.
+Stage 9 still deduplicates by `description_hash` before Stage 10:
+- Compute or reuse `sha256(description_text)` from Stage 8
+- Build the Stage 10 queue at one row per unique `description_hash`
+- OR task flags across all postings sharing the same hash
 
----
+This remains the main volume reducer, but it now operates on a task-routed candidate set rather than a single generic queue.
 
-## Stage 10: LLM classification (single bundled call)
+### Required Stage 9 outputs
+
+**Row-level audit table:**
+- original Stage 8 columns
+- `needs_llm_classification`
+- `needs_llm_extraction`
+- `llm_route_group`
+- `llm_skip_reason`
+
+**Hash-level Stage 10 queue:**
+- one row per unique `description_hash`
+- representative prompt fields (`job_id`, `source`, `source_platform`, `title`, `company_name`, `description`, `description_hash`)
+- task flags OR-ed across rows sharing the hash
+
+### Expected default volume profile
+
+On the current March 2026 / 2024 rebuilt corpus, the default routing design implies approximately:
+- ~31.7K unique technical hashes (`SWE` + `SWE-adjacent`) for LLM extraction
+- ~108.6K unique control hashes for LLM extraction
+- ~15.6K unique technical hashes for LLM classification after skip logic
+
+With the current Stage 10 split-task architecture, that is roughly:
+- ~140.3K extraction task calls
+- ~15.6K classification task calls
+- ~155.9K total task calls before cache hits from prior runs
+
+These are production-path estimates, not the cost of a broader unresolved-row recovery audit.
+
+## Stage 10: LLM task execution
 
 ### Architecture
 
-One LLM call per posting performs all four tasks simultaneously on the **full job description** (not truncated). This avoids the truncation bias that plagued the v1 LLM validation (which used only the first 300-500 characters).
+Stage 10 consumes the Stage 9 hash-level queue and executes the requested LLM tasks per unique `description_hash`.
+
+The current production architecture uses two cached tasks:
+- classification task: SWE / seniority / ghost assessment
+- extraction task: adaptive sentence-like unit boilerplate selection
+
+This avoids forcing every routed row through the full task bundle. The queue produced by Stage 9 decides which task(s) each hash needs.
+
+All prompts operate on the full job description, not truncated snippets. This preserves the v3 principle of avoiding the truncation bias that plagued the earlier LLM validation.
 
 ### Model selection
 
@@ -382,9 +550,13 @@ One LLM call per posting performs all four tasks simultaneously on the **full jo
 
 ### Prompt design
 
+Stage 10 maintains two prompt families derived from four semantic tasks:
+- classification prompt: SWE classification + seniority + ghost assessment
+- extraction prompt: adaptive sentence-like unit boilerplate selection
+
 ```
 You are a labor economics research assistant classifying job postings.
-Perform ALL FOUR tasks below on this job posting. Return ONLY valid JSON.
+Perform the requested task(s) below on this job posting. Return ONLY valid JSON.
 
 TASK 1 — SWE CLASSIFICATION
 Classify this role into exactly one category:
@@ -427,19 +599,24 @@ IMPORTANT: Do NOT infer seniority from:
 When in doubt, classify as "unknown". We want high precision, not high recall.
 
 TASK 3 — BOILERPLATE IDENTIFICATION
-Identify which parts of the description are boilerplate vs. core job content.
-Boilerplate includes: company overview/About Us, EEO/diversity statements,
+Segment the description into numbered sentence-like units before the call.
+Units may be blank-line blocks, headings, bullets, metadata lines, or sentence
+groups. Mark only the units that are clearly boilerplate.
+
+Boilerplate units include: company overview/About Us, EEO/diversity statements,
 benefits/compensation sections, application instructions, recruiter platform
 framing (e.g., "This is a job that [name] is recruiting for..."), corporate
-mission/values statements.
-Core job content includes: role description, responsibilities, requirements,
-qualifications, nice-to-haves, tech stack.
+mission/values statements, and metadata-only fragments.
 
-Return the core job content ONLY. Rules:
-- Do NOT paraphrase. Return exact text from the original description.
-- Preserve the original formatting and line breaks.
-- If the entire description is core content, return it unchanged.
-- If the entire description is boilerplate, return an empty string.
+Core job units include: role description, responsibilities, requirements,
+qualifications, nice-to-haves, tech stack, and mixed units that contain real
+job content.
+
+Rules:
+- Prefer high precision on dropping. When uncertain, keep the unit.
+- If the description collapses to one unit or the segmentation is nonsensical,
+  return `cannot_complete`.
+- Do not paraphrase or reconstruct text in the response.
 
 TASK 4 — GHOST JOB ASSESSMENT
 Assess whether this posting's requirements are realistic for its stated level:
@@ -463,20 +640,23 @@ DESCRIPTION:
 
 ---
 
-Respond with this exact JSON structure:
-{
-  "swe_classification": "SWE" | "SWE_ADJACENT" | "NOT_SWE",
-  "seniority": "entry" | "associate" | "mid-senior" | "director" | "unknown",
-  "description_core": "<exact text from original, boilerplate removed>",
-  "ghost_assessment": "realistic" | "inflated" | "ghost_likely"
-}
+Respond with task-specific JSON:
+- classification task:
+  - `swe_classification`
+  - `seniority`
+  - `ghost_assessment`
+- extraction task:
+  - `task_status`
+  - `boilerplate_unit_ids`
+  - `uncertain_unit_ids`
+  - `reason`
 ```
 
 ### Seniority classification — design rationale
 
 This is the most important design change from v1. The LLM validation showed that inferring seniority from responsibilities produces garbage (87/100 classified as mid-senior when given truncated descriptions). The new approach:
 
-**What the LLM does:** Looks for explicit seniority signals only — title keywords, level codes, explicit "entry-level" or "senior" language. Maps to the enum. Defaults to "unknown" when ambiguous.
+**What the LLM does:** Looks for explicit seniority signals only — title keywords, level codes, and explicit role-label language about the posting itself. Maps to the enum. Defaults to "unknown" when ambiguous.
 
 **What the LLM does NOT do:** Infer seniority from responsibilities, tech stack complexity, team size, YOE requirements, or company reputation.
 
@@ -502,21 +682,23 @@ Preserve all three seniority signals for analysis:
 | `seniority_native` | Canonically mapped native/source-provided label | Cross-validation |
 | `seniority_raw` | Original source label before mapping | Mapping audit / refinement |
 
-### Boilerplate removal — verbatim constraint
+### Boilerplate removal — unit-ID contract
 
-The LLM must return exact substrings of the original description. After receiving the response, programmatically verify:
+Stage 10 does not return cleaned text. It returns which sentence-like units are boilerplate and which units are uncertain. Stage 11 reconstructs the cleaned description by keeping all non-boilerplate units in original order.
 
-1. Split the LLM's `description_core` into sentences.
-2. Check that each sentence appears verbatim in the original `description` (allow minor whitespace differences).
-3. If >10% of sentences fail the verbatim check, fall back to the rule-based `description_core` for that posting.
-4. Log the fallback rate.
+Validation happens locally:
+
+1. Confirm every returned ID exists and is unique.
+2. Confirm `uncertain_unit_ids` is a subset of valid IDs.
+3. If `task_status == "cannot_complete"` or reconstruction is empty / obviously malformed, fall back to rule-based `description_core`.
+4. Log the fallback rate and the rate of `cannot_complete` responses.
 
 **Two boilerplate columns for ablation:**
 
 | Column | Source |
 |---|---|
 | `description_core` | Rule-based removal (existing, Stage 3) |
-| `description_core_llm` | LLM-based removal (new, Stage 10) |
+| `description_core_llm` | LLM-based removal reconstructed locally from Stage 10 unit IDs |
 
 Analysis will run on both and compare results.
 
@@ -536,7 +718,7 @@ Apply these improvements from the LLM validation report (implemented in Stage 5 
 
 - **Cache key:** `sha256(description_text)`
 - **Cache storage:** SQLite database at `preprocessing/cache/llm_responses.db`
-  - Schema: `(hash TEXT PRIMARY KEY, model TEXT, prompt_version TEXT, response_json TEXT, timestamp TEXT, tokens_used INTEGER)`
+  - Schema: `(hash TEXT PRIMARY KEY, model TEXT, prompt_version TEXT, response_json TEXT, timestamp TEXT, tokens_used INTEGER)` with task-specific `response_json` payloads for classification and extraction
 - **On re-run:** Check cache first. Only call LLM for uncached descriptions.
 - **Cache invalidation:** If the prompt changes (tracked by `prompt_version`), re-run all cached entries with the new prompt. Keep old entries for comparison.
 
@@ -544,14 +726,15 @@ Apply these improvements from the LLM validation report (implemented in Stage 5 
 
 - **Rate limiting:** Respect API limits. Configurable delay between calls (default: 0.5s for Codex, 1.0s for Claude).
 - **Retry:** Exponential backoff on transient errors (rate limits, timeouts). Max 3 retries per call.
-- **Parse validation:** Every response must parse as valid JSON with exactly the four expected fields and valid enum values. Malformed responses are logged to `preprocessing/logs/llm_errors.jsonl` and excluded from the final data. The rule-based values remain for these postings.
-- **Profiling run:** Before the full batch, run the first 100 calls and report:
+- **Parse validation:** Every response must parse as valid task-specific JSON with valid enum values or valid extraction IDs/status. Malformed responses are logged to `preprocessing/logs/llm_errors.jsonl` and excluded from the final data. The rule-based values remain for these postings.
+- **Profiling run:** Before the full batch, run a small stratified subset first, then the first 100 calls in profile mode, and report:
   - Mean/P95 latency per call
   - Error rate
   - Mean tokens per request (input + output)
   - Estimated total cost for the full batch
   - Any systematic parse failures
   - Review 10 random responses manually for quality
+  - Include at least a few one-unit descriptions and a few multi-unit descriptions in the profile set
 
 ### Memory constraint
 
@@ -566,12 +749,21 @@ After all LLM calls complete, merge LLM-derived columns into the final output:
 
 ```python
 # For each row in stage8_final.parquet:
-# If LLM response exists for this description_hash:
-row["swe_classification_llm"] = response["swe_classification"]
-row["seniority_llm"] = response["seniority"]
-row["description_core_llm"] = response["description_core"]
-row["ghost_assessment_llm"] = response["ghost_assessment"]
-# Else: these columns remain null (rule-based values are always present)
+# If a classification response exists for this description_hash:
+row["swe_classification_llm"] = class_response["swe_classification"]
+row["seniority_llm"] = class_response["seniority"]
+row["ghost_assessment_llm"] = class_response["ghost_assessment"]
+
+# If an extraction response exists for this description_hash and it completed:
+row["llm_extraction_status"] = extract_response["task_status"]
+row["llm_extraction_unit_ids"] = extract_response["boilerplate_unit_ids"]
+row["llm_extraction_uncertain_unit_ids"] = extract_response["uncertain_unit_ids"]
+row["description_core_llm"] = reconstruct_description_core(
+    row["description"],
+    extract_response["boilerplate_unit_ids"],
+)
+
+# Else: those columns remain null and the rule-based columns remain available
 ```
 
 ---
@@ -635,8 +827,9 @@ One row per unique posting across all sources.
 
 **Core columns:**
 - `uid`, `source`, `source_platform`, `site`
-- `title`, `title_normalized`, `company_name`, `company_name_normalized`
-- `location`, `location_normalized`, `date_posted`, `description`, `description_raw`, `description_length`
+- `title`, `title_normalized`, `company_name`, `company_name_effective`, `company_name_canonical`, `company_name_canonical_method`
+- `company_name_normalized` (legacy ingest-level normalized copy; not the canonical dedup key)
+- `location`, `work_type`, `is_remote`, `date_posted`, `description`, `description_raw`, `description_length`
 - `seniority_raw`, `seniority_native`, `company_industry`, `company_size`, `company_size_raw`, `company_size_category`
 - `search_query`, `query_tier`, `search_metro_id`, `search_metro_name`, `search_metro_region`, `search_location`
 - `scrape_date` (first seen, for scraped data; null for Kaggle)
@@ -646,11 +839,21 @@ One row per unique posting across all sources.
 - `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_final`, `seniority_3level`
 - `seniority_cross_check`
 - `is_aggregator`, `real_employer`, `is_multi_location`
+- `city_extracted`, `state_normalized`, `country_extracted`, `is_remote_inferred`
+- `metro_area`, `metro_source`, `metro_confidence`
 - `description_core` (rule-based boilerplate removal)
-- `posting_age_days`, `period`
+- `posting_age_days`, `period`, `scrape_week`
 - `ghost_job_risk`
-- `description_quality_flag`, `dedup_method`, `preprocessing_version`
+- `description_quality_flag`, `date_flag`, `dedup_method`, `preprocessing_version`, `boilerplate_removed`
 - `is_english`, `description_hash`
+
+`is_remote` is the normalized source-provided remote flag from Stage 1.
+`is_remote_inferred` is a separate Stage 6 boolean derived from the location string.
+`search_metro_*` remains query metadata from ingest.
+`metro_area` is the inferred posting-location metro label from Stage 6.
+
+`posting_age_days` is populated in Stage 7 and is mainly meaningful for scraped rows
+with both `scrape_date` and `date_posted`.
 
 **LLM-derived columns:**
 
@@ -658,14 +861,22 @@ One row per unique posting across all sources.
 |---|---|---|---|
 | `swe_classification_llm` | string | SWE / SWE_ADJACENT / NOT_SWE / null | LLM Stage 10 |
 | `seniority_llm` | string | entry / associate / mid-senior / director / unknown / null | LLM Stage 10 |
-| `description_core_llm` | string | Verbatim-extracted core content / null | LLM Stage 10 |
+| `description_core_llm` | string | Core content reconstructed locally from Stage 10 unit IDs / null | LLM Stage 10 |
 | `ghost_assessment_llm` | string | realistic / inflated / ghost_likely / null | LLM Stage 10 |
+| `llm_extraction_status` | string | ok / cannot_complete / null | LLM Stage 10 |
+| `llm_extraction_unit_ids` | string | JSON list of boilerplate unit IDs / null | LLM Stage 10 |
+| `llm_extraction_uncertain_unit_ids` | string | JSON list of uncertain unit IDs / null | LLM Stage 10 |
 | `llm_model` | string | Model name that produced the classification / null | LLM Stage 10 |
 | `llm_prompt_version` | string | Prompt version hash / null | LLM Stage 10 |
 | `yoe_extracted` | float | Minimum years-of-experience mentioned in description / null | Stage 5 improvement |
 | `yoe_seniority_contradiction` | bool | True if YOE contradicts seniority label | Stage 5 improvement |
 
-**Null values in LLM columns** mean that posting was not sent to the LLM (pre-filtered out with high-confidence rule-based classification) or the LLM call failed. In either case, the rule-based columns provide the classification.
+`seniority_source` is a controlled rule-based provenance field with values:
+`title_keyword`, `title_level_number`, `description_explicit`, or `unknown`.
+YOE extraction remains a cross-check only and does not create its own seniority
+source state.
+
+**Null values in LLM columns** mean that the posting was not routed to that specific LLM task by Stage 9 or that the corresponding LLM call failed. In either case, the rule-based columns remain available as fallback / ablation columns.
 
 **Asaniczka-specific column:**
 - `asaniczka_skills` — skills from `job_skills.csv` join (null for other sources)
@@ -719,7 +930,7 @@ Do not replace this with an array-of-dates column inside `unified.parquet`. The 
     "llm_calls_made": "...",
     "cache_hits": "...",
     "parse_failures": "...",
-    "verbatim_check_failures": "...",
+    "unit_validation_failures": "...",
     "mean_latency_ms": "...",
     "total_tokens": "...",
     "estimated_cost": "..."
@@ -739,7 +950,8 @@ Do not replace this with an array-of-dates column inside `unified.parquet`. The 
   "boilerplate_stats": {
     "median_chars_removed_rules": "...",
     "median_chars_removed_llm": "...",
-    "verbatim_check_pass_rate": "..."
+    "unit_reconstruction_pass_rate": "...",
+    "cannot_complete_rate": "..."
   },
   "source_specific": {
     "arshkon_seniority_distribution": "...",
@@ -764,7 +976,7 @@ These are baked into the pipeline design, not afterthoughts:
 |---|---|---|
 | **LinkedIn-only estimates** | Platform composition artifact | Filter to `source_platform == "linkedin"` for all analyses |
 | **LinkedIn + Indeed pooled** | Whether Indeed changes the story | Pool both platforms, control for `source_platform` |
-| **Dedup sensitivity** | Whether dedup threshold matters | Run analyses at 0.60, 0.70, 0.80 cosine thresholds |
+| **Dedup sensitivity** | Whether Stage 4 dedup assumptions matter | Compare alternative Stage 4 matching regimes (for example stricter vs looser title similarity or description-support requirements) |
 | **Canonical vs. daily observations** | Whether repost-weighting matters | Compare `unified.parquet` results to `unified_observations.parquet` results |
 | **Metro-balanced subsamples** | Whether metro composition drives results | Resample to equal metro representation |
 | **Exclude aggregators** | Whether staffing firms distort signals | Filter to `is_aggregator == False` |
@@ -795,9 +1007,10 @@ Phase 2: LLM augmentation
      - Apply skip conditions
      - Output: candidate list with description hashes
      |
-  4. Profiling run (100 calls)                     depends on: Stage 9
+  4. Profiling run (small stratified subset, then 100 calls) depends on: Stage 9
      - Test both Codex and Claude CLI
      - Measure latency, cost, parse reliability
+     - Include one-unit, multi-unit, and metadata-heavy descriptions
      - Manual review of 10 responses
      - Decision: which model to use
      |
@@ -808,7 +1021,8 @@ Phase 2: LLM augmentation
      |
   6. Stage 11: Integration                         depends on: Stage 10
      - Merge LLM columns into stage8_final.parquet
-     - Run verbatim checks on boilerplate removal
+     - Reconstruct `description_core_llm` locally from unit IDs
+     - Validate unit IDs against the source description
      - Produce unified.parquet + unified_observations.parquet
      |
   7. Stage 12: Three-way validation                depends on: Stage 11
@@ -824,7 +1038,7 @@ Phase 3: Rule improvement
   11. Re-run Stages 9-12 to measure improvement
 ```
 
-**Critical path:** The Stage 1 rewrite (step 1) is the gate for everything else. The profiling run (step 4) is the gate for the full LLM batch.
+**Critical path:** The Stage 1 rewrite (step 1) is the gate for everything else. The small profiling subset and 100-call profile run (step 4) are the gate for the full LLM batch.
 
 ---
 
@@ -852,7 +1066,7 @@ Tier 3: Human review (small sample, only what matters)
 |---|---|---|---|
 | **SWE classification** | Regex match/exclude | Stage 10 LLM classification on full description | 50 disagreements + 20 random agreements |
 | **Seniority** | Title keyword match + YOE extraction | Stage 10 LLM explicit-signals-only classification | 50 disagreements + 20 random agreements |
-| **Boilerplate** | Section header regex; paragraph-level filtering | Stage 10 LLM full-text boilerplate identification | 30 verbatim-check failures + 10 random passes |
+| **Boilerplate** | Section header regex; paragraph-level filtering | Stage 10 LLM unit-ID boilerplate selection | 30 unit-validation failures / uncertain cases + 10 random passes |
 | **Ghost job** | Entry-level + 5yr+ experience heuristic | Stage 10 LLM ghost assessment | 30 rule-LLM disagreements |
 | **Aggregator** | Company name in AGGREGATORS list | 100 aggregator postings — LLM extracts real employer | 20 verification items |
 
@@ -878,7 +1092,7 @@ Sample 500 postings stratified by source, predicted seniority, and classificatio
 | 8 | **Aggregator postings** | Keep and flag. Sensitivity-test excluding. | Present across all sources. |
 | 9 | **DataAnnotation dominance** | Flag and sensitivity-test excluding. | 168 postings = 5.4% of Kaggle SWE. May be crowdwork. |
 | 10 | **Boilerplate removal** | Rule-based + LLM as dual columns for ablation. | v1 regex works for tail-end boilerplate but misses front-matter. LLM handles both. |
-| 11 | **Near-dedup threshold** | Literature standard (0.70 cosine). | Abdelaal et al. 2024, F1=0.94. |
+| 11 | **Stage 4 near-dedup design** | Key-first dedup with description-supported exact opening matches and same-location fuzzy-title fallback. | Simpler and more auditable than a global cosine threshold; keeps description as supporting evidence rather than a standalone dedup key. |
 | 12 | **Embedding model** | Dual-model: JobBERT-v2 for titles, general-purpose for descriptions. | JobBERT-v2 has 64-token limit. |
 | 13 | **LLM model for classification** | GPT-5.4 mini primary, GPT-5.4 full for validation. Claude Haiku as fallback. | Cost-effective for thousands of calls. Validation uses the stronger model. |
 | 14 | **LLM boilerplate constraint** | Verbatim extraction only, no paraphrasing. Programmatic check. | Ensures the LLM doesn't introduce artifacts into the text we analyze. |

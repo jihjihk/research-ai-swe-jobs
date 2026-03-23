@@ -251,9 +251,21 @@ def run_stage3():
         for src in chunk["source"].dropna().unique():
             src_mask = chunk["source"] == src
             if src_mask.any():
-                stats[src]["full"].extend(chunk.loc[src_mask, "description_length"].tolist())
-                stats[src]["core"].extend(chunk.loc[src_mask, "core_length"].tolist())
-                stats[src]["removal_pct"].extend((removal_pct.loc[src_mask] * 100).tolist())
+                stats[src]["full"].extend(
+                    pd.to_numeric(
+                        chunk.loc[src_mask, "description_length"], errors="coerce"
+                    ).dropna().tolist()
+                )
+                stats[src]["core"].extend(
+                    pd.to_numeric(
+                        chunk.loc[src_mask, "core_length"], errors="coerce"
+                    ).dropna().tolist()
+                )
+                stats[src]["removal_pct"].extend(
+                    pd.to_numeric(removal_pct.loc[src_mask] * 100, errors="coerce")
+                    .dropna()
+                    .tolist()
+                )
 
         for flag in ["ok", "over_removed", "under_removed", "empty_core"]:
             flag_counts[flag] += (chunk["boilerplate_flag"] == flag).sum()

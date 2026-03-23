@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage Final: produce analysis-ready outputs for the rule-based pipeline.
+Stage Final: produce analysis-ready outputs from the LLM-integrated pipeline.
 
 Outputs:
   - data/unified.parquet
@@ -24,7 +24,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
 DATA_DIR = PROJECT_ROOT / "data"
 
-UNIFIED_INPUT = INTERMEDIATE_DIR / "stage8_final.parquet"
+UNIFIED_INPUT = INTERMEDIATE_DIR / "stage11_llm_integrated.parquet"
 OBS_INPUT = INTERMEDIATE_DIR / "stage1_observations.parquet"
 UNIFIED_OUTPUT = DATA_DIR / "unified.parquet"
 OBS_OUTPUT = DATA_DIR / "unified_observations.parquet"
@@ -40,6 +40,9 @@ STAGE_INPUTS = {
     "stage5": INTERMEDIATE_DIR / "stage5_classification.parquet",
     "stage8": INTERMEDIATE_DIR / "stage8_final.parquet",
     "stage9_candidates": INTERMEDIATE_DIR / "stage9_llm_candidates.parquet",
+    "stage9_skip_reasons": INTERMEDIATE_DIR / "stage9_skip_reasons.parquet",
+    "stage10": INTERMEDIATE_DIR / "stage10_llm_results.parquet",
+    "stage11": INTERMEDIATE_DIR / "stage11_llm_integrated.parquet",
 }
 
 
@@ -86,6 +89,9 @@ def compute_quality_report() -> dict:
       sum(CASE WHEN is_control THEN 1 ELSE 0 END) AS total_control,
       sum(CASE WHEN is_swe_adjacent THEN 1 ELSE 0 END) AS total_adjacent,
       sum(CASE WHEN seniority_imputed = 'unknown' THEN 1 ELSE 0 END) AS seniority_unknown,
+      sum(CASE WHEN seniority_llm = 'unknown' THEN 1 ELSE 0 END) AS seniority_unknown_llm,
+      sum(CASE WHEN seniority_llm IS NOT NULL THEN 1 ELSE 0 END) AS seniority_llm_non_null,
+      sum(CASE WHEN description_core_llm IS NOT NULL THEN 1 ELSE 0 END) AS extraction_non_null,
       sum(CASE WHEN is_aggregator THEN 1 ELSE 0 END) AS aggregators,
       sum(CASE WHEN date_flag != 'ok' THEN 1 ELSE 0 END) AS date_flagged,
       sum(CASE WHEN is_english = false THEN 1 ELSE 0 END) AS non_english,
@@ -135,7 +141,8 @@ def compute_quality_report() -> dict:
     return {
         "pipeline_version": "3.0",
         "run_date": time.strftime("%Y-%m-%d"),
-        "rule_based_only": True,
+        "rule_based_only": False,
+        "llm_augmented": True,
         "row_counts": {
             name: parquet_rows(path) for name, path in STAGE_INPUTS.items() if path.exists()
         },
@@ -152,12 +159,15 @@ def compute_quality_report() -> dict:
         },
         "classification_rates": {
             "seniority_unknown_rate_rules": round(totals[4] / totals[0], 4) if totals[0] else None,
+            "seniority_unknown_rate_llm": round(totals[5] / totals[6], 4) if totals[6] else None,
+            "seniority_llm_coverage": round(totals[6] / totals[0], 4) if totals[0] else None,
+            "description_core_llm_coverage": round(totals[7] / totals[0], 4) if totals[0] else None,
         },
         "quality_flags": {
-            "aggregators": totals[5],
-            "date_flagged": totals[6],
-            "non_english": totals[7],
-            "ghost_flagged": totals[8],
+            "aggregators": totals[8],
+            "date_flagged": totals[9],
+            "non_english": totals[10],
+            "ghost_flagged": totals[11],
         },
         "source_counts": [
             {
@@ -219,6 +229,9 @@ def write_log(report: dict) -> None:
             "QUALITY FLAGS",
             "-------------",
             f"Seniority unknown rate (rules): {report['classification_rates']['seniority_unknown_rate_rules']}",
+            f"Seniority unknown rate (LLM):   {report['classification_rates']['seniority_unknown_rate_llm']}",
+            f"Seniority LLM coverage:         {report['classification_rates']['seniority_llm_coverage']}",
+            f"Description-core LLM coverage:  {report['classification_rates']['description_core_llm_coverage']}",
             f"Aggregators:                   {report['quality_flags']['aggregators']:>10,}",
             f"Date flagged:                  {report['quality_flags']['date_flagged']:>10,}",
             f"Non-English:                   {report['quality_flags']['non_english']:>10,}",

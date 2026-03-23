@@ -87,10 +87,10 @@ This is a research project studying how AI coding agents are restructuring SWE r
 | `stage1_ingest.py` | 1 | Schema unification across 3 sources |
 | `stage2_aggregators.py` | 2 | Aggregator/staffing company detection |
 | `stage3_boilerplate.py` | 3 | Boilerplate removal from descriptions |
-| `stage4_dedup.py` | 4 | Exact + near-duplicate detection |
+| `stage4_dedup.py` | 4 | Company canonicalization + exact/near-duplicate detection |
 | `stage5_classification.py` | 5 | SWE / SWE-adjacent / control classification + seniority imputation |
 | `stage678_normalize_temporal_flags.py` | 6-8 | Field normalization, temporal alignment, quality flags |
-| `stage6a_company_names.py` | (sub) | Company name normalization |
+| `company_name_canonicalization.py` | helper | Company-name canonicalization utilities used by Stage 4 |
 | `stage9_llm_prefilter.py` | 9 | LLM pre-filtering (NEW, may be incomplete) |
 | `stage10_llm_classify.py` | 10 | LLM classification (NEW, may be incomplete) |
 | `stage11_llm_integrate.py` | 11 | LLM response integration (NEW, may be incomplete) |
@@ -146,7 +146,8 @@ This stage needs the most work because the data sources have changed:
 
 ### Stage 4: Dedup
 
-- Near-dedup threshold is 0.70 cosine similarity (literature standard)
+- Check that Stage 4 is canonicalizing `company_name_effective` into `company_name_canonical` before dedup decisions.
+- Near-dedup is key-first and description-supported, with fuzzy title resolution inside company/location/description candidate sets.
 - Check: what fraction of rows are removed? By source?
 - Check: are cross-source duplicates being caught? (Same company+title posted on LinkedIn and Indeed)
 - Check: is the dedup removing too aggressively or too leniently? Pull 10 pairs that were deduped and verify they're genuine duplicates.
@@ -170,7 +171,8 @@ This stage needs the most work because the data sources have changed:
 These may be incomplete or untested. Assess their state:
 - Can they run at all?
 - If they have cached results from previous runs, are those still valid?
-- The LLM stages are optional — the pipeline should produce valid output from Stages 1-8 alone
+- Stage 10 extraction now uses a unit-ID contract: sentence-like units are labeled locally, and Stage 11 reconstructs `description_core_llm` from the selected unit IDs.
+- Treat the LLM stages as a separate augmentation layer that still needs small-sample profiling and validation before any full-batch run.
 
 ### Final output
 

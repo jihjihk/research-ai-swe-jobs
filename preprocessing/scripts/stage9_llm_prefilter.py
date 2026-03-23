@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Stage 9: LLM pre-filtering.
+Stage 9: LLM routing / pre-filtering.
 
 Inputs:
   - preprocessing/intermediate/stage8_final.parquet
 
 Outputs:
   - preprocessing/intermediate/stage9_llm_candidates.parquet
-      Unique-description subset that should be sent to the LLM.
+      Unique-description queue with task flags OR-ed by `description_hash`.
   - preprocessing/intermediate/stage9_skip_reasons.parquet
-      Full row-level output with llm_candidate / llm_skip_reason added.
+      Full row-level output with routing flags and reasons added.
 
 Compatibility note:
-  The current stage8 artifact uses `lang_detected` instead of `is_english` and
-  does not include `description_hash`. This stage derives compatible values
-  without modifying stages 1-8.
+  Stage 8 now writes `is_english` and `description_hash` directly. The fallback
+  logic here remains only to support older artifacts that may still carry
+  `lang_detected` or omit `description_hash`.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ import logging
 import time
 from pathlib import Path
 
+import duckdb
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -41,6 +42,8 @@ DEFAULT_CANDIDATES_PATH = INTERMEDIATE_DIR / "stage9_llm_candidates.parquet"
 DEFAULT_SKIP_REASONS_PATH = INTERMEDIATE_DIR / "stage9_skip_reasons.parquet"
 
 CHUNK_SIZE = 200_000
+LINKEDIN_PLATFORM = "linkedin"
+CLASSIFICATION_STRONG_TIERS = {"regex", "embedding_high", "embedding_llm"}
 
 
 def configure_logging() -> logging.Logger:
@@ -74,6 +77,10 @@ def english_mask(df: pd.DataFrame) -> pd.Series:
     return pd.Series(True, index=df.index)
 
 
+def has_raw_description(df: pd.DataFrame) -> pd.Series:
+    return ~df["description"].isna() & df["description"].astype(str).str.strip().ne("")
+
+
 def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
@@ -81,27 +88,59 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
         out["description_hash"] = out["description"].map(compute_description_hash)
 
     is_english = english_mask(out)
-    obvious_non_swe = (
-        out["swe_classification_tier"].fillna("").eq("regex")
-        & ~out["is_swe"].fillna(False).astype(bool)
-        & ~out["is_swe_adjacent"].fillna(False).astype(bool)
-    )
+    is_linkedin = out["source_platform"].fillna("").astype(str).str.lower().eq(LINKEDIN_PLATFORM)
+    has_description = has_raw_description(out)
+    is_swe = out["is_swe"].fillna(False).astype(bool)
+    is_swe_adjacent = out["is_swe_adjacent"].fillna(False).astype(bool)
+    is_control = out["is_control"].fillna(False).astype(bool)
+    in_default_universe = is_linkedin & is_english & has_description
+
     title_seniority = out["seniority_source"].fillna("").astype(str).str.startswith("title_")
-    high_confidence_rules = (
-        out["swe_classification_tier"].fillna("").eq("regex")
+    strong_occupation_signal = out["swe_classification_tier"].fillna("").isin(CLASSIFICATION_STRONG_TIERS)
+    high_confidence_tech = (
+        (is_swe | is_swe_adjacent)
+        & strong_occupation_signal
         & title_seniority
         & out["ghost_job_risk"].fillna("").eq("low")
     )
 
-    out["llm_skip_reason"] = "send_to_llm"
-    out.loc[~is_english, "llm_skip_reason"] = "non_english"
-    out.loc[is_english & obvious_non_swe, "llm_skip_reason"] = "obvious_non_swe"
-    out.loc[
-        is_english & ~obvious_non_swe & high_confidence_rules,
-        "llm_skip_reason",
-    ] = "high_confidence_rules"
+    needs_extraction = in_default_universe & (is_swe | is_swe_adjacent | is_control)
+    needs_classification = in_default_universe & (is_swe | is_swe_adjacent) & ~high_confidence_tech
 
-    out["llm_candidate"] = out["llm_skip_reason"].eq("send_to_llm")
+    out["needs_llm_classification"] = needs_classification
+    out["needs_llm_extraction"] = needs_extraction
+    out["llm_candidate"] = needs_classification | needs_extraction
+
+    out["llm_route_group"] = "not_routed"
+    out.loc[in_default_universe & is_control, "llm_route_group"] = "control_extraction_only"
+    out.loc[
+        in_default_universe & (is_swe | is_swe_adjacent) & ~needs_classification,
+        "llm_route_group",
+    ] = "technical_extraction_only"
+    out.loc[
+        in_default_universe & (is_swe | is_swe_adjacent) & needs_classification,
+        "llm_route_group",
+    ] = "technical_classification_and_extraction"
+
+    out["llm_classification_reason"] = "not_routed"
+    out.loc[needs_classification, "llm_classification_reason"] = "routed"
+    out.loc[in_default_universe & is_control, "llm_classification_reason"] = "controls_extraction_only"
+    out.loc[
+        in_default_universe & (is_swe | is_swe_adjacent) & ~needs_classification,
+        "llm_classification_reason",
+    ] = "high_confidence_technical_rules"
+
+    out["llm_extraction_reason"] = "not_routed"
+    out.loc[needs_extraction, "llm_extraction_reason"] = "routed"
+
+    out["llm_skip_reason"] = "outside_default_scope"
+    out.loc[~is_linkedin, "llm_skip_reason"] = "non_linkedin_platform"
+    out.loc[is_linkedin & ~is_english, "llm_skip_reason"] = "non_english"
+    out.loc[is_linkedin & is_english & ~has_description, "llm_skip_reason"] = "missing_raw_description"
+    out.loc[in_default_universe & ~(is_swe | is_swe_adjacent | is_control), "llm_skip_reason"] = (
+        "outside_default_classification_scope"
+    )
+    out.loc[needs_extraction | needs_classification, "llm_skip_reason"] = "routed"
     return out
 
 
@@ -118,6 +157,79 @@ def write_table_chunk(
     return writer
 
 
+def build_candidate_queue(skip_reasons_path: Path, candidates_path: Path, log: logging.Logger) -> dict[str, int]:
+    if candidates_path.exists():
+        candidates_path.unlink()
+
+    con = duckdb.connect()
+    source = str(skip_reasons_path)
+    dest = str(candidates_path)
+
+    con.execute(
+        f"""
+        COPY (
+          WITH candidate_rows AS (
+            SELECT
+              description_hash,
+              job_id,
+              source,
+              source_platform,
+              title,
+              company_name,
+              description,
+              CAST(needs_llm_classification AS INTEGER) AS needs_llm_classification,
+              CAST(needs_llm_extraction AS INTEGER) AS needs_llm_extraction
+            FROM read_parquet('{source}')
+            WHERE coalesce(llm_candidate, false)
+          )
+          SELECT
+            description_hash,
+            any_value(job_id) AS job_id,
+            any_value(source) AS source,
+            any_value(source_platform) AS source_platform,
+            any_value(title) AS title,
+            any_value(company_name) AS company_name,
+            any_value(description) AS description,
+            max(needs_llm_classification) = 1 AS needs_llm_classification,
+            max(needs_llm_extraction) = 1 AS needs_llm_extraction,
+            CASE
+              WHEN max(needs_llm_classification) = 1 AND max(needs_llm_extraction) = 1
+                THEN 'classification_and_extraction'
+              WHEN max(needs_llm_extraction) = 1
+                THEN 'extraction_only'
+              WHEN max(needs_llm_classification) = 1
+                THEN 'classification_only'
+              ELSE 'not_routed'
+            END AS llm_route_group,
+            count(*) AS source_row_count
+          FROM candidate_rows
+          GROUP BY description_hash
+        )
+        TO '{dest}'
+        (FORMAT PARQUET, COMPRESSION ZSTD)
+        """
+    )
+
+    stats = con.execute(
+        f"""
+        SELECT
+          count(*) AS candidate_hashes,
+          sum(CASE WHEN needs_llm_classification THEN 1 ELSE 0 END) AS classification_hashes,
+          sum(CASE WHEN needs_llm_extraction THEN 1 ELSE 0 END) AS extraction_hashes
+        FROM read_parquet('{dest}')
+        """
+    ).fetchone()
+    con.close()
+
+    result = {
+        "candidate_hashes": int(stats[0] or 0),
+        "classification_hashes": int(stats[1] or 0),
+        "extraction_hashes": int(stats[2] or 0),
+    }
+    log.info("Candidate queue written: %s", candidates_path)
+    return result
+
+
 def run_stage9(
     input_path: Path = DEFAULT_INPUT_PATH,
     candidates_path: Path = DEFAULT_CANDIDATES_PATH,
@@ -130,105 +242,80 @@ def run_stage9(
     INTERMEDIATE_DIR.mkdir(parents=True, exist_ok=True)
 
     log.info("=" * 70)
-    log.info("Stage 9: LLM pre-filtering")
+    log.info("Stage 9: LLM routing / pre-filtering")
     log.info("=" * 70)
     log.info("Input: %s", input_path)
     log.info("Candidates output: %s", candidates_path)
     log.info("Row-level output: %s", skip_reasons_path)
+
+    if candidates_path.exists():
+        candidates_path.unlink()
+    if skip_reasons_path.exists():
+        skip_reasons_path.unlink()
 
     pf = pq.ParquetFile(input_path)
     total_rows = pf.metadata.num_rows
     log.info("Input rows: %s", f"{total_rows:,}")
 
     skip_writer = None
-    candidate_writer = None
-    seen_hashes: set[str] = set()
-
-    reason_counts = {
-        "non_english": 0,
-        "obvious_non_swe": 0,
-        "high_confidence_rules": 0,
-        "send_to_llm": 0,
-    }
-    candidate_rows = 0
-    unique_candidate_rows = 0
+    route_counts: dict[str, int] = {}
+    skip_reason_counts: dict[str, int] = {}
+    classification_rows = 0
+    extraction_rows = 0
     rows_written = 0
-
-    candidate_cols = [
-        "job_id",
-        "source",
-        "source_platform",
-        "title",
-        "company_name",
-        "description",
-        "description_hash",
-        "llm_candidate",
-        "llm_skip_reason",
-    ]
 
     for chunk_num, batch in enumerate(pf.iter_batches(batch_size=CHUNK_SIZE), start=1):
         t_chunk = time.time()
         chunk = pa.Table.from_batches([batch]).to_pandas()
         chunk = process_chunk(chunk)
-        n = len(chunk)
 
+        for route_group, count in chunk["llm_route_group"].value_counts().items():
+            route_counts[route_group] = route_counts.get(route_group, 0) + int(count)
         for reason, count in chunk["llm_skip_reason"].value_counts().items():
-            reason_counts[reason] = reason_counts.get(reason, 0) + int(count)
+            skip_reason_counts[reason] = skip_reason_counts.get(reason, 0) + int(count)
 
-        candidate_chunk = chunk.loc[chunk["llm_candidate"], candidate_cols].copy()
-        candidate_rows += len(candidate_chunk)
-
-        if not candidate_chunk.empty:
-            is_new = ~candidate_chunk["description_hash"].isin(seen_hashes)
-            unique_candidate_chunk = candidate_chunk.loc[is_new].copy()
-            if not unique_candidate_chunk.empty:
-                seen_hashes.update(unique_candidate_chunk["description_hash"].tolist())
-                unique_candidate_rows += len(unique_candidate_chunk)
-                candidate_writer = write_table_chunk(
-                    unique_candidate_chunk,
-                    candidates_path,
-                    candidate_writer,
-                )
-                del unique_candidate_chunk
+        classification_rows += int(chunk["needs_llm_classification"].sum())
+        extraction_rows += int(chunk["needs_llm_extraction"].sum())
 
         skip_writer = write_table_chunk(chunk, skip_reasons_path, skip_writer)
-        rows_written += n
+        rows_written += len(chunk)
 
         elapsed = time.time() - t_chunk
         log.info(
-            "Chunk %s done in %.1fs (%s/%s rows, %s unique LLM candidates so far)",
+            "Chunk %s done in %.1fs (%s/%s rows, class rows=%s, extraction rows=%s)",
             chunk_num,
             elapsed,
             f"{rows_written:,}",
             f"{total_rows:,}",
-            f"{unique_candidate_rows:,}",
+            f"{classification_rows:,}",
+            f"{extraction_rows:,}",
         )
 
-        del chunk, candidate_chunk, batch
+        del chunk, batch
         gc.collect()
 
     if skip_writer is not None:
         skip_writer.close()
-    if candidate_writer is not None:
-        candidate_writer.close()
+
+    candidate_counts = build_candidate_queue(skip_reasons_path, candidates_path, log)
 
     elapsed_total = time.time() - t0
     log.info("=" * 70)
     log.info("COMPLETE in %.1fs", elapsed_total)
     log.info("=" * 70)
-    for reason in [
-        "non_english",
-        "obvious_non_swe",
-        "high_confidence_rules",
-        "send_to_llm",
-    ]:
-        log.info("  %s: %s", reason, f"{reason_counts.get(reason, 0):,}")
-    log.info("  Candidate rows before dedup: %s", f"{candidate_rows:,}")
-    log.info("  Unique descriptions to send: %s", f"{unique_candidate_rows:,}")
+    for route_group in sorted(route_counts):
+        log.info("  route[%s]: %s", route_group, f"{route_counts[route_group]:,}")
+    for reason in sorted(skip_reason_counts):
+        log.info("  skip_reason[%s]: %s", reason, f"{skip_reason_counts[reason]:,}")
+    log.info("  Rows requesting classification: %s", f"{classification_rows:,}")
+    log.info("  Rows requesting extraction: %s", f"{extraction_rows:,}")
+    log.info("  Unique hashes routed: %s", f"{candidate_counts['candidate_hashes']:,}")
+    log.info("  Unique hashes needing classification: %s", f"{candidate_counts['classification_hashes']:,}")
+    log.info("  Unique hashes needing extraction: %s", f"{candidate_counts['extraction_hashes']:,}")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Stage 9 LLM pre-filtering")
+    parser = argparse.ArgumentParser(description="Stage 9 LLM routing / pre-filtering")
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT_PATH)
     parser.add_argument("--candidates-output", type=Path, default=DEFAULT_CANDIDATES_PATH)
     parser.add_argument("--skip-reasons-output", type=Path, default=DEFAULT_SKIP_REASONS_PATH)

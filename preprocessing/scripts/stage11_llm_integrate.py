@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Stage 11: Integrate cached LLM responses into unified.parquet.
+Stage 11: Integrate cached LLM responses into the final canonical posting table.
 
 Input:
-  - preprocessing/intermediate/stage8_final.parquet
+  - preprocessing/intermediate/stage9_skip_reasons.parquet
   - preprocessing/cache/llm_responses.db
 
 Output:
-  - data/unified.parquet
+  - preprocessing/intermediate/stage11_llm_integrated.parquet
 
 Architectural contract:
   - Stage 11 preserves the row cardinality of the input posting table.
@@ -41,12 +41,14 @@ except ImportError:  # pragma: no cover
 from stage10_llm_classify import (
     CLASSIFICATION_PROMPT_VERSION,
     CLASSIFICATION_TASK_NAME,
+    EXTRACTION_STATUS_CANNOT_COMPLETE,
+    EXTRACTION_STATUS_OK,
     EXTRACTION_PROMPT_VERSION,
     EXTRACTION_TASK_NAME,
     fetch_cached_rows,
-    join_selected_blocks,
+    join_retained_units,
     open_cache,
-    segment_description_into_blocks,
+    segment_description_into_units,
 )
 
 
@@ -56,15 +58,12 @@ CACHE_DIR = PROJECT_ROOT / "preprocessing" / "cache"
 LOG_DIR = PROJECT_ROOT / "preprocessing" / "logs"
 DATA_DIR = PROJECT_ROOT / "data"
 
-DEFAULT_INPUT_PATH = INTERMEDIATE_DIR / "stage8_final.parquet"
+DEFAULT_INPUT_PATH = INTERMEDIATE_DIR / "stage9_skip_reasons.parquet"
 DEFAULT_CACHE_DB = CACHE_DIR / "llm_responses.db"
-DEFAULT_OUTPUT_PATH = DATA_DIR / "unified.parquet"
-DEFAULT_VERBATIM_LOG = LOG_DIR / "stage11_verbatim_failures.jsonl"
+DEFAULT_OUTPUT_PATH = INTERMEDIATE_DIR / "stage11_llm_integrated.parquet"
+DEFAULT_VERBATIM_LOG = LOG_DIR / "stage11_extraction_failures.jsonl"
 
 CHUNK_SIZE = 200_000
-SIMILARITY_THRESHOLD = 0.99
-
-
 def configure_logging() -> logging.Logger:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -108,62 +107,96 @@ def fuzzy_similarity(left: str, right: str) -> float:
 def validate_extraction_payload(
     original_description: str,
     payload: dict,
-    similarity_threshold: float = SIMILARITY_THRESHOLD,
 ) -> dict:
-    blocks = segment_description_into_blocks(original_description)
-    keep_block_ids = payload.get("keep_block_ids", []) or []
-    selected_text = payload.get("selected_text", "") or ""
-    all_boilerplate = bool(payload.get("all_boilerplate", False))
+    units = segment_description_into_units(original_description)
+    task_status = payload.get("task_status")
+    boilerplate_unit_ids = payload.get("boilerplate_unit_ids", []) or []
+    uncertain_unit_ids = payload.get("uncertain_unit_ids", []) or []
+    model_reason = payload.get("reason", "") or ""
 
-    normalized_ids = []
-    invalid_ids = []
-    for value in keep_block_ids:
+    normalized_drop_ids = []
+    invalid_drop_ids = []
+    for value in boilerplate_unit_ids:
         if isinstance(value, bool):
-            invalid_ids.append(value)
+            invalid_drop_ids.append(value)
             continue
         try:
-            block_id = int(value)
+            unit_id = int(value)
         except (TypeError, ValueError):
-            invalid_ids.append(value)
+            invalid_drop_ids.append(value)
             continue
-        if block_id < 1 or block_id > len(blocks):
-            invalid_ids.append(block_id)
+        if unit_id < 1 or unit_id > len(units):
+            invalid_drop_ids.append(unit_id)
             continue
-        normalized_ids.append(block_id)
+        normalized_drop_ids.append(unit_id)
+    normalized_drop_ids = sorted(set(normalized_drop_ids))
 
-    ordered_unique_ids = []
-    for block_id in normalized_ids:
-        if block_id not in ordered_unique_ids:
-            ordered_unique_ids.append(block_id)
+    normalized_uncertain_ids = []
+    invalid_uncertain_ids = []
+    for value in uncertain_unit_ids:
+        if isinstance(value, bool):
+            invalid_uncertain_ids.append(value)
+            continue
+        try:
+            unit_id = int(value)
+        except (TypeError, ValueError):
+            invalid_uncertain_ids.append(value)
+            continue
+        if unit_id < 1 or unit_id > len(units):
+            invalid_uncertain_ids.append(unit_id)
+            continue
+        normalized_uncertain_ids.append(unit_id)
+    normalized_uncertain_ids = sorted(set(normalized_uncertain_ids))
 
-    reconstructed_text = join_selected_blocks(blocks, ordered_unique_ids)
-    similarity = fuzzy_similarity(selected_text, reconstructed_text)
+    overlap_ids = sorted(set(normalized_drop_ids) & set(normalized_uncertain_ids))
+    reconstructed_text = (
+        ""
+        if task_status != EXTRACTION_STATUS_OK
+        else join_retained_units(units, normalized_drop_ids)
+    )
+    total_chars = sum(len(unit["text"]) for unit in units)
+    dropped_chars = sum(len(unit["text"]) for unit in units if unit["unit_id"] in set(normalized_drop_ids))
+    drop_ratio_chars = None if total_chars == 0 else dropped_chars / total_chars
+    kept_unit_ids = [unit["unit_id"] for unit in units if unit["unit_id"] not in set(normalized_drop_ids)]
 
     reason = "ok"
     passed = True
-    if invalid_ids:
+    if not units:
         passed = False
-        reason = "invalid_block_ids"
-    elif all_boilerplate and ordered_unique_ids:
+        reason = "no_units"
+    elif invalid_drop_ids or invalid_uncertain_ids:
         passed = False
-        reason = "all_boilerplate_with_keep_ids"
-    elif not ordered_unique_ids and normalize_ws(selected_text):
+        reason = "invalid_unit_ids"
+    elif overlap_ids:
         passed = False
-        reason = "selected_text_without_keep_ids"
-    elif similarity < similarity_threshold:
+        reason = "overlapping_unit_ids"
+    elif task_status == EXTRACTION_STATUS_CANNOT_COMPLETE:
         passed = False
-        reason = "selected_text_similarity_below_threshold"
+        reason = "cannot_complete"
+    elif task_status != EXTRACTION_STATUS_OK:
+        passed = False
+        reason = "invalid_task_status"
+    elif not reconstructed_text.strip():
+        passed = False
+        reason = "all_units_dropped"
 
     return {
         "passed": passed,
         "reason": reason,
-        "block_count": len(blocks),
-        "keep_block_ids": ordered_unique_ids,
-        "invalid_block_ids": invalid_ids,
-        "selected_text": selected_text,
+        "task_status": task_status,
+        "unit_count": len(units),
+        "single_unit": len(units) == 1,
+        "boilerplate_unit_ids": normalized_drop_ids,
+        "uncertain_unit_ids": normalized_uncertain_ids,
+        "invalid_drop_ids": invalid_drop_ids,
+        "invalid_uncertain_ids": invalid_uncertain_ids,
+        "overlap_ids": overlap_ids,
+        "kept_unit_ids": kept_unit_ids,
         "reconstructed_text": reconstructed_text,
-        "similarity": similarity,
-        "all_boilerplate": all_boilerplate,
+        "drop_ratio_chars": drop_ratio_chars,
+        "model_reason": model_reason,
+        # Stage 12 expects a scalar quality field; local reconstruction is deterministic.
+        "similarity": 1.0 if passed else 0.0,
     }
 
 
@@ -192,7 +225,9 @@ def run_stage11(
     log.info("Input: %s", input_path)
     log.info("Cache DB: %s", cache_db)
     log.info("Output: %s", output_path)
-    log.info("Row-cardinality rule: Stage 11 preserves input posting rows and reattaches cached LLM outputs by description_hash.")
+    log.info(
+        "Row-cardinality rule: Stage 11 preserves input posting rows and reattaches only the task outputs requested by Stage 9."
+    )
 
     conn = open_cache(cache_db)
     pf = pq.ParquetFile(input_path)
@@ -212,6 +247,16 @@ def run_stage11(
 
         if "description_hash" not in chunk.columns:
             chunk["description_hash"] = chunk["description"].map(compute_description_hash)
+        route_classification_flags = (
+            chunk["needs_llm_classification"].fillna(False).astype(bool).tolist()
+            if "needs_llm_classification" in chunk.columns
+            else [True] * len(chunk)
+        )
+        route_extraction_flags = (
+            chunk["needs_llm_extraction"].fillna(False).astype(bool).tolist()
+            if "needs_llm_extraction" in chunk.columns
+            else [True] * len(chunk)
+        )
 
         hashes = chunk["description_hash"].astype(str).tolist()
         classification_cache = fetch_cached_rows(
@@ -236,22 +281,38 @@ def run_stage11(
         class_prompt_values = []
         extract_prompt_values = []
         extraction_ids_values = []
-        extraction_similarity_values = []
+        extraction_status_values = []
+        extraction_reason_values = []
+        extraction_model_reason_values = []
+        extraction_uncertain_ids_values = []
+        extraction_units_count_values = []
+        extraction_single_unit_values = []
+        extraction_drop_ratio_values = []
         extraction_validated_values = []
 
-        for row in chunk.itertuples(index=False):
+        for row, route_classification, route_extraction in zip(
+            chunk.itertuples(index=False),
+            route_classification_flags,
+            route_extraction_flags,
+        ):
             description_hash = str(row.description_hash)
             classification_row = classification_cache.get(description_hash)
             extraction_row = extraction_cache.get(description_hash)
 
-            if classification_row is None:
+            if not route_classification:
+                class_payload = None
+                classification_row = None
+            elif classification_row is None:
                 classification_misses += 1
                 class_payload = None
             else:
                 classification_hits += 1
                 class_payload = json.loads(classification_row["response_json"])
 
-            if extraction_row is None:
+            if not route_extraction:
+                extraction_validation = None
+                extraction_row = None
+            elif extraction_row is None:
                 extraction_misses += 1
                 extraction_validation = None
             else:
@@ -272,10 +333,16 @@ def run_stage11(
                             "job_id": row.job_id,
                             "description_hash": description_hash,
                             "reason": extraction_validation["reason"],
-                            "similarity": extraction_validation["similarity"],
-                            "keep_block_ids": extraction_validation["keep_block_ids"],
-                            "invalid_block_ids": extraction_validation["invalid_block_ids"],
-                            "selected_text_preview": extraction_validation["selected_text"][:1200],
+                            "task_status": extraction_validation["task_status"],
+                            "unit_count": extraction_validation["unit_count"],
+                            "single_unit": extraction_validation["single_unit"],
+                            "boilerplate_unit_ids": extraction_validation["boilerplate_unit_ids"],
+                            "uncertain_unit_ids": extraction_validation["uncertain_unit_ids"],
+                            "invalid_drop_ids": extraction_validation["invalid_drop_ids"],
+                            "invalid_uncertain_ids": extraction_validation["invalid_uncertain_ids"],
+                            "overlap_ids": extraction_validation["overlap_ids"],
+                            "drop_ratio_chars": extraction_validation["drop_ratio_chars"],
+                            "model_reason": extraction_validation["model_reason"],
                             "reconstructed_text_preview": extraction_validation["reconstructed_text"][:1200],
                             "description_preview": ("" if row.description is None else str(row.description))[:1200],
                         },
@@ -300,10 +367,30 @@ def run_stage11(
             extraction_ids_values.append(
                 None
                 if extraction_validation is None
-                else json.dumps(extraction_validation["keep_block_ids"], ensure_ascii=False)
+                else json.dumps(extraction_validation["boilerplate_unit_ids"], ensure_ascii=False)
             )
-            extraction_similarity_values.append(
-                None if extraction_validation is None else extraction_validation["similarity"]
+            extraction_status_values.append(
+                None if extraction_validation is None else extraction_validation["task_status"]
+            )
+            extraction_reason_values.append(
+                None if extraction_validation is None else extraction_validation["reason"]
+            )
+            extraction_model_reason_values.append(
+                None if extraction_validation is None else extraction_validation["model_reason"]
+            )
+            extraction_uncertain_ids_values.append(
+                None
+                if extraction_validation is None
+                else json.dumps(extraction_validation["uncertain_unit_ids"], ensure_ascii=False)
+            )
+            extraction_units_count_values.append(
+                None if extraction_validation is None else extraction_validation["unit_count"]
+            )
+            extraction_single_unit_values.append(
+                None if extraction_validation is None else extraction_validation["single_unit"]
+            )
+            extraction_drop_ratio_values.append(
+                None if extraction_validation is None else extraction_validation["drop_ratio_chars"]
             )
             extraction_validated_values.append(
                 None if extraction_validation is None else extraction_validation["passed"]
@@ -317,9 +404,28 @@ def run_stage11(
         chunk["llm_model_extraction"] = extract_model_values
         chunk["llm_prompt_version_classification"] = class_prompt_values
         chunk["llm_prompt_version_extraction"] = extract_prompt_values
-        chunk["llm_extraction_block_ids"] = extraction_ids_values
-        chunk["llm_extraction_similarity"] = pd.Series(extraction_similarity_values, dtype="float64")
+        chunk["llm_extraction_unit_ids"] = extraction_ids_values
+        chunk["llm_extraction_uncertain_unit_ids"] = extraction_uncertain_ids_values
+        chunk["llm_extraction_status"] = extraction_status_values
+        chunk["llm_extraction_reason"] = extraction_reason_values
+        chunk["llm_extraction_model_reason"] = extraction_model_reason_values
+        chunk["llm_extraction_units_count"] = pd.Series(extraction_units_count_values, dtype="Int64")
+        chunk["llm_extraction_single_unit"] = pd.Series(extraction_single_unit_values, dtype="boolean")
+        chunk["llm_extraction_drop_ratio"] = pd.Series(extraction_drop_ratio_values, dtype="float64")
         chunk["llm_extraction_validated"] = pd.Series(extraction_validated_values, dtype="boolean")
+
+        chunk = chunk.drop(
+            columns=[
+                "needs_llm_classification",
+                "needs_llm_extraction",
+                "llm_candidate",
+                "llm_route_group",
+                "llm_skip_reason",
+                "llm_classification_reason",
+                "llm_extraction_reason",
+            ],
+            errors="ignore",
+        )
 
         out_table = pa.Table.from_pandas(chunk, preserve_index=False)
         if writer is None:

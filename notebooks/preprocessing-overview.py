@@ -586,7 +586,7 @@ gc.collect()
 # ## 8. Quality flags summary
 #
 # Stage 8 adds several quality flags. The most important ones:
-# - `ghost_job_risk`: HIGH / MEDIUM / LOW based on posting age and repost signals
+# - `ghost_job_risk`: HIGH / MEDIUM / LOW based on junior seniority plus YOE-based contradiction signals
 # - `boilerplate_flag`: ok / under_removed / over_removed / empty_core
 # - `description_quality_flag`: ok / empty / too_short / non_english
 

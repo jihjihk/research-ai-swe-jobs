@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Stage 4: Deduplication (memory-safe, two-pass)
+Stage 4: Company canonicalization + deduplication (memory-safe, two-pass)
 
+Prep   — Build a canonical company-name lookup from Stage 2's
+         `company_name_effective` field and persist it as an audit artifact.
 Pass 1 — Load only dedup key columns (~0.3 GB) + description hashes.
           Compute which rows to keep via exact dedup, near-dedup, and
           multi-location flagging.
@@ -11,6 +13,7 @@ This stays well under 31 GB RAM.
 
 Input:  intermediate/stage3_boilerplate.parquet  (1.57M rows, ~6.4 GB)
 Output: intermediate/stage4_dedup.parquet
+        intermediate/stage4_company_name_lookup.parquet
 """
 
 import gc
@@ -20,11 +23,12 @@ import re
 import time
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from rapidfuzz import fuzz
+
+from company_name_canonicalization import build_company_name_lookup
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
@@ -43,6 +47,26 @@ log = logging.getLogger(__name__)
 CHUNK_SIZE = 200_000
 FUZZY_TITLE_THRESHOLD = 85  # token_set_ratio threshold for near-dup titles
 MAX_COMPANY_GROUP_FOR_FUZZY = 5000  # skip fuzzy for mega-groups (aggregators)
+LOOKUP_OUTPUT_PATH = INTERMEDIATE_DIR / "stage4_company_name_lookup.parquet"
+COMPANY_SUFFIXES = {
+    "inc",
+    "incorporated",
+    "llc",
+    "corp",
+    "corporation",
+    "co",
+    "company",
+    "ltd",
+    "limited",
+    "plc",
+    "gmbh",
+    "ag",
+    "sa",
+    "lp",
+    "llp",
+    "pte",
+    "holdings",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -50,10 +74,56 @@ MAX_COMPANY_GROUP_FOR_FUZZY = 5000  # skip fuzzy for mega-groups (aggregators)
 # ---------------------------------------------------------------------------
 
 def _hash_text(text: str) -> str:
-    """MD5 hash of text for fast equality check."""
+    """MD5 hash of lightly normalized text for fast equality check."""
     if not isinstance(text, str) or not text:
         return ""
-    return hashlib.md5(text.encode("utf-8", errors="replace")).hexdigest()
+    normalized = re.sub(r"\s+", " ", text).strip().lower()
+    if not normalized:
+        return ""
+    return hashlib.md5(normalized.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _normalize_entity_text(value: str) -> str:
+    """Lowercase text with punctuation collapsed for deterministic keys."""
+    if not isinstance(value, str):
+        return ""
+    text = value.strip().lower()
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _normalize_company_for_dedup(value: str) -> str:
+    """Normalize company names and drop common legal suffixes."""
+    tokens = _normalize_entity_text(value).split()
+    while tokens and tokens[-1] in COMPANY_SUFFIXES:
+        tokens.pop()
+    return " ".join(tokens)
+
+
+def _blank_mask(series: pd.Series) -> pd.Series:
+    if len(series) == 0:
+        return pd.Series(dtype=bool)
+    return series.isna() | series.astype(str).str.strip().eq("")
+
+
+def _resolve_company_effective(chunk: pd.DataFrame, company_source_col: str) -> pd.Series:
+    if company_source_col in chunk.columns:
+        effective = chunk[company_source_col].copy()
+    else:
+        effective = chunk["company_name"].copy()
+
+    if "company_name" in chunk.columns and company_source_col != "company_name":
+        effective = effective.where(~_blank_mask(effective), chunk["company_name"])
+
+    return effective
+
+
+def _normalize_location_for_dedup(value: str) -> str:
+    """Normalize location strings for exact-location matching."""
+    if not isinstance(value, str):
+        return ""
+    text = re.sub(r",\s*US$", "", value, flags=re.IGNORECASE)
+    return _normalize_entity_text(text)
 
 
 def _normalize_title_for_dedup(title: str) -> str:
@@ -90,22 +160,54 @@ def _titles_are_near_duplicates(a: str, b: str) -> bool:
 
     return fuzz.ratio(a, b) >= 75
 
-
-def _count_filled(row: pd.Series, cols: list[str]) -> int:
-    """Count how many of the given columns have non-null, non-empty values."""
-    count = 0
-    for c in cols:
-        v = row.get(c)
-        if v is not None and v != "" and not (isinstance(v, float) and np.isnan(v)):
-            count += 1
-    return count
-
-
 # ---------------------------------------------------------------------------
 # Pass 1: Build the keep/drop index + description hashes
 # ---------------------------------------------------------------------------
 
-def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
+def build_stage4_company_lookup(input_path: Path) -> tuple[pd.DataFrame, dict[str, str], dict[str, str], str]:
+    schema_names = pq.ParquetFile(input_path).schema.names
+    company_source_col = "company_name_effective" if "company_name_effective" in schema_names else "company_name"
+
+    log.info("--- Stage 4 prep: company canonicalization lookup ---")
+    log.info("  Source field for canonicalization: %s", company_source_col)
+
+    table = pq.read_table(str(input_path), columns=[company_source_col])
+    names = table.column(company_source_col).to_pandas()
+    lookup_df = build_company_name_lookup(names, source_column=company_source_col)
+    lookup_df = lookup_df.rename(columns={company_source_col: "company_name_effective"})
+
+    changed = int(
+        (
+            lookup_df["company_name_effective"]
+            != lookup_df["company_name_canonical"]
+        ).sum()
+    )
+    method_counts = lookup_df["company_name_canonical_method"].value_counts().to_dict()
+    log.info("  Lookup rows: %s", f"{len(lookup_df):,}")
+    log.info("  Canonical label differs from effective label: %s", f"{changed:,}")
+    for method, count in sorted(method_counts.items()):
+        log.info("    %-16s %10s", method + ":", f"{count:,}")
+
+    lookup_df.to_parquet(LOOKUP_OUTPUT_PATH, index=False)
+    log.info("  Wrote lookup artifact: %s", LOOKUP_OUTPUT_PATH)
+
+    canonical_map = dict(
+        zip(lookup_df["company_name_effective"], lookup_df["company_name_canonical"])
+    )
+    method_map = dict(
+        zip(
+            lookup_df["company_name_effective"],
+            lookup_df["company_name_canonical_method"],
+        )
+    )
+    return lookup_df, canonical_map, method_map, company_source_col
+
+
+def pass1_build_index(
+    input_path: Path,
+    company_source_col: str,
+    canonical_map: dict[str, str],
+) -> tuple[set, set, dict]:
     """
     Returns:
         keep_indices : set of integer row indices to keep
@@ -117,10 +219,11 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
 
     # Columns needed for dedup decisions (lightweight)
     key_cols = [
-        "job_id", "source", "title", "title_normalized", "company_name_normalized",
+        "job_id", "source", "title", company_source_col, "company_name",
         "location", "description_length", "description_core",
         "skills_raw", "seniority_native",
     ]
+    key_cols = list(dict.fromkeys(key_cols))
 
     pf = pq.ParquetFile(input_path)
     total_rows = pf.metadata.num_rows
@@ -134,8 +237,14 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
         chunk.index = range(offset, offset + len(chunk))
 
         # Compute hash of description_core, then drop the heavy column
+        effective_company = _resolve_company_effective(chunk, company_source_col)
+        chunk["company_name_canonical"] = effective_company.map(canonical_map)
+        missing_canonical = chunk["company_name_canonical"].isna()
+        chunk.loc[missing_canonical, "company_name_canonical"] = effective_company.loc[missing_canonical]
         chunk["desc_hash"] = chunk["description_core"].apply(_hash_text)
-        chunk["title_dedup"] = chunk["title"].apply(_normalize_title_for_dedup)
+        chunk["title_key"] = chunk["title"].apply(_normalize_title_for_dedup)
+        chunk["company_key"] = chunk["company_name_canonical"].apply(_normalize_company_for_dedup)
+        chunk["location_key"] = chunk["location"].apply(_normalize_location_for_dedup)
         chunk.drop(columns=["description_core"], inplace=True)
 
         frames.append(chunk)
@@ -162,26 +271,30 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
     # 4a. Exact dedup: job_id
     # -------------------------------------------------------------------
     log.info("--- 4a. Exact dedup on job_id ---")
-    before = len(df)
     dup_jobid = df.duplicated(subset=["job_id"], keep="first")
     n_jobid_dup = dup_jobid.sum()
     log.info(f"  job_id duplicates found: {n_jobid_dup:,}")
     drop_jobid = set(df.index[dup_jobid])
 
     # -------------------------------------------------------------------
-    # 4a. Exact dedup: (title_normalized, company_name_normalized, location)
+    # 4a. Exact dedup: canonical opening key with matching description hash
     # -------------------------------------------------------------------
-    log.info("--- 4a. Exact dedup on (title, company, location) ---")
+    log.info("--- 4a. Exact dedup on (company, title, location, desc_hash) ---")
     # Work on the non-job_id-dup rows
     df_work = df.drop(index=list(drop_jobid))
-    dup_exact = df_work.duplicated(
-        subset=["title_dedup", "company_name_normalized", "location"],
+    df_work_with_desc = df_work[df_work["desc_hash"] != ""]
+    dup_exact = df_work_with_desc.duplicated(
+        subset=["company_key", "title_key", "location_key", "desc_hash"],
         keep="first",
     )
     n_exact_dup = dup_exact.sum()
-    log.info(f"  (title, company, location) duplicates found: {n_exact_dup:,}")
-    drop_exact = set(df_work.index[dup_exact])
-    del df_work, dup_exact
+    log.info(f"  exact opening duplicates found: {n_exact_dup:,}")
+    log.info(
+        "  rows skipped for exact opening dedup due to missing description: %s",
+        f"{len(df_work) - len(df_work_with_desc):,}",
+    )
+    drop_exact = set(df_work_with_desc.index[dup_exact])
+    del df_work, df_work_with_desc, dup_exact
     gc.collect()
 
     all_drops_exact = drop_jobid | drop_exact
@@ -196,7 +309,7 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
              f"(removed {len(all_drops_exact):,})")
 
     # -------------------------------------------------------------------
-    # 4b. Near-duplicate detection (within company+location groups)
+    # 4b. Near-duplicate detection (within company+location+description groups)
     # -------------------------------------------------------------------
     log.info("--- 4b. Near-duplicate detection ---")
     df_remaining = df.loc[sorted(remaining_indices)].copy()
@@ -213,13 +326,11 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
     df_remaining["_completeness"] = _comp.sum(axis=1).values
     del _comp
 
-    # Group by (company, location) — we only drop same-location near-dups,
-    # so this is far more efficient than grouping by company alone
-    cl_groups = df_remaining.groupby(
-        ["company_name_normalized", "location"], sort=False
-    )
+    # Fuzzy matching only runs when description evidence agrees.
+    df_fuzzy = df_remaining[df_remaining["desc_hash"] != ""]
+    cl_groups = df_fuzzy.groupby(["company_key", "location_key", "desc_hash"], sort=False)
     n_groups = cl_groups.ngroups
-    log.info(f"  (company, location) groups: {n_groups:,}")
+    log.info(f"  (company, location, desc_hash) fuzzy groups: {n_groups:,}")
 
     near_dup_drops = set()
     skipped_large = 0
@@ -227,7 +338,7 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
     fuzzy_comparisons = 0
     fuzzy_matches = 0
 
-    for (company, loc), group in cl_groups:
+    for _, group in cl_groups:
         processed_groups += 1
         if processed_groups % 50000 == 0:
             log.info(f"  Near-dedup progress: {processed_groups:,}/{n_groups:,} groups "
@@ -240,7 +351,7 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
             skipped_large += 1
             continue
 
-        titles = group["title_dedup"].values
+        titles = group["title_key"].values
         indices = group.index.values
         completeness = group["_completeness"].values
         desc_lengths = group["description_length"].values
@@ -272,7 +383,10 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
     log.info(f"  Fuzzy comparisons: {fuzzy_comparisons:,}")
     log.info(f"  Fuzzy matches (>= {FUZZY_TITLE_THRESHOLD}): {fuzzy_matches:,}")
     log.info(f"  Near-dup drops: {len(near_dup_drops):,}")
-    log.info(f"  Skipped {skipped_large} (company,location) groups with >{MAX_COMPANY_GROUP_FOR_FUZZY} postings")
+    log.info(
+        f"  Skipped {skipped_large} (company,location,desc_hash) groups "
+        f"with >{MAX_COMPANY_GROUP_FOR_FUZZY} postings"
+    )
 
     all_drops = all_drops_exact | near_dup_drops
     keep_indices = set(df.index) - all_drops
@@ -290,17 +404,16 @@ def pass1_build_index(input_path: Path) -> tuple[set, set, dict]:
     log.info("--- 4c. Multi-location flagging ---")
     df_kept = df.loc[sorted(keep_indices)]
 
-    # Multi-location: same (title_normalized, company_name_normalized, desc_hash)
-    # appearing at 2+ distinct locations
+    # Multi-location: same canonical opening at 2+ distinct normalized locations.
     ml_key = df_kept.groupby(
-        ["title_normalized", "company_name_normalized", "desc_hash"]
-    )["location"].transform("nunique")
-    multi_loc_mask = ml_key >= 2
+        ["company_key", "title_key", "desc_hash"]
+    )["location_key"].transform("nunique")
+    multi_loc_mask = (df_kept["desc_hash"] != "") & (ml_key >= 2)
     multi_loc_indices = set(df_kept.index[multi_loc_mask])
 
     log.info(f"  Multi-location postings flagged: {len(multi_loc_indices):,}")
 
-    del df, df_remaining, df_kept
+    del df, df_remaining, df_fuzzy, df_kept
     gc.collect()
 
     elapsed = time.time() - t0
@@ -318,6 +431,9 @@ def pass2_write_output(
     output_path: Path,
     keep_indices: set,
     multi_loc_indices: set,
+    company_source_col: str,
+    canonical_map: dict[str, str],
+    method_map: dict[str, str],
 ):
     log.info("--- Pass 2: Writing deduplicated output ---")
     t0 = time.time()
@@ -345,9 +461,20 @@ def pass2_write_output(
             continue
 
         # Add dedup columns
+        effective_company = _resolve_company_effective(chunk, company_source_col)
+        chunk["company_name_effective"] = effective_company
+        chunk["company_name_canonical"] = effective_company.map(canonical_map)
+        missing_canonical = chunk["company_name_canonical"].isna()
+        chunk.loc[missing_canonical, "company_name_canonical"] = effective_company.loc[missing_canonical]
+        chunk["company_name_canonical_method"] = effective_company.map(method_map)
+        missing_method = chunk["company_name_canonical_method"].isna()
+        chunk.loc[missing_method, "company_name_canonical_method"] = "passthrough"
         chunk["is_multi_location"] = chunk.index.isin(multi_loc_indices)
 
         # Force consistent dtypes for new columns
+        chunk["company_name_effective"] = chunk["company_name_effective"].astype("string")
+        chunk["company_name_canonical"] = chunk["company_name_canonical"].astype("string")
+        chunk["company_name_canonical_method"] = chunk["company_name_canonical_method"].astype("string")
         chunk["is_multi_location"] = chunk["is_multi_location"].astype(bool)
 
         # Write
@@ -376,7 +503,7 @@ def pass2_write_output(
 
 def run_stage4():
     log.info("=" * 60)
-    log.info("STAGE 4: Deduplication (two-pass, memory-safe)")
+    log.info("STAGE 4: Company canonicalization + deduplication")
     log.info("=" * 60)
 
     input_path = INTERMEDIATE_DIR / "stage3_boilerplate.parquet"
@@ -386,11 +513,25 @@ def run_stage4():
     total_rows = pf.metadata.num_rows
     log.info(f"Input: {total_rows:,} rows")
 
+    _, canonical_map, method_map, company_source_col = build_stage4_company_lookup(input_path)
+
     # Pass 1: determine which rows to keep
-    keep_indices, multi_loc_indices, funnel = pass1_build_index(input_path)
+    keep_indices, multi_loc_indices, funnel = pass1_build_index(
+        input_path,
+        company_source_col,
+        canonical_map,
+    )
 
     # Pass 2: write filtered output
-    written = pass2_write_output(input_path, output_path, keep_indices, multi_loc_indices)
+    written = pass2_write_output(
+        input_path,
+        output_path,
+        keep_indices,
+        multi_loc_indices,
+        company_source_col,
+        canonical_map,
+        method_map,
+    )
 
     # -------------------------------------------------------------------
     # 4d. Dedup funnel report

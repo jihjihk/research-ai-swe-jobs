@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-Stages 6b-6d, 7, 8: Location normalization, date validation,
-language detection, temporal alignment, and quality flags.
+Stages 6-8: field normalization, temporal alignment, and quality flags.
+
+Stage 6 owns row-level location parsing, remote inference, and metro enrichment.
+Stage 7 owns temporal derivations (`period`, `posting_age_days`, `scrape_week`).
+Stage 8 owns quality flags and utility fields (`date_flag`, `is_english`,
+`description_hash`, `ghost_job_risk`, `description_quality_flag`) plus
+provenance metadata.
 
 All operations are per-row with no cross-row dependencies, so chunked
 streaming works perfectly.
@@ -15,10 +20,12 @@ gc.collect() after each chunk.  All new numeric columns forced to float64.
 
 import gc
 import hashlib
+import json
 import logging
 import re
 import string
 import time
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -33,9 +40,13 @@ from langdetect import DetectorFactory, LangDetectException, detect
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
 LOG_DIR = PROJECT_ROOT / "preprocessing" / "logs"
+REFERENCE_DIR = PROJECT_ROOT / "preprocessing" / "reference"
 
 INPUT_PATH = INTERMEDIATE_DIR / "stage5_classification.parquet"
 OUTPUT_PATH = INTERMEDIATE_DIR / "stage8_final.parquet"
+TMP_OUTPUT_PATH = INTERMEDIATE_DIR / "stage8_final.parquet.tmp"
+METRO_ALIAS_PATH = REFERENCE_DIR / "metro_aliases.json"
+METRO_CITY_STATE_REFERENCE_PATH = REFERENCE_DIR / "metro_city_state_lookup.parquet"
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -84,12 +95,13 @@ STATE_NAME_TO_ABBR = {
     "district of columbia": "DC",
 }
 
-# Date ranges per (source, platform) for stage 6d
+# Date ranges per (source, platform) for quality flagging.
+# Current-format scraped files should not have a hard-coded upper bound.
 DATE_RANGES = {
     ("kaggle_arshkon", "linkedin"):   (pd.Timestamp("2024-04-01"), pd.Timestamp("2024-05-01")),
     ("kaggle_asaniczka", "linkedin"): (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-02-01")),
-    ("scraped", "linkedin"):          (pd.Timestamp("2026-03-20"), pd.Timestamp("2026-12-31")),
-    ("scraped", "indeed"):            (pd.Timestamp("2026-03-20"), pd.Timestamp("2026-12-31")),
+    ("scraped", "linkedin"):          (pd.Timestamp("2026-03-20"), None),
+    ("scraped", "indeed"):            (pd.Timestamp("2026-03-20"), None),
 }
 
 # Period mapping for historical sources; scraped is derived from scrape_date
@@ -113,15 +125,170 @@ YEARS_EXP_RE = re.compile(
     re.IGNORECASE,
 )
 
+NON_METRO_LABEL_RE = re.compile(
+    r"\b(remote|anywhere|united states|usa|us|hybrid|on[- ]?site|onsite)\b",
+    re.IGNORECASE,
+)
+
 DetectorFactory.seed = 0
 ASCII_PRINTABLE = set(string.printable)
+
+
+def normalize_key(value: str | None) -> str:
+    """Normalize a free-text label for deterministic lookup keys."""
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip().lower()
+    if not text:
+        return ""
+    text = text.replace("&", " and ")
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def load_metro_aliases() -> dict[str, str]:
+    """Load manual metro alias mappings keyed by normalized alias string."""
+    if not METRO_ALIAS_PATH.exists():
+        return {}
+
+    raw = json.loads(METRO_ALIAS_PATH.read_text())
+    aliases: dict[str, str] = {}
+    for canonical, alias_list in raw.items():
+        canonical_clean = canonical.strip()
+        if not canonical_clean:
+            continue
+        aliases[normalize_key(canonical_clean)] = canonical_clean
+        for alias in alias_list:
+            alias_key = normalize_key(alias)
+            if alias_key:
+                aliases[alias_key] = canonical_clean
+    return aliases
+
+
+def canonicalize_metro_label(
+    label: str | None,
+    metro_aliases: dict[str, str],
+    *,
+    allow_passthrough: bool = False,
+) -> str | None:
+    """Return the canonical study-metro label for a free-text metro-like string."""
+    key = normalize_key(label)
+    if not key:
+        return None
+    if NON_METRO_LABEL_RE.search(key):
+        return None
+    canonical = metro_aliases.get(key)
+    if canonical is not None:
+        return canonical
+    if allow_passthrough and label and str(label).strip():
+        return str(label).strip()
+    return None
+
+
+def metro_lookup_key(city: str | None, state: str | None) -> str | None:
+    """Return the deterministic city/state key used for metro lookup."""
+    city_key = normalize_key(city)
+    state_key = normalize_key(state)
+    if not city_key or not state_key:
+        return None
+    return f"{city_key}|{state_key.upper()}"
+
+
+def build_scraped_city_state_metro_lookup(
+    input_path: Path,
+    metro_aliases: dict[str, str],
+) -> tuple[dict[str, tuple[str, str]], dict[str, int]]:
+    """Build a city/state -> metro lookup from controlled scraped metro metadata."""
+    pf = pq.ParquetFile(input_path)
+    metro_counts: dict[str, Counter] = defaultdict(Counter)
+    stats = {
+        "scraped_rows_seen": 0,
+        "scraped_rows_with_search_metro": 0,
+        "scraped_rows_with_city_state": 0,
+        "lookup_keys": 0,
+        "lookup_high": 0,
+        "lookup_medium": 0,
+    }
+
+    for batch in pf.iter_batches(
+        batch_size=CHUNK_SIZE,
+        columns=["source", "location", "search_metro_name"],
+    ):
+        chunk = batch.to_pandas()
+        chunk = chunk.loc[chunk["source"] == "scraped", ["location", "search_metro_name"]]
+        stats["scraped_rows_seen"] += len(chunk)
+        if len(chunk) == 0:
+            continue
+
+        for row in chunk.itertuples(index=False):
+            canonical_metro = canonicalize_metro_label(
+                row.search_metro_name,
+                metro_aliases,
+                allow_passthrough=True,
+            )
+            if canonical_metro is None:
+                continue
+
+            stats["scraped_rows_with_search_metro"] += 1
+            loc = normalize_location(row.location)
+            if loc["country_extracted"] not in {"US", None}:
+                continue
+
+            key = metro_lookup_key(loc["city_extracted"], loc["state_normalized"])
+            if key is None:
+                continue
+
+            stats["scraped_rows_with_city_state"] += 1
+            metro_counts[key][canonical_metro] += 1
+
+    lookup: dict[str, tuple[str, str]] = {}
+    for key, counts in metro_counts.items():
+        total = sum(counts.values())
+        if total < 2:
+            continue
+        metro, count = counts.most_common(1)[0]
+        share = count / total
+        if share >= 0.95 and total >= 3:
+            lookup[key] = (metro, "high")
+            stats["lookup_high"] += 1
+        elif share >= 0.75:
+            lookup[key] = (metro, "medium")
+            stats["lookup_medium"] += 1
+
+    stats["lookup_keys"] = len(lookup)
+    return lookup, stats
+
+
+def load_metro_city_state_reference_lookup(
+    reference_path: Path,
+) -> tuple[dict[str, tuple[str, str]], dict[str, int]]:
+    """Load an offline city/state -> metro lookup built from cached geocoding."""
+    if not reference_path.exists():
+        return {}, {"reference_rows": 0, "reference_keys": 0}
+
+    table = pq.read_table(
+        reference_path,
+        columns=["metro_lookup_key", "metro_area", "match_confidence", "cbsa_code"],
+    )
+    df = table.to_pandas()
+    df = df.loc[
+        df["metro_lookup_key"].notna()
+        & df["metro_area"].notna()
+        & df["cbsa_code"].notna()
+    ].drop_duplicates(subset=["metro_lookup_key"], keep="first")
+
+    lookup = {
+        row.metro_lookup_key: (row.metro_area, row.match_confidence)
+        for row in df.itertuples(index=False)
+    }
+    return lookup, {"reference_rows": len(df), "reference_keys": len(lookup)}
 
 
 # ---------------------------------------------------------------------------
 # Stage 6b: Location normalization
 # ---------------------------------------------------------------------------
-def normalize_location(loc: str, is_remote_existing: bool):
-    """Parse location string into (city, state_normalized, country, is_remote_updated).
+def normalize_location(loc: str):
+    """Parse location string into city/state/country fields plus remote inference.
 
     Returns a dict with the extracted fields.
     """
@@ -174,7 +341,8 @@ def normalize_location(loc: str, is_remote_existing: bool):
             return result
 
         # Non-US pattern: "City, Region, Country"
-        result["city_extracted"] = city_part
+        if not REMOTE_RE.fullmatch(city_part):
+            result["city_extracted"] = city_part
         if country_part:
             result["country_extracted"] = country_part
         else:
@@ -199,13 +367,80 @@ def normalize_location(loc: str, is_remote_existing: bool):
         result["country_extracted"] = "US"
     else:
         # Could be a metro area, country name, etc. - leave as-is
-        result["city_extracted"] = loc
+        if not REMOTE_RE.fullmatch(loc):
+            result["city_extracted"] = loc
 
     return result
 
 
 # ---------------------------------------------------------------------------
-# Stage 6c: Date validation
+# Stage 6c: Metro enrichment
+# ---------------------------------------------------------------------------
+def infer_metro(
+    row_source,
+    row_location,
+    row_search_metro_name,
+    row_is_remote,
+    row_is_remote_inferred,
+    city_extracted,
+    state_normalized,
+    metro_aliases: dict[str, str],
+    city_state_lookup: dict[str, tuple[str, str]],
+    city_state_reference_lookup: dict[str, tuple[str, str]],
+):
+    """Infer a study-frame metro label without changing row cardinality."""
+    remote_flag = bool(row_is_remote) or bool(row_is_remote_inferred)
+
+    if row_source == "scraped" and not remote_flag:
+        search_metro = canonicalize_metro_label(
+            row_search_metro_name,
+            metro_aliases,
+            allow_passthrough=True,
+        )
+        if search_metro is not None:
+            return {
+                "metro_area": search_metro,
+                "metro_source": "search_metro",
+                "metro_confidence": "high",
+            }
+
+    manual_metro = canonicalize_metro_label(row_location, metro_aliases)
+    if manual_metro is not None and not remote_flag:
+        return {
+            "metro_area": manual_metro,
+            "metro_source": "manual_alias",
+            "metro_confidence": "high",
+        }
+
+    lookup_key = metro_lookup_key(city_extracted, state_normalized)
+    if lookup_key is not None and not remote_flag:
+        lookup_result = city_state_lookup.get(lookup_key)
+        if lookup_result is not None:
+            metro_area, confidence = lookup_result
+            return {
+                "metro_area": metro_area,
+                "metro_source": "city_state_lookup",
+                "metro_confidence": confidence,
+            }
+
+        reference_result = city_state_reference_lookup.get(lookup_key)
+        if reference_result is not None:
+            metro_area, confidence = reference_result
+            return {
+                "metro_area": metro_area,
+                "metro_source": "city_state_reference",
+                "metro_confidence": confidence,
+            }
+
+    return {
+        "metro_area": None,
+        "metro_source": "unresolved",
+        "metro_confidence": "low",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Stage 8a: Date validation
 # ---------------------------------------------------------------------------
 def validate_dates(row_source, row_platform, scrape_date_str, date_posted_str):
     """Return a date_flag string. 'ok' if valid, else describes the issue."""
@@ -224,7 +459,9 @@ def validate_dates(row_source, row_platform, scrape_date_str, date_posted_str):
             continue
         try:
             dt = pd.Timestamp(date_str)
-            if dt < lo or dt > hi:
+            if lo is not None and dt < lo:
+                flags.append(f"{col_name}_out_of_range")
+            elif hi is not None and dt > hi:
                 flags.append(f"{col_name}_out_of_range")
         except (ValueError, pd.errors.OutOfBoundsDatetime):
             flags.append(f"{col_name}_invalid")
@@ -233,7 +470,7 @@ def validate_dates(row_source, row_platform, scrape_date_str, date_posted_str):
 
 
 # ---------------------------------------------------------------------------
-# Stage 6d: Language detection
+# Stage 8b: Language detection
 # ---------------------------------------------------------------------------
 def detect_language(text):
     """Return True/False for English/non-English, or pd.NA if unknown."""
@@ -315,32 +552,44 @@ def derive_period(row_source, scrape_date):
 # ---------------------------------------------------------------------------
 # Main processing
 # ---------------------------------------------------------------------------
-def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply all stage 6b-6d, 7, 8 transformations to a chunk."""
+def process_chunk(
+    df: pd.DataFrame,
+    metro_aliases: dict[str, str],
+    city_state_lookup: dict[str, tuple[str, str]],
+    city_state_reference_lookup: dict[str, tuple[str, str]],
+) -> pd.DataFrame:
+    """Apply all Stage 6-8 row-preserving transformations to a chunk."""
 
     # ---- Stage 6b: Location normalization ----
     loc_results = df.apply(
-        lambda row: normalize_location(row["location"], row["is_remote"]),
+        lambda row: normalize_location(row["location"]),
         axis=1,
         result_type="expand",
     )
     df["city_extracted"] = loc_results["city_extracted"]
     df["state_normalized"] = loc_results["state_normalized"]
     df["country_extracted"] = loc_results["country_extracted"]
-    # Update is_remote: True if already True OR location string indicates remote
-    df["is_remote"] = df["is_remote"].fillna(False) | loc_results["is_remote_location"].fillna(False)
-
-    # ---- Stage 6c: Date validation ----
-    df["date_flag"] = df.apply(
-        lambda row: validate_dates(
-            row["source"], row["source_platform"], row["scrape_date"], row["date_posted"]
+    # Preserve Stage 1's normalized source flag and store location-text inference separately.
+    df["is_remote_inferred"] = loc_results["is_remote_location"].fillna(False).astype(bool)
+    metro_results = df.apply(
+        lambda row: infer_metro(
+            row["source"],
+            row["location"],
+            row.get("search_metro_name"),
+            row["is_remote"],
+            row["is_remote_inferred"],
+            row["city_extracted"],
+            row["state_normalized"],
+            metro_aliases,
+            city_state_lookup,
+            city_state_reference_lookup,
         ),
         axis=1,
+        result_type="expand",
     )
-
-    # ---- Stage 6d: Language detection ----
-    df["is_english"] = df["description_core"].apply(detect_language).astype("boolean")
-    df["description_hash"] = df["description"].apply(build_description_hash)
+    df["metro_area"] = metro_results["metro_area"]
+    df["metro_source"] = metro_results["metro_source"]
+    df["metro_confidence"] = metro_results["metro_confidence"]
 
     # ---- Stage 7: Temporal alignment ----
     df["period"] = df.apply(lambda row: derive_period(row["source"], row["scrape_date"]), axis=1)
@@ -353,7 +602,15 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
     scrape_ts = pd.to_datetime(df["scrape_date"], errors="coerce")
     df["scrape_week"] = scrape_ts.dt.isocalendar().week.astype("float64")
 
-    # ---- Stage 8: Quality flags ----
+    # ---- Stage 8: Quality flags and utility fields ----
+    df["date_flag"] = df.apply(
+        lambda row: validate_dates(
+            row["source"], row["source_platform"], row["scrape_date"], row["date_posted"]
+        ),
+        axis=1,
+    )
+    df["is_english"] = df["description_core"].apply(detect_language).astype("boolean")
+    df["description_hash"] = df["description"].apply(build_description_hash)
     df["ghost_job_risk"] = df.apply(
         lambda row: detect_ghost_job(
             row["seniority_3level"], row["yoe_extracted"], bool(row["yoe_seniority_contradiction"])
@@ -376,7 +633,7 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
 def main():
     t0 = time.time()
     log.info("=" * 70)
-    log.info("Stages 6b-6d, 7, 8: Normalize, temporal align, quality flags")
+    log.info("Stages 6-8: field normalization, temporal alignment, quality flags")
     log.info("=" * 70)
     log.info(f"Input:  {INPUT_PATH}")
     log.info(f"Output: {OUTPUT_PATH}")
@@ -385,14 +642,45 @@ def main():
     total_rows = pf.metadata.num_rows
     log.info(f"Input rows: {total_rows:,}")
 
+    metro_aliases = load_metro_aliases()
+    city_state_lookup, metro_lookup_stats = build_scraped_city_state_metro_lookup(
+        INPUT_PATH,
+        metro_aliases,
+    )
+    city_state_reference_lookup, reference_lookup_stats = load_metro_city_state_reference_lookup(
+        METRO_CITY_STATE_REFERENCE_PATH,
+    )
+    log.info("--- Stage 6 metro reference build ---")
+    log.info(f"  Manual metro aliases loaded: {len(metro_aliases):,}")
+    log.info(f"  Scraped rows seen: {metro_lookup_stats['scraped_rows_seen']:,}")
+    log.info(
+        "  Scraped rows with search metro and parsed city/state: "
+        f"{metro_lookup_stats['scraped_rows_with_city_state']:,}"
+    )
+    log.info(f"  City/state metro lookup keys: {metro_lookup_stats['lookup_keys']:,}")
+    log.info(f"    High-confidence keys: {metro_lookup_stats['lookup_high']:,}")
+    log.info(f"    Medium-confidence keys: {metro_lookup_stats['lookup_medium']:,}")
+    log.info(
+        f"  Cached city/state reference keys: {reference_lookup_stats['reference_keys']:,}"
+    )
+
+    if TMP_OUTPUT_PATH.exists():
+        log.warning(f"Removing stale temp output: {TMP_OUTPUT_PATH}")
+        TMP_OUTPUT_PATH.unlink()
+
     writer = None
     rows_written = 0
     chunk_num = 0
 
     # Counters for summary stats
     stats = {
-        "remote_updated": 0,
+        "remote_inferred": 0,
         "state_extracted": 0,
+        "metro_resolved": 0,
+        "metro_search": 0,
+        "metro_lookup": 0,
+        "metro_manual": 0,
+        "metro_reference": 0,
         "date_flagged": 0,
         "non_english": 0,
         "ghost_high": 0,
@@ -401,53 +689,69 @@ def main():
         "desc_too_short": 0,
     }
 
-    for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
-        chunk_num += 1
-        t_chunk = time.time()
+    try:
+        for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
+            chunk_num += 1
+            t_chunk = time.time()
 
-        # Convert to pandas
-        table = pa.Table.from_batches([batch])
-        df = table.to_pandas()
-        n = len(df)
+            # Convert to pandas
+            table = pa.Table.from_batches([batch])
+            df = table.to_pandas()
+            n = len(df)
 
-        log.info(f"Chunk {chunk_num}: {n:,} rows")
+            log.info(f"Chunk {chunk_num}: {n:,} rows")
 
-        # Track is_remote before update for counting
-        remote_before = df["is_remote"].sum()
+            # Apply all transformations
+            df = process_chunk(
+                df,
+                metro_aliases,
+                city_state_lookup,
+                city_state_reference_lookup,
+            )
 
-        # Apply all transformations
-        df = process_chunk(df)
+            # Collect stats
+            stats["remote_inferred"] += int(df["is_remote_inferred"].sum())
+            stats["state_extracted"] += int(df["state_normalized"].notna().sum())
+            stats["metro_resolved"] += int(df["metro_area"].notna().sum())
+            stats["metro_search"] += int((df["metro_source"] == "search_metro").sum())
+            stats["metro_lookup"] += int((df["metro_source"] == "city_state_lookup").sum())
+            stats["metro_manual"] += int((df["metro_source"] == "manual_alias").sum())
+            stats["metro_reference"] += int(
+                (df["metro_source"] == "city_state_reference").sum()
+            )
+            stats["date_flagged"] += int((df["date_flag"] != "ok").sum())
+            stats["non_english"] += int((df["is_english"] == False).sum())
+            stats["ghost_high"] += int((df["ghost_job_risk"] == "high").sum())
+            stats["ghost_medium"] += int((df["ghost_job_risk"] == "medium").sum())
+            stats["desc_empty"] += int((df["description_quality_flag"] == "empty").sum())
+            stats["desc_too_short"] += int(
+                (df["description_quality_flag"] == "too_short").sum()
+            )
 
-        # Collect stats
-        stats["remote_updated"] += int(df["is_remote"].sum() - remote_before)
-        stats["state_extracted"] += int(df["state_normalized"].notna().sum())
-        stats["date_flagged"] += int((df["date_flag"] != "ok").sum())
-        stats["non_english"] += int((df["is_english"] == False).sum())
-        stats["ghost_high"] += int((df["ghost_job_risk"] == "high").sum())
-        stats["ghost_medium"] += int((df["ghost_job_risk"] == "medium").sum())
-        stats["desc_empty"] += int((df["description_quality_flag"] == "empty").sum())
-        stats["desc_too_short"] += int(
-            (df["description_quality_flag"] == "too_short").sum()
-        )
+            # Convert back to Arrow and write
+            out_table = pa.Table.from_pandas(df, preserve_index=False)
 
-        # Convert back to Arrow and write
-        out_table = pa.Table.from_pandas(df, preserve_index=False)
+            if writer is None:
+                writer = pq.ParquetWriter(TMP_OUTPUT_PATH, out_table.schema)
 
-        if writer is None:
-            writer = pq.ParquetWriter(OUTPUT_PATH, out_table.schema)
+            writer.write_table(out_table)
+            rows_written += n
 
-        writer.write_table(out_table)
-        rows_written += n
+            elapsed = time.time() - t_chunk
+            log.info(
+                f"  Chunk {chunk_num} done in {elapsed:.1f}s "
+                f"({rows_written:,}/{total_rows:,} rows written)"
+            )
 
-        elapsed = time.time() - t_chunk
-        log.info(
-            f"  Chunk {chunk_num} done in {elapsed:.1f}s "
-            f"({rows_written:,}/{total_rows:,} rows written)"
-        )
-
-        # Memory cleanup
-        del df, table, out_table, batch
-        gc.collect()
+            # Memory cleanup
+            del df, table, out_table, batch
+            gc.collect()
+    except Exception:
+        if writer is not None:
+            writer.close()
+        if TMP_OUTPUT_PATH.exists():
+            TMP_OUTPUT_PATH.unlink()
+        raise
 
     if writer is not None:
         writer.close()
@@ -459,8 +763,13 @@ def main():
 
     # Summary stats
     log.info("--- Summary ---")
-    log.info(f"  Remote postings updated from location string: {stats['remote_updated']:,}")
+    log.info(f"  Remote postings inferred from location string: {stats['remote_inferred']:,}")
     log.info(f"  US state extracted: {stats['state_extracted']:,}")
+    log.info(f"  Metro area resolved: {stats['metro_resolved']:,}")
+    log.info(f"    from search metro: {stats['metro_search']:,}")
+    log.info(f"    from city/state lookup: {stats['metro_lookup']:,}")
+    log.info(f"    from manual alias: {stats['metro_manual']:,}")
+    log.info(f"    from cached city/state reference: {stats['metro_reference']:,}")
     log.info(f"  Date flags (non-ok): {stats['date_flagged']:,}")
     log.info(f"  Non-English descriptions: {stats['non_english']:,}")
     log.info(f"  Ghost job risk HIGH: {stats['ghost_high']:,}")
@@ -470,13 +779,16 @@ def main():
 
     # Verify output
     log.info("--- Output verification ---")
-    out_pf = pq.ParquetFile(OUTPUT_PATH)
+    out_pf = pq.ParquetFile(TMP_OUTPUT_PATH)
     log.info(f"  Output rows: {out_pf.metadata.num_rows:,}")
     log.info(f"  Output columns: {out_pf.metadata.num_columns}")
     schema = out_pf.schema_arrow
     log.info("  Column list:")
     for i in range(len(schema)):
         log.info(f"    {schema.field(i).name}: {schema.field(i).type}")
+
+    TMP_OUTPUT_PATH.replace(OUTPUT_PATH)
+    log.info(f"Promoted temp output to final path: {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

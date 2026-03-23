@@ -82,7 +82,6 @@ OUTPUT_COLUMNS = [
     "company_name",
     "company_name_normalized",
     "location",
-    "location_normalized",
     "date_posted",
     "scrape_date",
     "description",
@@ -212,7 +211,6 @@ def finalize_frame(df: pd.DataFrame) -> pd.DataFrame:
     out["job_id"] = out["uid"]
     out["title_normalized"] = out["title"].apply(normalize_title)
     out["company_name_normalized"] = out["company_name"]
-    out["location_normalized"] = out["location"]
     out["description_length"] = out["description"].fillna("").str.len().astype("Int64")
     out["is_remote"] = out["is_remote"].apply(normalize_bool)
     out["company_size"] = pd.to_numeric(out["company_size"], errors="coerce")

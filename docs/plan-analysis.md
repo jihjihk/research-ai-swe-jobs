@@ -440,6 +440,8 @@ Run on multiple outcomes: junior share, skill breadth index, description length,
 
 **Control occupations:** Use Felten et al. (2023) AI exposure scores. Select bottom-quartile occupations: civil engineering (SOC 17-2051), mechanical engineering (17-2141), registered nursing (29-1141), accounting (13-2011).
 
+For the default production dataset, controls should receive LLM boilerplate extraction but not default control-wide LLM seniority classification. Cross-occupation analyses that need control text should use the LLM-cleaned text column when available; control seniority remains a separate sensitivity question rather than part of the default Stage 9 classification path.
+
 **Critical assumption:** Parallel pre-trends. With only 2 time points, we cannot directly test this. Mitigation: use external data (Revelio) to show SWE and controls were on parallel trajectories before 2024; report sensitivity of b3 to different control sets.
 
 **AI-exposure gradient test:** Order occupations by AI-exposure scores. If effects scale with AI exposure (largest for SWE, intermediate for data scientists, small for accountants, null for nurses), that is strong evidence of an AI-driven mechanism.
@@ -689,6 +691,8 @@ Run all primary tests under 3 classification schemes:
 1. LLM-augmented classifier (default from Stage 10)
 2. Rule-based only (from Stage 5)
 3. Native LinkedIn labels where available, imputed only where missing
+
+This sensitivity battery applies to the technical analysis corpus (`SWE` and, where relevant, `SWE-adjacent`). It is not a requirement that the default production run produce control-wide `seniority_llm`.
 
 #### SWE definition sensitivity
 

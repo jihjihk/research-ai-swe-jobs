@@ -6,10 +6,13 @@ Redesigned based on manual review of 100 postings and LLM classification
 of 500 Tier 2 titles.
 
 Changes from V1:
-  - Seniority: explicit-signal classifier applied uniformly (never prefers native).
-    Title keywords > explicit description signals > unknown.
+  - Seniority: explicit-signal classifier applied uniformly for
+    `seniority_imputed`. `seniority_final` now applies a family-aware
+    resolver for SWE-adjacent and control rows:
+      strong title cues > native backfill > within-family title prior >
+      weak title/description cues > unknown.
     YOE is extracted for contradiction flags only; it does NOT drive the enum.
-  - SWE: Tier 2 now uses LLM-validated title lookup (500 titles) plus
+  - SWE: Tier 2 now uses a curated title lookup artifact plus
     split thresholds (>= 0.85 = SWE, 0.70-0.85 = SWE_ADJACENT).
 
 Memory-safe: builds lookup dicts from unique titles first, then streams
@@ -52,10 +55,34 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 CHUNK_SIZE = 200_000
+TIER2_REQUIRED_COLUMNS = {"title", "llm_swe_classification"}
+TIER2_ALLOWED_CLASSES = {"SWE", "SWE_ADJACENT", "NOT_SWE"}
 
 # ---------------------------------------------------------------------------
 # 5a. SWE Classification -- Patterns
 # ---------------------------------------------------------------------------
+
+
+def normalize_swe_title_key(title) -> str:
+    """
+    Canonical SWE-classification key.
+
+    Must stay aligned with Stage 1's `title_normalized` contract so the same
+    title variant resolves identically when we build and apply the lookup.
+    """
+    if pd.isna(title):
+        return ""
+
+    value = str(title).lower().strip()
+    if not value:
+        return ""
+
+    value = re.sub(r"\b(senior|sr\.?|junior|jr\.?|lead|staff|principal|distinguished)\b", "", value)
+    value = re.sub(r"\b(i{1,3}|iv|v)\b", "", value)
+    value = re.sub(r"\b[1-5]\b", "", value)
+    value = re.sub(r"\s*[-–—]\s*(remote|hybrid|onsite|on-site)\s*$", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
 
 # Stage 1 regex patterns (canonical, for reference / re-application)
 SWE_INCLUDE = re.compile(
@@ -133,6 +160,79 @@ TECH_PREFILTER = re.compile(
 
 
 # ---------------------------------------------------------------------------
+# 5a. SWE Classification -- Tier 2 artifact
+# ---------------------------------------------------------------------------
+
+def load_tier2_title_lookup() -> dict[str, str]:
+    """
+    Load and validate the curated title lookup artifact used before embeddings.
+
+    Contract:
+      - required columns: title, llm_swe_classification
+      - allowed labels: SWE, SWE_ADJACENT, NOT_SWE
+      - keys are normalized with the same canonical function used by Stage 1's
+        `title_normalized`
+    """
+    if not TIER2_LOOKUP_PATH.exists():
+        log.warning(f"  Title lookup artifact not found at {TIER2_LOOKUP_PATH}; falling back to regex + embedding")
+        return {}
+
+    stat = TIER2_LOOKUP_PATH.stat()
+    mtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(stat.st_mtime))
+    log.info(
+        "  Title lookup artifact: %s (%s bytes, modified %s)",
+        TIER2_LOOKUP_PATH.name,
+        stat.st_size,
+        mtime,
+    )
+
+    llm_df = pd.read_parquet(TIER2_LOOKUP_PATH)
+    missing = TIER2_REQUIRED_COLUMNS - set(llm_df.columns)
+    if missing:
+        raise ValueError(
+            f"Title lookup artifact missing required columns: {sorted(missing)}"
+        )
+
+    llm_df = llm_df[list(TIER2_REQUIRED_COLUMNS)].copy()
+    llm_df["title_key"] = llm_df["title"].map(normalize_swe_title_key)
+    llm_df["llm_swe_classification"] = llm_df["llm_swe_classification"].astype(str).str.strip()
+
+    invalid_labels = sorted(set(llm_df["llm_swe_classification"]) - TIER2_ALLOWED_CLASSES)
+    if invalid_labels:
+        raise ValueError(
+            f"Title lookup artifact has invalid labels: {invalid_labels}"
+        )
+
+    llm_df = llm_df[llm_df["title_key"] != ""].copy()
+    if llm_df.empty:
+        raise ValueError("Title lookup artifact produced no usable normalized title keys")
+
+    conflict_counts = llm_df.groupby("title_key")["llm_swe_classification"].nunique()
+    conflicting_keys = conflict_counts[conflict_counts > 1]
+    if not conflicting_keys.empty:
+        sample = conflicting_keys.index[:10].tolist()
+        log.warning(
+            "  Dropping %s ambiguous normalized title keys from the lookup artifact; sample keys: %s",
+            len(conflicting_keys),
+            sample,
+        )
+        llm_df = llm_df[~llm_df["title_key"].isin(conflicting_keys.index)].copy()
+
+    rows_before = len(llm_df)
+    llm_df = llm_df.drop_duplicates(subset=["title_key", "llm_swe_classification"])
+    llm_df = llm_df.drop_duplicates(subset=["title_key"], keep="first")
+    rows_deduped = rows_before - len(llm_df)
+    if rows_deduped:
+        log.info(f"  Deduped {rows_deduped:,} redundant title lookup rows after normalization")
+
+    label_counts = Counter(llm_df["llm_swe_classification"])
+    for label, count in label_counts.items():
+        log.info(f"    {label}: {count}")
+
+    return dict(zip(llm_df["title_key"], llm_df["llm_swe_classification"]))
+
+
+# ---------------------------------------------------------------------------
 # 5a. SWE Classification -- Build Lookup
 # ---------------------------------------------------------------------------
 
@@ -149,33 +249,25 @@ def build_swe_lookup(input_path: Path) -> tuple[dict, dict]:
     log.info("--- 5a. Building SWE classification lookup ---")
     t0 = time.time()
 
-    # Load LLM title lookup
-    tier2_llm = {}
-    if TIER2_LOOKUP_PATH.exists():
-        llm_df = pd.read_parquet(TIER2_LOOKUP_PATH)
-        for _, row in llm_df.iterrows():
-            # Normalize to lowercase for matching against title_normalized
-            tier2_llm[str(row["title"]).lower().strip()] = row["llm_swe_classification"]
-        log.info(f"  Loaded LLM title lookup: {len(tier2_llm)} entries")
-        llm_vc = Counter(tier2_llm.values())
-        for k, v in llm_vc.items():
-            log.info(f"    {k}: {v}")
-        del llm_df
-    else:
-        log.warning(f"  LLM title lookup not found at {TIER2_LOOKUP_PATH}")
+    tier2_llm = load_tier2_title_lookup()
+    log.info(f"  Loaded normalized title lookup entries: {len(tier2_llm)}")
 
-    # Collect unique raw titles and classify directly from the title text.
+    # Collect unique canonical SWE title keys plus raw titles for controls.
     pf = pq.ParquetFile(input_path)
     title_swe = {}
     title_control = {}
 
-    for batch in pf.iter_batches(batch_size=CHUNK_SIZE, columns=["title"]):
+    for batch in pf.iter_batches(batch_size=CHUNK_SIZE, columns=["title_normalized", "title"]):
         chunk = batch.to_pandas()
-        for title in chunk["title"].dropna().astype(str).str.lower().str.strip().drop_duplicates():
-            t = title
+        for title_key in chunk["title_normalized"].map(normalize_swe_title_key).drop_duplicates():
+            t = title_key
+            if not t:
+                continue
             if t not in title_swe:
                 title_swe[t] = bool(SWE_INCLUDE.search(t)) and not bool(SWE_EXCLUDE.search(t))
-                title_control[t] = bool(CONTROL_PATTERN.search(t))
+        for raw_title in chunk["title"].dropna().astype(str).str.lower().str.strip().drop_duplicates():
+            if raw_title not in title_control:
+                title_control[raw_title] = bool(CONTROL_PATTERN.search(raw_title))
         del chunk, batch
         gc.collect()
 
@@ -208,9 +300,8 @@ def build_swe_lookup(input_path: Path) -> tuple[dict, dict]:
     still_unresolved = []
 
     for t in unresolved:
-        t_lower = str(t).lower().strip()
-        if t_lower in tier2_llm:
-            classification = tier2_llm[t_lower]
+        if t in tier2_llm:
+            classification = tier2_llm[t]
             if classification == "SWE":
                 lookup[t] = (True, False, 0.90, "embedding_llm")
                 llm_swe += 1
@@ -342,6 +433,24 @@ TITLE_JUNIOR = re.compile(
     r'\b(junior|jr\.?|new\s*grad|entry[- ]?level|early\s*career)\b', re.IGNORECASE
 )
 TITLE_ASSOCIATE = re.compile(r'\bassociate\b', re.IGNORECASE)
+TITLE_MANAGERISH = re.compile(r'\b(manager|supervisor)\b', re.IGNORECASE)
+TITLE_LEAD_GENERAL = re.compile(r'(^|[\s,/:()\-])lead\b|\blead(?=[\s,/:()\-]|$)', re.IGNORECASE)
+
+ADJACENT_ROLE_HINT = re.compile(
+    r'\b('
+    r'qa|quality|test|network|data|application|infrastructure|architect|'
+    r'analyst|security|ui|ux|web|cloud|automation|systems?|reliability|'
+    r'analytics?|mlops'
+    r')\b',
+    re.IGNORECASE,
+)
+CONTROL_ROLE_HINT = re.compile(
+    r'\b('
+    r'nurse|rn\b|nursing|nurse\s*practitioner|accountant|accounting|'
+    r'financial\s*analyst|civil|mechanical|electrical|chemical|engineer'
+    r')\b',
+    re.IGNORECASE,
+)
 
 # Level numbers in SWE titles
 TITLE_LEVEL_HIGH = re.compile(
@@ -354,6 +463,23 @@ TITLE_LEVEL_ASSOCIATE = re.compile(
     r'(?:engineer|developer|swe|sde)\s*i\b', re.IGNORECASE
 )
 
+CONTROL_LEVEL_HIGH = re.compile(
+    r'\b(?:accountant|analyst|engineer|nurse(?:\s*case\s*manager)?|nurse\s*practitioner)\s*(?:ii|iii|iv|v|[2-9])\b',
+    re.IGNORECASE,
+)
+CONTROL_LEVEL_ENTRY = re.compile(
+    r'\b(?:accountant|analyst|engineer)\s*i\b',
+    re.IGNORECASE,
+)
+ADJACENT_LEVEL_HIGH = re.compile(
+    r'\b(?:analyst|engineer|architect|developer|administrator|specialist)\s*(?:ii|iii|iv|v|[2-9])\b',
+    re.IGNORECASE,
+)
+ADJACENT_LEVEL_ENTRY = re.compile(
+    r'\b(?:analyst|engineer|developer|administrator|specialist)\s*i\b',
+    re.IGNORECASE,
+)
+
 # Description YOE patterns for contradiction checks only
 YOE_PATTERN = re.compile(
     r'(\d+)(?:\s*[-–]\s*\d+)?\+?\s*(?:years?|yrs?)\s*(?:of\s+)?'
@@ -361,29 +487,176 @@ YOE_PATTERN = re.compile(
     re.IGNORECASE
 )
 
-# Description explicit seniority cues only
+# Description explicit seniority cues only. These must refer to the posting
+# itself via role/job context or title-like role labels, not generic mentions
+# of other senior people, support staff, or reporting lines.
+ROLE_CONTEXT = r'(?:role|position|job|opening|opportunity|title)'
+HIRING_CONTEXT = (
+    r"(?:we(?:'re| are)?\s+hiring|"
+    r"we(?:'re| are)?\s+looking\s+for|"
+    r"we(?:'re| are)?\s+looking\s+to\s+hire|"
+    r"we(?:'re| are)?\s+actively\s+looking\s+to\s+hire|"
+    r"currently\s+looking\s+to\s+hire|"
+    r"seeking|"
+    r"join\s+us\s+as)"
+)
+DECLARATIVE_ROLE_PREFIX = (
+    rf'(?:\b(?:this|the)\s+{ROLE_CONTEXT}\s+(?:is|will\s+be|would\s+be|is\s+for)\s+(?:an?\s+)?|'
+    rf'\b(?:{ROLE_CONTEXT})\s*[:\-]\s*(?:an?\s+)?)'
+)
+HIRING_ROLE_PREFIX = rf'(?:\b(?:{HIRING_CONTEXT})\s+(?:an?\s+)?)'
+ACTION_ROLE_PREFIX = r'(?:^|[\n.;:])\s*(?:as|serve\s+as|work\s+as)\s+(?:an?\s+)?'
+ROLE_NOUN = (
+    r'(?:engineer|developer|consultant|analyst|scientist|architect|manager|'
+    r'administrator|coordinator|specialist|designer|assistant|officer|'
+    r'representative|attorney|lawyer|accountant|therapist|nurse|physician|'
+    r'pharmacist|technician|installer|guide|generalist|integrator|'
+    r'superintendent|writer|editor|professional)'
+)
+ROLE_MODIFIER_WORD = (
+    r'(?!of\b|to\b|the\b|a\b|an\b|and\b|with\b|for\b|as\b|well\b|or\b|'
+    r'in\b|on\b|by\b)[\w/&+.-]+'
+)
+ROLE_TITLE_PART = rf'(?:{ROLE_MODIFIER_WORD}|&|and)'
+ROLE_TITLE_TAIL = rf'(?:{ROLE_TITLE_PART}\s+){{0,4}}{ROLE_NOUN}\b'
+ENTRY_TITLE = (
+    rf'(?:entry[- ]?level|junior|jr\.?|new\s*grad(?:uate)?|intern(?:ship)?|'
+    rf'co-?op|early\s*career)\s+{ROLE_TITLE_TAIL}'
+)
+ASSOCIATE_LABEL = r'associate(?!\s+(?:vice\s*president|vp|director|head|chief|dean)\b)'
+ASSOCIATE_TITLE = (
+    rf'(?:{ASSOCIATE_LABEL}(?:\s+{ROLE_TITLE_TAIL})?|'
+    rf'(?:{ROLE_MODIFIER_WORD}\s+){{0,2}}{ASSOCIATE_LABEL}\b)'
+)
+MID_SENIOR_TITLE = (
+    rf'(?:(?:senior\s+(?!level\b))|sr\.?\s+|staff\s+|principal\s+){ROLE_TITLE_TAIL}'
+)
+DIRECTOR_FUNCTION = (
+    r'(?:engineering|operations|marketing|finance|communications|technology|'
+    r'security|data|product|property|resources|sales|hr|people|talent)'
+)
+DIRECTOR_TITLE = (
+    rf'(?:director(?:\s+of\s+(?:[\w/&+.-]+\s+){{0,3}}{DIRECTOR_FUNCTION})?|'
+    rf'vp|vice\s*president(?:\s+of\s+(?:[\w/&+.-]+\s+){{0,3}}{DIRECTOR_FUNCTION})?|'
+    rf'head\s+of\s+(?:[\w/&+.-]+\s+){{0,3}}{DIRECTOR_FUNCTION}|'
+    r'chief\s+(?:officer|technology\s+officer|information\s+officer)|'
+    r'cto|cio)'
+)
+
 DESC_ENTRY = re.compile(
-    r'\b(junior|jr\.?|intern(?:ship)?|co-?op|new\s*grad|entry[- ]?level|early\s*career)\b',
-    re.IGNORECASE
+    rf'(?:{DECLARATIVE_ROLE_PREFIX}{ENTRY_TITLE}|'
+    rf'{HIRING_ROLE_PREFIX}{ENTRY_TITLE}|'
+    rf'{ACTION_ROLE_PREFIX}{ENTRY_TITLE})',
+    re.IGNORECASE,
 )
 DESC_ASSOCIATE = re.compile(
-    r'(?:engineer|developer|swe|sde)\s*i\b|'
-    r'\bassociate\s+(?:engineer|developer|software|qa|test|data|ml|ai|devops|'
-    r'cloud|platform|backend|back[- ]?end|frontend|front[- ]?end|full[- ]?stack)\b',
-    re.IGNORECASE
+    rf'(?:{DECLARATIVE_ROLE_PREFIX}{ASSOCIATE_TITLE}|'
+    rf'{HIRING_ROLE_PREFIX}{ASSOCIATE_TITLE}|'
+    rf'{ACTION_ROLE_PREFIX}{ASSOCIATE_TITLE})|'
+    r'\b(?:engineer|developer|swe|sde)\s*i\b',
+    re.IGNORECASE,
 )
 DESC_MID_SENIOR = re.compile(
-    r'\b(senior|sr\.?|staff|principal)\b|'
-    r'(?:engineer|developer|swe|sde)\s*(?:ii|iii|iv|v|[2-9])\b',
-    re.IGNORECASE
+    rf'(?:{DECLARATIVE_ROLE_PREFIX}{MID_SENIOR_TITLE}|'
+    rf'{HIRING_ROLE_PREFIX}{MID_SENIOR_TITLE}|'
+    rf'{ACTION_ROLE_PREFIX}{MID_SENIOR_TITLE})|'
+    r'\b(?:engineer|developer|swe|sde)\s*(?:ii|iii|iv|v|[2-9])\b',
+    re.IGNORECASE,
 )
 DESC_DIRECTOR = re.compile(
-    r'\b(director|vp|vice\s*president|head\s+of|chief|cto|cio)\b',
-    re.IGNORECASE
+    rf'(?:{DECLARATIVE_ROLE_PREFIX}{DIRECTOR_TITLE}|'
+    rf'{HIRING_ROLE_PREFIX}{DIRECTOR_TITLE}|'
+    rf'{ACTION_ROLE_PREFIX}{DIRECTOR_TITLE})',
+    re.IGNORECASE,
 )
 
+TITLE_ONLY_SOURCES = {
+    "title_keyword",
+    "title_manager",
+    "weak_title_level",
+    "weak_title_associate",
+}
+STRONG_FINAL_SOURCES = {"title_keyword", "title_manager"}
+TITLE_PRIOR_THRESHOLDS = {
+    "swe": (0.90, 20),
+    "adjacent": (0.85, 20),
+    "control": (0.85, 20),
+}
 
-def classify_seniority(title: str, description: str) -> tuple:
+
+def family_role_hint(family: str):
+    if family == "adjacent":
+        return ADJACENT_ROLE_HINT
+    if family == "control":
+        return CONTROL_ROLE_HINT
+    return None
+
+
+def infer_seniority_family(
+    title_raw: str,
+    title_normalized,
+    swe_lookup: dict,
+    control_lookup: dict,
+) -> str:
+    raw_lower = str(title_raw).lower().strip() if pd.notna(title_raw) else ""
+    normalized_key = (
+        str(title_normalized).lower().strip()
+        if pd.notna(title_normalized) and str(title_normalized).strip()
+        else normalize_swe_title_key(raw_lower)
+    )
+    normalized_key = normalize_swe_title_key(normalized_key)
+    if control_lookup.get(raw_lower, False):
+        return "control"
+    swe_tuple = swe_lookup.get(normalized_key, (False, False, 0.0, "unresolved"))
+    if swe_tuple[1]:
+        return "adjacent"
+    if swe_tuple[0]:
+        return "swe"
+    return "other"
+
+
+def normalize_title_prior_key(value) -> str:
+    if pd.isna(value):
+        return ""
+    return re.sub(r"\s+", " ", str(value).lower().strip())
+
+
+def resolve_seniority_final(
+    family: str,
+    imputed_level: str,
+    imputed_source: str,
+    imputed_confidence: float,
+    native_raw,
+    title_prior,
+):
+    """
+    Resolve the final seniority label used downstream.
+
+    For SWE / SWE-adjacent / control rows, plain titles plus native metadata are
+    often more informative than weak text-only cues. Strong title signals still
+    win. Other families remain text-only for now.
+    """
+    if family not in {"swe", "adjacent", "control"}:
+        return imputed_level, imputed_source, float(imputed_confidence)
+
+    if imputed_source in STRONG_FINAL_SOURCES:
+        return imputed_level, imputed_source, float(imputed_confidence)
+
+    native = normalize_native(native_raw)
+    if native is not None:
+        return native, "native_backfill", 0.85
+
+    if title_prior is not None and imputed_source == "unknown":
+        prior_level, prior_share, _ = title_prior
+        return prior_level, "title_prior", float(prior_share)
+
+    if imputed_source != "unknown":
+        return imputed_level, imputed_source, float(imputed_confidence)
+
+    return "unknown", "unknown", 0.0
+
+
+def classify_seniority(title: str, description: str, family: str = "other") -> tuple:
     """
     Multi-signal seniority classifier. Applied UNIFORMLY to all rows.
     Never prefers native labels -- uses them only for cross-validation.
@@ -391,11 +664,13 @@ def classify_seniority(title: str, description: str) -> tuple:
     Returns (seniority_level, source, confidence).
 
     Seniority levels: entry, associate, mid-senior, director, unknown
-    Source: title_keyword, title_level_number, description_explicit, unknown
+    Source: title_keyword, title_manager, weak_title_level,
+            weak_title_associate, description_explicit, unknown
     Confidence: 0.0-1.0
     """
     title_str = str(title).lower().strip() if pd.notna(title) else ""
     desc_str = str(description).lower() if pd.notna(description) else ""
+    role_hint = family_role_hint(family)
 
     # --- Signal 1: Title keywords (confidence 0.95) ---
 
@@ -408,24 +683,40 @@ def classify_seniority(title: str, description: str) -> tuple:
     if TITLE_SENIOR.search(title_str):
         return ("mid-senior", "title_keyword", 0.95)
 
+    if role_hint and role_hint.search(title_str):
+        if TITLE_MANAGERISH.search(title_str) or TITLE_LEAD_GENERAL.search(title_str):
+            return ("mid-senior", "title_manager", 0.92)
+
     if TITLE_LEAD.search(title_str):
         return ("mid-senior", "title_keyword", 0.95)
 
     # Level numbers
     if TITLE_LEVEL_HIGH.search(title_str):
-        return ("mid-senior", "title_level_number", 0.95)
+        return ("mid-senior", "weak_title_level", 0.85)
     if TITLE_LEVEL_SENIOR.search(title_str):
-        return ("mid-senior", "title_level_number", 0.95)
+        return ("mid-senior", "weak_title_level", 0.85)
     if TITLE_LEVEL_ASSOCIATE.search(title_str):
-        return ("associate", "title_level_number", 0.95)
+        return ("associate", "weak_title_level", 0.80)
+
+    if family == "control":
+        if CONTROL_LEVEL_HIGH.search(title_str):
+            return ("mid-senior", "weak_title_level", 0.80)
+        if CONTROL_LEVEL_ENTRY.search(title_str):
+            return ("associate", "weak_title_level", 0.70)
+
+    if family == "adjacent":
+        if ADJACENT_LEVEL_HIGH.search(title_str):
+            return ("mid-senior", "weak_title_level", 0.80)
+        if ADJACENT_LEVEL_ENTRY.search(title_str):
+            return ("associate", "weak_title_level", 0.70)
 
     if TITLE_JUNIOR.search(title_str):
         return ("entry", "title_keyword", 0.95)
 
     if TITLE_ASSOCIATE.search(title_str):
-        return ("associate", "title_keyword", 0.95)
+        return ("associate", "weak_title_associate", 0.70)
 
-    # --- Signal 2: explicit description cues only (confidence 0.70) ---
+    # --- Signal 2: explicit description role labels only (confidence 0.70) ---
     if desc_str:
         if DESC_DIRECTOR.search(desc_str):
             return ("director", "description_explicit", 0.70)
@@ -463,7 +754,11 @@ def has_yoe_contradiction(seniority: str, yoe_extracted) -> bool:
     return False
 
 
-def build_seniority_title_lookup(input_path: Path) -> dict:
+def build_seniority_title_lookup(
+    input_path: Path,
+    swe_lookup: dict,
+    control_lookup: dict,
+) -> dict:
     """
     Build lookup: raw title (lowered) -> (seniority, source, confidence)
     Only covers cases where the title alone is enough to decide.
@@ -477,14 +772,23 @@ def build_seniority_title_lookup(input_path: Path) -> dict:
     t0 = time.time()
 
     pf = pq.ParquetFile(input_path)
-    unique_titles = set()
+    unique_titles = {}
 
-    for batch in pf.iter_batches(batch_size=CHUNK_SIZE, columns=["title"]):
+    for batch in pf.iter_batches(batch_size=CHUNK_SIZE, columns=["title", "title_normalized"]):
         chunk = batch.to_pandas()
-        # Use raw title, lowered + stripped for dedup
-        unique_titles.update(
-            chunk["title"].dropna().str.lower().str.strip().unique()
-        )
+        for row in chunk.itertuples(index=False):
+            raw_title = getattr(row, "title")
+            if pd.isna(raw_title):
+                continue
+            raw_lower = str(raw_title).lower().strip()
+            if not raw_lower:
+                continue
+            unique_titles[raw_lower] = infer_seniority_family(
+                raw_title,
+                getattr(row, "title_normalized"),
+                swe_lookup,
+                control_lookup,
+            )
         del chunk, batch
         gc.collect()
 
@@ -492,9 +796,9 @@ def build_seniority_title_lookup(input_path: Path) -> dict:
 
     # Apply title-only rules
     title_lookup = {}
-    for t in unique_titles:
-        seniority, source, confidence = classify_seniority(t, "")
-        if source.startswith("title_"):
+    for t, family in unique_titles.items():
+        seniority, source, confidence = classify_seniority(t, "", family=family)
+        if source in TITLE_ONLY_SOURCES:
             title_lookup[t] = (seniority, source, confidence)
 
     resolved_counts = Counter(v[0] for v in title_lookup.values())
@@ -507,6 +811,68 @@ def build_seniority_title_lookup(input_path: Path) -> dict:
     log.info(f"  Seniority title lookup built in {elapsed:.1f}s")
 
     return title_lookup
+
+
+def build_group_title_prior_lookup(
+    input_path: Path,
+    swe_lookup: dict,
+    control_lookup: dict,
+) -> dict:
+    """
+    Build conservative within-family priors for normalized titles using only
+    rows that already carry native seniority.
+    """
+    log.info("--- 5b. Building family title-prior lookup ---")
+    t0 = time.time()
+
+    counts = Counter()
+    pf = pq.ParquetFile(input_path)
+
+    for batch in pf.iter_batches(
+        batch_size=CHUNK_SIZE,
+        columns=["title", "title_normalized", "seniority_native"],
+    ):
+        chunk = batch.to_pandas()
+        for row in chunk.itertuples(index=False):
+            native = normalize_native(getattr(row, "seniority_native"))
+            if native is None:
+                continue
+            family = infer_seniority_family(
+                getattr(row, "title"),
+                getattr(row, "title_normalized"),
+                swe_lookup,
+                control_lookup,
+            )
+            if family not in TITLE_PRIOR_THRESHOLDS:
+                continue
+            title_key = normalize_title_prior_key(getattr(row, "title_normalized"))
+            if not title_key:
+                continue
+            counts[(family, title_key, native)] += 1
+        del chunk, batch
+        gc.collect()
+
+    grouped = {}
+    for (family, title_key, native), count in counts.items():
+        grouped.setdefault((family, title_key), []).append((native, count))
+
+    lookup = {}
+    kept_counts = Counter()
+    for key, label_counts in grouped.items():
+        label_counts.sort(key=lambda item: (-item[1], item[0]))
+        total_n = sum(count for _, count in label_counts)
+        top_label, top_count = label_counts[0]
+        top_share = top_count / total_n if total_n else 0.0
+        min_share, min_n = TITLE_PRIOR_THRESHOLDS[key[0]]
+        if total_n >= min_n and top_share >= min_share:
+            lookup[key] = (top_label, top_share, total_n)
+            kept_counts[key[0]] += 1
+
+    log.info("  Family title priors kept: %s", len(lookup))
+    for family, count in kept_counts.items():
+        log.info("    %s: %s", family, f"{count:,}")
+    log.info("  Family title-prior lookup built in %.1fs", time.time() - t0)
+    return lookup
 
 
 # ---------------------------------------------------------------------------
@@ -574,10 +940,11 @@ def streaming_write(
     output_path: Path,
     swe_lookup: dict,
     seniority_title_lookup: dict,
+    title_prior_lookup: dict,
     control_lookup: dict,
 ):
     """
-    Stream chunks, apply lookups + description-based seniority fallback,
+    Stream chunks, apply lookups + explicit-description seniority fallback,
     write incrementally.
     """
     log.info("--- Streaming write pass ---")
@@ -585,13 +952,17 @@ def streaming_write(
 
     pf = pq.ParquetFile(input_path)
     total_rows = pf.metadata.num_rows
+    if output_path.exists():
+        output_path.unlink()
     writer = None
     written = 0
 
     # Counters for reporting
     swe_tier_counts = Counter()
     seniority_source_counts = Counter()
+    seniority_final_source_counts = Counter()
     seniority_level_counts = Counter()
+    seniority_final_level_counts = Counter()
     cross_check_counts = Counter()
     swe_by_source_counts = Counter()
     adj_by_source_counts = Counter()
@@ -607,7 +978,7 @@ def streaming_write(
         n = len(chunk)
 
         # ---- 5a: SWE classification ----
-        swe_results = chunk["title_normalized"].map(
+        swe_results = chunk["title_normalized"].map(normalize_swe_title_key).map(
             lambda t: swe_lookup.get(t, (False, False, 0.0, "unresolved"))
         )
         chunk["is_swe"] = swe_results.apply(lambda x: x[0]).astype(bool)
@@ -627,13 +998,15 @@ def streaming_write(
         # title_normalized strips seniority prefixes (Senior, Sr, Lead, etc.)
         title_lower = chunk["title"].fillna("").str.lower().str.strip()
         chunk["is_control"] = title_lower.map(lambda t: control_lookup.get(t, False)).astype(bool)
-        title_results = title_lower.map(
-            lambda t: seniority_title_lookup.get(t, None)
-        )
+        title_results = title_lower.map(lambda t: seniority_title_lookup.get(t, None))
+        title_prior_keys = chunk["title_normalized"].map(normalize_title_prior_key)
 
         seniority_levels = []
         seniority_sources = []
         seniority_confidences = []
+        seniority_final_levels = []
+        seniority_final_sources = []
+        seniority_final_confidences = []
 
         description_text = chunk["description_core"].where(
             chunk["description_core"].notna(),
@@ -644,31 +1017,53 @@ def streaming_write(
         yoe_contradictions = []
 
         for idx in range(n):
+            family = infer_seniority_family(
+                chunk["title"].iloc[idx],
+                chunk["title_normalized"].iloc[idx],
+                swe_lookup,
+                control_lookup,
+            )
             tr = title_results.iloc[idx]
             if tr is not None:
-                seniority_levels.append(tr[0])
-                seniority_sources.append(tr[1])
-                seniority_confidences.append(tr[2])
+                level, source, conf = tr
             else:
                 title_val = title_lower.iloc[idx]
                 desc_val = description_text.iloc[idx]
-                level, source, conf = classify_seniority(title_val, desc_val if pd.notna(desc_val) else "")
-                seniority_levels.append(level)
-                seniority_sources.append(source)
-                seniority_confidences.append(conf)
+                level, source, conf = classify_seniority(
+                    title_val,
+                    desc_val if pd.notna(desc_val) else "",
+                    family=family,
+                )
+
+            seniority_levels.append(level)
+            seniority_sources.append(source)
+            seniority_confidences.append(conf)
+
+            title_prior = title_prior_lookup.get((family, title_prior_keys.iloc[idx]))
+            final_level, final_source, final_conf = resolve_seniority_final(
+                family=family,
+                imputed_level=level,
+                imputed_source=source,
+                imputed_confidence=conf,
+                native_raw=chunk["seniority_native"].iloc[idx],
+                title_prior=title_prior,
+            )
+            seniority_final_levels.append(final_level)
+            seniority_final_sources.append(final_source)
+            seniority_final_confidences.append(final_conf)
 
             yoe_val = extract_min_yoe(description_text.iloc[idx])
             yoe_values.append(yoe_val)
-            yoe_contradictions.append(has_yoe_contradiction(seniority_levels[-1], yoe_val))
+            yoe_contradictions.append(has_yoe_contradiction(final_level, yoe_val))
 
         chunk["seniority_imputed"] = seniority_levels
         chunk["seniority_source"] = seniority_sources
         chunk["seniority_confidence"] = np.array(seniority_confidences, dtype=np.float64)
+        chunk["seniority_final"] = seniority_final_levels
+        chunk["seniority_final_source"] = seniority_final_sources
+        chunk["seniority_final_confidence"] = np.array(seniority_final_confidences, dtype=np.float64)
         chunk["yoe_extracted"] = np.array(yoe_values, dtype=np.float64)
         chunk["yoe_seniority_contradiction"] = np.array(yoe_contradictions, dtype=bool)
-
-        # seniority_final = seniority_imputed (uniform classifier is canonical)
-        chunk["seniority_final"] = chunk["seniority_imputed"]
 
         # Normalize seniority_native
         chunk["seniority_native"] = chunk["seniority_native"].replace("", pd.NA)
@@ -683,16 +1078,23 @@ def streaming_write(
         src_vc = chunk["seniority_source"].value_counts()
         for src, count in src_vc.items():
             seniority_source_counts[src] += int(count)
+        final_src_vc = chunk["seniority_final_source"].value_counts()
+        for src, count in final_src_vc.items():
+            seniority_final_source_counts[src] += int(count)
 
         level_vc = chunk["seniority_imputed"].value_counts()
         for level, count in level_vc.items():
             seniority_level_counts[level] += int(count)
+        final_level_vc = chunk["seniority_final"].value_counts()
+        for level, count in final_level_vc.items():
+            seniority_final_level_counts[level] += int(count)
 
         cc_vc = chunk["seniority_cross_check"].value_counts()
         for cc, count in cc_vc.items():
             cross_check_counts[cc] += int(count)
 
         del title_results, seniority_levels, seniority_sources, seniority_confidences
+        del seniority_final_levels, seniority_final_sources, seniority_final_confidences
 
         # ---- 5c: 3-level bucketing ----
         chunk["seniority_3level"] = chunk["seniority_final"].apply(map_3level)
@@ -749,7 +1151,9 @@ def streaming_write(
         "written": written,
         "swe_tier_counts": swe_tier_counts,
         "seniority_source_counts": seniority_source_counts,
+        "seniority_final_source_counts": seniority_final_source_counts,
         "seniority_level_counts": seniority_level_counts,
+        "seniority_final_level_counts": seniority_final_level_counts,
         "cross_check_counts": cross_check_counts,
         "swe_by_source_counts": swe_by_source_counts,
         "adj_by_source_counts": adj_by_source_counts,
@@ -779,7 +1183,9 @@ def generate_report(
     written = report_stats["written"]
     swe_tier_counts = report_stats["swe_tier_counts"]
     seniority_source_counts = report_stats["seniority_source_counts"]
+    seniority_final_source_counts = report_stats["seniority_final_source_counts"]
     seniority_level_counts = report_stats["seniority_level_counts"]
+    seniority_final_level_counts = report_stats["seniority_final_level_counts"]
     cross_check_counts = report_stats["cross_check_counts"]
     swe_by_source_counts = report_stats["swe_by_source_counts"]
     adj_by_source_counts = report_stats["adj_by_source_counts"]
@@ -849,7 +1255,14 @@ def generate_report(
     log.info(f"  {'Source':<25} {'Rows':>10} {'Pct':>8}")
     log.info(f"  {'-'*25} {'-'*10} {'-'*8}")
     total_sen = sum(seniority_source_counts.values())
-    for src in ["title_keyword", "title_level_number", "description_explicit", "unknown"]:
+    for src in [
+        "title_keyword",
+        "title_manager",
+        "weak_title_level",
+        "weak_title_associate",
+        "description_explicit",
+        "unknown",
+    ]:
         c = seniority_source_counts.get(src, 0)
         pct = c / total_sen * 100 if total_sen > 0 else 0
         log.info(f"  {src:<25} {c:>10,} {pct:>7.1f}%")
@@ -866,6 +1279,36 @@ def generate_report(
     unknown_count = seniority_level_counts.get("unknown", 0)
     unknown_rate = unknown_count / total_sen * 100 if total_sen > 0 else 0
     log.info(f"\n  ** Unknown rate: {unknown_rate:.1f}% ({unknown_count:,}/{total_sen:,}) **")
+
+    log.info(f"\n  Final seniority resolution source:")
+    log.info(f"  {'Source':<25} {'Rows':>10} {'Pct':>8}")
+    log.info(f"  {'-'*25} {'-'*10} {'-'*8}")
+    total_final = sum(seniority_final_source_counts.values())
+    for src in [
+        "title_keyword",
+        "title_manager",
+        "native_backfill",
+        "title_prior",
+        "weak_title_level",
+        "weak_title_associate",
+        "description_explicit",
+        "unknown",
+    ]:
+        c = seniority_final_source_counts.get(src, 0)
+        pct = c / total_final * 100 if total_final > 0 else 0
+        log.info(f"  {src:<25} {c:>10,} {pct:>7.1f}%")
+    log.info(f"  {'-'*25} {'-'*10} {'-'*8}")
+    log.info(f"  {'TOTAL':<25} {total_final:>10,}")
+
+    log.info(f"\n  Final seniority level distribution:")
+    for level in ["entry", "associate", "mid-senior", "director", "unknown"]:
+        c = seniority_final_level_counts.get(level, 0)
+        pct = c / total_final * 100 if total_final > 0 else 0
+        log.info(f"    {level:<25} {c:>10,} ({pct:.1f}%)")
+
+    final_unknown = seniority_final_level_counts.get("unknown", 0)
+    final_unknown_rate = final_unknown / total_final * 100 if total_final > 0 else 0
+    log.info(f"\n  ** Final unknown rate: {final_unknown_rate:.1f}% ({final_unknown:,}/{total_final:,}) **")
 
     # Seniority 3-level distribution
     log.info(f"\n  Seniority 3-level distribution:")
@@ -924,7 +1367,8 @@ def run_stage5():
     gc.collect()
 
     # Phase 2: Build seniority title lookup
-    seniority_title_lookup = build_seniority_title_lookup(input_path)
+    seniority_title_lookup = build_seniority_title_lookup(input_path, swe_lookup, control_lookup)
+    title_prior_lookup = build_group_title_prior_lookup(input_path, swe_lookup, control_lookup)
     gc.collect()
 
     # Phase 3: Stream chunks, apply lookups, write output
@@ -933,6 +1377,7 @@ def run_stage5():
         output_path,
         swe_lookup,
         seniority_title_lookup,
+        title_prior_lookup,
         control_lookup,
     )
 

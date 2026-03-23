@@ -2,8 +2,8 @@
 """
 Stage 10: LLM extraction + classification.
 
-This stage now performs two separate cached tasks per unique description hash:
-  1. Core-content extraction by numbered description blocks
+This stage performs two separate cached tasks per unique description hash:
+  1. Core-content extraction by numbered sentence-like units
   2. SWE / seniority / ghost classification
 
 Architectural contract:
@@ -64,8 +64,14 @@ SQLITE_IN_LIMIT = 900
 PROFILE_RANDOM_SEED = 42
 
 CLASSIFICATION_TASK_NAME = "classification"
-EXTRACTION_TASK_NAME = "core_extraction_blocks"
+EXTRACTION_TASK_NAME = "core_extraction_units"
 TASK_NAMES = (CLASSIFICATION_TASK_NAME, EXTRACTION_TASK_NAME)
+EXTRACTION_STATUS_OK = "ok"
+EXTRACTION_STATUS_CANNOT_COMPLETE = "cannot_complete"
+EXTRACTION_STATUS_ENUM = {EXTRACTION_STATUS_OK, EXTRACTION_STATUS_CANNOT_COMPLETE}
+MAX_EXTRACTION_UNIT_CHARS = 700
+MAX_EXTRACTION_UNIT_COUNT = 120
+SINGLE_UNIT_WARNING_CHARS = 500
 
 CLASSIFICATION_PROMPT_TEMPLATE = """You are a labor economics research assistant classifying job postings.
 Perform the tasks below on this job posting. Return ONLY valid JSON.
@@ -133,11 +139,11 @@ Respond with this exact JSON structure:
 }}"""
 
 EXTRACTION_PROMPT_TEMPLATE = """You are a labor economics research assistant removing boilerplate from job postings.
-You will receive the original description split into numbered blocks. Return ONLY valid JSON.
+You will receive the description split into numbered extraction units. Return ONLY valid JSON.
 
 Goal:
-- Keep only the blocks that contain core job content.
-- Drop blocks that are boilerplate.
+- Mark units that are clearly boilerplate or non-core.
+- Keep units that contain core job content.
 
 Core job content includes:
 - role summary
@@ -147,35 +153,37 @@ Core job content includes:
 - preferred qualifications
 - tech stack
 - day-to-day work
+- role-specific logistics such as shift, department, travel, or contract length
 
-Boilerplate includes:
+Boilerplate or non-core text includes:
 - company overview / mission / values
 - generic benefits / compensation / perks
 - EEO / diversity / legal text
 - application instructions
-- recruiter platform framing
+- recruiter or staffing platform framing
+- generic location / requisition metadata
 - generic remote / hybrid policy text
 
 Rules:
-- Select whole block IDs only. Do not split blocks.
-- Preserve original order.
-- Do not rewrite, paraphrase, merge, or clean up the text.
-- The selected_text must be the exact concatenation of the chosen blocks,
-  in original order, separated by a blank line.
-- If the description is all boilerplate, return an empty keep_block_ids list
-  and an empty selected_text.
+- Return IDs for units to DROP, not units to keep.
+- If a unit mixes core and boilerplate, keep it.
+- Prefer high precision on dropping. When uncertain, do not drop the unit.
+- If the units are malformed or the task cannot be completed reliably, return
+  "task_status": "cannot_complete" with empty ID lists.
+- Keep `reason` short.
 
 TITLE: {title}
 COMPANY: {company}
 
-NUMBERED BLOCKS:
-{numbered_blocks}
+NUMBERED UNITS:
+{numbered_units}
 
 Respond with this exact JSON structure:
 {{
-  "keep_block_ids": [1, 2],
-  "selected_text": "<exact concatenation of the selected blocks, in original order, separated by one blank line>",
-  "all_boilerplate": false
+  "task_status": "ok" | "cannot_complete",
+  "boilerplate_unit_ids": [1, 2],
+  "uncertain_unit_ids": [3],
+  "reason": "short phrase"
 }}"""
 
 CLASSIFICATION_PROMPT_VERSION = hashlib.sha256(
@@ -190,7 +198,7 @@ PROMPT_BUNDLE_VERSION = hashlib.sha256(
 PROMPT_VERSION = PROMPT_BUNDLE_VERSION
 
 CLASSIFICATION_KEYS = {"swe_classification", "seniority", "ghost_assessment"}
-EXTRACTION_KEYS = {"keep_block_ids", "selected_text", "all_boilerplate"}
+EXTRACTION_KEYS = {"task_status", "boilerplate_unit_ids", "uncertain_unit_ids", "reason"}
 SWE_ENUM = {"SWE", "SWE_ADJACENT", "NOT_SWE"}
 SENIORITY_ENUM = {"entry", "associate", "mid-senior", "director", "unknown"}
 GHOST_ENUM = {"realistic", "inflated", "ghost_likely"}
@@ -254,16 +262,120 @@ def segment_description_into_blocks(text) -> list[dict]:
     return blocks
 
 
-def join_selected_blocks(blocks: list[dict], keep_block_ids: list[int]) -> str:
-    id_to_text = {block["block_id"]: block["text"] for block in blocks}
-    selected = [id_to_text[block_id] for block_id in keep_block_ids if block_id in id_to_text]
+SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=(?:[-*•+]?\s*)?[A-Z0-9(])")
+BULLET_LINE_RE = re.compile(r"^\s*(?:[-*•+]|[0-9]+[.)])\s+")
+METADATA_LINE_RE = re.compile(
+    r"^(?:"
+    r"(?:req(?:uisition)?|job)\s*#?:"
+    r"|location:"
+    r"|salary:"
+    r"|pay(?: range)?:"
+    r"|job type:"
+    r"|shift:"
+    r"|schedule:"
+    r"|department:"
+    r"|category:"
+    r"|status:"
+    r"|benefits?:"
+    r"|posted date:"
+    r"|site name:"
+    r")",
+    flags=re.IGNORECASE,
+)
+
+
+def looks_like_heading(text: str) -> bool:
+    cleaned = text.strip().strip("*#").strip()
+    if not cleaned:
+        return False
+    if len(cleaned) > 80:
+        return False
+    if cleaned.endswith(":"):
+        return True
+    words = cleaned.split()
+    if len(words) > 8:
+        return False
+    return cleaned == cleaned.title() or cleaned.isupper()
+
+
+def split_long_text_into_units(text: str, max_chars: int = MAX_EXTRACTION_UNIT_CHARS) -> list[str]:
+    candidate = text.strip()
+    if not candidate:
+        return []
+    parts = [part.strip() for part in SENTENCE_SPLIT_RE.split(candidate) if part.strip()]
+    if len(parts) <= 1:
+        return [candidate]
+    for part in parts:
+        if len(part) <= max_chars:
+            continue
+        return [candidate]
+    units = parts
+    return units
+
+
+def split_line_into_units(line: str) -> list[str]:
+    cleaned = line.strip()
+    if not cleaned:
+        return []
+    if BULLET_LINE_RE.match(cleaned) or METADATA_LINE_RE.match(cleaned) or looks_like_heading(cleaned):
+        return [cleaned]
+    return split_long_text_into_units(cleaned)
+
+
+def segment_description_into_units(text) -> list[dict]:
+    description = normalize_newlines(text)
+    if not description.strip():
+        return []
+
+    units: list[dict] = []
+    block_texts = [block["text"] for block in segment_description_into_blocks(description)]
+    raw_chunks = block_texts if block_texts else [description]
+
+    for chunk in raw_chunks:
+        lines = [line.strip() for line in chunk.split("\n") if line.strip()]
+        if not lines:
+            continue
+
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if looks_like_heading(line) and i + 1 < len(lines) and not looks_like_heading(lines[i + 1]):
+                merged = f"{line}\n{lines[i + 1].strip()}"
+                if len(merged) <= MAX_EXTRACTION_UNIT_CHARS:
+                    for piece in split_line_into_units(merged):
+                        units.append(
+                            {
+                                "unit_id": len(units) + 1,
+                                "unit_type": "heading_group",
+                                "text": piece,
+                            }
+                        )
+                    i += 2
+                    continue
+
+            for piece in split_line_into_units(line):
+                units.append(
+                    {
+                        "unit_id": len(units) + 1,
+                        "unit_type": "line",
+                        "text": piece,
+                    }
+                )
+            i += 1
+
+    return units
+
+
+def join_retained_units(units: list[dict], boilerplate_unit_ids: list[int]) -> str:
+    dropped_ids = set(boilerplate_unit_ids)
+    selected = [unit["text"] for unit in units if unit["unit_id"] not in dropped_ids]
     return "\n\n".join(selected)
 
 
-def format_numbered_blocks(blocks: list[dict]) -> str:
+def format_numbered_units(units: list[dict]) -> str:
     parts = []
-    for block in blocks:
-        parts.append(f"[{block['block_id']}]\n{block['text']}")
+    for unit in units:
+        parts.append(f"[{unit['unit_id']}]\n{unit['text']}")
     return "\n\n".join(parts)
 
 
@@ -276,14 +388,14 @@ def render_classification_prompt(title, company, full_description) -> str:
 
 
 def render_extraction_prompt(title, company, full_description) -> tuple[str, list[dict]]:
-    blocks = segment_description_into_blocks(full_description)
+    units = segment_description_into_units(full_description)
     return (
         EXTRACTION_PROMPT_TEMPLATE.format(
             title="" if title is None else str(title),
             company="" if company is None else str(company),
-            numbered_blocks=format_numbered_blocks(blocks),
+            numbered_units=format_numbered_units(units),
         ),
-        blocks,
+        units,
     )
 
 
@@ -499,28 +611,32 @@ def validate_extraction_payload(payload: dict) -> str | None:
         return "response_not_object"
     if set(payload.keys()) != EXTRACTION_KEYS:
         return "invalid_keys"
-    keep_ids = payload["keep_block_ids"]
-    if not isinstance(keep_ids, list):
-        return "invalid_keep_block_ids"
-    normalized_ids = []
-    for value in keep_ids:
-        if isinstance(value, bool) or not isinstance(value, int):
-            return "invalid_keep_block_ids"
-        if value < 1:
-            return "invalid_keep_block_ids"
-        normalized_ids.append(value)
-    if len(normalized_ids) != len(set(normalized_ids)):
-        return "duplicate_keep_block_ids"
-    if normalized_ids != sorted(normalized_ids):
-        return "unsorted_keep_block_ids"
-    if not isinstance(payload["selected_text"], str):
-        return "invalid_selected_text"
-    if not isinstance(payload["all_boilerplate"], bool):
-        return "invalid_all_boilerplate"
-    if payload["all_boilerplate"] and normalized_ids:
-        return "all_boilerplate_with_keep_ids"
-    if not normalized_ids and payload["selected_text"].strip():
-        return "selected_text_without_keep_ids"
+    if payload["task_status"] not in EXTRACTION_STATUS_ENUM:
+        return "invalid_task_status"
+    for field_name in ("boilerplate_unit_ids", "uncertain_unit_ids"):
+        keep_ids = payload[field_name]
+        if not isinstance(keep_ids, list):
+            return f"invalid_{field_name}"
+        normalized_ids = []
+        for value in keep_ids:
+            if isinstance(value, bool) or not isinstance(value, int):
+                return f"invalid_{field_name}"
+            if value < 1:
+                return f"invalid_{field_name}"
+            normalized_ids.append(value)
+        if len(normalized_ids) != len(set(normalized_ids)):
+            return f"duplicate_{field_name}"
+        if normalized_ids != sorted(normalized_ids):
+            return f"unsorted_{field_name}"
+    if not isinstance(payload["reason"], str):
+        return "invalid_reason"
+    if payload["task_status"] == EXTRACTION_STATUS_CANNOT_COMPLETE and (
+        payload["boilerplate_unit_ids"] or payload["uncertain_unit_ids"]
+    ):
+        return "cannot_complete_with_ids"
+    overlap = set(payload["boilerplate_unit_ids"]) & set(payload["uncertain_unit_ids"])
+    if overlap:
+        return "overlapping_extraction_ids"
     return None
 
 
@@ -765,11 +881,46 @@ def load_candidate_frame(input_path: Path) -> tuple[pd.DataFrame, int]:
         "company_name",
         "description",
         "description_hash",
+        "needs_llm_classification",
+        "needs_llm_extraction",
+        "llm_route_group",
     ]
-    df = pq.read_table(input_path, columns=cols).to_pandas()
+    available_cols = [col for col in cols if col in pq.ParquetFile(input_path).schema.names]
+    df = pq.read_table(input_path, columns=available_cols).to_pandas()
     raw_candidate_rows = len(df)
     df["description_hash"] = df["description_hash"].astype(str)
-    df = df.drop_duplicates(subset=["description_hash"], keep="first").reset_index(drop=True)
+
+    if "needs_llm_classification" not in df.columns:
+        df["needs_llm_classification"] = True
+    if "needs_llm_extraction" not in df.columns:
+        df["needs_llm_extraction"] = True
+    if "llm_route_group" not in df.columns:
+        df["llm_route_group"] = "classification_and_extraction"
+
+    df["needs_llm_classification"] = df["needs_llm_classification"].fillna(False).astype(bool)
+    df["needs_llm_extraction"] = df["needs_llm_extraction"].fillna(False).astype(bool)
+
+    if df.duplicated(subset=["description_hash"]).any():
+        grouped = (
+            df.groupby("description_hash", as_index=False)
+            .agg(
+                {
+                    "job_id": "first",
+                    "source": "first",
+                    "source_platform": "first",
+                    "title": "first",
+                    "company_name": "first",
+                    "description": "first",
+                    "needs_llm_classification": "max",
+                    "needs_llm_extraction": "max",
+                    "llm_route_group": "first",
+                }
+            )
+        )
+        df = grouped
+    else:
+        df = df.drop_duplicates(subset=["description_hash"], keep="first").reset_index(drop=True)
+
     return df, raw_candidate_rows
 
 
@@ -813,22 +964,29 @@ def select_profile_frame(df: pd.DataFrame, profile_limit: int) -> pd.DataFrame:
 
 
 def has_uncached_rows(df: pd.DataFrame, conn: sqlite3.Connection) -> bool:
-    hashes = df["description_hash"].astype(str).tolist()
-    for batch in chunked(hashes, CHUNK_SIZE):
+    if df.empty:
+        return False
+
+    records = df[["description_hash", "needs_llm_classification", "needs_llm_extraction"]].to_dict("records")
+    for batch_records in chunked(records, CHUNK_SIZE):
+        batch_hashes = [str(row["description_hash"]) for row in batch_records]
         cached_class = fetch_cached_rows(
             conn,
-            batch,
+            batch_hashes,
             CLASSIFICATION_TASK_NAME,
             CLASSIFICATION_PROMPT_VERSION,
         )
         cached_extract = fetch_cached_rows(
             conn,
-            batch,
+            batch_hashes,
             EXTRACTION_TASK_NAME,
             EXTRACTION_PROMPT_VERSION,
         )
-        for description_hash in batch:
-            if description_hash not in cached_class or description_hash not in cached_extract:
+        for row in batch_records:
+            description_hash = str(row["description_hash"])
+            if row["needs_llm_classification"] and description_hash not in cached_class:
+                return True
+            if row["needs_llm_extraction"] and description_hash not in cached_extract:
                 return True
     return False
 
@@ -853,21 +1011,56 @@ def process_row_tasks(
     }
 
     if need_extraction:
-        extraction_prompt, blocks = render_extraction_prompt(
+        extraction_prompt, units = render_extraction_prompt(
             row["title"],
             row["company_name"],
             row["description"],
         )
         results["tasks_attempted"] += 1
-        if not blocks:
+        if not units:
             payload = {
-                "keep_block_ids": [],
-                "selected_text": "",
-                "all_boilerplate": False,
+                "task_status": EXTRACTION_STATUS_CANNOT_COMPLETE,
+                "boilerplate_unit_ids": [],
+                "uncertain_unit_ids": [],
+                "reason": "empty_description",
             }
             results["task_results"][EXTRACTION_TASK_NAME] = {
                 "provider": "synthetic",
                 "model": "synthetic-empty-description",
+                "latency_seconds": 0.0,
+                "response_json": json.dumps(payload, ensure_ascii=False),
+                "payload": payload,
+                "tokens_used": None,
+                "cost_usd": None,
+                "prompt_version": EXTRACTION_PROMPT_VERSION,
+            }
+        elif len(units) == 1 and len(units[0]["text"]) >= SINGLE_UNIT_WARNING_CHARS:
+            payload = {
+                "task_status": EXTRACTION_STATUS_CANNOT_COMPLETE,
+                "boilerplate_unit_ids": [],
+                "uncertain_unit_ids": [],
+                "reason": "single_unit_description",
+            }
+            results["task_results"][EXTRACTION_TASK_NAME] = {
+                "provider": "synthetic",
+                "model": "synthetic-single-unit-fallback",
+                "latency_seconds": 0.0,
+                "response_json": json.dumps(payload, ensure_ascii=False),
+                "payload": payload,
+                "tokens_used": None,
+                "cost_usd": None,
+                "prompt_version": EXTRACTION_PROMPT_VERSION,
+            }
+        elif len(units) > MAX_EXTRACTION_UNIT_COUNT:
+            payload = {
+                "task_status": EXTRACTION_STATUS_CANNOT_COMPLETE,
+                "boilerplate_unit_ids": [],
+                "uncertain_unit_ids": [],
+                "reason": "too_many_units",
+            }
+            results["task_results"][EXTRACTION_TASK_NAME] = {
+                "provider": "synthetic",
+                "model": "synthetic-too-many-units-fallback",
                 "latency_seconds": 0.0,
                 "response_json": json.dumps(payload, ensure_ascii=False),
                 "payload": payload,
@@ -923,10 +1116,16 @@ def process_row_tasks(
 
 
 def build_results_row(
+    row_meta: dict,
     description_hash: str,
     classification_cached: dict | None,
     extraction_cached: dict | None,
 ) -> dict:
+    if not bool(row_meta.get("needs_llm_classification", False)):
+        classification_cached = None
+    if not bool(row_meta.get("needs_llm_extraction", False)):
+        extraction_cached = None
+
     classification_payload = (
         json.loads(classification_cached["response_json"]) if classification_cached is not None else {}
     )
@@ -934,6 +1133,9 @@ def build_results_row(
 
     return {
         "description_hash": description_hash,
+        "needs_llm_classification": bool(row_meta.get("needs_llm_classification", False)),
+        "needs_llm_extraction": bool(row_meta.get("needs_llm_extraction", False)),
+        "llm_route_group": row_meta.get("llm_route_group"),
         "llm_model_classification": None if classification_cached is None else classification_cached["model"],
         "llm_prompt_version_classification": (
             None if classification_cached is None else classification_cached["prompt_version"]
@@ -959,13 +1161,18 @@ def build_results_row(
             if extraction_cached is None or extraction_cached["tokens_used"] is None
             else float(extraction_cached["tokens_used"])
         ),
-        "extraction_block_ids_llm": (
+        "extraction_task_status_llm": extraction_payload.get("task_status"),
+        "extraction_boilerplate_unit_ids_llm": (
             None
             if extraction_cached is None
-            else json.dumps(extraction_payload.get("keep_block_ids", []), ensure_ascii=False)
+            else json.dumps(extraction_payload.get("boilerplate_unit_ids", []), ensure_ascii=False)
         ),
-        "extraction_selected_text_llm": extraction_payload.get("selected_text"),
-        "extraction_all_boilerplate_llm": extraction_payload.get("all_boilerplate"),
+        "extraction_uncertain_unit_ids_llm": (
+            None
+            if extraction_cached is None
+            else json.dumps(extraction_payload.get("uncertain_unit_ids", []), ensure_ascii=False)
+        ),
+        "extraction_reason_llm": extraction_payload.get("reason"),
     }
 
 
@@ -1034,6 +1241,14 @@ def run_stage10(
     log.info(
         "Stage 10 deduplicates only LLM calls by description hash; analytical row preservation happens in Stage 11."
     )
+    log.info(
+        "Hashes requesting classification: %s",
+        f"{int(target_df['needs_llm_classification'].sum()):,}",
+    )
+    log.info(
+        "Hashes requesting extraction: %s",
+        f"{int(target_df['needs_llm_extraction'].sum()):,}",
+    )
     if profile:
         log.info("Profile sample size: %s", f"{len(target_df):,}")
 
@@ -1056,8 +1271,10 @@ def run_stage10(
     total_tasks_needed = 0
     for row in target_df.to_dict("records"):
         description_hash = str(row["description_hash"])
-        need_classification = description_hash not in cached_class
-        need_extraction = description_hash not in cached_extract
+        route_classification = bool(row.get("needs_llm_classification", False))
+        route_extraction = bool(row.get("needs_llm_extraction", False))
+        need_classification = route_classification and description_hash not in cached_class
+        need_extraction = route_extraction and description_hash not in cached_extract
         if not need_classification and not need_extraction:
             fully_cached_rows += 1
             continue
@@ -1152,6 +1369,7 @@ def run_stage10(
 
     if not profile:
         output_rows = []
+        row_lookup = {str(row["description_hash"]): row for row in target_df.to_dict("records")}
         for batch in chunked(hashes, CHUNK_SIZE):
             cached_class_batch = fetch_cached_rows(
                 conn,
@@ -1168,6 +1386,7 @@ def run_stage10(
             for description_hash in batch:
                 output_rows.append(
                     build_results_row(
+                        row_lookup[description_hash],
                         description_hash,
                         cached_class_batch.get(description_hash),
                         cached_extract_batch.get(description_hash),
@@ -1253,7 +1472,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--claude-delay", type=float, default=1.0)
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--max-retries", type=int, default=3)
-    parser.add_argument("--max-workers", type=int, default=int(os.environ.get("STAGE10_MAX_WORKERS", "12")))
+    parser.add_argument("--max-workers", type=int, default=int(os.environ.get("STAGE10_MAX_WORKERS", "40")))
     return parser.parse_args()
 
 
