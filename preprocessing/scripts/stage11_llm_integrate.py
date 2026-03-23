@@ -422,7 +422,6 @@ def run_stage11(
                 "llm_route_group",
                 "llm_skip_reason",
                 "llm_classification_reason",
-                "llm_extraction_reason",
             ],
             errors="ignore",
         )

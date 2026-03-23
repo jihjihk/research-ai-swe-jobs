@@ -496,12 +496,18 @@ def detect_language(text):
 # ---------------------------------------------------------------------------
 # Stage 8: Ghost job detection
 # ---------------------------------------------------------------------------
-def detect_ghost_job(seniority_3level: str, yoe_extracted, yoe_contradiction: bool) -> str:
+def is_junior_like_seniority(seniority_final: str) -> bool:
+    """Return True only for the junior-like 5-level seniority bucket."""
+    return str(seniority_final).strip().lower() == "entry"
+
+
+def detect_ghost_job(seniority_final: str, yoe_extracted, yoe_contradiction: bool) -> str:
     """Detect ghost jobs: entry-level title with high experience requirement.
 
-    Returns 'high', 'medium', or 'low'.
+    Uses the canonical 5-level seniority label rather than the coarse 3-level
+    bucket. Returns 'high', 'medium', or 'low'.
     """
-    if seniority_3level != "junior":
+    if not is_junior_like_seniority(seniority_final):
         return "low"
 
     if pd.isna(yoe_extracted):
@@ -613,7 +619,7 @@ def process_chunk(
     df["description_hash"] = df["description"].apply(build_description_hash)
     df["ghost_job_risk"] = df.apply(
         lambda row: detect_ghost_job(
-            row["seniority_3level"], row["yoe_extracted"], bool(row["yoe_seniority_contradiction"])
+            row["seniority_final"], row["yoe_extracted"], bool(row["yoe_seniority_contradiction"])
         ),
         axis=1,
     )

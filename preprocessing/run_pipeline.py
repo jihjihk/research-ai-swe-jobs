@@ -48,6 +48,7 @@ STAGES = [
         "script": "stage1_ingest.py",
         "output": "stage1_unified.parquet",
         "min_rows": 1_200_000,
+        "timeout_seconds": 2 * 3600,
     },
     {
         "num": 2,
@@ -56,6 +57,7 @@ STAGES = [
         "output": "stage2_aggregators.parquet",
         "min_rows": 1_200_000,
         "check_col": "company_name_effective",
+        "timeout_seconds": 2 * 3600,
     },
     {
         "num": 3,
@@ -64,6 +66,7 @@ STAGES = [
         "output": "stage3_boilerplate.parquet",
         "min_rows": 1_200_000,
         "check_col": "description_core",
+        "timeout_seconds": 2 * 3600,
     },
     {
         "num": 4,
@@ -72,6 +75,7 @@ STAGES = [
         "output": "stage4_dedup.parquet",
         "min_rows": 1_000_000,
         "check_col": "company_name_canonical",
+        "timeout_seconds": 2 * 3600,
     },
     {
         "num": 5,
@@ -80,6 +84,7 @@ STAGES = [
         "output": "stage5_classification.parquet",
         "min_rows": 1_000_000,
         "check_col": "seniority_final",
+        "timeout_seconds": 2 * 3600,
     },
     {
         "num": "6-8",
@@ -88,6 +93,7 @@ STAGES = [
         "output": "stage8_final.parquet",
         "min_rows": 1_000_000,
         "check_col": "period",
+        "timeout_seconds": 2 * 3600,
     },
     {
         "num": 9,
@@ -96,6 +102,7 @@ STAGES = [
         "output": "stage9_llm_candidates.parquet",
         "min_rows": 1,
         "check_col": "needs_llm_extraction",
+        "timeout_seconds": 2 * 3600,
     },
     {
         "num": 10,
@@ -104,6 +111,8 @@ STAGES = [
         "output": "stage10_llm_results.parquet",
         "min_rows": 1,
         "check_col": "description_hash",
+        # Stage 10 makes external LLM calls and can run for many hours on a full batch.
+        "timeout_seconds": 24 * 3600,
     },
     {
         "num": 11,
@@ -112,12 +121,14 @@ STAGES = [
         "output": "stage11_llm_integrated.parquet",
         "min_rows": 1_000_000,
         "check_col": "description_core_llm",
+        "timeout_seconds": 6 * 3600,
     },
     {
         "num": "final",
         "name": "Final Output Generation",
         "script": "stage_final_output.py",
         "output": None,  # Writes to data/unified.parquet directly
+        "timeout_seconds": 6 * 3600,
     },
 ]
 
@@ -166,11 +177,12 @@ def run_stage(stage: dict) -> bool:
 
     log.info(f"  Running {script.name}...")
     t0 = time.time()
+    timeout_seconds = stage.get("timeout_seconds", 3600)
 
     result = subprocess.run(
         [sys.executable, str(script)],
         capture_output=True, text=True,
-        timeout=3600,  # 1 hour max per stage
+        timeout=timeout_seconds,
     )
 
     elapsed = time.time() - t0

@@ -13,11 +13,14 @@ Architectural contract:
   - Stage 11 is responsible for reattaching those cached outputs to every
     matching row in the full posting table.
 
-Primary model:
-  codex exec --full-auto --config model=gpt-5.4-mini
+Provider defaults:
+  - Codex path: `gpt-5.4-mini`
+  - Claude path: `haiku`
 
-Fallback model:
-  claude -p ... --output-format json
+Operational notes:
+  - Completed task responses are committed to SQLite immediately and reused on rerun.
+  - Quota/rate-limit failures trigger a shared pause window (default: 5 hours)
+    and then retries resume from the cache checkpoint.
 
 Outputs:
   - preprocessing/cache/llm_responses.db
@@ -31,17 +34,17 @@ import gc
 import hashlib
 import json
 import logging
-import os
 import random
 import re
 import signal
 import sqlite3
 import statistics
 import subprocess
+import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -202,8 +205,14 @@ EXTRACTION_KEYS = {"task_status", "boilerplate_unit_ids", "uncertain_unit_ids", 
 SWE_ENUM = {"SWE", "SWE_ADJACENT", "NOT_SWE"}
 SENIORITY_ENUM = {"entry", "associate", "mid-senior", "director", "unknown"}
 GHOST_ENUM = {"realistic", "inflated", "ghost_likely"}
+SUPPORTED_PROVIDERS = ("codex", "claude")
+DEFAULT_QUOTA_WAIT_HOURS = 5.0
+DEFAULT_CODEX_MODEL = "gpt-5.4-mini"
+DEFAULT_CLAUDE_MODEL = "haiku"
 
 STOP_REQUESTED = False
+QUOTA_PAUSE_LOCK = threading.Lock()
+QUOTA_PAUSED_UNTIL = 0.0
 
 
 def configure_logging() -> logging.Logger:
@@ -662,14 +671,87 @@ def build_codex_command(prompt: str, model: str) -> list[str]:
     ]
 
 
-def build_claude_command(prompt: str) -> list[str]:
+def build_claude_command(prompt: str, model: str) -> list[str]:
     return [
         "claude",
         "-p",
         prompt,
+        "--model",
+        model,
         "--output-format",
         "json",
     ]
+
+
+def quota_retry_after_seconds(wait_hours: float) -> float:
+    return max(wait_hours * 3600.0, 0.0)
+
+
+def quota_pause_remaining_seconds() -> float:
+    with QUOTA_PAUSE_LOCK:
+        return max(QUOTA_PAUSED_UNTIL - time.time(), 0.0)
+
+
+def wait_for_quota_pause() -> None:
+    while True:
+        remaining = quota_pause_remaining_seconds()
+        if remaining <= 0 or STOP_REQUESTED:
+            return
+        time.sleep(min(remaining, 60.0))
+
+
+def detect_quota_or_rate_limit(text: str) -> bool:
+    candidate = (text or "").lower()
+    if not candidate:
+        return False
+    patterns = (
+        "insufficient_quota",
+        "quota",
+        "rate limit",
+        "rate_limit",
+        "too many requests",
+        "429",
+        "usage limit",
+        "credit balance",
+        "exceeded your current quota",
+        "retry after",
+        "request limit",
+        "token limit reached",
+    )
+    return any(pattern in candidate for pattern in patterns)
+
+
+def activate_quota_pause(
+    provider: str,
+    model: str,
+    wait_seconds: float,
+    log: logging.Logger,
+    description_hash: str,
+    task_name: str,
+    detail: str,
+) -> None:
+    global QUOTA_PAUSED_UNTIL
+
+    now = time.time()
+    new_until = now + wait_seconds
+    with QUOTA_PAUSE_LOCK:
+        previous_until = QUOTA_PAUSED_UNTIL
+        if new_until > QUOTA_PAUSED_UNTIL:
+            QUOTA_PAUSED_UNTIL = new_until
+        active_until = QUOTA_PAUSED_UNTIL
+
+    if active_until > previous_until:
+        resume_at = datetime.now(timezone.utc) + timedelta(seconds=max(active_until - now, 0.0))
+        log.warning(
+            "Quota/rate limit detected for %s/%s on %s (%s). Pausing all new provider calls until %s UTC.",
+            provider,
+            model,
+            description_hash,
+            task_name,
+            resume_at.isoformat(timespec="seconds"),
+        )
+        if detail:
+            log.warning("Quota detail: %s", detail[:500])
 
 
 def try_provider(
@@ -683,24 +765,32 @@ def try_provider(
     timeout_seconds: int,
     max_retries: int,
     payload_validator,
+    quota_wait_hours: float,
 ) -> dict | None:
     backoff_seconds = [1, 2, 4]
+    attempt = 1
+    wait_seconds = quota_retry_after_seconds(quota_wait_hours)
 
-    for attempt in range(1, max_retries + 1):
+    while attempt <= max_retries:
+        wait_for_quota_pause()
+        if STOP_REQUESTED:
+            return None
         t0 = time.time()
         try:
             if provider == "codex":
                 result = call_subprocess(build_codex_command(prompt, model), timeout_seconds)
             elif provider == "claude":
-                result = call_subprocess(build_claude_command(prompt), timeout_seconds)
+                result = call_subprocess(build_claude_command(prompt, model), timeout_seconds)
             else:
                 raise ValueError(f"unknown provider: {provider}")
 
             latency = time.time() - t0
             stdout = result.stdout or ""
             stderr = result.stderr or ""
+            combined_output = "\n".join(part for part in (stderr, stdout) if part)
 
             if result.returncode != 0:
+                is_quota_limited = detect_quota_or_rate_limit(combined_output)
                 append_jsonl(
                     error_log_path,
                     {
@@ -716,8 +806,20 @@ def try_provider(
                         "raw_response": stdout[:4000],
                     },
                 )
+                if is_quota_limited:
+                    activate_quota_pause(
+                        provider=provider,
+                        model=model,
+                        wait_seconds=wait_seconds,
+                        log=log,
+                        description_hash=description_hash,
+                        task_name=task_name,
+                        detail=combined_output,
+                    )
+                    continue
                 if attempt < max_retries:
                     time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
+                    attempt += 1
                     continue
                 return None
 
@@ -726,7 +828,7 @@ def try_provider(
                 response_model = model
             else:
                 response_json, tokens_used, cost_usd = parse_claude_stdout(stdout)
-                response_model = "claude-haiku"
+                response_model = model
 
             payload = json.loads(response_json)
             validation_error = payload_validator(payload)
@@ -746,6 +848,7 @@ def try_provider(
                 )
                 if attempt < max_retries:
                     time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
+                    attempt += 1
                     continue
                 return None
 
@@ -772,6 +875,10 @@ def try_provider(
                     "raw_response": "",
                 },
             )
+            if attempt < max_retries:
+                time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
+                attempt += 1
+                continue
         except (json.JSONDecodeError, ValueError) as exc:
             append_jsonl(
                 error_log_path,
@@ -786,6 +893,18 @@ def try_provider(
                     "raw_response": stdout[:8000] if "stdout" in locals() else "",
                 },
             )
+            raw_text = stdout[:8000] if "stdout" in locals() else ""
+            if detect_quota_or_rate_limit(raw_text):
+                activate_quota_pause(
+                    provider=provider,
+                    model=model,
+                    wait_seconds=wait_seconds,
+                    log=log,
+                    description_hash=description_hash,
+                    task_name=task_name,
+                    detail=raw_text,
+                )
+                continue
         except Exception as exc:  # noqa: BLE001
             log.exception("Provider %s failed for %s (%s)", provider, description_hash, task_name)
             append_jsonl(
@@ -804,6 +923,10 @@ def try_provider(
 
         if attempt < max_retries:
             time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
+            attempt += 1
+            continue
+
+        return None
 
     return None
 
@@ -818,35 +941,56 @@ def call_task_with_fallback(
     timeout_seconds: int,
     max_retries: int,
     payload_validator,
+    provider_order: tuple[str, ...] = SUPPORTED_PROVIDERS,
+    claude_model: str = DEFAULT_CLAUDE_MODEL,
+    quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
 ) -> dict | None:
-    codex_result = try_provider(
-        provider="codex",
-        prompt=prompt,
-        model=codex_model,
-        task_name=task_name,
-        description_hash=description_hash,
-        error_log_path=error_log_path,
-        log=log,
-        timeout_seconds=timeout_seconds,
-        max_retries=max_retries,
-        payload_validator=payload_validator,
-    )
-    if codex_result is not None:
-        return codex_result
+    for idx, provider in enumerate(provider_order):
+        if provider == "codex":
+            model = codex_model
+        elif provider == "claude":
+            model = claude_model
+        else:  # pragma: no cover
+            raise ValueError(f"unsupported provider: {provider}")
 
-    log.warning("Falling back to Claude for %s (%s)", description_hash, task_name)
-    return try_provider(
-        provider="claude",
-        prompt=prompt,
-        model="claude-haiku",
-        task_name=task_name,
-        description_hash=description_hash,
-        error_log_path=error_log_path,
-        log=log,
-        timeout_seconds=timeout_seconds,
-        max_retries=max_retries,
-        payload_validator=payload_validator,
-    )
+        result = try_provider(
+            provider=provider,
+            prompt=prompt,
+            model=model,
+            task_name=task_name,
+            description_hash=description_hash,
+            error_log_path=error_log_path,
+            log=log,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            payload_validator=payload_validator,
+            quota_wait_hours=quota_wait_hours,
+        )
+        if result is not None:
+            return result
+        if idx + 1 < len(provider_order):
+            next_provider = provider_order[idx + 1]
+            log.warning(
+                "Falling back from %s to %s for %s (%s)",
+                provider,
+                next_provider,
+                description_hash,
+                task_name,
+            )
+
+    return None
+
+
+def parse_provider_order(value: str) -> tuple[str, ...]:
+    providers = tuple(part.strip().lower() for part in value.split(",") if part.strip())
+    if not providers:
+        raise ValueError("provider order must include at least one provider")
+    invalid = [provider for provider in providers if provider not in SUPPORTED_PROVIDERS]
+    if invalid:
+        raise ValueError(f"unsupported providers in order: {', '.join(invalid)}")
+    if len(providers) != len(set(providers)):
+        raise ValueError("provider order must not contain duplicates")
+    return providers
 
 
 def p95(values: list[float]) -> float | None:
@@ -1002,6 +1146,9 @@ def process_row_tasks(
     max_retries: int,
     error_log_path: Path,
     log: logging.Logger,
+    provider_order: tuple[str, ...],
+    claude_model: str,
+    quota_wait_hours: float,
 ) -> dict:
     results = {
         "description_hash": row["description_hash"],
@@ -1079,6 +1226,9 @@ def process_row_tasks(
                 timeout_seconds=timeout_seconds,
                 max_retries=max_retries,
                 payload_validator=validate_extraction_payload,
+                provider_order=provider_order,
+                claude_model=claude_model,
+                quota_wait_hours=quota_wait_hours,
             )
             if extraction_result is None:
                 results["task_errors"] += 1
@@ -1104,6 +1254,9 @@ def process_row_tasks(
             timeout_seconds=timeout_seconds,
             max_retries=max_retries,
             payload_validator=validate_classification_payload,
+            provider_order=provider_order,
+            claude_model=claude_model,
+            quota_wait_hours=quota_wait_hours,
         )
         if classification_result is None:
             results["task_errors"] += 1
@@ -1196,12 +1349,15 @@ def run_stage10(
     error_log_path: Path = DEFAULT_ERROR_LOG,
     profile: bool = False,
     profile_limit: int = 100,
-    codex_model: str = "gpt-5.4-mini",
+    codex_model: str = DEFAULT_CODEX_MODEL,
     codex_delay: float = 0.5,
     claude_delay: float = 1.0,
     timeout_seconds: int = 180,
     max_retries: int = 3,
     max_workers: int = 12,
+    provider_order: tuple[str, ...] = SUPPORTED_PROVIDERS,
+    claude_model: str = DEFAULT_CLAUDE_MODEL,
+    quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
 ) -> None:
     log = configure_logging()
     install_signal_handlers(log)
@@ -1216,6 +1372,10 @@ def run_stage10(
     log.info("Prompt bundle version: %s", PROMPT_BUNDLE_VERSION)
     log.info("Profile mode: %s", profile)
     log.info("Max workers: %s", max_workers)
+    log.info("Provider order: %s", ",".join(provider_order))
+    log.info("Codex model: %s", codex_model)
+    log.info("Claude model: %s", claude_model)
+    log.info("Quota wait hours on rate-limit/quota errors: %.1f", quota_wait_hours)
 
     candidate_df, raw_candidate_rows = load_candidate_frame(input_path)
     total_unique_rows = len(candidate_df)
@@ -1307,6 +1467,9 @@ def run_stage10(
                 max_retries=max_retries,
                 error_log_path=error_log_path,
                 log=log,
+                provider_order=provider_order,
+                claude_model=claude_model,
+                quota_wait_hours=quota_wait_hours,
             )
             future_map[future] = row["description_hash"]
 
@@ -1467,17 +1630,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--error-log", type=Path, default=DEFAULT_ERROR_LOG)
     parser.add_argument("--profile", action="store_true")
     parser.add_argument("--profile-limit", type=int, default=100)
-    parser.add_argument("--codex-model", default=os.environ.get("STAGE10_CODEX_MODEL", "gpt-5.4-mini"))
     parser.add_argument("--codex-delay", type=float, default=0.5)
     parser.add_argument("--claude-delay", type=float, default=1.0)
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--max-retries", type=int, default=3)
-    parser.add_argument("--max-workers", type=int, default=int(os.environ.get("STAGE10_MAX_WORKERS", "40")))
+    parser.add_argument("--max-workers", type=int, default=40)
+    parser.add_argument(
+        "--quota-wait-hours",
+        type=float,
+        default=DEFAULT_QUOTA_WAIT_HOURS,
+        help="Shared pause window after quota/rate-limit failures before retrying the provider",
+    )
+    parser.add_argument(
+        "--provider-order",
+        default="codex,claude",
+        help="Comma-separated provider order, e.g. 'codex,claude' or 'claude'",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    provider_order = parse_provider_order(args.provider_order)
     run_stage10(
         input_path=args.input,
         results_path=args.results_output,
@@ -1485,10 +1659,11 @@ if __name__ == "__main__":
         error_log_path=args.error_log,
         profile=args.profile,
         profile_limit=args.profile_limit,
-        codex_model=args.codex_model,
         codex_delay=args.codex_delay,
         claude_delay=args.claude_delay,
         timeout_seconds=args.timeout_seconds,
         max_retries=args.max_retries,
         max_workers=args.max_workers,
+        provider_order=provider_order,
+        quota_wait_hours=args.quota_wait_hours,
     )

@@ -970,6 +970,7 @@ def streaming_write(
     swe_only_tier_counts = Counter()
     adj_only_tier_counts = Counter()
     seniority_3level_counts = Counter()
+    swe_final_level_counts = Counter()
     swe_seniority_3level_counts = Counter()
     disagreement_pairs = Counter()
 
@@ -1088,6 +1089,8 @@ def streaming_write(
         final_level_vc = chunk["seniority_final"].value_counts()
         for level, count in final_level_vc.items():
             seniority_final_level_counts[level] += int(count)
+        for level, count in chunk.loc[chunk["is_swe"], "seniority_final"].value_counts().items():
+            swe_final_level_counts[level] += int(count)
 
         cc_vc = chunk["seniority_cross_check"].value_counts()
         for cc, count in cc_vc.items():
@@ -1161,6 +1164,7 @@ def streaming_write(
         "swe_only_tier_counts": swe_only_tier_counts,
         "adj_only_tier_counts": adj_only_tier_counts,
         "seniority_3level_counts": seniority_3level_counts,
+        "swe_final_level_counts": swe_final_level_counts,
         "swe_seniority_3level_counts": swe_seniority_3level_counts,
         "disagreement_pairs": disagreement_pairs,
     }
@@ -1193,6 +1197,7 @@ def generate_report(
     swe_only_tier_counts = report_stats["swe_only_tier_counts"]
     adj_only_tier_counts = report_stats["adj_only_tier_counts"]
     seniority_3level_counts = report_stats["seniority_3level_counts"]
+    swe_final_level_counts = report_stats["swe_final_level_counts"]
     swe_seniority_3level_counts = report_stats["swe_seniority_3level_counts"]
     disagreement_pairs = report_stats["disagreement_pairs"]
 
@@ -1269,8 +1274,8 @@ def generate_report(
     log.info(f"  {'-'*25} {'-'*10} {'-'*8}")
     log.info(f"  {'TOTAL':<25} {total_sen:>10,}")
 
-    # Seniority level distribution
-    log.info(f"\n  Seniority level distribution:")
+    # Text-only seniority distribution
+    log.info(f"\n  Text-imputed seniority level distribution (5-level):")
     for level in ["entry", "associate", "mid-senior", "director", "unknown"]:
         c = seniority_level_counts.get(level, 0)
         pct = c / total_sen * 100 if total_sen > 0 else 0
@@ -1300,7 +1305,7 @@ def generate_report(
     log.info(f"  {'-'*25} {'-'*10} {'-'*8}")
     log.info(f"  {'TOTAL':<25} {total_final:>10,}")
 
-    log.info(f"\n  Final seniority level distribution:")
+    log.info(f"\n  Final seniority level distribution (5-level, canonical):")
     for level in ["entry", "associate", "mid-senior", "director", "unknown"]:
         c = seniority_final_level_counts.get(level, 0)
         pct = c / total_final * 100 if total_final > 0 else 0
@@ -1310,13 +1315,18 @@ def generate_report(
     final_unknown_rate = final_unknown / total_final * 100 if total_final > 0 else 0
     log.info(f"\n  ** Final unknown rate: {final_unknown_rate:.1f}% ({final_unknown:,}/{total_final:,}) **")
 
-    # Seniority 3-level distribution
-    log.info(f"\n  Seniority 3-level distribution:")
+    log.info(f"\n  Final seniority level distribution for SWE only (5-level, canonical):")
+    for level in ["entry", "associate", "mid-senior", "director", "unknown"]:
+        c = swe_final_level_counts.get(level, 0)
+        pct = c / total_swe * 100 if total_swe else 0
+        log.info(f"    {level:<25} {c:>10,} ({pct:.1f}%)")
+
+    # Supplemental 3-level derived view
+    log.info(f"\n  Supplemental derived seniority_3level distribution:")
     for val, count in seniority_3level_counts.most_common():
         log.info(f"    {val:<25} {count:>10,} ({count/written*100:.1f}%)")
 
-    # Seniority 3-level for SWE only
-    log.info(f"\n  Seniority 3-level for SWE only:")
+    log.info(f"\n  Supplemental derived seniority_3level for SWE only:")
     for val, count in swe_seniority_3level_counts.most_common():
         pct = count / total_swe * 100 if total_swe else 0
         log.info(f"    {val:<25} {count:>10,} ({pct:.1f}%)")

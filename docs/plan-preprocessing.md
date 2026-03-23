@@ -143,9 +143,9 @@ Raw Data (3 sources: arshkon CSV, asaniczka CSV+joins, daily scraped CSVs)
   v
 intermediate/stage8_final.parquet (rule-based pipeline output)
   |
-  +-- Stage 9: LLM Pre-Filtering                    [UNCHANGED from v2]
-  +-- Stage 10: LLM Classification (single call)    [UNCHANGED from v2]
-  +-- Stage 11: LLM Response Integration             [UNCHANGED from v2]
+  +-- Stage 9: LLM Pre-Filtering                    [task routing]
+  +-- Stage 10: LLM Task Execution                  [cached extraction + classification]
+  +-- Stage 11: LLM Response Integration            [row-preserving reattachment]
   +-- Stage 12: Three-Way Validation                 [UNCHANGED from v2]
   |
   v
@@ -316,7 +316,7 @@ These stages are implemented and working from v1. Summary:
 
 **Rule-based columns produced (preserved as ablation baselines):**
 - `is_swe`, `is_swe_adjacent`, `swe_confidence`, `swe_classification_tier`
-- `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_3level`
+- `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_final`, `seniority_3level`
 - `description_core` (boilerplate-stripped)
 - `ghost_job_risk`
 
@@ -405,7 +405,8 @@ Stage 8 output semantics:
 - `date_flag` is a row-level validation summary for `scrape_date` and `date_posted`
 - `description_hash` is the stable hash used for LLM caching and reattachment
 - `ghost_job_risk` is a rule-based heuristic derived from Stage 5 fields:
-  `seniority_3level`, `yoe_extracted`, and `yoe_seniority_contradiction`
+  canonical `seniority_final` (entry-like only), `yoe_extracted`, and
+  `yoe_seniority_contradiction`
 - `ghost_job_risk` values are `low`, `medium`, or `high`
 
 Stage 8 does not own:
@@ -431,7 +432,6 @@ The default LLM routing universe is:
 Within that universe, the default production path includes:
 - all Stage 5 `is_swe == True` rows
 - all Stage 5 `is_swe_adjacent == True` rows
-- all Stage 5 `is_control == True` rows for text cleaning only
 
 Rows outside that universe stay in the dataset, but they are not part of the default LLM routing path.
 
@@ -439,6 +439,7 @@ This explicitly excludes:
 - non-English rows
 - rows with null/empty raw `description`
 - Indeed rows in the default production path
+- control rows in the default production path
 - unresolved Stage 5 rows as a default LLM-recovery target
 
 Unresolved-row recovery is moved to a separate audit/sensitivity workflow, not the core pipeline. Stage 9 does not route rows back in after Stage 11.
@@ -462,10 +463,10 @@ This is the key design change. Boilerplate extraction and classification are rou
 - `needs_llm_classification = True` only when the rule-based labels are not already high-confidence
 
 **3. Control rows (`is_control == True`):**
-- `needs_llm_extraction = True`
+- `needs_llm_extraction = False` by default
 - `needs_llm_classification = False` by default
 
-Controls stay in the default LLM text-cleaning path because cross-occupation comparisons need clean text, but control-wide LLM seniority is not required for the default production analysis path.
+Controls stay in the dataset, but they are excluded from the default LLM routing path to keep production task volume tractable. Control extraction can be enabled in a separate sensitivity run when cross-occupation text comparisons need `description_core_llm`.
 
 ### Classification skip logic inside the technical corpus
 
@@ -515,15 +516,14 @@ This remains the main volume reducer, but it now operates on a task-routed candi
 
 On the current March 2026 / 2024 rebuilt corpus, the default routing design implies approximately:
 - ~31.7K unique technical hashes (`SWE` + `SWE-adjacent`) for LLM extraction
-- ~108.6K unique control hashes for LLM extraction
 - ~15.6K unique technical hashes for LLM classification after skip logic
 
 With the current Stage 10 split-task architecture, that is roughly:
-- ~140.3K extraction task calls
+- ~31.7K extraction task calls
 - ~15.6K classification task calls
-- ~155.9K total task calls before cache hits from prior runs
+- ~47.3K total task calls before cache hits from prior runs
 
-These are production-path estimates, not the cost of a broader unresolved-row recovery audit.
+These are production-path estimates, not the cost of a broader unresolved-row recovery audit or a separate control-extraction sensitivity run.
 
 ## Stage 10: LLM task execution
 
@@ -541,12 +541,19 @@ All prompts operate on the full job description, not truncated snippets. This pr
 
 ### Model selection
 
-- **Primary:** GPT-5.4 mini via the CLI:
+- **Codex path:** always pin to GPT-5.4 mini via:
   ```bash
   codex exec --full-auto --config model=gpt-5.4-mini "<prompt>" --skip-git-repo-check
   ```
-- **Alternative:** Claude Haiku via `claude -p` (Max plan, $200/month) if Codex doesn't work or has reliability issues.
+- **Claude path:** always pin to Haiku via:
+  ```bash
+  claude -p "<prompt>" --model haiku --output-format json
+  ```
 - **Validation model:** GPT-5.4 (full) for the three-way comparison (Stage 12).
+
+Provider order is a runtime choice:
+- `--provider-order codex,claude` means Codex first, Claude fallback
+- `--provider-order claude` means Claude-only
 
 ### Prompt design
 
@@ -718,14 +725,16 @@ Apply these improvements from the LLM validation report (implemented in Stage 5 
 
 - **Cache key:** `sha256(description_text)`
 - **Cache storage:** SQLite database at `preprocessing/cache/llm_responses.db`
-  - Schema: `(hash TEXT PRIMARY KEY, model TEXT, prompt_version TEXT, response_json TEXT, timestamp TEXT, tokens_used INTEGER)` with task-specific `response_json` payloads for classification and extraction
+  - Schema: one row per `(description_hash, task_name, prompt_version)` with `model`, `response_json`, `timestamp`, and `tokens_used`
 - **On re-run:** Check cache first. Only call LLM for uncached descriptions.
 - **Cache invalidation:** If the prompt changes (tracked by `prompt_version`), re-run all cached entries with the new prompt. Keep old entries for comparison.
+- **Commit behavior:** Successful task responses are committed immediately to SQLite, so reruns resume from cache even if Stage 10 was interrupted before writing its final parquet.
 
 ### Robustness
 
 - **Rate limiting:** Respect API limits. Configurable delay between calls (default: 0.5s for Codex, 1.0s for Claude).
 - **Retry:** Exponential backoff on transient errors (rate limits, timeouts). Max 3 retries per call.
+- **Quota handling:** On provider quota / rate-limit failures, Stage 10 activates a shared pause window across workers and waits `--quota-wait-hours` before retrying. Default is 5 hours.
 - **Parse validation:** Every response must parse as valid task-specific JSON with valid enum values or valid extraction IDs/status. Malformed responses are logged to `preprocessing/logs/llm_errors.jsonl` and excluded from the final data. The rule-based values remain for these postings.
 - **Profiling run:** Before the full batch, run a small stratified subset first, then the first 100 calls in profile mode, and report:
   - Mean/P95 latency per call
@@ -736,12 +745,43 @@ Apply these improvements from the LLM validation report (implemented in Stage 5 
   - Review 10 random responses manually for quality
   - Include at least a few one-unit descriptions and a few multi-unit descriptions in the profile set
 
+### Operational restart notes
+
+For a production rerun from the current Stage 8 artifact:
+
+1. Rebuild the Stage 9 queue:
+   ```bash
+   /usr/bin/time -v ./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py
+   ```
+
+2. Run Stage 10 directly when you need explicit provider controls:
+   ```bash
+   /usr/bin/time -v ./.venv/bin/python preprocessing/scripts/stage10_llm_classify.py \
+     --provider-order claude \
+     --quota-wait-hours 5 \
+     --max-workers 48
+   ```
+
+3. Run Stage 11 after Stage 10 finishes:
+   ```bash
+   /usr/bin/time -v ./.venv/bin/python preprocessing/scripts/stage11_llm_integrate.py
+   ```
+
+4. If you use the orchestrator from Stage 9 onward, be aware that the simplest and most transparent path for LLM reruns is still the direct Stage 9 / 10 / 11 commands above.
+
+Operational behavior worth remembering:
+- Successful Stage 10 task responses are committed to SQLite immediately after each task finishes.
+- The durable checkpoint is `preprocessing/cache/llm_responses.db`, not `stage10_llm_results.parquet`.
+- If Stage 10 is interrupted, rerun the same Stage 10 command; completed tasks will be loaded from cache and skipped.
+- Cache reuse keys on `(description_hash, task_name, prompt_version)`.
+
 ### Memory constraint
 
 31GB RAM limit. Continue using pyarrow chunked I/O:
-- Process LLM calls in batches of 1,000 descriptions
-- Write results incrementally to `preprocessing/intermediate/llm_responses.parquet`
-- Final merge with `stage8_final.parquet` is a streaming join on row index
+- Process cache lookups / output assembly in batches of 1,000 descriptions
+- Use SQLite as the durable incremental checkpoint during Stage 10
+- Write `stage10_llm_results.parquet` after the cached/fresh task set is complete
+- Final merge with `stage9_skip_reasons.parquet` in Stage 11 is chunked and row-preserving
 
 ### Integration into unified.parquet
 
@@ -837,6 +877,7 @@ One row per unique posting across all sources.
 **Rule-based classification columns:**
 - `is_swe`, `is_swe_adjacent`, `is_control`, `swe_confidence`, `swe_classification_tier`
 - `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_final`, `seniority_3level`
+  `seniority_final` is canonical; `seniority_3level` is a derived helper bucket
 - `seniority_cross_check`
 - `is_aggregator`, `real_employer`, `is_multi_location`
 - `city_extracted`, `state_normalized`, `country_extracted`, `is_remote_inferred`

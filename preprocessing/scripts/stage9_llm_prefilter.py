@@ -44,6 +44,7 @@ DEFAULT_SKIP_REASONS_PATH = INTERMEDIATE_DIR / "stage9_skip_reasons.parquet"
 CHUNK_SIZE = 200_000
 LINKEDIN_PLATFORM = "linkedin"
 CLASSIFICATION_STRONG_TIERS = {"regex", "embedding_high", "embedding_llm"}
+DEFAULT_INCLUDE_CONTROL_EXTRACTION = False
 
 
 def configure_logging() -> logging.Logger:
@@ -81,7 +82,10 @@ def has_raw_description(df: pd.DataFrame) -> pd.Series:
     return ~df["description"].isna() & df["description"].astype(str).str.strip().ne("")
 
 
-def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
+def process_chunk(
+    df: pd.DataFrame,
+    include_control_extraction: bool = DEFAULT_INCLUDE_CONTROL_EXTRACTION,
+) -> pd.DataFrame:
     out = df.copy()
 
     if "description_hash" not in out.columns:
@@ -104,7 +108,9 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
         & out["ghost_job_risk"].fillna("").eq("low")
     )
 
-    needs_extraction = in_default_universe & (is_swe | is_swe_adjacent | is_control)
+    needs_extraction = in_default_universe & (is_swe | is_swe_adjacent)
+    if include_control_extraction:
+        needs_extraction = needs_extraction | (in_default_universe & is_control)
     needs_classification = in_default_universe & (is_swe | is_swe_adjacent) & ~high_confidence_tech
 
     out["needs_llm_classification"] = needs_classification
@@ -112,7 +118,9 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
     out["llm_candidate"] = needs_classification | needs_extraction
 
     out["llm_route_group"] = "not_routed"
-    out.loc[in_default_universe & is_control, "llm_route_group"] = "control_extraction_only"
+    out.loc[in_default_universe & is_control, "llm_route_group"] = "control_not_routed"
+    if include_control_extraction:
+        out.loc[in_default_universe & is_control, "llm_route_group"] = "control_extraction_only"
     out.loc[
         in_default_universe & (is_swe | is_swe_adjacent) & ~needs_classification,
         "llm_route_group",
@@ -124,7 +132,7 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
 
     out["llm_classification_reason"] = "not_routed"
     out.loc[needs_classification, "llm_classification_reason"] = "routed"
-    out.loc[in_default_universe & is_control, "llm_classification_reason"] = "controls_extraction_only"
+    out.loc[in_default_universe & is_control, "llm_classification_reason"] = "controls_not_routed"
     out.loc[
         in_default_universe & (is_swe | is_swe_adjacent) & ~needs_classification,
         "llm_classification_reason",
@@ -132,11 +140,15 @@ def process_chunk(df: pd.DataFrame) -> pd.DataFrame:
 
     out["llm_extraction_reason"] = "not_routed"
     out.loc[needs_extraction, "llm_extraction_reason"] = "routed"
+    out.loc[in_default_universe & is_control & ~needs_extraction, "llm_extraction_reason"] = (
+        "controls_disabled_by_default"
+    )
 
     out["llm_skip_reason"] = "outside_default_scope"
     out.loc[~is_linkedin, "llm_skip_reason"] = "non_linkedin_platform"
     out.loc[is_linkedin & ~is_english, "llm_skip_reason"] = "non_english"
     out.loc[is_linkedin & is_english & ~has_description, "llm_skip_reason"] = "missing_raw_description"
+    out.loc[in_default_universe & is_control & ~needs_extraction, "llm_skip_reason"] = "controls_disabled_by_default"
     out.loc[in_default_universe & ~(is_swe | is_swe_adjacent | is_control), "llm_skip_reason"] = (
         "outside_default_classification_scope"
     )
@@ -234,6 +246,7 @@ def run_stage9(
     input_path: Path = DEFAULT_INPUT_PATH,
     candidates_path: Path = DEFAULT_CANDIDATES_PATH,
     skip_reasons_path: Path = DEFAULT_SKIP_REASONS_PATH,
+    include_control_extraction: bool = DEFAULT_INCLUDE_CONTROL_EXTRACTION,
 ) -> None:
     log = configure_logging()
     t0 = time.time()
@@ -247,6 +260,7 @@ def run_stage9(
     log.info("Input: %s", input_path)
     log.info("Candidates output: %s", candidates_path)
     log.info("Row-level output: %s", skip_reasons_path)
+    log.info("Include control extraction: %s", include_control_extraction)
 
     if candidates_path.exists():
         candidates_path.unlink()
@@ -267,7 +281,7 @@ def run_stage9(
     for chunk_num, batch in enumerate(pf.iter_batches(batch_size=CHUNK_SIZE), start=1):
         t_chunk = time.time()
         chunk = pa.Table.from_batches([batch]).to_pandas()
-        chunk = process_chunk(chunk)
+        chunk = process_chunk(chunk, include_control_extraction=include_control_extraction)
 
         for route_group, count in chunk["llm_route_group"].value_counts().items():
             route_counts[route_group] = route_counts.get(route_group, 0) + int(count)
@@ -319,6 +333,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT_PATH)
     parser.add_argument("--candidates-output", type=Path, default=DEFAULT_CANDIDATES_PATH)
     parser.add_argument("--skip-reasons-output", type=Path, default=DEFAULT_SKIP_REASONS_PATH)
+    parser.add_argument(
+        "--include-control-extraction",
+        action="store_true",
+        help="Route control rows for LLM extraction as a sensitivity run.",
+    )
     return parser.parse_args()
 
 
@@ -328,4 +347,5 @@ if __name__ == "__main__":
         input_path=args.input,
         candidates_path=args.candidates_output,
         skip_reasons_path=args.skip_reasons_output,
+        include_control_extraction=args.include_control_extraction,
     )
