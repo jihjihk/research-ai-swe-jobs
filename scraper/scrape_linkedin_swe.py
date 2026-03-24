@@ -367,6 +367,50 @@ METRO_AREAS = [
 
 QUICK_METRO_COUNT = 10
 
+OUTPUT_COLUMN_ORDER = [
+    "id",
+    "site",
+    "job_url",
+    "job_url_direct",
+    "title",
+    "company",
+    "location",
+    "date_posted",
+    "job_type",
+    "salary_source",
+    "interval",
+    "min_amount",
+    "max_amount",
+    "currency",
+    "is_remote",
+    "job_level",
+    "job_function",
+    "listing_type",
+    "emails",
+    "description",
+    "company_industry",
+    "company_url",
+    "company_logo",
+    "company_url_direct",
+    "company_addresses",
+    "company_num_employees",
+    "company_revenue",
+    "company_description",
+    "skills",
+    "experience_range",
+    "company_rating",
+    "company_reviews_count",
+    "vacancy_count",
+    "work_from_home_type",
+    "search_query",
+    "query_tier",
+    "search_metro_id",
+    "search_metro_name",
+    "search_metro_region",
+    "search_location",
+    "scrape_date",
+]
+
 SITE_CONFIG = {
     "linkedin": {
         "max_consecutive_failures": 5,
@@ -957,9 +1001,9 @@ def append_batch_metadata(df: pd.DataFrame, site: str, query: str, metro: dict) 
     df["site"] = site
     df["search_query"] = query
     df["query_tier"] = QUERY_TO_TIER.get(query, "other")
-    df["metro_id"] = metro["metro_id"]
-    df["metro_name"] = metro["name"]
-    df["metro_region"] = metro["region"]
+    df["search_metro_id"] = metro["metro_id"]
+    df["search_metro_name"] = metro["name"]
+    df["search_metro_region"] = metro["region"]
     df["search_location"] = metro["locations"][site]
     return df
 
@@ -994,8 +1038,25 @@ def iter_existing_daily_frames(today: str):
 def append_dataframe_csv(path: Path, df: pd.DataFrame, header_written: bool) -> bool:
     if df.empty:
         return header_written
+    df = normalize_output_frame_schema(df)
     df.to_csv(path, mode="a" if header_written else "w", header=not header_written, index=False)
     return True
+
+
+def normalize_output_frame_schema(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    frame = df.copy()
+    frame.rename(
+        columns={
+            "metro_id": "search_metro_id",
+            "metro_name": "search_metro_name",
+            "metro_region": "search_metro_region",
+        },
+        inplace=True,
+    )
+    extras = [col for col in frame.columns if col not in OUTPUT_COLUMN_ORDER]
+    return frame.reindex(columns=OUTPUT_COLUMN_ORDER + extras)
 
 
 def finalize_daily_outputs(

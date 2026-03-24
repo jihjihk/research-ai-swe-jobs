@@ -50,6 +50,12 @@ UNIFIED_COLUMNS = [
     "company_industry", # industry (if available)
     "company_size",     # employee count (float)
     "job_url",          # link to posting
+    "search_query",     # query that retrieved the posting
+    "query_tier",       # swe | adjacent | control | other
+    "search_metro_id",  # canonical metro id used for search
+    "search_metro_name",  # human-readable metro label used for search
+    "search_metro_region",  # region bucket for the search metro
+    "search_location",  # literal location string passed to the scraper
     "opening_fingerprint",  # source-agnostic approximate opening key
     "is_aggregator_posting",  # whether the employer looks like an aggregator/intermediary
     "aggregator_name",  # normalized aggregator/intermediary label when detected
@@ -455,6 +461,33 @@ def _harmonize_one_scraped_csv(df: pd.DataFrame) -> pd.DataFrame:
     out["company_industry"] = df.get("company_industry")
     out["company_size"] = df.get("company_num_employees", pd.Series([None] * len(df))).apply(parse_company_size)
     out["job_url"] = df.get("job_url")
+    out["search_query"] = pd.Series(
+        df.get("search_query", pd.Series([None] * len(df), dtype="object")),
+        dtype="string",
+    )
+    out["query_tier"] = pd.Series(
+        df.get("query_tier", pd.Series([None] * len(df), dtype="object")),
+        dtype="string",
+    )
+    out["search_metro_id"] = df.get(
+        "search_metro_id",
+        df.get("metro_id", pd.Series([None] * len(df), dtype="object")),
+    )
+    out["search_metro_name"] = df.get(
+        "search_metro_name",
+        df.get("metro_name", pd.Series([None] * len(df), dtype="object")),
+    )
+    out["search_metro_region"] = df.get(
+        "search_metro_region",
+        df.get("metro_region", pd.Series([None] * len(df), dtype="object")),
+    )
+    out["search_metro_id"] = pd.Series(out["search_metro_id"], dtype="string")
+    out["search_metro_name"] = pd.Series(out["search_metro_name"], dtype="string")
+    out["search_metro_region"] = pd.Series(out["search_metro_region"], dtype="string")
+    out["search_location"] = pd.Series(
+        df.get("search_location", pd.Series([None] * len(df), dtype="object")),
+        dtype="string",
+    )
     out["aggregator_name"] = out["company_name"].apply(detect_aggregator_name)
     out["is_aggregator_posting"] = out["aggregator_name"].ne("")
     out["opening_fingerprint"] = out.apply(make_opening_fingerprint, axis=1)
@@ -635,6 +668,12 @@ def harmonize_apify(path: str) -> pd.DataFrame:
     out["company_industry"] = df.get("industries")
     out["company_size"] = df.get("companyEmployeesCount", pd.Series([None] * len(df))).apply(parse_company_size)
     out["job_url"] = df.get("link")
+    out["search_query"] = pd.Series([None] * len(df), dtype="string")
+    out["query_tier"] = pd.Series([None] * len(df), dtype="string")
+    out["search_metro_id"] = pd.Series([None] * len(df), dtype="string")
+    out["search_metro_name"] = pd.Series([None] * len(df), dtype="string")
+    out["search_metro_region"] = pd.Series([None] * len(df), dtype="string")
+    out["search_location"] = pd.Series([None] * len(df), dtype="string")
     out["aggregator_name"] = out["company_name"].apply(detect_aggregator_name)
     out["is_aggregator_posting"] = out["aggregator_name"].ne("")
     out["opening_fingerprint"] = out.apply(make_opening_fingerprint, axis=1)
