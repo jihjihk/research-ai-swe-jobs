@@ -48,7 +48,7 @@ AGGREGATORS = {
     "collabera", "infosys bpm", "wipro", "tata consultancy",
     "tata consultancy services", "tata consultancy services (tcs)",
     "cognizant", "capgemini", "revature", "smoothstack",
-    "recruiting from scratch", "aston carter", "solomon page",
+    "recruiting from scratch", "aston carter", "solomon page", "turing",
     "creative circle", "applicantz", "aditi consulting",
     "ask consulting", "inspyr solutions", "net2source inc.",
     "net2source inc", "net2source",
@@ -93,6 +93,7 @@ AGGREGATOR_PATTERNS = [
     re.compile(r'(?i)\bnet2source(?:\s+inc\.?)?\b'),
     re.compile(r'(?i)\btata\s+consultancy(?:\s+services)?(?:\s+\(tcs\))?\b'),
     re.compile(r'(?i)\bapplicantz\b'),
+    re.compile(r"\bturing\b(?!\s+(pharmaceutical|medical))", re.IGNORECASE),
 ]
 
 

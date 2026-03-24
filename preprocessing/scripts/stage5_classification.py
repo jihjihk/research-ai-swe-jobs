@@ -98,7 +98,12 @@ SWE_INCLUDE = re.compile(
     r'applied\s*(ai|ml)\s*engineer|prompt\s*engineer|'
     r'infrastructure\s*engineer|cloud\s*engineer|'
     r'founding\s*engineer|member\s*of\s*technical\s*staff|'
-    r'product\s*engineer|systems?\s*engineer'
+    r'product\s*engineer|systems?\s*engineer|'
+    r'(python|java(?!script)|javascript|typescript|ruby|golang|go(?=\s*(developer|engineer|dev))|rust|kotlin|swift|scala|elixir|php|perl|clojure|haskell|dart|lua)\s*(developer|engineer|dev)|'
+    r'gui\s*(developer|engineer)|'
+    r'react(\s*native)?\s*(developer|engineer)|'
+    r'ios\s*(developer|engineer)|'
+    r'android\s*(developer|engineer)'
     r')\b'
 )
 
@@ -111,7 +116,9 @@ SWE_EXCLUDE = re.compile(
     r'civil\s*engineer|mechanical\s*engineer|electrical\s*engineer|'
     r'chemical\s*engineer|industrial\s*engineer|'
     r'audio\s*engineer|recording\s*engineer|sound\s*engineer|'
-    r'network\s*engineer|hardware\s*engineer'
+    r'network\s*engineer|hardware\s*engineer|'
+    r'(electrical|hardware|mechanical|rf|avionics|controls?)\s*systems?\s*engineer|'
+    r'systems?\s*engineer\s*[-–—,]\s*(electrical|hardware|mechanical|rf|avionics)'
     r')\b'
 )
 
@@ -154,6 +161,8 @@ TECH_PREFILTER = re.compile(
     r'blockchain|crypto|defi|smart.?contract|'
     r'python|java|javascript|typescript|react|node|'
     r'golang|rust|ruby|scala|kotlin|swift|'
+    r'elixir|haskell|clojure|dart|lua|perl|'
+    r'gui|react|ios|android|'
     r'it\b|information\s*tech'
     r')\b'
 )
@@ -783,12 +792,20 @@ def build_seniority_title_lookup(
             raw_lower = str(raw_title).lower().strip()
             if not raw_lower:
                 continue
-            unique_titles[raw_lower] = infer_seniority_family(
-                raw_title,
-                getattr(row, "title_normalized"),
-                swe_lookup,
-                control_lookup,
-            )
+            # Derive family using the same swe_lookup path as the streaming
+            # pass (normalize_swe_title_key on title_normalized) to avoid
+            # the double-normalization bug in infer_seniority_family.
+            swe_key = normalize_swe_title_key(getattr(row, "title_normalized"))
+            swe_tuple = swe_lookup.get(swe_key, (False, False, 0.0, "unresolved"))
+            if control_lookup.get(raw_lower, False):
+                family = "control"
+            elif swe_tuple[1]:
+                family = "adjacent"
+            elif swe_tuple[0]:
+                family = "swe"
+            else:
+                family = "other"
+            unique_titles[raw_lower] = family
         del chunk, batch
         gc.collect()
 
@@ -837,12 +854,20 @@ def build_group_title_prior_lookup(
             native = normalize_native(getattr(row, "seniority_native"))
             if native is None:
                 continue
-            family = infer_seniority_family(
-                getattr(row, "title"),
-                getattr(row, "title_normalized"),
-                swe_lookup,
-                control_lookup,
-            )
+            # Derive family using the same swe_lookup path as the streaming
+            # pass to avoid the double-normalization bug.
+            raw_title = getattr(row, "title")
+            raw_lower_f = str(raw_title).lower().strip() if pd.notna(raw_title) else ""
+            swe_key = normalize_swe_title_key(getattr(row, "title_normalized"))
+            swe_tuple = swe_lookup.get(swe_key, (False, False, 0.0, "unresolved"))
+            if control_lookup.get(raw_lower_f, False):
+                family = "control"
+            elif swe_tuple[1]:
+                family = "adjacent"
+            elif swe_tuple[0]:
+                family = "swe"
+            else:
+                family = "other"
             if family not in TITLE_PRIOR_THRESHOLDS:
                 continue
             title_key = normalize_title_prior_key(getattr(row, "title_normalized"))
@@ -999,6 +1024,12 @@ def streaming_write(
         # title_normalized strips seniority prefixes (Senior, Sr, Lead, etc.)
         title_lower = chunk["title"].fillna("").str.lower().str.strip()
         chunk["is_control"] = title_lower.map(lambda t: control_lookup.get(t, False)).astype(bool)
+
+        # Enforce mutual exclusion: SWE > SWE_adjacent > Control
+        chunk.loc[chunk["is_swe"], "is_control"] = False
+        chunk.loc[chunk["is_swe"], "is_swe_adjacent"] = False
+        chunk.loc[chunk["is_swe_adjacent"], "is_control"] = False
+
         title_results = title_lower.map(lambda t: seniority_title_lookup.get(t, None))
         title_prior_keys = chunk["title_normalized"].map(normalize_title_prior_key)
 
@@ -1018,12 +1049,16 @@ def streaming_write(
         yoe_contradictions = []
 
         for idx in range(n):
-            family = infer_seniority_family(
-                chunk["title"].iloc[idx],
-                chunk["title_normalized"].iloc[idx],
-                swe_lookup,
-                control_lookup,
-            )
+            # Derive family from already-computed classification columns
+            # (avoids double-normalization bug in infer_seniority_family)
+            if chunk["is_control"].iloc[idx]:
+                family = "control"
+            elif chunk["is_swe_adjacent"].iloc[idx]:
+                family = "adjacent"
+            elif chunk["is_swe"].iloc[idx]:
+                family = "swe"
+            else:
+                family = "other"
             tr = title_results.iloc[idx]
             if tr is not None:
                 level, source, conf = tr

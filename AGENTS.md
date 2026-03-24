@@ -127,10 +127,10 @@ Academic writing, research design, literature review, interview protocol, method
 | Stage | Script | Status | Notes |
 |---|---|---|---|
 | 1 | `stage1_ingest.py` | Revalidated on current data | Pure ingest/schema unification; raw vs mapped seniority preserved; raw descriptions preserved; current-format scraped files loaded, legacy files skipped |
-| 2 | `stage2_aggregators.py` | Revalidated on current data | Raw `description` preserved; expanded aggregator list/patterns on current sources; derives `company_name_effective` |
-| 3 | `stage3_boilerplate.py` | Needs improvement | ~44% accuracy |
+| 2 | `stage2_aggregators.py` | Updated 2026-03-23 | Added Turing to aggregator list with negative lookahead for Pharmaceutical/Medical; derives `company_name_effective` |
+| 3 | `stage3_boilerplate.py` | Updated 2026-03-23 | Expanded header (16 new), EEO (10 new), and benefits (22 new) patterns; ~44% accuracy still limited by rule-based approach; LLM version will supersede |
 | 4 | `stage4_dedup.py` | Rebuilt on current data | Canonicalizes `company_name_effective` and applies description-supported key-first dedup; needs validation sampling |
-| 5 | `stage5_classification.py` | Reworked on current data; still needs validation | SWE title-key contract aligned to `title_normalized`; title lookup artifact validated/deduped; description-based fallback tightened; `seniority_final` now applies strong-title/native-backfill/title-prior resolution for SWE, SWE-adjacent, and control rows; 5-level `seniority_final` is now the canonical Stage 5 output and reporting default; remaining validation risk is concentrated in weak-title and no-native title-prior behavior |
+| 5 | `stage5_classification.py` | Updated 2026-03-23 | Language-specific SWE regex (Fix 1); systems engineer disambiguation (Fix 2); mutual exclusion SWE>adj>control (Fix 4); native_backfill bug fixed; tier2_title_lookup expanded to 523 titles (Fix 6); remaining validation risk in weak-title and no-native title-prior behavior |
 | 6-8 | `stage678_normalize_temporal_flags.py` | Revalidated on current data | Row-preserving field normalization, temporal alignment, and quality/provenance flags; `posting_age_days` computed here; `ghost_job_risk` now keys off canonical `seniority_final` rather than the coarse 3-level bucket |
 | 9-12 | LLM stages | Stage 9-11 reworked and wired into orchestration; still needs larger validation | Stage 9 now does fixed-universe forward routing with controls disabled by default and technical-corpus classification skip logic; Stage 10/11 honor task-specific routing and Stage 11 feeds the final canonical output path; Stage 10 now pins Codex to `gpt-5.4-mini`, Claude to `haiku`, commits each successful task to SQLite immediately, and pauses 5 hours on quota/rate-limit failures before retrying; Stage 12 remains scaffolded / smoke-tested rather than production-validated |
 | final | `stage_final_output.py` | Revalidated on current data | Produces `unified.parquet` and `unified_observations.parquet` |
@@ -141,15 +141,31 @@ Operational note for future Stage 9-11 reruns: rerun Stage 9 first, then run Sta
 
 ### Known Issues
 
+- [ ] RQ1 seniority direction not robust until seniority_llm runs (T02)
 - [ ] Asaniczka has no entry-level seniority labels
-- [ ] Seniority classifier accuracy is poor (32%)
-- [ ] Boilerplate removal accuracy is poor (~44%)
-- [ ] Stage 4 was rebuilt with description-supported dedup logic and still needs validation sampling on real pairs
-- [ ] LLM stages (9-12) still need broader validation on real data before a full-batch run
-- [ ] Stage 12 validation remains scaffolded / smoke-tested and is not yet part of the default runner
+- [ ] Seniority classifier recall: entry 30-61%, associate 8-15%, director 17% (T02)
+- [ ] SWE embedding_llm tier still has elevated FP rate; needs swe_classification_llm (T04)
+- [ ] Rule-based boilerplate ~44% accuracy; LLM version (Stage 10/11) will supersede
+- [ ] Stage 4 dedup needs validation sampling on real pairs
+- [ ] LLM stages (9-12) need broader validation before full-batch run
+- [ ] ghost_job_risk too conservative (354 non-low); needs LLM ghost_assessment_llm (T15)
+- [ ] "Jobs via Dice" (130 rows): check if `real_employer` was extracted (T13)
+
+### Exploration Phase Status
+
+**All exploration tasks (T01-T18) are complete** as of 2026-03-23.
+
+- Wave 1 (T01-T07): Data audit and validation -- done
+- Wave 2 (T08-T16): Exploratory analysis -- done
+- Wave 3 (T17-T18): Interview artifacts and synthesis -- done
+
+**Handoff document:** `exploration/reports/SYNTHESIS.md` -- read this first for analysis phase.
+
+**Interview artifacts:** `exploration/artifacts/` -- 5 artifacts for RQ4 interviews.
 
 ### Priorities
 
-1. Preprocessing pipeline — stage by stage
-2. Exploration/validation (Stages 13-14)
-3. Analysis (Stages 15-16)
+1. **Fix Stage 5 native_backfill bug** (blocking for analysis; workaround available)
+2. **Run seniority_llm** (Stage 10/11) to resolve seniority direction disagreement
+3. **Run swe_classification_llm** (Stage 10/11) to reduce 26% FP in embedding_llm tier
+4. **Analysis phase** (Stages 15-16) -- read `exploration/reports/SYNTHESIS.md` first

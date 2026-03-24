@@ -1,872 +1,720 @@
 # Exploration & Validation Plan
 
-Date: 2026-03-20
-Status: Draft — ready for review before implementation
-Supersedes: v1 (2026-03-19)
-
-This document covers Stage 13 (data validation) and Stage 14 (exploratory analysis). It runs on the cleaned `unified.parquet` produced by the preprocessing pipeline (Stages 1-12 in `plan-preprocessing.md`). For hypothesis testing, see `plan-analysis.md`.
-
-Research questions (from `1-research-design.md`):
-
-- **RQ1:** Employer-side restructuring (junior share/volume, junior scope inflation, senior role redefinition, source/metro heterogeneity)
-- **RQ2:** Task and requirement migration
-- **RQ3:** Employer-requirement / worker-usage divergence (posting AI requirements vs. worker-side observed AI usage benchmarks such as Anthropic occupation-level data)
-- **RQ4:** Mechanisms (interview-based, qualitative)
+Date: 2026-03-23
+Status: Executable (v5 — enhanced)
+Input: `preprocessing/intermediate/stage8_final.parquet` (~76 cols, ~1.22M rows)
+Schema reference: `docs/schema-stage8-and-stage12.md`
 
 ---
 
-## Data sources
+## 1. Orchestrator instructions
 
-Three datasets, each with distinct strengths and gaps:
+You are the orchestrator. Your job is to dispatch sub-agents, gate between waves, and track progress. You do NOT execute exploration tasks yourself.
 
-| | Kaggle (arshkon) | Kaggle (asaniczka) | Scraped (March 20+ 2026, new format only) |
-|---|---|---|---|
-| **Source** | `arshkon/linkedin-job-postings` | `asaniczka/1-3m-linkedin-jobs-and-skills-2024` | Our daily scraper |
-| **Total rows** | 124K | 1.35M | ~3,680 SWE/day + ~30,888 non-SWE/day |
-| **Date range** | April 5-20, 2024 | January 12-17, 2024 | March 20, 2026 onward (ongoing) |
-| **Platform** | LinkedIn only | LinkedIn only | LinkedIn + Indeed |
-| **SWE postings** | ~2,604 (~2.1%) | ~18,169 US SWE matches | ~3,680/day |
-| **Descriptions** | Full text inline | Separate file (96.2% join rate) | Full text inline |
-| **Seniority labels** | Yes (entry, mid-senior, etc.) | NO entry-level (only "Mid senior" and "Associate") | LinkedIn: job_level 100%; Indeed: 0% |
-| **Company size/industry** | Via companion file joins | NO | LinkedIn: industry 100%; Indeed: company_size 91% |
-| **Date posted** | Yes | Yes | LinkedIn: 2.8%; Indeed: 100% |
-| **Search metadata** | None | None | search_query, query_tier, search_metro_name (41 columns) |
+### Dispatch pattern
 
-**Critical gap:** asaniczka has NO entry-level seniority labels. All entry-level analysis for the historical baseline must come from arshkon, which yields only ~385 entry-level SWE postings after filtering. This is the binding constraint for power in RQ1 junior-share analyses.
-
-**Cross-dataset comparability** now involves THREE datasets (arshkon April 2024, asaniczka January 2024, scraped March 2026), not two. Validation must address both the arshkon-vs-asaniczka overlap period (both 2024, different months) and the 2024-vs-2026 temporal comparison.
-
-**Primary analysis platform:** LinkedIn only. Indeed data is used for sensitivity analyses only.
-
----
-
-## Stage 13: Data validation
-
-This is the core validation battery. Every check here answers a question a reviewer would ask. Results feed into the methodology section and determine whether downstream analyses are defensible.
-
-The validation stage runs AFTER preprocessing (Stages 1-12) is complete, on the cleaned unified dataset. Some checks may trigger iteration on earlier stages (e.g., if representativeness is poor, revisit dedup thresholds or geographic filtering).
-
-### 13a. Representativeness: Do our scraped data look like the real labor market?
-
-**Why a reviewer asks:** "Your data is whatever LinkedIn's algorithm gave you. How do you know it reflects actual job openings?"
-
-**Benchmark sources:**
-- **JOLTS** (via FRED): Total job openings, Professional & Business Services, Information sector. Free CSV download. Establishes macro-level plausibility.
-- **BLS OES** (Occupational Employment & Wage Statistics): Occupation x metro employment counts. The gold standard for occupation-level validation.
-- **Revelio Labs** (already ingested): SOC-15 aggregate hiring and openings trends.
-
-**Tests to run:**
-
-| Test | What it measures | Acceptable threshold | Reference |
-|---|---|---|---|
-| **Occupation share correlation** | Pearson r between our occupation distribution and OES employment shares | r > 0.80 (Hershbein & Kahn got 0.84-0.98) | Hershbein & Kahn (2018) |
-| **Industry share comparison** | Our SWE industry distribution vs. OES SWE industry distribution | Within 5pp per industry | OECD (2024) |
-| **Geographic share correlation** | Our state-level SWE counts vs. OES state-level SWE employment | r > 0.80 | Hershbein & Kahn (2018) |
-| **Dissimilarity index** | Duncan index between our occupation distribution and OES | Report and discuss (no hard cutoff) | OECD (2024) |
-| **Posting volume vs. JOLTS** | Time-series correlation between our daily posting counts and JOLTS information sector openings | r > 0.60 (Turrell et al. got 0.65-0.95) | Turrell et al. (2019) |
-
-**Implementation:**
-1. Pull BLS OES data for SOC 15-1252 (Software Developers) and SOC 15-1256 (Software Quality Assurance): employment by state and industry concentration.
-2. Pull JOLTS information sector series from FRED.
-3. Compute our distributions on the cleaned unified dataset.
-4. Run correlations and report in a representativeness table.
-
-**Do this separately for each of the three datasets.** They have different selection mechanisms and may have different representativeness profiles. The scraper metadata (search_query, query_tier, search_metro_name) enables richer diagnostics for the scraped data than was possible with Kaggle.
-
-### 13b. Cross-dataset comparability: Are the three datasets measuring the same thing?
-
-**Why a reviewer asks:** "You are comparing datasets with unknown/different collection methods. Any difference you find could be an artifact of the data, not the labor market."
-
-This is the single most important validation. We must demonstrate that differences between 2024 Kaggle data and 2026 scraped data reflect real labor market changes, not measurement artifacts. With three datasets, comparability checks run pairwise:
-
-- **arshkon vs. asaniczka** (both 2024, different months): establishes within-period baseline consistency
-- **arshkon vs. scraped** (April 2024 vs. March 2026): primary temporal comparison
-- **asaniczka vs. scraped** (January 2024 vs. March 2026): secondary temporal comparison (but asaniczka lacks entry-level labels and company metadata)
-
-**Tests to run (for each pairwise comparison):**
-
-| Test | What it measures | What we hope to see | What would be concerning |
-|---|---|---|---|
-| **Description length distribution** | KS test on `description_core` character counts | p > 0.05 OR explainable difference | Large difference that could be scraping artifact |
-| **Company overlap** | Jaccard similarity of company names across datasets | > 0.20 for top-100 companies | Complete non-overlap suggesting different market segments |
-| **Geographic distribution** | Chi-squared test on state-level shares | Similar state rankings, proportional differences | Completely different geographic profiles |
-| **Seniority distribution (native labels)** | Compare LinkedIn's native seniority label distributions | Similar distributions (within 5pp per level) | Massive shifts that could indicate LinkedIn changed its labeling |
-| **Industry distribution** | Chi-squared test on industry shares | Similar industry mix | One dataset dominated by an industry absent from the other |
-| **Title vocabulary overlap** | Jaccard similarity of unique job titles | High overlap for common titles | New title categories in 2026 not present in 2024 (expected but should be quantified) |
-| **Company size distribution** | KS test on employee counts | Similar distributions | One dataset overrepresenting small/large companies |
-
-**Note on asaniczka limitations:** Several tests (entry-level distribution, company size, industry) cannot be run for asaniczka because it lacks those fields. Document which pairwise comparisons are feasible for which tests.
-
-**Key confounders to investigate:**
-
-**LinkedIn platform changes (2024 to 2026):** Did LinkedIn change its job posting display, categorization, search algorithm, or seniority labeling between 2024 and 2026? Platform changes create artificial differences that look like labor market changes. Check LinkedIn's published changelog, engineering blog, and press releases for relevant product updates.
-
-**Indeed vs. LinkedIn composition effect:** The scraped data includes both LinkedIn and Indeed. The Kaggle data is 100% LinkedIn. Any Kaggle-vs-scraped difference could partly reflect Indeed-vs-LinkedIn differences, not temporal changes. **Mitigation:** Run all cross-period comparisons on the LinkedIn-only subset of scraped data first, then check whether including Indeed changes results.
-
-**Scraper query design effect:** Our scraper runs specific queries in specific cities. The Kaggle datasets were collected with unknown queries and geographic scope. Different query strategies surface different jobs even on the same day. **Mitigation:** Use the new scraper metadata (search_query, query_tier, search_metro_name) to profile query-level composition. Document as a limitation. Compare title distributions to see if one dataset captures roles the other misses.
-
-### 13c. Missing data audit
-
-**Why a reviewer asks:** "With no entry-level labels in asaniczka and uneven metadata coverage across sources, how much of the comparison rests on thin or non-comparable fields?"
-
-**Produce a missing data table:**
-
-| Field | arshkon (n~2,604 SWE) | asaniczka (n~18,169 SWE) | Scraped LinkedIn | Scraped Indeed |
-|---|---|---|---|---|
-| Title | % | % | % | % |
-| Description | % | % | % | % |
-| Company name | % | % | % | % |
-| Location | % | % | % | % |
-| Seniority (native) | % | % (no entry-level) | % | N/A |
-| Industry | % | N/A | % (100%) | % |
-| Company size | % | N/A | % | % (~91%) |
-| Date posted | % | % | % (~2.8%) | % (100%) |
-
-**Missingness mechanism analysis (for entry-level labels):**
-
-asaniczka contains only "Mid senior" and "Associate" seniority labels -- no entry-level. This means:
-- Entry-level historical baseline relies entirely on arshkon (~385 entry-level SWE postings)
-- Any claim about junior share decline must acknowledge this constraint
-- Consider whether asaniczka "Associate" labels partially overlap with entry-level (investigate by cross-referencing titles)
-
-**Decision:** Keep the core validation and exploration battery independent of salary fields. All primary analyses (seniority shifts, skill migration, divergence) should rely on fields present across the supported sources.
-
-### 13d. Selection bias diagnostics
-
-**Why a reviewer asks:** "Your data only captures jobs posted online, through specific queries, on specific platforms. How do you know your findings generalize?"
-
-**The five selection mechanisms in our data:**
-
-1. **Platform selection**: LinkedIn overrepresents BA+ professional jobs. For SWE roles specifically, coverage is high (>80% posted online per Carnevale et al. 2014). But control occupations (nursing, civil engineering) have lower online posting rates -- this confounds cross-occupation comparisons.
-
-2. **Algorithm selection**: LinkedIn's ranking algorithm optimizes for engagement, not representativeness. Promoted (paid) posts get 3-5x visibility. Our scraper captures what the algorithm surfaces, not a random sample.
-
-3. **Scraper selection**: Our query x metro x results-per-query design creates deterministic gaps:
-   - Max 25 results per query-city combo means we miss long-tail postings
-   - Metro selection misses smaller metros entirely
-   - Query tier design means roles that don't match any query are excluded
-   - The new scraper metadata (search_query, query_tier, search_metro_name) allows us to diagnose these gaps directly
-
-4. **Employer selection**: Staffing companies (Lensa, Dice, etc.) inflate some companies' representation. DataAnnotation had 168 Kaggle SWE postings (5.4%) -- likely an outlier.
-
-5. **Temporal selection (volatility bias)**: Daily scraping oversamples longer-lived postings (Foerderer 2023). A job open for 60 days is 60x more likely to appear in any daily scrape than a 1-day posting. This biases toward hard-to-fill roles.
-
-**Tests to run:**
-
-| Test | What it checks | How |
-|---|---|---|
-| **Covariate balance (ASMD)** | Whether scraped data distributions match BLS benchmarks | Meta's `balance` package. ASMD < 0.1 is acceptable per Stuart et al. (2013) |
-| **Company size distribution vs. BLS** | Whether we over-represent large firms | Compare our company size distribution against Census SUSB for NAICS 5112 (Software Publishers) |
-| **Geographic coverage map** | Whether our metro design biases results | Plot SWE postings by metro. Compare against OES metro-level SWE employment |
-| **Query saturation check** | Whether 25 results/query is enough | For key queries, re-scrape with higher limits (50, 100) and compare distributions |
-| **Query-tier composition** | Whether tier structure biases seniority/role mix | Use search_query and query_tier metadata to profile what each tier captures |
-| **Posting duration analysis** | Whether we oversample long-lived postings | If `date_posted` is available, compute posting duration distribution. Compare against Foerderer (2023) benchmarks |
-
-**Covariate balance protocol:**
-
-```python
-from balance import Sample
-sample = Sample.from_frame(scraped_df[['seniority', 'company_size', 'industry', 'state']])
-target = Sample.from_frame(bls_benchmark_df[['seniority', 'company_size', 'industry', 'state']])
-adjusted = sample.set_target(target).adjust()
-# Reports ASMD per covariate -- threshold: ASMD < 0.1
-```
-
-If ASMD > 0.1 for key covariates, apply inverse-probability-of-selection weighting (IPSW) to reweight our sample toward the BLS benchmark. Report results both with and without reweighting.
-
-### 13e. Classifier validation
-
-**Why a reviewer asks:** "Your entire study depends on correctly classifying jobs as SWE and correctly imputing seniority. How accurate are these classifiers?"
-
-**SWE detection validation (3-tier):**
-
-1. Sample 500 postings from each dataset: 250 classified as SWE + 250 classified as non-SWE (enriched with borderline titles containing "engineer", "developer", "software", "tech" that didn't match the pattern).
-2. **Tier 2 (LLM):** LLM labels each as SWE / SWE-adjacent / non-SWE with reasoning. Prompt includes title, company, first 400 chars of description.
-3. **Tier 3 (Human):** Annotator reviews LLM labels, correcting disagreements. Focus on borderline cases. Compute kappa between LLM and human.
-4. Report precision, recall, F1 against the corrected gold standard.
-
-**Seniority classifier validation (3-tier):**
-
-1. Sample 500 postings stratified by: source (arshkon, asaniczka, scraped), predicted seniority (entry/mid/senior), and title ambiguity.
-2. **Tier 2 (LLM):** Higher-quality model pre-labels seniority from title + description with reasoning, because seniority is a primary analysis variable.
-3. **Tier 3 (Human):** Annotator corrects LLM labels. Compute kappa between LLM and human (target >= 0.80). Adjudicate disagreements.
-4. Evaluate our imputer against the corrected gold standard. Report per-class precision/recall/F1.
-5. **Critical check:** Run the same classifier on arshkon data where LinkedIn native labels exist. Compare our imputation against LinkedIn's labels. If our classifier agrees with LinkedIn at a different rate for different seniority levels, that differential error biases cross-period comparisons.
-6. **asaniczka-specific check:** Since asaniczka has no entry-level labels, test whether any postings that our classifier assigns to entry-level in arshkon would be labeled "Associate" or "Mid senior" by asaniczka's schema. This identifies potential systematic mislabeling.
-
-**Classifier temporal stability:**
-
-Our seniority classifier was designed from 2026 posting conventions. It may perform differently on 2024 data if title conventions changed. **Test:** Compute per-class accuracy on arshkon (where native labels are available) and on scraped LinkedIn (where native labels are available). If accuracy differs significantly between periods, the classifier introduces a temporal artifact.
-
-### 13f. Distribution comparisons for key analysis variables
-
-**Why a reviewer asks:** "Before I believe your cross-period findings, show me the raw distributions. Are you comparing normal distributions? Skewed? Bimodal?"
-
-For each key variable, produce distribution plots (histograms or KDEs) side by side for all three datasets, and run formal distribution comparison tests:
-
-| Variable | Test | Why |
-|---|---|---|
-| Description length (chars) | KS test + QQ plot | RQ1 scope inflation proxy -- must rule out scraping artifact |
-| Description length after boilerplate removal | KS test + QQ plot | The apples-to-apples version |
-| Seniority distribution | Chi-squared test | RQ1 core metric |
-| Company size | KS test | Composition control |
-| Word count of requirements section only | KS test | More targeted scope inflation measure than full description |
-| Number of distinct skills mentioned | KS test | Skill breadth index |
-| Years of experience required | KS test | Direct seniority requirement measure |
-| Remote work rate | Proportion test | Compositional difference |
-
-**Interpretation framework:** A statistically significant difference is NOT automatically evidence of labor market change. It could also indicate scraping method differences, platform changes, company composition differences, or seasonal variation. For each significant difference, attempt to decompose it: how much is explained by composition (different companies, industries, geographies) vs. within-composition change?
-
-### 13g. Compositional analysis: Is the comparison apples-to-apples?
-
-**Why a reviewer asks:** "Maybe the seniority distribution shifted not because junior jobs disappeared, but because your 2026 scraper happened to capture a different set of companies than the 2024 Kaggle dataset."
-
-**Decomposition approach:**
-
-1. **Company overlap analysis:** Identify companies appearing in both arshkon and scraped datasets. For the overlapping set, compare seniority distributions. If the shift holds within the same companies, it's not a composition effect.
-
-2. **Industry-controlled comparison:** Compare seniority distributions within matched industries (e.g., SWE postings in "Technology/Information" only, excluding healthcare SWE, finance SWE, etc.). Only feasible for arshkon (which has industry via companion files) and scraped LinkedIn (which has industry at 100%).
-
-3. **Geography-controlled comparison:** Compare within matched metros (e.g., San Francisco SWE only, NYC SWE only).
-
-4. **Company-size-controlled comparison:** Compare within matched size bands (e.g., large companies >10K employees only). Only feasible for arshkon (via companion files) and scraped Indeed (91% company_size).
-
-5. **Oaxaca-Blinder decomposition** (if warranted): Formally decompose the cross-period difference in any outcome (seniority share, skill prevalence) into:
-   - A composition effect (different mix of companies/industries/geographies)
-   - A within-composition effect (same companies posting differently)
-
-### 13h. Company concentration analysis and normalization
-
-**Why a reviewer asks:** "If a handful of large employers dominate your data, your findings might reflect their hiring patterns rather than the market."
-
-**Diagnostic steps:**
-
-1. **Compute concentration metrics per dataset:**
-   - Herfindahl-Hirschman Index (HHI): Sum of squared posting-share per company. HHI > 0.15 = moderately concentrated, > 0.25 = highly concentrated.
-   - Top-5 / top-10 / top-20 company share of total SWE postings
-   - Gini coefficient of company posting counts
-
-2. **Identify dominant companies and audit them:**
-   - For any company with >3% of SWE postings in either dataset, LLM reviews 20 postings per company to check for crowdwork, template-only, or aggregator patterns.
-   - Flag companies that are functionally aggregators or crowdwork platforms even if not in the AGGREGATORS list.
-
-3. **Within-company vs. between-company decomposition:**
-   - For companies appearing in BOTH arshkon and scraped datasets, compare their seniority distributions across periods.
-   - Compute the cross-period seniority shift (a) on the full sample, (b) on overlapping-companies-only, and (c) on the non-overlapping sample. If (b) shows the same shift as (a), company composition is not driving the finding.
-
-4. **Company-capped analysis (sensitivity):**
-   - Cap each company at N postings (e.g., N = 10 or N = median company count) to prevent any single company from dominating.
-   - Re-run key analyses on the capped sample.
-
-5. **Company-level fixed effects (for regression analyses):**
-   - Include company fixed effects in any regression model to absorb between-company variation and isolate within-company changes over time.
-   - Only works for companies appearing in both periods -- report the overlap rate.
-
-6. **Exclusion sensitivity tests:**
-   - Re-run analyses excluding the top-5 companies from each dataset
-   - Re-run excluding all aggregators/staffing companies
-   - Re-run excluding DataAnnotation specifically
-
-**Reporting:** Include a company concentration table in the methodology section:
-
-| Metric | arshkon SWE | asaniczka SWE | Scraped SWE |
-|---|---|---|---|
-| Unique companies | X | X | X |
-| Top-1 company share | X% | X% | X% |
-| Top-5 share | X% | X% | X% |
-| Top-10 share | X% | X% | X% |
-| HHI | X | X | X |
-| Company overlap (Jaccard, pairwise) | | | |
-
-### 13i. Temporal stability and seasonality checks
-
-**Why a reviewer asks:** "With snapshots from different months (January 2024, April 2024, March 2026), how do you separate genuine structural change from normal seasonal or cyclical variation?"
-
-**Checks:**
-
-1. **JOLTS seasonal pattern:** Plot JOLTS information sector openings by month. Show that January-to-April variation is small relative to the cross-year change we observe. If BLS data shows a typical seasonal swing of +/-5% but we observe a 20% shift in junior share, seasonality alone cannot explain it.
-
-2. **Within-period stability (scraped data):** Compute daily seniority distributions from scraped data and test for day-to-day stability. If the distribution is stable within a 2-week window, a 1-2 month seasonal offset is unlikely to drive findings.
-
-3. **arshkon-asaniczka consistency:** arshkon covers April 2024; asaniczka covers January 2024. Compare their seniority and skill distributions (where both have labels). If they agree, within-2024 seasonal variation is negligible. If they disagree, seasonal effects need further investigation.
-
-4. **External triangulation:** Compare findings against Revelio Labs hiring and openings trends, which have monthly resolution across 2021-2026. Do Revelio trends show a gradual decline or a discrete break? Does the slope accelerate around late 2025?
-
-### 13j. Power analysis: Do we have enough data?
-
-**Why a reviewer asks:** "With only ~385 entry-level SWE postings in arshkon (the only historical source with entry-level labels), do you have statistical power to detect a meaningful difference?"
-
-**Key power calculations needed:**
-
-| Analysis | Effect size to detect | Sample sizes | Estimated power |
-|---|---|---|---|
-| Junior share change (chi-squared) | 5pp shift (e.g., 12% to 7%) | arshkon ~2,604 vs. scraped ~N | Compute |
-| Description length change (Mann-Whitney) | Cohen's d = 0.2 (small) | ~385 entry-level arshkon vs. N entry-level scraped | Compute |
-| Skill prevalence change (proportion test) | 5pp shift in skill mention rate | Same | Compute |
-| Cross-occupation comparison | Interaction effect | SWE ~N vs. Control ~N | Compute |
-
-**arshkon entry-level SWE is the binding constraint:** Only ~385 arshkon SWE postings carry an entry-level label. After imputation, this might rise to 500-700, but it is still small. Compute the minimum detectable effect size given this sample.
-
-**asaniczka cannot help with entry-level power** because it lacks entry-level labels entirely. Document this limitation.
-
-### 13k. Robustness pre-registration: What specifications will we test?
-
-**Why a reviewer asks:** "You could have tried 50 different specifications and reported the one that worked. How do I know you didn't?"
-
-Define the specification space BEFORE looking at results:
-
-**SWE definition variants:**
-1. Narrow: Current `SWE_PATTERN` (core SWE titles only)
-2. Broad: Add "data scientist", "data analyst", "product engineer"
-3. Excluding adjacent: Remove "data engineer", "ML engineer" (these may have different dynamics)
-
-**Seniority classification variants:**
-1. LLM-classified (primary, where available), else rule-based imputed
-2. LinkedIn native labels where available, imputed where missing
-3. Description-only classifier (ignore titles)
-
-**Dedup variants:**
-1. Strict: Exact match on (title, company, location)
-2. Standard: Near-dedup with similarity >= 0.70
-3. Loose: Near-dedup with similarity >= 0.50
-
-**Sample variants:**
-1. Full sample
-2. LinkedIn only (excludes Indeed composition effect)
-3. LinkedIn + Indeed pooled
-4. Excluding aggregator-like employers
-5. Metro-balanced subsamples
-6. Excluding top-5 most common companies (reduces concentration bias)
-
-**Observation-level variants:**
-1. Canonical postings (deduplicated)
-2. Daily observations (from `unified_observations.parquet`)
-
-**Key findings must hold across all defensible specifications.** Use the `specification_curve` package to visualize this. If a finding is fragile (holds under some specifications but not others), it is reported as suggestive, not conclusive.
-
-### 13l. Placebo and falsification tests (pre-registration)
-
-**Note:** This section defines the placebo tests. Stage 14 exploration produces results; placebos are executed after main results are available.
-
-**Why a reviewer asks:** "Maybe your method finds 'structural change' in any two snapshots, regardless of whether anything actually changed."
-
-**Placebos to pre-register:**
-
-1. **Control occupation placebo:** Run the same seniority-shift analysis on control occupations (civil engineering, nursing, mechanical engineering). If they show the same "structural change" as SWE, the finding is confounded by macro trends or measurement artifacts, not AI-specific restructuring.
-
-2. **Within-arshkon time-split placebo:** Split arshkon into early April vs. late April. Run the same analysis across the two halves. If we find a "shift" within a 2-week window, our method is detecting noise.
-
-3. **Shuffled-label test:** Randomly permute the dataset labels (arshkon vs. scraped) and re-run the analysis 10,000 times. The observed effect size should exceed 95% of permuted effect sizes.
-
-4. **Within-scraped week-over-week:** Split scraped data into week 1 vs. week 2. Run the same analyses. Expect null results.
-
-5. **Null-effect occupations:** Identify occupations with no theoretical reason to be affected by AI coding agents (e.g., registered nurses, civil engineers). Run the full analysis pipeline on these as negative controls. Expect null results.
-
-### 13m. Bias threat summary table
-
-Produce a consolidated table for the methodology section:
-
-| Bias | Direction | Magnitude estimate | Mitigation | Residual risk |
-|---|---|---|---|---|
-| Platform selection (LinkedIn overrepresents tech/professional) | Favors SWE coverage; underrepresents control occupations | ~11pp for tech occupations (Hershbein & Kahn) | Post-stratification against OES | Low for SWE; moderate for controls |
-| Algorithm selection (promoted posts) | Unknown direction | Unknown | Cannot correct; acknowledge | Moderate |
-| Scraper query design (results x cities) | Misses long-tail postings | Unknown; diagnosable via search metadata | Query saturation check; query-tier profiling | Moderate |
-| Aggregator contamination | Inflates some company counts; adds boilerplate | 9% of scraped, ~15% of Kaggle SWE | Flag and sensitivity analysis | Low after flagging |
-| Temporal selection (volatility bias) | Oversamples long-lived postings | 60:1 for 60-day vs. 1-day postings (Foerderer) | Report duration distribution; consider IPW | Moderate |
-| Kaggle provenance unknown | Could bias anything | Unknown | Treat as stated limitation | High (irreducible) |
-| Ghost jobs | Inflates entry-level tech postings | 18-27% of all postings (CRS 2025) | Flag and sensitivity analysis | Moderate |
-| Platform changes (2024 to 2026) | Could create artificial differences | Unknown | Investigate LinkedIn changelog; run LinkedIn-only comparison | Moderate (irreducible) |
-| Company composition shift | Could drive apparent seniority shift | Unknown until tested | Oaxaca-Blinder decomposition; within-company comparison | Low after decomposition |
-| Seasonal offset (different months across datasets) | Could inflate/deflate metrics | Typically small for adjacent months | JOLTS seasonal comparison; arshkon-asaniczka cross-check | Low |
-| asaniczka missing entry-level labels | Eliminates one baseline source for junior analysis | All entry-level baseline comes from arshkon (~385 postings) | Acknowledge; compute power given constraint | Moderate |
-
----
-
-## Spot-check protocol
-
-Manual review is non-negotiable for publication quality. All spot-checks use the 3-tier review protocol (rules -> LLM -> human). See `plan-preprocessing.md` for the full spot-check table with tier assignments and sample sizes.
-
----
-
-## Stage 14: Exploration and discovery
-
-This phase builds intuition about the data before formal hypothesis testing. Every exploration here is designed to either (a) generate visualizations and tables that go directly into the paper, (b) surface unexpected patterns that refine our research questions, (c) validate that the preprocessed data behaves as expected before committing to expensive analyses, or (d) produce artifacts for interview elicitation (RQ4).
-
-**Key tool choices for this stage:**
-
-| Tool | What it does | Why we use it here |
-|---|---|---|
-| [**JobBERT-v2**](https://huggingface.co/TechWolf/JobBERT-v2) | Sentence transformer fine-tuned on 5.5M job title-skill pairs (MPNet base, 1024d). **Max 64 tokens -- titles only.** | Use for **title-level** tasks: classification, title clustering, title similarity. NOT for full descriptions (64-token limit). |
-| **Description model** (selected via Stage 5d benchmark) | General-purpose sentence transformer (`all-mpnet-base-v2` or `e5-large-v2`). 384-512 token context. | Use for **description-level** tasks: topic modeling (BERTopic), content convergence, drift measurement, embedding space exploration. |
-| [**BERTopic**](https://bertopic.com/) | Neural topic modeling (embedding -> UMAP -> HDBSCAN -> c-TF-IDF). Supports dynamic topic modeling over time. | Discovers emergent skill clusters we did not think to look for. For exploration and robustness, not headline claims. |
-| [**BERTrend**](https://github.com/rte-france/BERTrend) | Runs BERTopic per time slice, merges across windows, classifies topics as noise / weak signal / strong signal. | Detects genuinely new topics that emerge between 2024 and 2026. |
-| [**Fightin' Words**](https://github.com/Wigder/fightin_words) | Log-odds-ratio with Dirichlet prior for pairwise corpus comparison. Produces both effect size and z-score per word. | High-value early text-comparison tool (per 6-methods-learning.md). Statistically rigorous, handles corpus size imbalance. |
-| [**Scattertext**](https://github.com/JasonKessler/scattertext) | Interactive HTML visualization of distinguishing terms between two corpora. | Produces publication-quality figures and lets us visually inspect what drives corpus differences. |
-| [**KeyBERT**](https://github.com/MaartenGr/KeyBERT) | Keyword/keyphrase extraction using BERT embeddings + cosine similarity. | Extracts the most representative terms from each posting or group of postings without a predefined dictionary. |
-| [**Nesta OJD Skills Library**](https://github.com/nestauk/ojd_daps_skills) | End-to-end pipeline: extract skill phrases from job ads, map to ESCO or Lightcast taxonomy. | Built specifically for job ad analysis. Handles the full pipeline from raw text to structured skill tags. |
-
-**Methods guidance (from 6-methods-learning.md):**
-- Fightin' Words is a high-value early text-comparison tool. Run it first.
-- Topic models (BERTopic/STM) are for exploration and robustness only, not headline claims.
-- LLM-assisted annotation should only happen after human codebook design and validation.
-- Reflexive thematic analysis is the right approach for interviews (RQ4).
-
-### 14a. Raw data inspection (3-tier: rules -> LLM -> human)
-
-**Before any automated analysis, look at the data.** Automated methods can produce plausible-looking results from garbage data.
-
-**Tier 1 -- Rule-based screening (full dataset):**
-- Flag descriptions < 100 chars, > 15,000 chars, or with non-ASCII majority
-- Flag postings where seniority label contradicts years-of-experience in description
-- Flag entry-level titles with 5+ years required
-- Flag company name mismatches (aggregator name vs. description employer)
-- Output: CSV of flagged rows with flag reasons
-
-**Tier 2 -- LLM bulk review (500 postings):**
-Sample 500 postings (stratified: 100 arshkon SWE, 100 asaniczka SWE, 150 scraped SWE, 50 non-SWE, 100 extreme values from Tier 1 flags). For each, LLM assesses: is_real, seniority_match, desc_quality, requirements_realistic, concerns, summary.
-
-- Output: JSONL file with LLM assessments for all 500 postings
-- Aggregate stats: % flagged per issue type, by dataset
-
-**Tier 3 -- Human review (targeted, ~50 postings):**
-- Review all postings LLM flagged as problematic (spam, mismatch, ghost-job)
-- Review 10 random "clean" postings to validate LLM accuracy
-- **Side-by-side comparison (10 matched pairs):** Find 10 companies in both arshkon and scraped datasets. Pull one SWE posting from each period. Compare descriptions: structure changes, requirement changes, AI mentions. Quote specific examples in the paper.
-
-**Output:** `data/quality_review.md` -- annotated examples tagged with `[boilerplate]`, `[ghost-job?]`, `[skill-inflation]`, `[good-example]`, `[misclassified]`. Plus `data/llm_review_results.jsonl` for the full LLM assessment dataset.
-
-### 14b. Embedding space exploration
-
-**Goal:** Visualize how job postings cluster in semantic space and whether clusters align with our seniority/occupation categories.
-
-**Implementation:**
-
-1. **Embed all SWE postings** using the description-level model selected in Stage 5d (likely `all-mpnet-base-v2` or `e5-large-v2`). Use `title + first 400 words of description_core` as input. For title-only tasks, use JobBERT-v2 separately.
-
-2. **UMAP projection to 2D:**
-   ```python
-   import umap
-   reducer = umap.UMAP(n_neighbors=30, min_dist=0.1, metric='cosine')
-   coords = reducer.fit_transform(embeddings)
-   ```
-
-3. **Visualization layers** (produce multiple views of the same embedding space):
-   - Color by **seniority** (entry/mid/senior) -- do seniority levels form distinct clusters, or do they overlap?
-   - Color by **period** (2024 vs. 2026) -- do the two periods occupy different regions, or are they interleaved?
-   - Color by **source** (arshkon vs. asaniczka vs. scraped) -- do collection methods create artificial clustering?
-   - Color by **company** (top-10 companies highlighted) -- do individual companies form tight clusters (standardized templates)?
-   - Color by **topic** (from BERTopic, step 14d) -- visual confirmation that topic clusters are semantically coherent.
-
-4. **Quantitative embedding analysis:**
-   - **Junior-senior centroid distance:** Compute the cosine distance between the average junior embedding and the average senior embedding, separately for each period. If this distance shrank between 2024 and 2026, junior roles are converging toward senior roles in content (RQ1 evidence). **This produces the junior-senior embedding similarity figure.**
-   - **Within-seniority variance:** Compute the average pairwise cosine distance within each seniority level. If junior postings have higher variance in 2026 than 2024, the category is becoming more heterogeneous.
-   - **Cross-period drift per seniority:** For each seniority level, compute the cosine distance between the 2024 centroid and the 2026 centroid. If junior roles drifted more than senior roles, that is directional evidence for RQ1.
-
-### 14c. Corpus comparison -- Fightin' Words and Scattertext
-
-**Goal:** Identify the specific words and phrases that statistically distinguish different groups (junior vs. senior, 2024 vs. 2026, SWE vs. control). This is the highest-value early text-comparison step.
-
-**Comparisons to run (6 total):**
-
-| Comparison | What it tests | RQ |
-|---|---|---|
-| Junior 2024 vs. Junior 2026 | How junior role language changed | RQ1 |
-| Senior 2024 vs. Senior 2026 | How senior role language changed | RQ1 (senior redefinition) |
-| Junior 2024 vs. Senior 2024 | Baseline junior-senior gap | RQ1, RQ2 |
-| Junior 2026 vs. Senior 2026 | Current junior-senior gap | RQ1, RQ2 |
-| Junior 2026 vs. Senior 2024 | Are 2026 juniors linguistically similar to 2024 seniors? | RQ1 (redefinition hypothesis) |
-| SWE 2026 vs. Control 2026 | SWE-specific vs. general labor market language | Supporting evidence |
-
-**Implementation:**
-
-1. **Fightin' Words** (quantitative):
-   ```python
-   from fightin_words import FWExtractor
-   fw = FWExtractor(ngram_range=(1, 3), min_df=5)
-   results = fw.fit_transform(corpus_a, corpus_b)
-   # Returns (word, log-odds-ratio, z-score) for every n-gram
-   # Sort by |z-score| to find the most distinguishing terms
-   ```
-   Use `description_core` (boilerplate-stripped). Run on unigrams, bigrams, and trigrams separately. Filter to |z-score| > 3.0 for statistical significance after Bonferroni correction.
-
-2. **Scattertext** (visual):
-   Produces an interactive HTML plot. Each dot is a word. Position = relative frequency in each corpus. This is both an analysis tool and a publication figure.
-
-3. **What to look for:**
-   - **AI/LLM terms emerging:** Do "LLM", "AI agent", "prompt engineering", "RAG", "vector database" appear in 2026 but not 2024?
-   - **Management terms declining in senior roles:** Do "mentorship", "coaching", "team leadership", "hiring" shift downward in 2026 senior postings? (RQ1 senior redefinition)
-   - **Senior terms appearing in junior roles:** Do "system design", "architecture", "end-to-end", "cross-functional" appear more in 2026 junior postings than 2024? (RQ2 task migration)
-   - **Years-of-experience inflation:** Do "3+ years", "5+ years" appear more frequently in 2026 entry-level postings? (ghost job / scope inflation signal)
-
-### 14d. Topic discovery -- BERTopic and BERTrend
-
-**Goal:** Discover latent topic structure and track which topics are emerging, stable, or declining between periods. This catches skill categories and role archetypes that our predefined keyword lists miss. Per 6-methods-learning.md, topic models are for exploration and robustness, not headline claims.
-
-**Implementation:**
-
-1. **Base BERTopic on full SWE corpus (both periods combined):**
-   ```python
-   from bertopic import BERTopic
-   from sentence_transformers import SentenceTransformer
-
-   embedding_model = SentenceTransformer("all-mpnet-base-v2")  # description-level model
-   topic_model = BERTopic(
-       embedding_model=embedding_model,
-       min_topic_size=30,
-       nr_topics="auto",
-       verbose=True
-   )
-   topics, probs = topic_model.fit_transform(descriptions)
-   ```
-
-   **Critical:** Use `description_core` (boilerplate-stripped). EEO statements and benefits sections are the #1 source of spurious topics.
-
-2. **Dynamic topic modeling (topics over time):**
-   With only 2-3 time points (January 2024, April 2024, March 2026), resolution is limited -- but the signal we are looking for (new AI topics, declining management topics) should be detectable.
-
-3. **BERTrend for emerging signal detection:**
-   BERTrend classifies each topic as **noise**, **weak signal**, or **strong signal** based on popularity trends. Designed for exactly our use case: detecting whether AI-orchestration skills are a weak signal in 2024 that became a strong signal by 2026.
-
-4. **Topic-level analysis for each RQ:**
-
-   | RQ | What to look for in topics | Expected signal |
-   |---|---|---|
-   | RQ1 | Topics that appear in senior postings in 2024 but migrate to junior postings in 2026 | Topics like "system design", "architecture decisions" |
-   | RQ2 | The temporal order in which skill-topics appear in junior postings | Sequence: cloud -> CI/CD -> system design -> AI tools |
-   | RQ1 (senior) | Topics in senior postings: management-heavy in 2024, AI-heavy in 2026 | "Team leadership, hiring" declining; "AI integration, agent orchestration" emerging |
-   | Supporting | Whether the same topic shifts appear in control occupations | They should NOT (if they do, it's macro confounding) |
-
-5. **Guided BERTopic** (semi-supervised):
-   Use RQ-derived skill categories as seed topics:
-   ```python
-   seed_topic_list = [
-       ["system design", "architecture", "distributed systems", "scalability"],
-       ["AI", "LLM", "prompt engineering", "RAG", "agent", "copilot"],
-       ["mentorship", "coaching", "team lead", "hiring", "performance review"],
-       ["CI/CD", "deployment", "infrastructure", "DevOps", "kubernetes"],
-       ["testing", "QA", "quality assurance", "test automation"],
-   ]
-   topic_model = BERTopic(seed_topic_list=seed_topic_list, ...)
-   ```
-
-### 14e. Structured skill extraction
-
-**Goal:** Extract structured, taxonomy-mapped skills from free-text descriptions. This goes far beyond keyword matching.
-
-**Why this matters:** Our current skill analysis uses a hand-coded list of 16 keywords. This misses skills we did not think of, conflates different uses of the same word, and cannot handle synonyms ("k8s" = "Kubernetes" = "container orchestration").
-
-**Implementation -- two complementary approaches:**
-
-1. **Nesta OJD Skills Library** (taxonomy-mapped):
-   Maps to ESCO (13,890 skills) or Lightcast Open Skills taxonomy. Gives us a controlled vocabulary for cross-period comparison.
-
-2. **KeyBERT** (unsupervised, catches what taxonomies miss):
-   Using JobBERT-v2 as the backbone means keyphrases are scored by relevance to the job domain. Catches emerging terms (e.g., "agentic workflow", "vibe coding") that are not in any taxonomy yet.
-
-3. **Skill prevalence analysis (replaces hand-coded keyword lists):**
-   - For each ESCO-mapped skill, compute prevalence by seniority x period
-   - Identify skills with the largest prevalence change between periods
-   - Identify skills that migrated from senior-only to junior+senior
-   - Produce the **requirement migration heatmap** (paper figure 5) grounded in a standard taxonomy rather than researcher-selected keywords
-
-### 14f. Seniority boundary analysis
-
-**Goal:** Understand where the junior/senior boundary actually lies in the data, and whether it moved between periods. This addresses the core of RQ1.
-
-**Implementation:**
-
-1. **Embedding-based seniority boundary:**
-   - Train a simple logistic regression on description embeddings to predict seniority (junior vs. senior) using 2024 data only
-   - Apply this classifier to 2026 data. If 2026 "junior" postings are classified as "senior" by the 2024 model at a higher rate than 2024 "junior" postings, the boundary has shifted.
-   - Report: % of 2026 junior postings that the 2024-trained model classifies as senior (the "redefinition rate")
-
-2. **Decision boundary visualization:**
-   - In the UMAP space from 14b, draw the decision boundary of the 2024-trained seniority classifier
-   - Overlay 2026 junior postings. How many fall on the "senior" side of the 2024 boundary?
-   - This is a strong visual for the paper.
-
-3. **Feature importance for the boundary:**
-   - What words/skills most strongly predict "senior" vs. "junior" in the 2024 model?
-   - Which of those features are now present in 2026 junior postings?
-   - Use SHAP values or logistic regression coefficients for interpretability.
-
-### 14g. Requirements section parsing
-
-**Goal:** Extract structured data from the requirements/qualifications section of job descriptions.
-
-**Why this is separate from full-text analysis:** The requirements section is the most decision-relevant part of a job posting for applicants and for our research. "Scope inflation" (RQ1) should be measured by what is required, not by the "About Us" section.
-
-**Implementation:**
-
-1. **Section extraction** (from Stage 3 boilerplate removal):
-   - Parse `description_core` into sections: responsibilities, requirements/qualifications, nice-to-haves
-   - Analyze requirements sections separately from full descriptions
-
-2. **Structured requirement extraction:**
-   - **Years of experience:** Extract all "X+ years" patterns. Compute min, max, and median years required per seniority level x period. Test for inflation.
-   - **Education requirements:** Extract degree mentions (BS, MS, PhD). Compute degree distribution per seniority x period.
-   - **Technology requirements:** Count distinct technologies mentioned in requirements. Are junior roles in 2026 requiring more technologies than in 2024?
-   - **Soft skill requirements:** Extract management/leadership/communication mentions from requirements. Are junior roles now requiring "cross-functional collaboration" and "stakeholder management"?
-
-3. **Requirement count as scope metric:**
-   - Count the number of bullet points or distinct requirements per posting
-   - Compare this count across seniority x period
-   - This is a more targeted "scope inflation" metric than description word count
-
-### 14h. Temporal drift measurement
-
-**Goal:** Quantify how much the posting content changed between 2024 and 2026, and characterize the direction of change.
-
-**Implementation:**
-
-1. **Corpus-level embedding drift:**
-   Compute centroid embeddings for each period. Report cosine distance overall and per seniority level.
-
-2. **Vocabulary drift (JSD):**
-   - Build unigram frequency distributions for each period
-   - Compute Jensen-Shannon divergence between them
-   - Do this for the full SWE corpus, and separately for junior-only and senior-only
-   - JSD for junior postings vs. JSD for senior postings: if junior postings changed more than senior, that is RQ1 evidence
-
-3. **Nearest-neighbor stability:**
-   - For each posting in the overlap set (companies appearing in both periods), find its k=10 nearest neighbors
-   - What fraction of neighbors are from the same period vs. the other period?
-   - If 2026 junior postings' nearest neighbors are mostly 2024 senior postings, that is strong evidence of content convergence
-
-4. **Keyword emergence/disappearance:**
-   - Terms appearing in 2026 at >1% prevalence but absent from 2024 (or <0.1%): emerging requirements
-   - Terms appearing in 2024 at >1% prevalence but absent from 2026: declining requirements
-   - Do this separately for junior and senior postings
-
-### 14i. Company-level patterns
-
-**Goal:** Understand whether observed shifts are driven by within-company changes (same companies posting differently) or between-company changes (different companies dominating).
-
-**Implementation:**
-
-1. **Company overlap set analysis:**
-   - Identify companies appearing in both arshkon and scraped datasets
-   - For overlapping companies: compare their seniority distributions, skill mentions, description length across periods
-   - This is the within-company change signal -- not confounded by composition
-
-2. **Company archetypes (via clustering):**
-   - Cluster companies by their posting profiles (average embedding, seniority mix, skill distribution)
-   - Are there distinct "types" of SWE employers? (e.g., FAANG-style, startup-style, consulting-style, government)
-   - Did the relative share of these archetypes change between periods?
-
-3. **Firm-size effects:**
-   - Split by company size bands (1-50, 50-500, 500-5000, 5000+)
-   - Run all key metrics within each size band
-   - Does scope inflation show equally in startups and large enterprises, or is it concentrated?
-
-### 14j. Ghost job and anomaly profiling
-
-**Goal:** Characterize the ghost job phenomenon and understand whether it biases our findings.
-
-**Implementation:**
-
-1. **Ghost job feature analysis:**
-   - For postings flagged as ghost-risk in Stage 8, profile them: which companies, which seniority levels, which geographies, how their descriptions differ from non-ghost postings
-   - Do ghost jobs have systematically different skill requirements (more inflated)?
-
-2. **Anomaly detection:**
-   - Use isolation forest or DBSCAN on the embedding space to identify outlier postings
-   - Manually review the outliers: spam, duplicate templates, non-English, non-US, misclassified occupation
-   - Report the anomaly rate and exclude from analysis with sensitivity check
-
-### 14k. Cross-occupation comparison
-
-**Goal:** Establish that observed changes are SWE-specific, not part of a broader labor market trend (supporting evidence for RQ1-RQ2).
-
-**Implementation:**
-
-1. **Run the same exploration on control occupations:**
-   - Embedding space, Fightin' Words, topic modeling, skill extraction -- all on civil engineering, nursing, mechanical engineering postings
-   - Default production outputs keep controls on rule-based `description_core`; run a separate control-extraction sensitivity job if cross-occupation text analyses need `description_core_llm`
-   - The key question: do control occupations show the same patterns (AI skill emergence, scope inflation, seniority compression)?
-   - If they do, SWE findings are confounded. If they don't, we have comparative evidence.
-
-2. **SWE-adjacent occupation analysis:**
-   - Data scientist, product manager, UX designer -- these are AI-exposed but not SWE
-   - Do they show similar restructuring patterns? Tests whether the effect is specific to coding or broader to tech.
-
-3. **Cross-occupation embedding distance:**
-   - How far apart are SWE, SWE-adjacent, and control postings in embedding space?
-   - Is the distance between SWE and SWE-adjacent shrinking (role convergence)?
-
-### 14l. Employer-requirement / worker-usage divergence (RQ3)
-
-**Goal:** Compare posting-side AI requirements against worker-side observed AI usage benchmarks to test the anticipatory restructuring hypothesis.
-
-**Implementation:**
-
-1. **Posting-side AI requirement rate:**
-   - Compute the share of SWE postings mentioning AI/LLM/agent/copilot requirements, by period
-   - Break out by seniority level
-
-2. **Worker-side AI usage benchmark:**
-   - Use Anthropic occupation-level AI usage data as the primary external benchmark
-   - Map to SOC codes comparable to our SWE definition
-
-3. **Divergence index:**
-   - Compute the gap between employer-side requirement rate and worker-side observed usage rate
-   - If employer requirements outpace observed workplace usage, this is consistent with anticipatory restructuring
-   - Frame carefully: the two measures are not directly interchangeable (different units, populations, time coverage)
-
-4. **Output:** The **posting-usage divergence chart** (paper figure 6) and the **posting-usage divergence interview artifact** for RQ4 elicitation.
-
----
-
-## Interview elicitation artifacts (for RQ4)
-
-The exploration phase must produce specific artifacts for data-prompted elicitation in interviews (from `2-interview-design-mechanisms.md`). These are not optional appendix items; they are required inputs to the qualitative study.
-
-| Artifact | Source analysis | What to prepare | Target cohorts |
-|---|---|---|---|
-| **Inflated junior JD examples** | 14a (raw inspection), 14g (requirements parsing) | 3-5 real entry-level postings with system design, CI/CD, AI-tool, ownership language that exceeds expected junior scope | All cohorts |
-| **Paired JDs over time** | 14i (company-level patterns) | Same company, similar role, one from arshkon 2024 and one from scraped 2026. Highlight what changed. | Seniors, hiring-side |
-| **Junior-share trend plot** | 13f (distribution comparisons), Stage 14 descriptive counts | Junior SWE posting share over time, annotated with AI model release dates | Seniors, hiring-side |
-| **Senior archetype chart** | 14c (Fightin' Words), 14d (BERTopic) | Management vs. orchestration language prevalence in senior postings over time | Seniors, hiring-side |
-| **Posting-usage divergence chart** | 14l (RQ3 analysis) | Posting AI mention rate vs. observed AI usage benchmark (Anthropic data) | All cohorts |
-
-**Protocol rule (from 2-interview-design-mechanisms.md):**
-- Ask the open question first
-- Show the artifact second
-- Ask what feels real, false, missing, or overstated
-
----
-
-## Sensitivity analyses
-
-All main findings must be tested under these sensitivity specifications (from `1-research-design.md`):
-
-1. **LinkedIn-only estimates** -- excludes Indeed composition effect; directly comparable to Kaggle
-2. **LinkedIn + Indeed pooled estimates** -- tests whether adding Indeed changes conclusions
-3. **Exclusion of aggregator-like employers** -- removes Lensa, Dice, DataAnnotation, etc.
-4. **Metro-balanced subsamples** -- reweights to match OES metro-level SWE employment
-5. **Dedupe and repost sensitivity** -- strict vs. standard vs. loose dedup thresholds
-6. **Canonical postings vs. daily observations** -- tests whether duration-weighted observations change conclusions (uses `unified_observations.parquet`)
-7. **Company-capped** -- caps each company at N postings to reduce concentration effects
-
----
-
-## Outputs
-
-### Paper figures (from 1-research-design.md)
-
-| # | Figure | Primary source |
-|---|---|---|
-| 1 | Junior posting share and volume over time | 13f, 14h |
-| 2 | Junior scope-inflation index over time | 14f, 14g |
-| 3 | Senior archetype shift index over time | 14c, 14d |
-| 4 | Junior-senior embedding similarity over time | 14b |
-| 5 | Requirement migration heatmap by seniority and period | 14e |
-| 6 | Employer-requirement / worker-usage divergence plot | 14l |
-| 7 | Source-specific robustness plots | Sensitivity analyses |
-| 8 | Annotated break-analysis plot with candidate release windows | Supporting analysis |
-
-### Paper tables (from 1-research-design.md)
-
-| # | Table | Primary source |
-|---|---|---|
-| 1 | Summary statistics by source, period, and seniority | 13c, 13f |
-| 2 | Validation results for text measures | 13a, 13b, 13e |
-| 3 | Regression estimates for junior scope inflation | Analysis plan |
-| 4 | Regression estimates for senior archetype shift | Analysis plan |
-| 5 | Sensitivity and robustness checks | Sensitivity analyses |
-| 6 | Interview sample and mechanism summary | RQ4 interviews |
-
-### Dataset outputs
-
-- `unified.parquet`: canonical postings corpus
-- `unified_observations.parquet`: daily observation panel
-- Measurement appendix documenting dedupe, cleaning, and construct definitions
-
-### Exploration artifacts
-
-| Output | Type | Used in |
-|---|---|---|
-| Annotated raw sample | Markdown file | Qualitative examples for paper |
-| UMAP embedding plots (5 color schemes) | PNG + interactive HTML | Paper figures |
-| Scattertext comparisons (6 pairs) | Interactive HTML | Paper figures, appendix |
-| Fightin' Words tables (6 comparisons) | CSV + sorted tables | Paper tables |
-| BERTopic model + topic list | Saved model + CSV | RQ2 analysis input |
-| BERTrend signal report | CSV (topic x signal strength) | RQ2 analysis input |
-| ESCO-mapped skill prevalence table | Parquet | RQ2 requirement migration heatmap |
-| KeyBERT emerging terms list | CSV | Appendix |
-| Seniority boundary classifier | Saved model | RQ1 redefinition rate |
-| Requirements section structured data | Parquet (years, degree, tech count) | RQ1, RQ2 |
-| Company-level metric table | Parquet | Compositional analysis |
-| Ghost job profile | Markdown + CSV | Methodology section |
-| Posting-usage divergence data | CSV | RQ3 figure, interview artifact |
-| Interview elicitation artifacts (5 items) | PDF/PNG | RQ4 interviews |
-
----
-
-## How validation feeds into the methodology section
-
-| Output | Section | Content |
-|---|---|---|
-| **Table: Data sources and coverage** | S3.1 Data | Date ranges, sample sizes, platform, selection mechanism, field availability per source |
-| **Table: Missing data rates** | S3.1 Data | Per-field missingness by dataset (from 13c) |
-| **Table: Representativeness** | S3.2 Validation | Our distribution vs. OES, with correlations and dissimilarity indices (from 13a) |
-| **Table: Classifier performance** | S3.3 Classification | Per-class precision/recall/F1 for SWE detection and seniority imputation (from 13e) |
-| **Table: Cross-dataset comparability** | S3.2 Validation | Distribution comparison tests for key variables (from 13b, 13f) |
-| **Table: Bias threat summary** | S3.4 Limitations | The bias table from 13m |
-| **Figure: Specification curve** | S4 Results | Effect stability across all defensible specifications (from 13k) |
-| **Table: Placebo tests** | S4 Results | Null results on control occupations and random splits (from 13l) |
-| **Table: Data funnel** | S3.1 Data | Raw -> cleaned -> final counts per source (from preprocessing pipeline) |
-| **Table: Company concentration** | S3.2 Validation | HHI, top-N shares, overlap rates (from 13h) |
-
----
-
-## Implementation order
-
-### Phase 2: Validation (after Stages 1-12 produce `unified.parquet`)
+For each wave, launch up to 4 sub-agents in parallel using the Agent tool. Each agent's prompt is:
 
 ```
-Stage 13 substeps, roughly parallelizable:
-
-13a. Representativeness checks         <- pull BLS/JOLTS benchmarks
-13b. Cross-dataset comparability       <- three-way pairwise comparisons
-13c. Missing data audit                <- missingno diagnostics
-13d. Selection bias diagnostics        <- balance package, query-tier profiling
-13e. Classifier validation             <- gold-standard annotation
-13f. Distribution comparisons          <- KS tests, histograms
-13g. Compositional analysis            <- company overlap, Oaxaca-Blinder
-13h. Company concentration             <- HHI, capping, within-company analysis
-13i. Temporal stability                <- daily variance, JOLTS seasonality, arshkon-asaniczka cross-check
-13j. Power analysis                    <- sample size calculations (arshkon entry-level is binding)
-13k. Robustness specification space    <- define BEFORE looking at results
-13l. Placebo/falsification tests       <- control occupation null tests (execute after main results)
-13m. Bias threat summary               <- consolidate all threats into one table
+PREAMBLE (Section 2 below)
++ agent-specific dispatch block (from Section 3)
++ task specs for assigned tasks (from Section 4)
 ```
 
-Most checks (13a-13i) can run in parallel. 13k (specification space) should be defined before 13l (placebo tests).
-
-### Phase 3: Exploration and discovery
+### Workflow
 
 ```
-Stage 14 substeps:
+Wave 1 → dispatch agents A, B, C, D (parallel)
+       → wait for all to complete
+       → Gate 1: read reports, check for blockers
+       → update exploration/reports/INDEX.md
 
-14a. Raw data inspection & manual review
-14b. Embedding space exploration
-14c. Corpus comparison -- Fightin' Words (run early, high value)
-14d. Topic discovery -- BERTopic + BERTrend
-14e. Structured skill extraction
-14f. Seniority boundary analysis
-14g. Requirements section parsing
-14h. Temporal drift measurement
-14i. Company-level patterns
-14j. Ghost job and anomaly profiling
-14k. Cross-occupation comparison
-14l. Employer-requirement / worker-usage divergence (RQ3)
+Wave 2 → dispatch agents E, F, G, H (parallel)
+       → wait for all to complete
+       → Gate 2: read reports, check for blockers
+       → update INDEX.md
+
+Wave 3 → dispatch agents I, J, K, L (parallel)
+       → wait for all to complete
+       → Gate 3: read reports, check for blockers
+       → update INDEX.md
+
+Wave 4 → dispatch agent M
+       → wait for completion
+       → final INDEX.md update
 ```
 
-**Priority order:** 14a -> 14c -> 14b -> 14e -> 14f -> 14g -> 14l -> 14d -> 14h -> 14i -> 14j -> 14k
+### Gate logic
 
-Fightin' Words (14c) runs early because it is the highest-value text-comparison tool and informs all downstream analyses. RQ3 divergence analysis (14l) must complete before interviews begin, because it produces an elicitation artifact.
+At each gate, read the `exploration/reports/T*.md` files from the just-completed wave. Check:
 
-**After exploration, produce interview artifacts** from 14a (inflated JDs), 14c/14d (senior archetype chart), 14f/13f (junior-share trend), 14i (paired JDs), and 14l (divergence chart). These must be ready before RQ4 interview fieldwork begins.
+1. **Blocking issues** — Did any task report data that makes downstream work invalid?
+   - Column coverage too low for a required analysis
+   - SWE classification fundamentally broken (>20% estimated false positive/negative)
+   - Seniority labels contradictory across sources in a way that invalidates cross-period comparison
+   - Entry-level SWE sample so small it's meaningless (<30 rows)
+2. **Warnings** — Issues to note but not block on:
+   - Thin coverage for specific columns (flag which analyses are affected)
+   - Moderate disagreement between seniority sources (record which is recommended)
+   - Cross-dataset differences that need interpretation
 
-**Iteration:** Validation or exploration results may trigger re-runs of preprocessing (Stages 1-12 in `plan-preprocessing.md`).
+If a blocker is found: stop, report to user, discuss whether to fix preprocessing first.
+If only warnings: record them in INDEX.md and proceed to next wave.
+
+### Progress tracking
+
+Maintain `exploration/reports/INDEX.md` with:
+```
+| Task | Agent | Wave | Status | One-line finding |
+```
+
+Update after each gate.
+
+---
+
+## 2. Shared preamble
+
+Prepend this to every sub-agent prompt.
+
+```
+## Exploration task context
+
+You are a sub-agent executing exploration tasks for a SWE labor market research project.
+
+**Input data:** `preprocessing/intermediate/stage8_final.parquet` (~76 columns, ~1.22M rows)
+Read `docs/schema-stage8-and-stage12.md` for column definitions and recommended usage.
+
+**Key data context:**
+- The pipeline has been updated with: native_backfill fix (seniority unknown rate ~4% for SWE, down from 35%), expanded SWE regex (language-specific patterns), Systems Engineer disambiguation, and improved boilerplate patterns.
+- Check whether `description_core_llm` column exists (LLM boilerplate removal). If it does: use it as the primary description for text analysis, with `description` as fallback where null. If it does not exist: use `description` (NOT `description_core` — the rule-based version is ~44% accurate).
+- asaniczka has zero entry-level native labels (only mid-senior and associate) — exclude from entry-level trend analysis.
+- 31GB RAM limit — use DuckDB or pyarrow for queries, never load full parquet into pandas.
+
+**Default SQL filters (apply unless task says otherwise):**
+```sql
+WHERE source_platform = 'linkedin'
+  AND is_english = true
+  AND date_flag = 'ok'
+```
+
+**Three periods:** 2024-01 (asaniczka), 2024-04 (arshkon), 2026-03 (scraped)
+**Three sources:** kaggle_arshkon (118K rows), kaggle_asaniczka (1.06M rows), scraped (40K rows)
+
+**Text analysis hygiene rules — apply to ALL text-based tasks (T10+):**
+
+1. **Company-name stripping.** Before any corpus comparison or term-frequency analysis, build a stoplist from all `company_name_canonical` values, tokenize them into words, and strip them during tokenization. This prevents company names from dominating results ("Capital One" was the top distinguishing term in multiple v1 comparisons).
+
+2. **Boilerplate removal.** Strip EEO/legal sections, benefits lists, and "about the company" blocks before tokenization. Use regex to detect: "equal opportunity", "reasonable accommodation", "protected class", "benefits include", "about us", "privacy notice", "fair chance". If `description_core_llm` is available, this step is handled — use that column directly.
+
+3. **Artifact filtering.** For emerging/disappearing term lists:
+   - Require terms to appear in >=20 distinct companies (prevents single-company artifacts like "dataannotation", "amazonians")
+   - Exclude HTML concatenation artifacts (tokens >12 chars with no spaces that aren't real words, like "skillsa", "positionyou", "chatbotwrite")
+   - Exclude city/location names (check against `metro_area` and `state_normalized` values)
+
+4. **Semantic categorization.** Tag every reported term with a category from this taxonomy:
+   - `ai_tool`: AI coding tools, LLMs, specific models (copilot, cursor, claude, gpt, llm, rag, agent, mcp)
+   - `ai_domain`: ML/AI as a domain (machine learning, deep learning, NLP, computer vision)
+   - `tech_stack`: Specific technologies, frameworks, languages (react, kubernetes, terraform, python, docker)
+   - `org_scope`: Organizational/scope language (ownership, end-to-end, cross-functional, stakeholder, autonomous)
+   - `mgmt`: Management/leadership (lead, mentor, manage, team, hire, coach, 1:1)
+   - `sys_design`: Systems/architecture (distributed systems, scalability, architecture, microservices)
+   - `method`: Development methodology (agile, scrum, ci/cd, tdd)
+   - `credential`: Formal requirements (years experience, BS/MS/PhD, certification)
+   - `soft_skill`: Interpersonal (collaboration, communication, problem-solving)
+   - `noise`: Residual after filtering (target <10% of reported terms)
+
+5. **Length normalization.** Description length grew ~50-60% from 2024 to 2026. For keyword analyses:
+   - Primary: binary indicator (any mention per posting)
+   - Secondary: rate per 1,000 characters
+   - Always report both. Never report raw counts without normalization.
+
+**Output conventions:**
+- Figures → exploration/figures/TASK_ID/ (PNG, 150dpi, max 4 per task)
+- Tables → exploration/tables/TASK_ID/ (CSV)
+- Report → exploration/reports/TASK_ID.md using this template:
+
+  # TASK_ID: [title]
+  ## Finding
+  [1-3 sentence headline result]
+  ## Implication for analysis
+  [What this means for RQ1-RQ4]
+  ## Data quality note
+  [Caveats, issues, thin samples]
+  ## Action items
+  [What downstream agents or the analysis phase needs to know]
+
+Create exploration/ directories if they don't exist.
+Use DuckDB CLI or pyarrow for all data queries. Do NOT load the full parquet into pandas.
+```
+
+---
+
+## 3. Wave definitions
+
+### Wave 1 — Data audit & validation
+
+Launch 4 agents in parallel. These establish what we have and whether it's usable.
+
+#### Agent A: Data coverage (T01 + T03)
+
+**Dispatch:** Audit column coverage and missing data patterns across all sources and the SWE subset. Produce the coverage heatmap and missing data tables that all downstream tasks depend on understanding. Execute tasks T01 and T03.
+
+#### Agent B: Classifier quality (T02 + T04)
+
+**Dispatch:** Evaluate seniority label quality and SWE classification accuracy. Cross-tabulate all seniority variants, compute agreement metrics, and test whether the RQ1 junior-share metric changes depending on which seniority column is used. Assess SWE classification via manual sampling of borderline cases. Execute tasks T02 and T04.
+
+#### Agent C: Dataset comparability (T05 + T06)
+
+**Dispatch:** Test whether the three datasets are measuring the same thing by running pairwise comparisons (description length, company overlap, geographic/seniority/title distributions). Also assess company concentration and whether a few employers dominate findings. Execute tasks T05 and T06.
+
+#### Agent D: External benchmarks (T07)
+
+**Dispatch:** Compare our data against BLS OES occupation/state data and JOLTS information sector trends. This requires web access to download benchmark data from FRED and BLS. Execute task T07.
+
+#### Gate 1 checklist
+
+After all Wave 1 agents complete, read these reports and check:
+
+- [ ] `T01.md` — Are the columns needed for RQ1-RQ3 adequately covered? Which are unusable?
+- [ ] `T02.md` — Do seniority variants agree on junior-share direction? What's the recommended seniority column?
+- [ ] `T03.md` — What's the effective sample size for entry-level SWE? Is it >30?
+- [ ] `T04.md` — Is SWE classification adequate (<10% estimated error)?
+- [ ] `T05.md` — Are cross-dataset differences explainable? Any artifact red flags?
+- [ ] `T06.md` — Does any single company dominate >10% of SWE postings?
+- [ ] `T07.md` — Is geographic correlation with OES >0.80?
+
+**Pass to Wave 2:** Record seniority recommendation from T02 and any column exclusions from T01 in INDEX.md. Wave 2 agents will read INDEX.md for this guidance.
+
+---
+
+### Wave 2 — Core exploratory analysis
+
+Launch 4 agents in parallel. These generate the substantive findings.
+
+#### Agent E: Distributions, sensitivity & baseline (T08 + T09)
+
+**Dispatch:** Compute baseline distributions for all key variables by period and seniority. Run the seniority source sensitivity analysis. Also establish within-2024 baseline variability by comparing arshkon vs asaniczka on the same metrics, to calibrate how surprising the 2024-to-2026 changes are. Read `exploration/reports/INDEX.md` for the seniority recommendation from Wave 1. Execute tasks T08 and T09.
+
+#### Agent F: Text analysis (T10 + T11)
+
+**Dispatch:** Run Fightin' Words corpus comparisons (6 pairs: junior/senior x period, plus cross-occupation) to identify statistically distinguishing terms. Then measure temporal drift via Jensen-Shannon divergence, keyword emergence/disappearance, and AI term prevalence. Apply all text hygiene rules from the preamble — this is critical for quality. Execute tasks T10 and T11.
+
+#### Agent G: Requirements & companies (T12 + T13)
+
+**Dispatch:** Parse job description requirements sections to extract structured data (YOE, education, tech count, soft skills). Then analyze company-level patterns: within-company vs between-company changes for companies appearing in both periods. Execute tasks T12 and T13.
+
+#### Agent H: RQ3 + quality + controls (T14 + T15 + T16)
+
+**Dispatch:** Three tasks. Compute the employer-requirement vs worker-usage divergence for RQ3. Profile ghost jobs and anomalies. Run the full cross-occupation comparison (SWE vs SWE-adjacent vs control) to test whether findings are SWE-specific. Execute tasks T14, T15, and T16.
+
+#### Gate 2 checklist
+
+After all Wave 2 agents complete:
+
+- [ ] `T08.md` — Do distribution profiles show expected patterns? Any surprises? Is within-2024 baseline variability small relative to 2024-2026 change?
+- [ ] `T09.md` — Do all seniority variants agree on direction of junior-share change?
+- [ ] `T10.md` — Are the top distinguishing terms clean (not company names/artifacts)? Do they align with RQ1-RQ2 hypotheses? Is the category breakdown informative?
+- [ ] `T11.md` — How large is temporal drift? Is JSD for junior > JSD for senior (supporting RQ1)? Are emerging terms properly cleaned?
+- [ ] `T12.md` — Does scope inflation show up in structured requirements?
+- [ ] `T13.md` — Does within-company analysis confirm or weaken the cross-period finding?
+- [ ] `T14.md` — Is there a posting-usage divergence? (RQ3)
+- [ ] `T15.md` — Any systematic data quality issues to exclude?
+- [ ] `T16.md` — Are SWE patterns distinct from control occupations?
+
+**Pass to Wave 3:** Note any findings that are contradictory or surprising — Wave 3 needs to dig deeper.
+
+---
+
+### Wave 3 — Deep analysis
+
+Launch 4 agents in parallel. These tasks go deeper into the research constructs.
+
+#### Agent I: Technology stacks & description anatomy (T17 + T18)
+
+**Dispatch:** Track specific technology mentions across periods using a ~100-150 technology taxonomy. Then decompose the description length growth to understand what sections are getting longer. Execute tasks T17 and T18.
+
+#### Agent J: Requirement bundles & relabeling test (T19 + T20)
+
+**Dispatch:** Analyze requirement co-occurrence patterns to find latent posting archetypes (e.g., "traditional SWE" vs "AI-augmented SWE"). Then test the relabeling hypothesis: are 2026 entry-level postings semantically more similar to 2024 mid-senior postings than to 2024 entry-level postings? Execute tasks T19 and T20.
+
+#### Agent K: Senior archetype & metro heterogeneity (T21 + T22)
+
+**Dispatch:** Systematically measure the senior SWE archetype shift (management vs orchestration language profiles) — this is a core construct in the research design. Then analyze whether the headline findings vary by metro area. Execute tasks T21 and T22.
+
+#### Agent L: Ghost patterns & embedding similarity (T23 + T24)
+
+**Dispatch:** Identify ghost-like requirement patterns through text analysis (template saturation, aspirational language, kitchen-sink postings, company repetition). Then compute semantic similarity between junior and senior postings over time using embeddings or TF-IDF to test the convergence hypothesis. Execute tasks T23 and T24.
+
+#### Gate 3 checklist
+
+After all Wave 3 agents complete:
+
+- [ ] `T17.md` — What technology stacks are rising/declining beyond just "AI"?
+- [ ] `T18.md` — What's driving description length growth? Requirements vs boilerplate?
+- [ ] `T19.md` — Do posting archetypes emerge? Does an "AI-augmented SWE" archetype grow?
+- [ ] `T20.md` — Does entry-2026 converge toward mid-senior-2024 (relabeling confirmed)?
+- [ ] `T21.md` — Is the management→orchestration shift real and measurable?
+- [ ] `T22.md` — Is the entry decline uniform across metros or concentrated?
+- [ ] `T23.md` — Are ghost requirements prevalent enough to matter?
+- [ ] `T24.md` — Does embedding similarity confirm the convergence hypothesis?
+
+**Pass to Wave 4:** Compile key tensions and surprising findings for synthesis.
+
+---
+
+### Wave 4 — Synthesis
+
+Launch 1 agent after Waves 1-3 are complete.
+
+#### Agent M: Artifacts & synthesis (T25 + T26)
+
+**Dispatch:** Read ALL reports in `exploration/reports/`. Produce the 5 interview elicitation artifacts for RQ4. Then write the synthesis document that consolidates all findings into a single handoff for the analysis agent. Execute tasks T25 and T26.
+
+---
+
+## 4. Task reference
+
+Each task is assigned to one agent. The agent receives the task spec below as part of its prompt.
+
+### T01. Column coverage audit `[Agent A]`
+
+**Goal:** Which columns have enough non-null coverage to be analysis-worthy, by source and SWE subset?
+
+**Steps:**
+1. For every column, compute by source (arshkon, asaniczka, scraped) AND by `is_swe` subset: non-null rate, distinct count, top 5 values
+2. Produce a coverage heatmap (columns x sources, colored by non-null rate)
+3. Flag columns >50% null for any source used in cross-period comparisons
+4. Produce a "usable columns per RQ" table
+5. Check whether `description_core_llm` exists and what its coverage is
+
+**Output:** `exploration/reports/T01.md` + coverage heatmap PNG + CSV
+
+### T02. Seniority label comparison `[Agent B]`
+
+**Goal:** Compare all seniority variants — where do they agree, and does the choice change RQ1 results?
+
+**Steps:**
+1. SWE rows: cross-tabulate `seniority_native` vs `seniority_final`, `seniority_imputed` vs `seniority_final`, `seniority_native` vs `seniority_imputed` (where both non-null)
+2. Compute agreement rate and Cohen's kappa for each pair
+3. Arshkon SWE (native exists): per-class accuracy of rule-based classifier using native as ground truth
+4. Scraped LinkedIn SWE (native exists): same. If accuracy differs → classifier temporal instability.
+5. Compute RQ1 junior share using 4 variants:
+   a. `seniority_final` (all non-unknown)
+   b. `seniority_native` only
+   c. High-confidence: `seniority_final_source IN ('title_keyword', 'native_backfill')`
+   d. Including weak signals
+6. Do variants agree on direction and magnitude of change?
+
+**Output:** `exploration/reports/T02.md` with cross-tabs, kappa, per-class accuracy, junior-share comparison, recommendation
+
+### T03. Missing data audit `[Agent A]`
+
+**Goal:** Document missingness patterns constraining cross-period comparisons.
+
+**Steps:**
+1. Field x source x platform missing data table (% non-null), all rows and SWE subset
+2. Document which seniority labels each source provides
+3. Investigate: do asaniczka "Associate" titles overlap with arshkon "Entry level" titles?
+4. Effective sample size per source after excluding nulls, for each cross-period analysis field
+
+**Output:** `exploration/reports/T03.md` with tables
+
+### T04. SWE classification audit `[Agent B]`
+
+**Goal:** Assess SWE classification quality after preprocessing fixes.
+
+**Steps:**
+1. SWE rows by `swe_classification_tier` breakdown
+2. Sample 50 borderline SWE postings (`swe_confidence` 0.3-0.7 or tier `embedding_llm`): print title + 200 chars description, assess quality
+3. Sample 50 borderline non-SWE (titles with "engineer"/"developer"/"software" but `is_swe = False`): same
+4. Profile `is_swe_adjacent` and `is_control` rows: what titles/occupations?
+5. Estimated false-positive and false-negative rates
+6. Verify no dual-flag violations: `(is_swe + is_swe_adjacent + is_control) > 1` should be 0
+
+**Output:** `exploration/reports/T04.md`
+
+### T05. Cross-dataset comparability `[Agent C]`
+
+**Goal:** Test whether dataset differences reflect real labor market changes vs artifacts.
+
+**Steps (SWE, LinkedIn-only):**
+1. Description length: KS test + histogram for `description_length` and `core_length` across 3 sources
+2. Company overlap: Jaccard similarity of `company_name_canonical` pairwise. Top-50 overlap.
+3. Geographic: state-level SWE counts, chi-squared on state shares
+4. Seniority: `seniority_final` distributions (exclude unknown), chi-squared pairwise
+5. Title vocabulary: Jaccard of `title_normalized` sets. Titles unique to one period.
+6. Industry: `company_industry` for arshkon vs scraped
+
+**Output:** `exploration/reports/T05.md` with test results and interpretation
+
+### T06. Company concentration `[Agent C]`
+
+**Goal:** Check if a few employers dominate and bias findings.
+
+**Steps (SWE):**
+1. Per dataset: HHI, top-1/5/10/20 share, Gini of posting counts
+2. Companies with >3% SWE postings in any dataset
+3. Overlap set (arshkon ∩ scraped): compare seniority distributions within-company across periods
+4. Company-capped sensitivity: junior share after capping at 10 postings/company
+
+**Output:** `exploration/reports/T06.md` with concentration table and within-company comparison
+
+### T07. Representativeness `[Agent D]`
+
+**Goal:** Compare our data against BLS/JOLTS benchmarks.
+
+**Steps:**
+1. Download BLS OES for SOC 15-1252 and 15-1256: state-level employment
+2. Pearson r: our state-level SWE counts vs OES, per dataset
+3. Industry distribution: our SWE vs OES SWE industry (arshkon + scraped)
+4. Download JOLTS information sector from FRED. Compare against our scraper daily counts.
+5. Representativeness summary table
+
+**Output:** `exploration/reports/T07.md`. Target: r > 0.80 geographic.
+
+### T08. Distribution profiles & within-2024 baseline `[Agent E]`
+
+**Goal:** Baseline distributions before hypothesis testing, plus within-2024 variability calibration.
+
+**Steps (SWE, LinkedIn-only, seniority_final != unknown where applicable):**
+1. Side-by-side histograms by period for: `description_length`, `core_length`, `yoe_extracted`, `seniority_final`, `seniority_3level`
+2. Junior/mid/senior share by period (entry / total known seniority)
+3. Arshkon-specific: entry-level share of SWE postings
+4. Remote work rate and aggregator rate by period
+5. **Within-2024 baseline comparison (arshkon vs asaniczka, mid-senior SWE only):**
+   - Compare description length, AI keyword prevalence, organizational language (cross-functional, ownership, end-to-end, collaboration), and top-20 tech stack on the same metrics used for 2024→2026 comparisons
+   - Compute within-2024 effect sizes (Cohen's d or equivalent)
+   - Produce a calibration table: metric, within-2024 difference, 2024→2026 difference, ratio
+   - This establishes how much variation is "normal" within 2024
+
+**Output:** `exploration/reports/T08.md` with plots, summary stats, and baseline calibration table
+
+### T09. Seniority source sensitivity `[Agent E]`
+
+**Goal:** Is the junior-share finding robust to seniority method choice?
+
+**Steps:**
+1. Junior share by period using 4 seniority variants (same as T02 step 5)
+2. Arshkon-to-scraped change for each variant (absolute pp and relative %)
+3. Sensitivity comparison chart (all 4 estimates)
+4. Agreement assessment: same direction? Magnitude within 2x?
+
+**Output:** `exploration/reports/T09.md` with chart and verdict
+
+### T10. Fightin' Words corpus comparison `[Agent F]`
+
+**Goal:** Statistically identify the words that distinguish groups, with clean results.
+
+**Steps:**
+1. **Text cleaning first (critical):**
+   - Build company-name stoplist from all `company_name_canonical` values
+   - Strip EEO/legal/benefits/about-company sections via regex before tokenization
+   - Use `description_core_llm` if available, else `description`
+2. Run 6 comparisons (SWE, LinkedIn-only, seniority_final != unknown):
+
+   | # | Corpus A | Corpus B | RQ |
+   |---|---|---|---|
+   | 1 | Junior 2024 (arshkon entry) | Junior 2026 (scraped entry) | RQ1 |
+   | 2 | Senior 2024 | Senior 2026 | RQ1 senior redefinition |
+   | 3 | Junior 2024 | Senior 2024 | RQ1/RQ2 baseline gap |
+   | 4 | Junior 2026 | Senior 2026 | RQ1/RQ2 current gap |
+   | 5 | Junior 2026 | Senior 2024 | RQ1 redefinition hypothesis |
+   | 6 | SWE 2026 | Control 2026 | Supporting |
+
+3. Top 50 distinguishing terms (|z-score| > 3.0) for unigrams and bigrams per comparison. **Every term must be tagged** with a semantic category from the preamble taxonomy. Target <10% `noise` category.
+4. Produce a **category-level summary**: what fraction of distinguishing terms are ai_tool, org_scope, mgmt, sys_design, etc.? How does this change across comparisons? This is the high-level finding.
+5. Produce Scattertext HTML for comparisons 1 and 2 (if Scattertext is available)
+
+**Note:** Report n per corpus for every comparison. Flag any with n < 50.
+
+**Output:** `exploration/reports/T10.md` + categorized CSV tables + category summary figure
+
+### T11. Temporal drift `[Agent F]`
+
+**Goal:** Quantify how much posting content changed between periods, with clean term lists.
+
+**Steps (SWE, LinkedIn-only):**
+1. **Apply same text cleaning as T10** before all frequency computations.
+2. JSD on unigram frequencies: overall and per seniority level. Also compute JSD on cleaned text and compare to uncleaned JSD to quantify noise contribution.
+3. **Emerging terms** (>1% in 2026, <0.1% in 2024): apply artifact filters — require >=20 distinct companies, exclude proper nouns/locations, exclude HTML artifacts. Categorize every surviving term.
+4. **Accelerating terms** (existed in 2024 but grew >3x): these may be more informative than the binary emerging/disappearing threshold. Report top-30 accelerating terms with categories.
+5. **Disappearing terms** (>1% in 2024, <0.1% in 2026): same filtering. Separate true vocabulary change from source artifacts.
+6. YOE inflation: `yoe_extracted` for entry-level SWE, arshkon vs scraped
+7. AI keyword prevalence: share mentioning AI/LLM/agent/copilot/GPT/Claude, by period × seniority. Separate "AI-as-tool" (copilot, cursor, AI pair programming, prompt engineering) from "AI-as-domain" (machine learning, deep learning, NLP).
+
+**Output:** `exploration/reports/T11.md` with cleaned JSD values, categorized term lists, AI prevalence chart
+
+### T12. Requirements parsing `[Agent G]`
+
+**Goal:** Extract structured data from requirements/qualifications sections.
+
+**Steps:**
+1. Parse `description` (or `description_core_llm` if available) to extract requirements sections (regex for "Requirements", "Qualifications", "What you'll need", etc.)
+2. Extract: YOE patterns, education (BS/MS/PhD), distinct tech count, soft skill / management language
+3. Per seniority × period: median YOE, % MS/PhD, median tech count, % "cross-functional"/"stakeholder"/"ownership"/"end-to-end"
+4. Junior 2024 vs junior 2026 comparison: are junior roles requiring more?
+5. **Length-normalized tech density** (techs per 1K chars) alongside raw counts — the 2024→2026 description length growth inflates raw counts
+
+**Output:** `exploration/reports/T12.md` — produces scope inflation evidence for RQ1
+
+### T13. Company-level patterns `[Agent G]`
+
+**Goal:** Separate within-company change from between-company composition effects.
+
+**Steps:**
+1. Companies in both arshkon and scraped (`company_name_canonical`)
+2. Overlapping companies: seniority distributions, description lengths, AI keyword prevalence across periods
+3. Non-overlapping: what companies are new in 2026? What disappeared?
+4. Size-band split where available
+5. Formal within-company vs composition decomposition for: entry share, AI prevalence, description length
+
+**Output:** `exploration/reports/T13.md`
+
+### T14. RQ3 divergence `[Agent H]`
+
+**Goal:** Compare posting-side AI requirements against worker-side AI usage benchmarks.
+
+**Steps:**
+1. AI requirement rate in SWE postings, by period and seniority. Separate "AI-as-tool" (copilot, cursor, LLM, prompt engineering) from "AI-as-domain" (ML, DL, NLP).
+2. Pull Anthropic occupation-level AI usage data. Map to comparable SOC codes. Also use StackOverflow Developer Survey benchmarks.
+3. Divergence: requirement rate vs usage rate, by seniority
+4. Produce divergence chart
+
+**Output:** `exploration/reports/T14.md` + divergence chart (becomes interview artifact)
+
+### T15. Ghost job & anomaly profiling `[Agent H]`
+
+**Goal:** Characterize ghost jobs and outliers.
+
+**Steps:**
+1. Profile `ghost_job_risk` non-low rows: companies, seniority, geography
+2. `yoe_seniority_contradiction = True`: how many, patterns
+3. `description_quality_flag != 'ok'`: fraction per source
+4. Extreme `description_length` outliers (>15K or <100 chars)
+
+**Output:** `exploration/reports/T15.md`
+
+### T16. Cross-occupation comparison `[Agent H]`
+
+**Goal:** Are observed changes SWE-specific or a broader trend?
+
+**Steps:**
+1. `is_control` rows: seniority distribution by period
+2. `is_swe_adjacent` rows: same
+3. Junior share trends: SWE vs adjacent vs control
+4. AI keyword prevalence across all three groups
+5. If control shows same patterns → confounded by macro trends
+
+**Output:** `exploration/reports/T16.md`
+
+### T17. Technology stack tracking `[Agent I]`
+
+**Goal:** Track specific technology mentions across periods to understand how the SWE toolkit is evolving.
+
+**Steps:**
+1. Define a taxonomy of ~100-150 technologies by category:
+   - **Languages:** Python, Java, JavaScript/TypeScript, Go, Rust, C/C++, C#, Ruby, Kotlin, Swift, Scala, Elixir, PHP
+   - **Frontend:** React, Angular, Vue, Next.js, Svelte
+   - **Backend/Infra:** Node.js, Django, Flask, Spring, .NET, Rails
+   - **Cloud/DevOps:** AWS, Azure, GCP, Kubernetes, Docker, Terraform, CI/CD, Jenkins, GitHub Actions
+   - **Data:** SQL, PostgreSQL, MongoDB, Redis, Kafka, Spark, Snowflake, Databricks, dbt
+   - **AI/ML traditional:** TensorFlow, PyTorch, scikit-learn, Pandas, NumPy
+   - **AI/LLM new:** LangChain, LangGraph, RAG, vector databases, Pinecone, ChromaDB, Hugging Face, OpenAI API, Claude API, prompt engineering, fine-tuning, MCP, agent frameworks
+   - **AI tools:** Copilot, Cursor, ChatGPT, Claude, Gemini, Codex
+   - **Testing/Practices:** Jest, Pytest, Selenium, Cypress, Agile, Scrum, TDD
+2. For each technology, compute mention rate (% of postings mentioning it) by period × seniority. Use regex patterns that account for common variations.
+3. Produce a "technology shift" heatmap: rows = technologies, columns = period × seniority, cell = mention rate. Highlight technologies with >3x change.
+4. Identify "rising stacks" (new AI/LLM tools) vs "stable stacks" (languages, cloud) vs "declining stacks".
+5. Length-normalize: rate per 1K chars alongside raw rates.
+
+**Output:** `exploration/reports/T17.md` + tech heatmap + CSVs
+
+### T18. Description anatomy `[Agent I]`
+
+**Goal:** Decompose the description length growth to understand what's getting longer.
+
+**Steps:**
+1. Define a section classifier using regex for common JD sections:
+   - Role summary, Requirements/Qualifications, Preferred/Nice-to-have, Responsibilities, Benefits/Perks, About the company, Legal/EEO, Unclassified
+2. For each SWE posting, estimate character count per section.
+3. Compute median section length by period × seniority. Which sections grew the most?
+4. Stacked bar chart: description composition by period.
+5. Test: did the "requirements" section grow disproportionately, or is the growth mainly in benefits/legal/about?
+6. Entry-level specific: what changed in the structure of entry-level JDs?
+
+**Output:** `exploration/reports/T18.md` + stacked bar chart + section-length tables
+
+### T19. Requirement bundle analysis `[Agent J]`
+
+**Goal:** Identify how requirements co-occur and whether there are distinct posting archetypes.
+
+**Steps:**
+1. For each SWE posting, create a binary feature vector from ~30-40 requirement indicators:
+   - AI-tool, AI-domain, AI-general
+   - Ownership, end-to-end, cross-functional, stakeholder
+   - Leadership, mentoring, hiring, team management
+   - System design, architecture, distributed systems, scalability
+   - CI/CD, deployment, infrastructure
+   - Testing, code review
+   - Communication, collaboration
+   - YOE buckets (0-1, 2-3, 4-5, 6+), Education (BS, MS, PhD)
+2. Compute pairwise co-occurrence matrix (phi coefficient) by period.
+3. Identify new co-occurrence pairs in 2026 (e.g., "AI + ownership" becoming a bundle).
+4. Cluster postings into 4-6 archetypes (k-means or hierarchical on binary features).
+5. Name and characterize each archetype. Compare archetype distributions across periods.
+6. Test: does an "AI-augmented SWE" archetype grow at the expense of "traditional SWE"?
+
+**Output:** `exploration/reports/T19.md` + co-occurrence heatmaps + archetype distributions
+
+### T20. Relabeling hypothesis test `[Agent J]`
+
+**Goal:** Test whether 2026 entry-level postings are semantically more similar to 2024 mid-senior postings than to 2024 entry-level postings.
+
+**Steps:**
+1. Compute TF-IDF vectors on cleaned descriptions (company names and boilerplate removed).
+2. Compute average cosine similarity between:
+   - Entry 2026 ↔ Entry 2024 (same-level, cross-period)
+   - Entry 2026 ↔ Mid-senior 2024 (cross-level, cross-period — the relabeling test)
+   - Entry 2024 ↔ Mid-senior 2024 (cross-level baseline)
+   - Mid-senior 2026 ↔ Mid-senior 2024 (same-level, cross-period)
+3. If entry-2026 is closer to mid-senior-2024 than to entry-2024, that supports relabeling.
+4. Dimensionality reduction (PCA or UMAP on TF-IDF) to visualize cluster positions.
+5. Within-level similarity: is entry becoming more or less diverse over time?
+
+**Output:** `exploration/reports/T20.md` + similarity matrix + UMAP/PCA plot
+
+### T21. Senior archetype analysis `[Agent K]`
+
+**Goal:** Systematically measure the senior SWE archetype shift from people-management toward AI-enabled orchestration.
+
+**Steps:**
+1. Define two language profiles:
+   - **Management:** manage, mentor, coach, hire, interview, grow, develop talent, performance review, career development, 1:1, headcount, people management, team building, direct reports
+   - **Orchestration:** architecture review, code review, system design, technical direction, AI orchestration, agent, workflow, pipeline, automation, evaluate, validate, quality gate, guardrails, prompt engineering, tool selection
+2. For each mid-senior/director SWE posting, compute management score and orchestration score (mentions per 1K chars).
+3. Compare distributions across periods. Compute management-to-orchestration ratio by period.
+4. Identify "new senior" (high orchestration, low management) vs "classic senior" (high management, low orchestration). How did their proportions change?
+5. Cross-tabulate with AI keyword presence: among AI-mentioning senior postings, is orchestration stronger?
+6. 2D scatter (management vs orchestration) colored by period.
+
+**Output:** `exploration/reports/T21.md` + management-orchestration charts
+
+### T22. Metro heterogeneity `[Agent K]`
+
+**Goal:** Test whether the headline findings vary by metro area.
+
+**Steps:**
+1. Using `metro_area` (stage8-only, ~66-75% coverage), compute for each metro with >=50 SWE postings per period:
+   - Entry share (seniority_final)
+   - AI keyword prevalence (broad and AI-tool-specific)
+   - Organizational language composite (ownership + cross-functional + end-to-end)
+   - Description length
+2. Rank metros by entry-share decline (arshkon→scraped).
+3. Is the entry decline concentrated in certain metros (SF, NYC, Seattle) or uniform?
+4. Is the AI surge concentrated in tech hubs or uniform?
+5. Metro-level heatmap: metros × metrics, colored by change magnitude.
+6. Correlation test: do metros with larger AI surges show larger entry declines?
+
+**Output:** `exploration/reports/T22.md` + metro heatmap + correlation chart
+
+### T23. Ghost requirement patterns `[Agent L]`
+
+**Goal:** Identify ghost-like requirement patterns through text analysis.
+
+**Steps:**
+1. Define ghost-like indicators:
+   - **Template saturation:** Postings where the requirements section is near-identical to other postings from the same company (compute within-company requirements similarity)
+   - **Kitchen-sink postings:** Postings listing >15 distinct technologies or >8 organizational competencies
+   - **Aspiration markers:** Ratio of hedging language ("ideally", "nice to have", "preferred", "bonus") relative to firm requirements ("must have", "required", "minimum")
+   - **YOE-scope mismatch:** Entry-level postings with senior scope language (ownership, architecture, distributed systems)
+   - **Company repetition:** Companies posting near-identical requirements across roles
+2. Compute prevalence of each indicator by period × seniority.
+3. Identify the 20 most "ghost-like" entry-level postings. Display their requirements sections.
+4. Cross-tabulate ghost indicators with AI keyword presence: are AI requirements more likely to be ghost-like?
+5. Compare aggregators vs direct employers, large vs small companies.
+
+**Output:** `exploration/reports/T23.md` + ghost prevalence tables + examples
+
+### T24. Embedding-based similarity `[Agent L]`
+
+**Goal:** Compute semantic similarity between junior and senior postings over time.
+
+**Steps:**
+1. Check if `sentence-transformers` is installed. If yes: use `all-MiniLM-L6-v2`. If no: fall back to TF-IDF + SVD (100 components).
+2. Sample up to 2,000 SWE postings per period × seniority group (to fit in RAM). Use cleaned description text (first 1000 chars to normalize length).
+3. Compute average pairwise cosine similarity between all group pairs:
+   - Entry 2024 ↔ Entry 2026
+   - Entry 2026 ↔ Mid-senior 2024 (convergence test)
+   - Entry 2024 ↔ Mid-senior 2024 (baseline gap)
+   - Mid-senior 2024 ↔ Mid-senior 2026
+4. If entry-2026 is closer to mid-senior-2024 than entry-2024 is, the junior-senior gap is narrowing.
+5. UMAP or t-SNE visualization of embeddings, colored by period × seniority.
+6. Within-group similarity (how homogeneous each group is).
+
+**Output:** `exploration/reports/T24.md` + similarity matrix + dimensionality reduction plot
+
+### T25. Interview elicitation artifacts `[Agent M]`
+
+**Goal:** Produce 5 artifacts for RQ4 data-prompted interviews.
+
+**Steps (reads all prior reports):**
+1. **Inflated junior JDs:** From T12/T19, select 3-5 entry-level postings with scope-inflated requirements. Query parquet for actual text.
+2. **Paired JDs over time:** From T13, select 3-5 same-company pairs (2024 vs 2026). Format side-by-side.
+3. **Junior-share trend plot:** From T08/T09, annotated with AI model release dates (GPT-4: Mar 2023, Claude 3: Mar 2024, GPT-4o: May 2024, Claude 3.5 Sonnet: Jun 2024, o1: Sep 2024, DeepSeek V3: Dec 2024, Claude 3.5 MAX: Feb 2025, GPT-4.5: Feb 2025, Claude 3.6 Sonnet: Apr 2025, Claude 4 Opus: Sep 2025, Claude 4.5 Haiku: Oct 2025, Gemini 2.5 Pro: Mar 2026).
+4. **Senior archetype chart:** From T21, management vs orchestration language profiles (2024 vs 2026).
+5. **Posting-usage divergence chart:** From T14.
+
+**Output:** `exploration/artifacts/` with each artifact as PNG/PDF + a README
+
+### T26. Exploration synthesis `[Agent M]`
+
+**Goal:** Consolidate everything into a single handoff for the analysis agent.
+
+**Steps (reads all reports):**
+1. Read all `exploration/reports/T*.md`
+2. Write `exploration/reports/SYNTHESIS.md` covering:
+   - Data quality verdict per RQ
+   - Recommended analytical samples (rows, columns, filters)
+   - Seniority column recommendation
+   - Known confounders (description length growth, asaniczka label gap, aggregator contamination, field-wide scope inflation)
+   - Preliminary findings for RQ1-RQ4 (direction, magnitude, confidence)
+   - Key tensions to resolve (YOE decrease vs scope increase, field-wide vs SWE-specific, within-company vs composition, relabeling evidence, ghost requirement prevalence)
+   - Technology evolution summary
+   - Metro heterogeneity summary
+   - Senior archetype characterization
+   - Sensitivity requirements
+   - Pipeline issues remaining (if any)
+
+**Output:** `exploration/reports/SYNTHESIS.md` — the one document the analysis agent reads first.
+
+---
+
+## 5. Deferred to analysis plan
+
+These items are valuable but premature without LLM-stage outputs or formal statistical framework:
+
+- Robustness pre-registration / specification curve
+- Placebo and falsification tests
+- Oaxaca-Blinder decomposition
+- Selection bias reweighting / IPSW
+- Power analysis for specific effect sizes
+- Seniority boundary classifier (analysis-phase, needs embeddings)
+- Company fixed-effects regression (uses T13's overlap panel)
+- Formal break detection / event-study plots
+
+---
+
+## 6. Bias threat summary
+
+| Bias | Direction | Mitigation task | Residual risk |
+|---|---|---|---|
+| Platform selection | Favors SWE | T07 | Low for SWE |
+| Scraper query design | Misses long-tail | T05 | Moderate |
+| Aggregator contamination | Inflates some companies | T06 | Low after flagging |
+| Temporal selection (volatility) | Oversamples long-lived | T15 | Moderate |
+| Kaggle provenance unknown | Unknown | T05 | High (irreducible) |
+| asaniczka missing entry-level | Thin baseline | T02, T03 | Moderate |
+| Company composition shift | Could drive seniority shift | T06, T13 | Low after decomposition |
+| Boilerplate removal noise | Noisy text analysis | Use `description_core_llm` or `description` | Low-Moderate |
+| Description length inflation | Biases raw keyword counts | Length-normalization in all text tasks | Low after normalization |
+| Company-name contamination | Pollutes corpus comparisons | Company-name stripping in preamble | Low after stripping |

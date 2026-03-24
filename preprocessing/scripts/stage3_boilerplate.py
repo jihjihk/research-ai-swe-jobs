@@ -49,10 +49,14 @@ _HEADER_RE = re.compile(
     r'(?im)^[\s#*]*('
     r'about\s+(?:us|the\s+company|our\s+company|the\s+role|the\s+position|the\s+job|the\s+opportunity|the\s+team)'
     r'|who\s+we\s+are|our\s+(?:company|mission|story|values)|company\s+(?:overview|description)'
-    r'|(?:key\s+)?responsibilities|what\s+you.?ll\s+do|your\s+role|the\s+role|duties|job\s+dut\w*|job\s+description|role\s+overview|position\s+overview'
+    r'|(?:key\s+)?responsibilities|what\s+you.?ll\s+do|your\s+role|the\s+role|duties|job\s+dut\w*|job\s+description|role\s+overview|position\s+overview|key\s+responsibilities|job\s+summary'
     r'|(?:minimum\s+|basic\s+)?requirements?|qualifications?|what\s+you.?ll\s+need|what\s+we.?re\s+looking\s+for|must\s+have|minimum|skills?\s+(?:and\s+)?(?:requirements?|qualifications?)|required\s+skills?'
+    r'|candidate\s+requirements|essential\s+qualifications|key\s+qualifications|technical\s+requirements|core\s+competencies'
+    r'|what\s+you\s+bring|your\s+background|who\s+you\s+are'
     r'|nice\s+to\s+have|preferred|bonus|plus|desired|additional|strongly\s+preferred'
     r'|benefits?|perks|what\s+we\s+offer|compensation|we\s+offer|salary|total\s+rewards?|our\s+benefits|why\s+(?:join\s+)?us'
+    r'|why\s+join\s+us|our\s+culture'
+    r'|compensation\s+and\s+benefits|pay\s+range|salary\s+range'
     r'|equal\s+(?:employment\s+)?opportunity|eeo|diversity|we\s+are\s+(?:an?\s+)?equal|non-?discrimination|ada\s+statement|accommodation'
     r'|how\s+to\s+apply|to\s+apply|application|apply\s+now|next\s+steps?'
     r')[\s:]*$'
@@ -69,6 +73,16 @@ _EEO_RE = re.compile(
     r'|all\s+qualified\s+applicants\s+will\s+receive\s+consideration'
     r'|m/f/disability/vet'
     r'|e-?verify\s+(?:employer|participant)'
+    r'|we\s+are\s+an\s+equal\s+opportunity'
+    r'|provide\s+equal\s+(?:employment\s+)?opportunities'
+    r'|regardless\s+of\s+race,?\s*color'
+    r'|fair\s+chance\s+ordinance'
+    r'|ban\s+the\s+box'
+    r'|reasonable\s+accommodations?\s+(?:are\s+)?available'
+    r'|applicants?\s+with\s+disabilities'
+    r'|veteran\s+status'
+    r'|e-verify\s+employer'
+    r'|drug-?free\s+workplace'
     r')'
 )
 
@@ -129,7 +143,7 @@ def _is_boilerplate_paragraph(para: str) -> bool:
     if _EEO_RE.search(para):
         return True
     # Benefits-style paragraphs (list of perks without job content)
-    if re.search(r'(?i)(?:401\s*\(?k\)?|dental|vision|pto|paid\s+time\s+off|tuition\s+reimbursement)', para):
+    if re.search(r'(?i)(?:401\s*\(?k\)?|dental|vision|pto|paid\s+time\s+off|tuition\s+reimbursement|healthcare|health\s+insurance|medical\s+insurance|life\s+insurance|disability\s+insurance|pension|retirement|gym\s+membership|wellness|learning\s+budget|education\s+reimbursement|tuition|parental\s+leave|maternity|paternity|stock\s+options|equity|rsu|sign-?on\s+bonus|signing\s+bonus|relocation|unlimited\s+pto|flexible\s+time\s+off)', para):
         if not re.search(r'(?i)(?:develop|engineer|design|implement|build|architect|code|software)', para):
             return True
     return False
