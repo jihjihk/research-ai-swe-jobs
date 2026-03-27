@@ -26,6 +26,8 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
 LOG_DIR = PROJECT_ROOT / "preprocessing" / "logs"
@@ -237,6 +239,7 @@ def run_stage3():
 
     input_path = INTERMEDIATE_DIR / "stage2_aggregators.parquet"
     output_path = INTERMEDIATE_DIR / "stage3_boilerplate.parquet"
+    tmp_output_path = prepare_temp_output(output_path)
 
     # Get total row count without loading the file
     pf = pq.ParquetFile(input_path)
@@ -252,55 +255,62 @@ def run_stage3():
     stats = defaultdict(lambda: {"full": [], "core": [], "removal_pct": []})
     flag_counts = {"ok": 0, "over_removed": 0, "under_removed": 0, "empty_core": 0}
 
-    for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
-        chunk = batch.to_pandas()
+    try:
+        for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
+            chunk = batch.to_pandas()
 
-        # Process
-        chunk = process_chunk(chunk)
+            # Process
+            chunk = process_chunk(chunk)
 
-        # Accumulate stats by source for all rows; Stage 3 should not own occupation logic.
-        removal_pct = 1 - (
-            chunk["core_length"] / chunk["description_length"].clip(lower=1)
-        )
-        for src in chunk["source"].dropna().unique():
-            src_mask = chunk["source"] == src
-            if src_mask.any():
-                stats[src]["full"].extend(
-                    pd.to_numeric(
-                        chunk.loc[src_mask, "description_length"], errors="coerce"
-                    ).dropna().tolist()
-                )
-                stats[src]["core"].extend(
-                    pd.to_numeric(
-                        chunk.loc[src_mask, "core_length"], errors="coerce"
-                    ).dropna().tolist()
-                )
-                stats[src]["removal_pct"].extend(
-                    pd.to_numeric(removal_pct.loc[src_mask] * 100, errors="coerce")
-                    .dropna()
-                    .tolist()
-                )
+            # Accumulate stats by source for all rows; Stage 3 should not own occupation logic.
+            removal_pct = 1 - (
+                chunk["core_length"] / chunk["description_length"].clip(lower=1)
+            )
+            for src in chunk["source"].dropna().unique():
+                src_mask = chunk["source"] == src
+                if src_mask.any():
+                    stats[src]["full"].extend(
+                        pd.to_numeric(
+                            chunk.loc[src_mask, "description_length"], errors="coerce"
+                        ).dropna().tolist()
+                    )
+                    stats[src]["core"].extend(
+                        pd.to_numeric(
+                            chunk.loc[src_mask, "core_length"], errors="coerce"
+                        ).dropna().tolist()
+                    )
+                    stats[src]["removal_pct"].extend(
+                        pd.to_numeric(removal_pct.loc[src_mask] * 100, errors="coerce")
+                        .dropna()
+                        .tolist()
+                    )
 
-        for flag in ["ok", "over_removed", "under_removed", "empty_core"]:
-            flag_counts[flag] += (chunk["boilerplate_flag"] == flag).sum()
+            for flag in ["ok", "over_removed", "under_removed", "empty_core"]:
+                flag_counts[flag] += (chunk["boilerplate_flag"] == flag).sum()
 
-        # Write chunk to parquet
-        table = pa.Table.from_pandas(chunk, preserve_index=False)
-        if writer is None:
-            writer = pq.ParquetWriter(output_path, table.schema)
-        writer.write_table(table)
+            # Write chunk to parquet
+            table = pa.Table.from_pandas(chunk, preserve_index=False)
+            if writer is None:
+                writer = pq.ParquetWriter(tmp_output_path, table.schema)
+            writer.write_table(table)
 
-        processed += len(chunk)
-        elapsed = time.time() - t0
-        rate = processed / elapsed if elapsed > 0 else 0
-        log.info(f"  Chunk done: {processed:,}/{total_rows:,} ({processed/total_rows:.0%}) — {rate:.0f} rows/s")
+            processed += len(chunk)
+            elapsed = time.time() - t0
+            rate = processed / elapsed if elapsed > 0 else 0
+            log.info(f"  Chunk done: {processed:,}/{total_rows:,} ({processed/total_rows:.0%}) — {rate:.0f} rows/s")
 
-        # Free memory
-        del chunk, table, batch
-        gc.collect()
+            # Free memory
+            del chunk, table, batch
+            gc.collect()
+    except Exception:
+        if writer is not None:
+            writer.close()
+        cleanup_temp_file(tmp_output_path)
+        raise
 
     if writer is not None:
         writer.close()
+    promote_temp_file(tmp_output_path, output_path)
 
     # --- Report stats ---
     log.info("\n--- BOILERPLATE REMOVAL SUMMARY ---")

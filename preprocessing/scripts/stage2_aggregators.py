@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from io_utils import write_parquet_atomic
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
 LOG_DIR = PROJECT_ROOT / "preprocessing" / "logs"
@@ -255,7 +257,7 @@ def run_stage2():
 
     # --- Save ---
     output_path = INTERMEDIATE_DIR / "stage2_aggregators.parquet"
-    df.to_parquet(output_path, index=False)
+    write_parquet_atomic(df, output_path)
     log.info(f"\nSaved to {output_path}")
 
     return df

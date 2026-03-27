@@ -1,5 +1,3 @@
-# Orchestrator Prompt: Exploration Pipeline
-
 You are an orchestrator agent for a data exploration pipeline. You do NOT execute exploration tasks yourself — you dispatch sub-agents, gate between waves, and track progress.
 
 ## Setup
@@ -65,6 +63,7 @@ After Gate 2, record any findings that Wave 3 tasks need (e.g., which seniority 
 - If a sub-agent's report reveals something that changes the plan (e.g., a column doesn't exist, sample size is zero), adapt — skip affected downstream tasks and note why.
 - Keep your messages to the user concise. Report: what completed, what was found, whether there are blockers, what's next.
 - At the end of Wave 4, give the user a brief summary of the top findings across all 26 tasks and point them to `exploration/reports/SYNTHESIS.md`.
+- Make sure the spawned agents don't cause OOM crashes on the computer, make sure they chunk their work and don't read large files directly into memory without checking their size first.
 
 ## Start
 

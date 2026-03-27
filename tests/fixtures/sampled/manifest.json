@@ -1,0 +1,175 @@
+{
+  "fixtures": [
+    {
+      "stage": "stage1",
+      "source_artifact": "preprocessing/intermediate/stage1_unified.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage1/cases.json",
+      "row_id": "asaniczka_70c0f7742486e930",
+      "expected_result_summary": "missing summary stays null; seniority maps to mid-senior",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage1",
+      "source_artifact": "preprocessing/intermediate/stage1_unified.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage1/cases.json",
+      "row_id": "linkedin_li-3736674638",
+      "expected_result_summary": "not applicable seniority stays null on a scraped row",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage2",
+      "source_artifact": "preprocessing/intermediate/stage2_aggregators.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage2/cases.json",
+      "row_id": "arshkon_3887888058",
+      "expected_result_summary": "Dice row extracts Avenues International as the real employer",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage2",
+      "source_artifact": "preprocessing/intermediate/stage2_aggregators.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage2/cases.json",
+      "row_id": "arshkon_3888032530",
+      "expected_result_summary": "Dice row extracts Beacon Systems as the real employer",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage2",
+      "source_artifact": "preprocessing/intermediate/stage2_aggregators.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage2/cases.json",
+      "row_id": "arshkon_3888937982",
+      "expected_result_summary": "Dice row extracts Maxar Technologies as the real employer",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage2",
+      "source_artifact": "preprocessing/intermediate/stage2_aggregators.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage2/cases.json",
+      "row_id": "arshkon_3884435199",
+      "expected_result_summary": "negative case must not emit Vendors",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage2",
+      "source_artifact": "preprocessing/intermediate/stage2_aggregators.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage2/cases.json",
+      "row_id": "arshkon_3884801360",
+      "expected_result_summary": "negative case must not emit Project Management",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage2",
+      "source_artifact": "preprocessing/intermediate/stage2_aggregators.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage2/cases.json",
+      "row_id": "arshkon_3885824903",
+      "expected_result_summary": "negative case must not emit a role fragment",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage3",
+      "source_artifact": "preprocessing/intermediate/stage3_boilerplate.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage3/cases.json",
+      "row_id": "arshkon_921716",
+      "expected_result_summary": "over_removed flag is the reviewed behavior",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage3",
+      "source_artifact": "preprocessing/intermediate/stage3_boilerplate.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage3/cases.json",
+      "row_id": "arshkon_3190494363",
+      "expected_result_summary": "empty_core flag is the reviewed behavior",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage3",
+      "source_artifact": "preprocessing/intermediate/stage3_boilerplate.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage3/cases.json",
+      "row_id": "arshkon_3884434746",
+      "expected_result_summary": "application-link-only row is reviewed as empty_core",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage4",
+      "source_artifact": "preprocessing/intermediate/stage4_company_name_lookup.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage4/cases.json",
+      "row_id": "Revature",
+      "expected_result_summary": "passthrough canonicalization for an unchanged source name",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage4",
+      "source_artifact": "preprocessing/intermediate/stage4_company_name_lookup.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage4/cases.json",
+      "row_id": "Mindlance",
+      "expected_result_summary": "passthrough row that anchors the exact-normalized Mindlance pair",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage4",
+      "source_artifact": "preprocessing/intermediate/stage4_company_name_lookup.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage4/cases.json",
+      "row_id": "(Mindlance)",
+      "expected_result_summary": "exact_normalized canonicalization after punctuation cleanup",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage4",
+      "source_artifact": "preprocessing/intermediate/stage4_company_name_lookup.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage4/cases.json",
+      "row_id": "Advantage Nursing Service",
+      "expected_result_summary": "passthrough row that anchors the fuzzy Advantage Nursing pair",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage4",
+      "source_artifact": "preprocessing/intermediate/stage4_company_name_lookup.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage4/cases.json",
+      "row_id": "ADVANTAGE NURSING SERVICES LLC",
+      "expected_result_summary": "fuzzy canonicalization for a noisy but reviewed company name",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage4",
+      "source_artifact": "preprocessing/intermediate/stage4_dedup.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage4/cases.json",
+      "row_id": "arshkon_2147609789",
+      "expected_result_summary": "multi-location row stays flagged true",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage4",
+      "source_artifact": "preprocessing/intermediate/stage4_dedup.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage4/cases.json",
+      "row_id": "arshkon_3884429858",
+      "expected_result_summary": "same opening family remains flagged true at another location",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    },
+    {
+      "stage": "stage4",
+      "source_artifact": "preprocessing/intermediate/stage4_dedup.parquet",
+      "fixture_path": "tests/fixtures/sampled/stage4/cases.json",
+      "row_id": "arshkon_3884429859",
+      "expected_result_summary": "same opening family remains flagged true at the second location",
+      "reviewer": "codex",
+      "review_date": "2026-03-27"
+    }
+  ]
+}

@@ -24,11 +24,15 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from stage10_llm_classify import (
+from io_utils import append_jsonl, write_text_atomic
+from llm_shared import (
     CLASSIFICATION_PROMPT_VERSION,
     CLASSIFICATION_TASK_NAME,
     EXTRACTION_PROMPT_VERSION,
     EXTRACTION_TASK_NAME,
+    compute_classification_input_hash,
+    compute_extraction_input_hash,
+    derive_classification_input,
     fetch_cached_row,
     open_cache,
     render_classification_prompt,
@@ -37,8 +41,9 @@ from stage10_llm_classify import (
     try_provider,
     validate_classification_payload,
     validate_extraction_payload,
+    fuzzy_similarity,
+    validate_extraction_selection,
 )
-from stage11_llm_integrate import fuzzy_similarity, validate_extraction_payload as validate_extraction_selection
 
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -65,12 +70,6 @@ def configure_logging() -> logging.Logger:
         ],
     )
     return logging.getLogger(__name__)
-
-
-def append_jsonl(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
 def map_rule_swe(row: pd.Series) -> str:
@@ -192,17 +191,32 @@ def run_full_model(
     results = []
 
     for row in sample_df.itertuples(index=False):
-        description_hash = str(row.description_hash)
+        raw_description = "" if row.description is None else str(row.description)
+        classification_input = derive_classification_input(
+            getattr(row, "description_core_llm", None),
+            getattr(row, "description_core", None),
+            row.description,
+        )
+        extraction_input_hash = compute_extraction_input_hash(
+            row.title,
+            row.company_name,
+            raw_description,
+        )
+        classification_input_hash = compute_classification_input_hash(
+            row.title,
+            row.company_name,
+            classification_input,
+        )
 
         classification_cached = fetch_cached_row(
             conn,
-            description_hash,
+            classification_input_hash,
             CLASSIFICATION_TASK_NAME,
             CLASSIFICATION_PROMPT_VERSION,
         )
         extraction_cached = fetch_cached_row(
             conn,
-            description_hash,
+            extraction_input_hash,
             EXTRACTION_TASK_NAME,
             EXTRACTION_PROMPT_VERSION,
         )
@@ -211,14 +225,14 @@ def run_full_model(
             classification_prompt = render_classification_prompt(
                 row.title,
                 row.company_name,
-                row.description,
+                classification_input,
             )
             classification_result = try_provider(
                 provider="codex",
                 prompt=classification_prompt,
                 model="gpt-5.4",
                 task_name=CLASSIFICATION_TASK_NAME,
-                description_hash=description_hash,
+                input_hash=classification_input_hash,
                 error_log_path=error_log_path,
                 log=log,
                 timeout_seconds=timeout_seconds,
@@ -231,7 +245,8 @@ def run_full_model(
                     {
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                         "job_id": row.job_id,
-                        "description_hash": description_hash,
+                        "description_hash": getattr(row, "description_hash", None),
+                        "input_hash": classification_input_hash,
                         "task_name": CLASSIFICATION_TASK_NAME,
                         "error_type": "validation_full_model_failed",
                     },
@@ -239,7 +254,7 @@ def run_full_model(
                 continue
             store_cached_row(
                 conn,
-                description_hash=description_hash,
+                input_hash=classification_input_hash,
                 task_name=CLASSIFICATION_TASK_NAME,
                 model=classification_result["model"],
                 prompt_version=CLASSIFICATION_PROMPT_VERSION,
@@ -248,7 +263,7 @@ def run_full_model(
             )
             classification_cached = fetch_cached_row(
                 conn,
-                description_hash,
+                classification_input_hash,
                 CLASSIFICATION_TASK_NAME,
                 CLASSIFICATION_PROMPT_VERSION,
             )
@@ -264,7 +279,7 @@ def run_full_model(
                 prompt=extraction_prompt,
                 model="gpt-5.4",
                 task_name=EXTRACTION_TASK_NAME,
-                description_hash=description_hash,
+                input_hash=extraction_input_hash,
                 error_log_path=error_log_path,
                 log=log,
                 timeout_seconds=timeout_seconds,
@@ -277,7 +292,8 @@ def run_full_model(
                     {
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                         "job_id": row.job_id,
-                        "description_hash": description_hash,
+                        "description_hash": getattr(row, "description_hash", None),
+                        "input_hash": extraction_input_hash,
                         "task_name": EXTRACTION_TASK_NAME,
                         "error_type": "validation_full_model_failed",
                     },
@@ -285,7 +301,7 @@ def run_full_model(
                 continue
             store_cached_row(
                 conn,
-                description_hash=description_hash,
+                input_hash=extraction_input_hash,
                 task_name=EXTRACTION_TASK_NAME,
                 model=extraction_result["model"],
                 prompt_version=EXTRACTION_PROMPT_VERSION,
@@ -294,7 +310,7 @@ def run_full_model(
             )
             extraction_cached = fetch_cached_row(
                 conn,
-                description_hash,
+                extraction_input_hash,
                 EXTRACTION_TASK_NAME,
                 EXTRACTION_PROMPT_VERSION,
             )
@@ -302,7 +318,7 @@ def run_full_model(
         classification_payload = json.loads(classification_cached["response_json"])
         extraction_payload = json.loads(extraction_cached["response_json"])
         extraction_validation = validate_extraction_selection(
-            "" if row.description is None else str(row.description),
+            raw_description,
             extraction_payload,
         )
 
@@ -693,7 +709,7 @@ def run_stage12(
     merged = sample_df.merge(full_df, on="job_id", how="inner")
 
     report = build_report(merged, sample_size=sample_size)
-    output_path.write_text(report, encoding="utf-8")
+    write_text_atomic(report, output_path)
 
     elapsed_total = time.time() - t0
     log.info("Stage 12 complete in %.1fs", elapsed_total)

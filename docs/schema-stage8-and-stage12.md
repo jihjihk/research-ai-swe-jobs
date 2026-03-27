@@ -1,33 +1,34 @@
-# Schema Reference: Stage 8 (Current) and Stage 12 (Planned)
+# Schema Reference: Stage 8 (Current) and Post-LLM Schema Boundary
 
-Date: 2026-03-23
+Date: 2026-03-27
 
 ## Overview
 
-This document describes the column schema available for exploration **right now** from Stage 8, and the additional columns expected after the LLM augmentation pipeline (Stages 9-12) runs at scale.
+This document describes the column schema available for exploration **right now** from Stage 8, and the additional columns added once the LLM augmentation pipeline runs through **Stage 10**. Stage 12 remains a validation stage; it does not introduce a separate downstream schema.
 
-**Current state:** The pipeline runs through Stage 8, producing `preprocessing/intermediate/stage8_final.parquet` (76 columns, ~1.22M rows). The LLM stages (9-12) are implemented but have not run at scale due to quota constraints. The existing `data/unified.parquet` (67 columns, ~1.06M rows) is from an earlier pipeline run and is **stale** relative to the current stage8 artifact.
+**Current state:** The current on-disk exploration baseline is `preprocessing/intermediate/stage8_final.parquet` (75 columns, 1,217,299 rows). The LLM stages (9-10) are implemented and wired around a cleaned-description-first design, but a fresh full Stage 10 integrated artifact is not currently materialized in `preprocessing/intermediate/`. The current on-disk `data/unified.parquet` (67 columns, 1,058,397 rows) predates the latest Stage 8 rebuild and should still be treated as stale for exploration.
 
-**Practical consequence for exploration:** Work from `stage8_final.parquet` directly. It has 9 columns that were dropped in the stale unified export (including metro, seniority detail, and company canonical fields) and ~162K more rows from additional scraped days.
+**Practical consequence for exploration:** Work from `stage8_final.parquet` directly today. After the next Stage 9-10 rerun, switch exploration to `preprocessing/intermediate/stage10_llm_integrated.parquet` or a refreshed `data/unified.parquet` built from that Stage 10 output.
 
 ### Artifact summary
 
 | Artifact | Rows | Columns | Status | Use for exploration? |
 |---|---|---|---|---|
-| `preprocessing/intermediate/stage8_final.parquet` | 1,220,245 | 76 | Current | **Yes — primary** |
-| `data/unified.parquet` | 1,058,397 | 67 | Stale (2026-03-21 run) | No — use stage8 |
-| `data/unified_observations.parquet` | 1,064,831 | 67 | Stale (2026-03-21 run) | No — use stage8 + stage1_observations |
+| `preprocessing/intermediate/stage8_final.parquet` | 1,217,299 | 75 | Current baseline | **Yes — primary today** |
+| `preprocessing/intermediate/stage10_llm_integrated.parquet` | — | — | Not currently materialized | Use after next Stage 9-10 rerun |
+| `data/unified.parquet` | 1,058,397 | 67 | Older export on disk | No — use stage8 until Stage 10 is rerun |
+| `data/unified_observations.parquet` | 1,064,831 | 67 | Older export on disk | No — use stage8 + stage1_observations until refresh |
 | `preprocessing/intermediate/stage1_observations.parquet` | current | — | Current | For daily panel joins |
 
 ### Source composition (stage8_final)
 
 | Source | Platform | Rows | Period | SWE rows |
 |---|---|---|---|---|
-| kaggle_asaniczka | linkedin | 1,061,202 | 2024-01 | 22,492 |
-| kaggle_arshkon | linkedin | 118,589 | 2024-04 | 4,441 |
-| scraped | linkedin | 26,884 | 2026-03 | — |
-| scraped | indeed | 13,570 | 2026-03 | — |
-| **Total** | | **1,220,245** | | **32,257** |
+| kaggle_asaniczka | linkedin | 1,058,779 | 2024-01 | 22,913 |
+| kaggle_arshkon | linkedin | 118,100 | 2024-04 | 4,643 |
+| scraped | linkedin | 26,853 | 2026-03 | 4,364 |
+| scraped | indeed | 13,567 | 2026-03 | 1,073 |
+| **Total** | | **1,217,299** | | **32,993** |
 
 ---
 
@@ -67,11 +68,11 @@ This document describes the column schema available for exploration **right now*
 | `description_core` | VARCHAR | Stage 3 | Rule-based boilerplate removal (regex section matching). ~44% accuracy. | Verified |
 | `core_length` | DOUBLE | Stage 3 | Character count of `description_core` | Verified |
 | `boilerplate_flag` | VARCHAR | Stage 3 | Boilerplate detection result from Stage 3 | Verified |
-| `description_core_llm` | VARCHAR | Stage 11 | LLM-based boilerplate removal. Reconstructed from sentence-unit IDs. Falls back to `description_core` on LLM failure. | Code-confirmed |
+| `description_core_llm` | VARCHAR | Stage 9 | LLM-based boilerplate removal. Reconstructed from validated extraction output. Empty string for Stage 9 short-description hard skips; otherwise use `description_core` as the analysis fallback when null/empty. | Code-confirmed |
 
 **Recommended usage order for descriptions:**
 1. **Now (Stage 8):** Use `description_core` for text analysis despite low accuracy. Use `description` when boilerplate matters less (e.g., keyword presence) or when `description_core` is null.
-2. **After Stage 12:** Use `description_core_llm` as primary. Keep `description_core` for ablation.
+2. **After a Stage 9-10 rerun:** Use `description_core_llm` as primary. Keep `description_core` for ablation.
 
 ---
 
@@ -117,9 +118,14 @@ There are **10 seniority-related columns** in stage8, reflecting multiple classi
 | `seniority_final_confidence` | DOUBLE | Stage 5 | 0.0-1.0 | Confidence of `seniority_final`. **Only in stage8.** | Verified (stage8 only) |
 | `seniority_3level` | VARCHAR | Stage 5 | `junior`, `mid`, `senior`, `unknown` | Coarse 3-level collapse derived from `seniority_final`: entry->junior, associate->mid, mid-senior->senior, director->senior. | Verified |
 | `seniority_cross_check` | VARCHAR | Stage 5 | — | Cross-validation diagnostic between imputed and native | Verified |
-| `yoe_extracted` | DOUBLE | Stage 5 | Numeric or null | Minimum years-of-experience parsed from description text | Verified |
+| `yoe_extracted` | DOUBLE | Stage 5 | Numeric or null | Resolved primary years-of-experience requirement parsed from raw `description` | Verified |
+| `yoe_min_extracted` | DOUBLE | Stage 5 | Numeric or null | Minimum valid accepted YOE mention across Stage 5 candidates | Verified |
+| `yoe_max_extracted` | DOUBLE | Stage 5 | Numeric or null | Maximum valid accepted YOE bound across Stage 5 candidates | Verified |
+| `yoe_match_count` | SMALLINT | Stage 5 | 0+ | Number of accepted candidate YOE mentions in the row | Verified |
+| `yoe_resolution_rule` | VARCHAR | Stage 5 | — | Rule used to choose `yoe_extracted` from candidate mentions | Verified |
+| `yoe_all_mentions_json` | VARCHAR | Stage 5 | JSON string or null | Compact audit trail of candidate YOE mentions, flags, and reject reasons | Verified |
 | `yoe_seniority_contradiction` | BOOLEAN | Stage 5 | true/false | True when YOE and seniority level contradict (e.g., entry + 5 YOE) | Verified |
-| `seniority_llm` | VARCHAR | Stage 11 | `entry`, `associate`, `mid-senior`, `director`, `unknown` | LLM-classified seniority from explicit title/description signals only. Primary analysis variable post-LLM. | Code-confirmed |
+| `seniority_llm` | VARCHAR | Stage 10 | `entry`, `associate`, `mid-senior`, `director`, `unknown` | LLM-classified seniority from explicit title/description signals only. Primary analysis variable after Stage 10 integration. | Code-confirmed |
 
 #### How `seniority_final` is resolved (Stage 5 logic)
 
@@ -132,15 +138,15 @@ There are **10 seniority-related columns** in stage8, reflecting multiple classi
 5. Result: seniority_final with seniority_final_source
 ```
 
-This reduces the unknown rate from 80% (imputed alone) to 72.5%.
+This reduces the unknown rate from 80.4% (imputed alone) to 71.8%.
 
 #### Coverage by source
 
-| Source | seniority_native coverage | seniority_final != unknown |
+| Source | seniority_native coverage (SWE rows) | seniority_final != unknown (SWE rows) |
 |---|---|---|
-| kaggle_arshkon | 75.7% | ~54.6% of arshkon SWE |
-| kaggle_asaniczka | 100% (but only mid-senior/associate) | ~71.2% of asaniczka SWE |
-| scraped | 56.8% (LinkedIn only; Indeed = 0%) | ~54.8% of scraped SWE |
+| kaggle_arshkon | 68.9% | 81.6% |
+| kaggle_asaniczka | 100% (but only mid-senior/associate) | 100% |
+| scraped | 67.2% | 87.8% |
 
 **Critical gap:** asaniczka has zero entry-level labels. All entry-level historical baseline comes from arshkon (~89 entry-level SWE postings).
 
@@ -153,7 +159,7 @@ This reduces the unknown rate from 80% (imputed alone) to 72.5%.
 4. **`seniority_native`** — Use for high-confidence platform-label-only analysis (100% precision but incomplete coverage).
 5. **`seniority_imputed`** — Avoid unless you specifically need the rule-only baseline.
 
-**After Stage 12:**
+**After a Stage 9-10 rerun:**
 1. **`seniority_llm`** — Primary analysis variable. High-precision explicit-signal-only classification.
 2. **`seniority_final`** — Ablation baseline / fallback when `seniority_llm` is null.
 3. **`seniority_native`** — Cross-validation anchor.
@@ -162,11 +168,11 @@ This reduces the unknown rate from 80% (imputed alone) to 72.5%.
 
 | seniority_final | Count | % |
 |---|---|---|
-| unknown | 885,372 | 72.6% |
-| mid-senior | 253,395 | 20.8% |
-| associate | 50,429 | 4.1% |
-| director | 18,960 | 1.6% |
-| entry | 12,089 | 1.0% |
+| unknown | 873,804 | 71.8% |
+| mid-senior | 260,021 | 21.4% |
+| associate | 51,363 | 4.2% |
+| director | 18,956 | 1.6% |
+| entry | 13,155 | 1.1% |
 
 ---
 
@@ -178,14 +184,14 @@ This reduces the unknown rate from 80% (imputed alone) to 72.5%.
 | `is_swe_adjacent` | BOOLEAN | Stage 5 | true/false | SWE-adjacent: technical roles involving some code but not primarily software development. | Verified |
 | `is_control` | BOOLEAN | Stage 5 | true/false | Control occupation group for cross-occupation comparisons. | Verified |
 | `swe_confidence` | DOUBLE | Stage 5 | 0.0-1.0 | Classification confidence score | Verified |
-| `swe_classification_tier` | VARCHAR | Stage 5 | `regex`, `embedding_high`, `embedding_llm`, `embedding_adjacent` | Which classification method fired | Verified |
-| `swe_classification_llm` | VARCHAR | Stage 11 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM-based SWE classification | Code-confirmed |
+| `swe_classification_tier` | VARCHAR | Stage 5 | `regex`, `embedding_high`, `title_lookup_llm`, `embedding_adjacent` | Which classification method fired | Verified |
+| `swe_classification_llm` | VARCHAR | Stage 10 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM-based SWE classification | Code-confirmed |
 
 **Recommended usage:**
-1. **Now:** `is_swe == True` for the SWE sample. 32,257 rows in stage8. Classification is 85% regex-based, 13% embedding+LLM, 2% embedding-only.
-2. **After Stage 12:** Use `swe_classification_llm` as primary; keep `is_swe` for ablation.
-3. `is_swe_adjacent` rows (9,007) are useful for RQ2 (task migration) cross-occupation comparisons.
-4. `is_control` rows (131,841) are the non-technical control group.
+1. **Now:** `is_swe == True` for the SWE sample. 32,993 rows in stage8. Classification is mostly regex-based, with smaller embedding+LLM and embedding-only tiers.
+2. **After a Stage 9-10 rerun:** Use `swe_classification_llm` as primary for routed rows; keep `is_swe` for ablation and for unrouted rows.
+3. `is_swe_adjacent` rows (8,925) are useful for RQ2 (task migration) cross-occupation comparisons.
+4. `is_control` rows (130,443) are the non-technical control group.
 
 ---
 
@@ -241,15 +247,15 @@ This reduces the unknown rate from 80% (imputed alone) to 72.5%.
 |---|---|---|---|---|---|
 | `date_flag` | VARCHAR | Stage 8 | `ok`, `date_posted_out_of_range` | Date validation summary | Verified |
 | `is_english` | BOOLEAN | Stage 8 | true/false | Language detection flag | Verified |
-| `description_hash` | VARCHAR | Stage 8 | SHA-256 hex | Hash of raw `description` (not `description_core`). Used as LLM cache key and dedup signal. | Verified |
+| `description_hash` | VARCHAR | Stage 8 | SHA-256 hex | Hash of raw `description` (not `description_core`). Retained as provenance / lineage only after the LLM redesign; task caching now uses task-specific `input_hash` values. | Verified |
 | `ghost_job_risk` | VARCHAR | Stage 8 | `low`, `medium`, `high` | Rule-based ghost-job heuristic. Only entry-level `seniority_final` rows can score above `low` (medium: YOE >= 3 or contradiction; high: YOE >= 5). | Verified |
 | `description_quality_flag` | VARCHAR | Stage 8 | `ok`, `too_short`, `empty` | Description quality: `empty` if null/blank, `too_short` if < 50 chars, else `ok`. Based on `description_core`. | Verified |
-| `ghost_assessment_llm` | VARCHAR | Stage 11 | `realistic`, `inflated`, `ghost_likely` | LLM-based ghost assessment | Code-confirmed |
+| `ghost_assessment_llm` | VARCHAR | Stage 10 | `realistic`, `inflated`, `ghost_likely` | LLM-based ghost assessment | Code-confirmed |
 
 **Recommended usage:**
 1. Default filter: `is_english == True AND date_flag == 'ok'`
-2. `ghost_job_risk` is very conservative (only 359 non-low out of 1.22M). Useful for flagging, not for exclusion.
-3. After Stage 12: `ghost_assessment_llm` will be a richer signal.
+2. `ghost_job_risk` is very conservative (519 non-low out of 1.22M). Useful for flagging, not for exclusion.
+3. After a Stage 9-10 rerun: `ghost_assessment_llm` will be a richer signal.
 
 ---
 
@@ -268,49 +274,53 @@ This reduces the unknown rate from 80% (imputed alone) to 72.5%.
 
 ---
 
-## Columns Available Only After LLM Stages (Stage 12 Target)
+## Columns Available After LLM Integration (Stage 10 Output)
 
-These columns will be added by Stage 11 when the LLM pipeline runs at scale. They are additive — all existing rule-based columns are preserved. Stage 9 routing columns (`needs_llm_classification`, `needs_llm_extraction`, `llm_candidate`, `llm_route_group`, `llm_skip_reason`, `llm_classification_reason`) are used internally and **dropped** before Stage 11 writes its output.
+These columns are added by the cleaned-description-first LLM sequence when Stage 10 writes the final posting-level artifact. They are additive: all existing rule-based columns are preserved. Stage 12 is a validation layer, not a new schema boundary.
 
 ### Primary LLM analysis columns
 
 | Column | Type | Origin | Values | Meaning | Status |
 |---|---|---|---|---|---|
-| `swe_classification_llm` | VARCHAR | Stage 11 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM-based occupation classification. Null for rows where rule-based confidence was already high. | Code-confirmed |
-| `seniority_llm` | VARCHAR | Stage 11 | `entry`, `associate`, `mid-senior`, `director`, `unknown` | LLM seniority from explicit title/description signals only. Primary analysis variable post-LLM. | Code-confirmed |
-| `ghost_assessment_llm` | VARCHAR | Stage 11 | `realistic`, `inflated`, `ghost_likely` | LLM ghost-job assessment. Richer than rule-based `ghost_job_risk`. | Code-confirmed |
-| `description_core_llm` | VARCHAR | Stage 11 | Text | LLM-based boilerplate removal via sentence-unit selection. Null on LLM failure; `description_core` remains as fallback. | Code-confirmed |
+| `swe_classification_llm` | VARCHAR | Stage 10 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM-based occupation classification. Null for rows where rule-based confidence was already high or the row stayed outside the Stage 10 classification universe. | Code-confirmed |
+| `seniority_llm` | VARCHAR | Stage 10 | `entry`, `associate`, `mid-senior`, `director`, `unknown` | LLM seniority from explicit title/description signals only. Primary analysis variable post-LLM. | Code-confirmed |
+| `ghost_assessment_llm` | VARCHAR | Stage 10 | `realistic`, `inflated`, `ghost_likely` | LLM ghost-job assessment. Richer than rule-based `ghost_job_risk`. | Code-confirmed |
+| `yoe_min_years_llm` | INT64 | Stage 10 | Numeric or null | LLM-extracted binding YOE floor for cross-checking only; does not drive seniority assignment. | Code-confirmed |
+| `description_core_llm` | VARCHAR | Stage 9 | Text | LLM-based boilerplate removal via sentence-unit selection. Empty string for Stage 9 short-description skips; otherwise downstream analysis should fall back to `description_core` when null/empty. | Code-confirmed |
+| `selected_for_control_cohort` | BOOLEAN | Stage 9 | true/false | Deterministic control-cohort admission flag for the LLM analysis universe. | Code-confirmed |
 
 ### LLM extraction diagnostics
 
 | Column | Type | Origin | Meaning | Status |
 |---|---|---|---|---|
-| `llm_extraction_status` | VARCHAR | Stage 11 | `ok` or `cannot_complete` | Code-confirmed |
-| `llm_extraction_validated` | BOOLEAN | Stage 11 | True only if extraction passed all validation checks | Code-confirmed |
-| `llm_extraction_unit_ids` | VARCHAR | Stage 11 | JSON array of boilerplate unit IDs | Code-confirmed |
-| `llm_extraction_uncertain_unit_ids` | VARCHAR | Stage 11 | JSON array of uncertain unit IDs | Code-confirmed |
-| `llm_extraction_reason` | VARCHAR | Stage 11 | Validation failure reason (Stage 11 side) | Code-confirmed |
-| `llm_extraction_model_reason` | VARCHAR | Stage 11 | LLM's own short reason phrase | Code-confirmed |
-| `llm_extraction_units_count` | INT64 | Stage 11 | Total sentence-unit count for the description | Code-confirmed |
-| `llm_extraction_single_unit` | BOOLEAN | Stage 11 | True if description had only one unit (extraction not attempted) | Code-confirmed |
-| `llm_extraction_drop_ratio` | DOUBLE | Stage 11 | Fraction of characters dropped as boilerplate | Code-confirmed |
+| `llm_extraction_status` | VARCHAR | Stage 9 | `ok` or `cannot_complete` | Code-confirmed |
+| `llm_extraction_validated` | BOOLEAN | Stage 9 | True only if extraction passed all validation checks | Code-confirmed |
+| `llm_extraction_unit_ids` | VARCHAR | Stage 9 | JSON array of boilerplate unit IDs | Code-confirmed |
+| `llm_extraction_uncertain_unit_ids` | VARCHAR | Stage 9 | JSON array of uncertain unit IDs | Code-confirmed |
+| `llm_extraction_reason` | VARCHAR | Stage 9 | Validation failure reason for extraction integration | Code-confirmed |
+| `llm_extraction_model_reason` | VARCHAR | Stage 9 | LLM's own short reason phrase | Code-confirmed |
+| `llm_extraction_units_count` | INT64 | Stage 9 | Total sentence-unit count for the description | Code-confirmed |
+| `llm_extraction_single_unit` | BOOLEAN | Stage 9 | True if description had only one unit | Code-confirmed |
+| `llm_extraction_drop_ratio` | DOUBLE | Stage 9 | Fraction of characters dropped as boilerplate | Code-confirmed |
 
 ### LLM provenance
 
 | Column | Type | Origin | Meaning | Status |
 |---|---|---|---|---|
-| `llm_model_classification` | VARCHAR | Stage 11 | Model name used for classification call | Code-confirmed |
-| `llm_model_extraction` | VARCHAR | Stage 11 | Model name used for extraction call | Code-confirmed |
-| `llm_prompt_version_classification` | VARCHAR | Stage 11 | Prompt template hash for classification | Code-confirmed |
-| `llm_prompt_version_extraction` | VARCHAR | Stage 11 | Prompt template hash for extraction | Code-confirmed |
+| `llm_model_classification` | VARCHAR | Stage 10 | Model name used for classification call | Code-confirmed |
+| `llm_model_extraction` | VARCHAR | Stage 9 | Model name used for extraction call | Code-confirmed |
+| `llm_prompt_version_classification` | VARCHAR | Stage 10 | Prompt template hash for classification | Code-confirmed |
+| `llm_prompt_version_extraction` | VARCHAR | Stage 9 | Prompt template hash for extraction | Code-confirmed |
 
-**Design principle:** LLM columns are null for rows that were not routed or where the LLM call failed. In those cases, the rule-based columns serve as fallback. Both are preserved for ablation studies. Stage 11 joins LLM results back to all posting rows by `description_hash`, so identical descriptions share the same LLM outputs.
+**Design principle:** LLM columns are null for rows that were not routed or where the LLM call failed or failed validation. In those cases, the rule-based columns serve as fallback in downstream analysis. Both are preserved for ablation studies. Cache reuse now happens on task-specific `input_hash` values, while `description_hash` remains a raw-text lineage field.
 
 ---
 
-## Recommended Columns for Immediate Exploration (Stage 8)
+## Recommended Datasets and Columns for Exploration
 
-Use `preprocessing/intermediate/stage8_final.parquet` as the exploration dataset. Apply these default filters:
+### Today: use Stage 8
+
+Use `preprocessing/intermediate/stage8_final.parquet` as the exploration dataset until Stage 10 is rerun. Apply these default filters:
 
 ```sql
 WHERE source_platform = 'linkedin'    -- LinkedIn-only for cross-period comparability
@@ -322,8 +332,8 @@ WHERE source_platform = 'linkedin'    -- LinkedIn-only for cross-period comparab
 
 | Analysis need | Primary column | Fallback | Notes |
 |---|---|---|---|
-| **SWE sample** | `is_swe` | — | 32,257 rows. `is_swe_adjacent` for broader tech sample. |
-| **Seniority** | `seniority_final` | `seniority_native` | 72.5% unknown. Filter to non-unknown for seniority-stratified analysis. Use `seniority_final_source` to understand provenance. |
+| **SWE sample** | `is_swe` | — | 32,993 rows. `is_swe_adjacent` for broader tech sample. |
+| **Seniority** | `seniority_final` | `seniority_native` | 71.8% unknown. Filter to non-unknown for seniority-stratified analysis. Use `seniority_final_source` to understand provenance. |
 | **Seniority (coarse)** | `seniority_3level` | — | junior/mid/senior/unknown. Larger cells. |
 | **Time period** | `period` | `date_posted` | Three periods: 2024-01, 2024-04, 2026-03. |
 | **Description text** | `description_core` | `description` | ~44% accuracy on boilerplate removal. Use `description` when accuracy matters more. |
@@ -332,15 +342,30 @@ WHERE source_platform = 'linkedin'    -- LinkedIn-only for cross-period comparab
 | **Geography** | `metro_area` | `state_normalized` | Metro aligned to 26-metro study frame. Only in stage8. |
 | **Remote** | `is_remote_inferred` | `is_remote` | Combines source flag + text inference. Only in stage8. |
 | **Ghost/inflation** | `ghost_job_risk` | — | Very conservative. Pair with `yoe_extracted` and `yoe_seniority_contradiction` for custom checks. |
-| **Aggregator filter** | `is_aggregator` | — | 55,120 aggregator rows. Consider excluding for sensitivity. |
+| **Aggregator filter** | `is_aggregator` | — | 73,016 aggregator rows. Consider excluding for sensitivity. |
+
+### After the next Stage 9-10 rerun
+
+Switch to `preprocessing/intermediate/stage10_llm_integrated.parquet` or a refreshed `data/unified.parquet` built from it.
+
+Use these primary analysis variables where available:
+
+| Analysis need | Primary column after Stage 10 | Fallback / ablation |
+|---|---|---|
+| SWE sample | `swe_classification_llm` for routed rows | `is_swe` |
+| Seniority | `seniority_llm` | `seniority_final`, `seniority_native` |
+| Clean description text | `description_core_llm` | `description_core`, `description` |
+| Ghost / inflation | `ghost_assessment_llm` | `ghost_job_risk` |
+
+`yoe_min_years_llm` is a cross-check column only. Do not use it as the primary YOE variable unless the specific analysis is about LLM-vs-rule disagreement.
 
 ### Important caveats for exploration
 
-1. **Seniority is the weakest link.** 72.5% unknown rate means seniority-stratified analyses use <28% of data. This will improve substantially with `seniority_llm` after Stage 10 runs.
+1. **Seniority is still the weakest Stage 8 link.** 71.8% unknown rate means seniority-stratified analyses use <29% of Stage 8 rows. This should improve materially once `seniority_llm` is populated.
 
 2. **Entry-level historical baseline is thin.** Only arshkon has entry-level labels, yielding ~89 entry-level SWE postings. Asaniczka has zero. This is the binding constraint for RQ1 junior-share analysis.
 
-3. **Boilerplate removal is noisy.** `description_core` has ~44% accuracy. For keyword/pattern analyses, using raw `description` may be preferable. `description_core_llm` will be a major improvement.
+3. **Boilerplate removal is noisy.** `description_core` has ~44% accuracy. For keyword/pattern analyses, using raw `description` may be preferable. `description_core_llm` is the intended post-Stage 10 upgrade.
 
 4. **stage8 has columns that unified drops.** The 9 columns only in stage8 are important for exploration: `company_name_effective`, `company_name_canonical`, `company_name_canonical_method`, `seniority_final_source`, `seniority_final_confidence`, `is_remote_inferred`, `metro_area`, `metro_source`, `metro_confidence`. Use stage8 directly.
 

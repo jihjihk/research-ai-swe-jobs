@@ -86,8 +86,8 @@ Read `docs/schema-stage8-and-stage12.md` for column definitions and recommended 
 
 **Key data context:**
 - The pipeline has been updated with: native_backfill fix (seniority unknown rate ~4% for SWE, down from 35%), expanded SWE regex (language-specific patterns), Systems Engineer disambiguation, and improved boilerplate patterns.
-- Check whether `description_core_llm` column exists (LLM boilerplate removal). If it does: use it as the primary description for text analysis, with `description` as fallback where null. If it does not exist: use `description` (NOT `description_core` — the rule-based version is ~44% accurate).
-- asaniczka has zero entry-level native labels (only mid-senior and associate) — exclude from entry-level trend analysis.
+- Check whether `description_core_llm` column exists (LLM boilerplate removal). If it does: use it as the primary description for text analysis, with `description_core` as fallback where null. If it does not exist: use `description_core` as the default text field for Stage 8 text analysis, with `description` only as a last-resort fallback where `description_core` is null.
+- asaniczka has zero entry-level native labels (only mid-senior and associate). Default: exclude it from entry-level trend analysis. T03 now explicitly tests whether `associate` can support a limited junior-proxy sensitivity; do not assume `Associate == entry` unless that audit recommends it.
 - 31GB RAM limit — use DuckDB or pyarrow for queries, never load full parquet into pandas.
 
 **Default SQL filters (apply unless task says otherwise):**
@@ -105,6 +105,7 @@ WHERE source_platform = 'linkedin'
 1. **Company-name stripping.** Before any corpus comparison or term-frequency analysis, build a stoplist from all `company_name_canonical` values, tokenize them into words, and strip them during tokenization. This prevents company names from dominating results ("Capital One" was the top distinguishing term in multiple v1 comparisons).
 
 2. **Boilerplate removal.** Strip EEO/legal sections, benefits lists, and "about the company" blocks before tokenization. Use regex to detect: "equal opportunity", "reasonable accommodation", "protected class", "benefits include", "about us", "privacy notice", "fair chance". If `description_core_llm` is available, this step is handled — use that column directly.
+   - If `description_core_llm` is not available but `description_core` is, start from `description_core` and apply only incremental cleanup needed for residual legal/company-name artifacts.
 
 3. **Artifact filtering.** For emerging/disappearing term lists:
    - Require terms to appear in >=20 distinct companies (prevents single-company artifacts like "dataannotation", "amazonians")
@@ -157,7 +158,7 @@ Launch 4 agents in parallel. These establish what we have and whether it's usabl
 
 #### Agent A: Data coverage (T01 + T03)
 
-**Dispatch:** Audit column coverage and missing data patterns across all sources and the SWE subset. Produce the coverage heatmap and missing data tables that all downstream tasks depend on understanding. Execute tasks T01 and T03.
+**Dispatch:** Audit column coverage and missing data patterns across all sources and the SWE subset. Produce the coverage heatmap and missing data tables that all downstream tasks depend on understanding. Also run the native-label comparability audit for whether asaniczka `associate` behaves enough like arshkon `entry` to justify a limited sensitivity use. Execute tasks T01 and T03.
 
 #### Agent B: Classifier quality (T02 + T04)
 
@@ -177,13 +178,13 @@ After all Wave 1 agents complete, read these reports and check:
 
 - [ ] `T01.md` — Are the columns needed for RQ1-RQ3 adequately covered? Which are unusable?
 - [ ] `T02.md` — Do seniority variants agree on junior-share direction? What's the recommended seniority column?
-- [ ] `T03.md` — What's the effective sample size for entry-level SWE? Is it >30?
+- [ ] `T03.md` — What's the effective sample size for entry-level SWE? Is it >30? Does the asaniczka `associate` audit support any limited junior-proxy use, or should it remain excluded?
 - [ ] `T04.md` — Is SWE classification adequate (<10% estimated error)?
 - [ ] `T05.md` — Are cross-dataset differences explainable? Any artifact red flags?
 - [ ] `T06.md` — Does any single company dominate >10% of SWE postings?
 - [ ] `T07.md` — Is geographic correlation with OES >0.80?
 
-**Pass to Wave 2:** Record seniority recommendation from T02 and any column exclusions from T01 in INDEX.md. Wave 2 agents will read INDEX.md for this guidance.
+**Pass to Wave 2:** Record seniority recommendation from T02, any column exclusions from T01, and the T03 verdict on whether asaniczka `associate` can be used in any appendix-only junior sensitivity. Wave 2 agents will read INDEX.md for this guidance.
 
 ---
 
@@ -193,7 +194,7 @@ Launch 4 agents in parallel. These generate the substantive findings.
 
 #### Agent E: Distributions, sensitivity & baseline (T08 + T09)
 
-**Dispatch:** Compute baseline distributions for all key variables by period and seniority. Run the seniority source sensitivity analysis. Also establish within-2024 baseline variability by comparing arshkon vs asaniczka on the same metrics, to calibrate how surprising the 2024-to-2026 changes are. Read `exploration/reports/INDEX.md` for the seniority recommendation from Wave 1. Execute tasks T08 and T09.
+**Dispatch:** Compute baseline distributions for all key variables by period and seniority. Run the seniority source sensitivity analysis. Also establish within-2024 baseline variability by comparing arshkon vs asaniczka on the same metrics, to calibrate how surprising the 2024-to-2026 changes are. Read `exploration/reports/INDEX.md` for the seniority recommendation from Wave 1, including the T03 verdict on whether any appendix-only `asaniczka associate` vs `arshkon entry` sensitivity is allowed. Execute tasks T08 and T09.
 
 #### Agent F: Text analysis (T10 + T11)
 
@@ -249,8 +250,8 @@ Launch 4 agents in parallel. These tasks go deeper into the research constructs.
 
 After all Wave 3 agents complete:
 
-- [ ] `T17.md` — What technology stacks are rising/declining beyond just "AI"?
-- [ ] `T18.md` — What's driving description length growth? Requirements vs boilerplate?
+- [x] `T17.md` — What technology stacks are rising/declining beyond just "AI"?
+- [x] `T18.md` — What's driving description length growth? Requirements vs boilerplate?
 - [ ] `T19.md` — Do posting archetypes emerge? Does an "AI-augmented SWE" archetype grow?
 - [ ] `T20.md` — Does entry-2026 converge toward mid-senior-2024 (relabeling confirmed)?
 - [ ] `T21.md` — Is the management→orchestration shift real and measurable?
@@ -307,17 +308,23 @@ Each task is assigned to one agent. The agent receives the task spec below as pa
 
 **Output:** `exploration/reports/T02.md` with cross-tabs, kappa, per-class accuracy, junior-share comparison, recommendation
 
-### T03. Missing data audit `[Agent A]`
+### T03. Missing data audit + native-label comparability `[Agent A]`
 
-**Goal:** Document missingness patterns constraining cross-period comparisons.
+**Goal:** Document missingness patterns constraining cross-period comparisons, and test whether asaniczka `associate` can be treated as a limited junior proxy.
 
 **Steps:**
 1. Field x source x platform missing data table (% non-null), all rows and SWE subset
 2. Document which seniority labels each source provides
-3. Investigate: do asaniczka "Associate" titles overlap with arshkon "Entry level" titles?
-4. Effective sample size per source after excluding nulls, for each cross-period analysis field
+3. SWE-only native-label comparability audit:
+   - Compare asaniczka `associate` against arshkon `entry`, `associate`, and `mid-senior`
+   - Use exact `title_normalized` overlap, explicit junior/senior title-cue rates, `yoe_extracted`, and downstream `seniority_final` distributions conditional on native label
+   - State whether asaniczka `associate` behaves more like junior, lower-mid, mixed, or indeterminate
+4. Decision rule:
+   - `usable as junior proxy` only if the evidence is directionally close to arshkon `entry` on multiple signals
+   - otherwise keep asaniczka excluded from junior-native baselines and treat `associate` as a distinct or mixed bucket
+5. Effective sample size per source after excluding nulls, for each cross-period analysis field
 
-**Output:** `exploration/reports/T03.md` with tables
+**Output:** `exploration/reports/T03.md` with tables and a clear verdict on whether any appendix-only `asaniczka associate` junior sensitivity is justified
 
 ### T04. SWE classification audit `[Agent B]`
 
@@ -325,7 +332,7 @@ Each task is assigned to one agent. The agent receives the task spec below as pa
 
 **Steps:**
 1. SWE rows by `swe_classification_tier` breakdown
-2. Sample 50 borderline SWE postings (`swe_confidence` 0.3-0.7 or tier `embedding_llm`): print title + 200 chars description, assess quality
+2. Sample 50 borderline SWE postings (`swe_confidence` 0.3-0.7 or tier `title_lookup_llm`): print title + 200 chars description, assess quality
 3. Sample 50 borderline non-SWE (titles with "engineer"/"developer"/"software" but `is_swe = False`): same
 4. Profile `is_swe_adjacent` and `is_control` rows: what titles/occupations?
 5. Estimated false-positive and false-negative rates
@@ -386,6 +393,9 @@ Each task is assigned to one agent. The agent receives the task spec below as pa
    - Compute within-2024 effect sizes (Cohen's d or equivalent)
    - Produce a calibration table: metric, within-2024 difference, 2024→2026 difference, ratio
    - This establishes how much variation is "normal" within 2024
+6. Optional appendix-only sensitivity:
+   - If and only if T03 explicitly recommends it, compare asaniczka `associate` vs arshkon `entry` on the same baseline metrics
+   - Report this as a label-semantic sensitivity, not as a replacement for the main junior baseline
 
 **Output:** `exploration/reports/T08.md` with plots, summary stats, and baseline calibration table
 

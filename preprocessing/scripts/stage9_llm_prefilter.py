@@ -1,35 +1,47 @@
 #!/usr/bin/env python3
 """
-Stage 9: LLM routing / pre-filtering.
-
-Inputs:
-  - preprocessing/intermediate/stage8_final.parquet
-
-Outputs:
-  - preprocessing/intermediate/stage9_llm_candidates.parquet
-      Unique-description queue with task flags OR-ed by `description_hash`.
-  - preprocessing/intermediate/stage9_skip_reasons.parquet
-      Full row-level output with routing flags and reasons added.
-
-Compatibility note:
-  Stage 8 now writes `is_english` and `description_hash` directly. The fallback
-  logic here remains only to support older artifacts that may still carry
-  `lang_detected` or omit `description_hash`.
+Stage 9: control-cohort selection, extraction routing, extraction execution,
+and posting-level cleaned-text integration.
 """
 
 from __future__ import annotations
 
 import argparse
-import gc
 import hashlib
+import json
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-import duckdb
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
+from llm_shared import (
+    DEFAULT_CLAUDE_MODEL,
+    DEFAULT_CODEX_MODEL,
+    DEFAULT_QUOTA_WAIT_HOURS,
+    EXTRACTION_PROMPT_VERSION,
+    EXTRACTION_STATUS_CANNOT_COMPLETE,
+    EXTRACTION_TASK_NAME,
+    MAX_EXTRACTION_UNIT_COUNT,
+    SINGLE_UNIT_WARNING_CHARS,
+    SUPPORTED_PROVIDERS,
+    chunked,
+    compute_description_hash,
+    compute_extraction_input_hash,
+    open_cache,
+    render_extraction_prompt,
+    segment_description_into_units,
+    store_cached_row,
+    try_provider,
+    validate_extraction_payload,
+    validate_extraction_selection,
+    fetch_cached_row,
+    fetch_cached_rows,
+)
 
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -38,17 +50,20 @@ CACHE_DIR = PROJECT_ROOT / "preprocessing" / "cache"
 LOG_DIR = PROJECT_ROOT / "preprocessing" / "logs"
 
 DEFAULT_INPUT_PATH = INTERMEDIATE_DIR / "stage8_final.parquet"
-DEFAULT_CANDIDATES_PATH = INTERMEDIATE_DIR / "stage9_llm_candidates.parquet"
-DEFAULT_SKIP_REASONS_PATH = INTERMEDIATE_DIR / "stage9_skip_reasons.parquet"
+DEFAULT_CANDIDATES_PATH = INTERMEDIATE_DIR / "stage9_llm_extraction_candidates.parquet"
+DEFAULT_RESULTS_PATH = INTERMEDIATE_DIR / "stage9_llm_extraction_results.parquet"
+DEFAULT_CLEANED_PATH = INTERMEDIATE_DIR / "stage9_llm_cleaned.parquet"
+DEFAULT_CONTROL_COHORT_PATH = INTERMEDIATE_DIR / "stage9_control_cohort.parquet"
+DEFAULT_CACHE_DB = CACHE_DIR / "llm_responses.db"
+DEFAULT_ERROR_LOG = LOG_DIR / "llm_errors.jsonl"
 
-CHUNK_SIZE = 200_000
-LINKEDIN_PLATFORM = "linkedin"
-CLASSIFICATION_STRONG_TIERS = {"regex", "embedding_high", "embedding_llm"}
-DEFAULT_INCLUDE_CONTROL_EXTRACTION = False
+CHUNK_SIZE = 50_000
+MIN_DESCRIPTION_WORDS = 15
 
 
 def configure_logging() -> logging.Logger:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -60,14 +75,16 @@ def configure_logging() -> logging.Logger:
     return logging.getLogger(__name__)
 
 
-def normalize_text_for_hash(text) -> str:
-    if pd.isna(text):
-        return ""
-    return str(text)
-
-
-def compute_description_hash(text) -> str:
-    return hashlib.sha256(normalize_text_for_hash(text).encode("utf-8")).hexdigest()
+def parse_provider_order(value: str) -> tuple[str, ...]:
+    providers = tuple(part.strip().lower() for part in value.split(",") if part.strip())
+    if not providers:
+        raise ValueError("provider order must include at least one provider")
+    invalid = [provider for provider in providers if provider not in SUPPORTED_PROVIDERS]
+    if invalid:
+        raise ValueError(f"unsupported providers in order: {', '.join(invalid)}")
+    if len(providers) != len(set(providers)):
+        raise ValueError("provider order must not contain duplicates")
+    return providers
 
 
 def english_mask(df: pd.DataFrame) -> pd.Series:
@@ -82,262 +99,549 @@ def has_raw_description(df: pd.DataFrame) -> pd.Series:
     return ~df["description"].isna() & df["description"].astype(str).str.strip().ne("")
 
 
-def process_chunk(
-    df: pd.DataFrame,
-    include_control_extraction: bool = DEFAULT_INCLUDE_CONTROL_EXTRACTION,
-) -> pd.DataFrame:
-    out = df.copy()
+def build_control_bucket(df: pd.DataFrame) -> pd.Series:
+    scraped = df["source"].fillna("").astype(str).eq("scraped")
+    scrape_dates = pd.to_datetime(
+        df.get("scrape_date", pd.Series(index=df.index, dtype="object")),
+        errors="coerce",
+    )
+    iso = scrape_dates.dt.isocalendar()
+    buckets = (
+        df["source"].fillna("unknown").astype(str)
+        + "|"
+        + df.get("period", pd.Series(index=df.index, dtype="object")).fillna("unknown").astype(str)
+    )
+    scraped_buckets = (
+        "scraped|"
+        + iso["year"].fillna(0).astype(int).astype(str)
+        + "-"
+        + iso["week"].fillna(0).astype(int).astype(str).str.zfill(2)
+    )
+    buckets.loc[scraped] = scraped_buckets.loc[scraped]
+    return buckets
 
+
+def stable_control_score(control_bucket: str, extraction_input_hash: str) -> str:
+    seed = f"control-cohort-v1|{control_bucket}|{extraction_input_hash}"
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+def annotate_stage9_chunk(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
     if "description_hash" not in out.columns:
         out["description_hash"] = out["description"].map(compute_description_hash)
-
-    is_english = english_mask(out)
-    is_linkedin = out["source_platform"].fillna("").astype(str).str.lower().eq(LINKEDIN_PLATFORM)
-    has_description = has_raw_description(out)
-    is_swe = out["is_swe"].fillna(False).astype(bool)
-    is_swe_adjacent = out["is_swe_adjacent"].fillna(False).astype(bool)
-    is_control = out["is_control"].fillna(False).astype(bool)
-    in_default_universe = is_linkedin & is_english & has_description
-
-    title_seniority = out["seniority_source"].fillna("").astype(str).str.startswith("title_")
-    strong_occupation_signal = out["swe_classification_tier"].fillna("").isin(CLASSIFICATION_STRONG_TIERS)
-    high_confidence_tech = (
-        (is_swe | is_swe_adjacent)
-        & strong_occupation_signal
-        & title_seniority
-        & out["ghost_job_risk"].fillna("").eq("low")
+    out["is_english"] = english_mask(out)
+    out["has_raw_description"] = has_raw_description(out)
+    out["is_linkedin"] = out["source_platform"].fillna("").astype(str).str.lower().eq("linkedin")
+    raw_description = out["description"].fillna("").astype(str)
+    out["raw_description_word_count"] = raw_description.str.split().str.len().astype("Int64")
+    out["short_description_skip"] = out["raw_description_word_count"].fillna(0).lt(MIN_DESCRIPTION_WORDS)
+    out["control_bucket"] = build_control_bucket(out)
+    eligible_text = out["is_linkedin"] & out["is_english"] & out["has_raw_description"]
+    out["eligible_swe_extraction"] = eligible_text & out["is_swe"].fillna(False).astype(bool) & ~out["short_description_skip"]
+    out["eligible_control_extraction"] = (
+        eligible_text & out["is_control"].fillna(False).astype(bool) & ~out["short_description_skip"]
     )
-
-    needs_extraction = in_default_universe & (is_swe | is_swe_adjacent)
-    if include_control_extraction:
-        needs_extraction = needs_extraction | (in_default_universe & is_control)
-    needs_classification = in_default_universe & (is_swe | is_swe_adjacent) & ~high_confidence_tech
-
-    out["needs_llm_classification"] = needs_classification
-    out["needs_llm_extraction"] = needs_extraction
-    out["llm_candidate"] = needs_classification | needs_extraction
-
-    out["llm_route_group"] = "not_routed"
-    out.loc[in_default_universe & is_control, "llm_route_group"] = "control_not_routed"
-    if include_control_extraction:
-        out.loc[in_default_universe & is_control, "llm_route_group"] = "control_extraction_only"
-    out.loc[
-        in_default_universe & (is_swe | is_swe_adjacent) & ~needs_classification,
-        "llm_route_group",
-    ] = "technical_extraction_only"
-    out.loc[
-        in_default_universe & (is_swe | is_swe_adjacent) & needs_classification,
-        "llm_route_group",
-    ] = "technical_classification_and_extraction"
-
-    out["llm_classification_reason"] = "not_routed"
-    out.loc[needs_classification, "llm_classification_reason"] = "routed"
-    out.loc[in_default_universe & is_control, "llm_classification_reason"] = "controls_not_routed"
-    out.loc[
-        in_default_universe & (is_swe | is_swe_adjacent) & ~needs_classification,
-        "llm_classification_reason",
-    ] = "high_confidence_technical_rules"
-
-    out["llm_extraction_reason"] = "not_routed"
-    out.loc[needs_extraction, "llm_extraction_reason"] = "routed"
-    out.loc[in_default_universe & is_control & ~needs_extraction, "llm_extraction_reason"] = (
-        "controls_disabled_by_default"
-    )
-
-    out["llm_skip_reason"] = "outside_default_scope"
-    out.loc[~is_linkedin, "llm_skip_reason"] = "non_linkedin_platform"
-    out.loc[is_linkedin & ~is_english, "llm_skip_reason"] = "non_english"
-    out.loc[is_linkedin & is_english & ~has_description, "llm_skip_reason"] = "missing_raw_description"
-    out.loc[in_default_universe & is_control & ~needs_extraction, "llm_skip_reason"] = "controls_disabled_by_default"
-    out.loc[in_default_universe & ~(is_swe | is_swe_adjacent | is_control), "llm_skip_reason"] = (
-        "outside_default_classification_scope"
-    )
-    out.loc[needs_extraction | needs_classification, "llm_skip_reason"] = "routed"
+    out["eligible_control_unit"] = out["eligible_control_extraction"]
+    out["eligible_for_extraction"] = eligible_text & (
+        out["is_swe"].fillna(False).astype(bool) | out["is_swe_adjacent"].fillna(False).astype(bool)
+    ) & ~out["short_description_skip"]
+    out["llm_text_skip_reason"] = None
+    out.loc[out["short_description_skip"], "llm_text_skip_reason"] = "short_description_under_15_words"
+    out["description_core_llm"] = None
+    out.loc[out["short_description_skip"], "description_core_llm"] = ""
+    out["extraction_input_hash"] = [
+        compute_extraction_input_hash(title, company, description) if eligible_text else None
+        for title, company, description, eligible_text in zip(
+            out.get("title", pd.Series(index=out.index, dtype="object")),
+            out.get("company_name", pd.Series(index=out.index, dtype="object")),
+            out.get("description", pd.Series(index=out.index, dtype="object")),
+            out["has_raw_description"],
+        )
+    ]
     return out
 
 
-def write_table_chunk(
-    df: pd.DataFrame,
-    output_path: Path,
-    writer: pq.ParquetWriter | None,
-) -> pq.ParquetWriter:
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    if writer is None:
-        writer = pq.ParquetWriter(output_path, table.schema)
-    writer.write_table(table)
-    del table
-    return writer
+def annotate_chunk(df: pd.DataFrame) -> pd.DataFrame:
+    return annotate_stage9_chunk(df)
 
 
-def build_candidate_queue(skip_reasons_path: Path, candidates_path: Path, log: logging.Logger) -> dict[str, int]:
-    if candidates_path.exists():
-        candidates_path.unlink()
+def _select_control_cohort(annotated: pd.DataFrame) -> tuple[pd.DataFrame, set[str]]:
+    eligible_swe = annotated.loc[annotated["eligible_swe_extraction"]]
+    eligible_controls = annotated.loc[annotated["eligible_control_extraction"]]
 
-    con = duckdb.connect()
-    source = str(skip_reasons_path)
-    dest = str(candidates_path)
-
-    con.execute(
-        f"""
-        COPY (
-          WITH candidate_rows AS (
-            SELECT
-              description_hash,
-              job_id,
-              source,
-              source_platform,
-              title,
-              company_name,
-              description,
-              CAST(needs_llm_classification AS INTEGER) AS needs_llm_classification,
-              CAST(needs_llm_extraction AS INTEGER) AS needs_llm_extraction
-            FROM read_parquet('{source}')
-            WHERE coalesce(llm_candidate, false)
-          )
-          SELECT
-            description_hash,
-            any_value(job_id) AS job_id,
-            any_value(source) AS source,
-            any_value(source_platform) AS source_platform,
-            any_value(title) AS title,
-            any_value(company_name) AS company_name,
-            any_value(description) AS description,
-            max(needs_llm_classification) = 1 AS needs_llm_classification,
-            max(needs_llm_extraction) = 1 AS needs_llm_extraction,
-            CASE
-              WHEN max(needs_llm_classification) = 1 AND max(needs_llm_extraction) = 1
-                THEN 'classification_and_extraction'
-              WHEN max(needs_llm_extraction) = 1
-                THEN 'extraction_only'
-              WHEN max(needs_llm_classification) = 1
-                THEN 'classification_only'
-              ELSE 'not_routed'
-            END AS llm_route_group,
-            count(*) AS source_row_count
-          FROM candidate_rows
-          GROUP BY description_hash
-        )
-        TO '{dest}'
-        (FORMAT PARQUET, COMPRESSION ZSTD)
-        """
+    swe_counts = (
+        eligible_swe[["control_bucket", "extraction_input_hash"]]
+        .drop_duplicates()
+        .groupby("control_bucket")
+        .size()
+        .to_dict()
     )
 
-    stats = con.execute(
-        f"""
-        SELECT
-          count(*) AS candidate_hashes,
-          sum(CASE WHEN needs_llm_classification THEN 1 ELSE 0 END) AS classification_hashes,
-          sum(CASE WHEN needs_llm_extraction THEN 1 ELSE 0 END) AS extraction_hashes
-        FROM read_parquet('{dest}')
-        """
-    ).fetchone()
-    con.close()
+    control_records = (
+        eligible_controls[
+            [
+                "control_bucket",
+                "extraction_input_hash",
+                "job_id",
+                "source",
+                "source_platform",
+                "title",
+                "company_name",
+                "description_hash",
+            ]
+        ]
+        .drop_duplicates(subset=["control_bucket", "extraction_input_hash"])
+        .copy()
+    )
+    if control_records.empty:
+        return control_records.assign(selected_for_control_cohort=False), set()
 
-    result = {
-        "candidate_hashes": int(stats[0] or 0),
-        "classification_hashes": int(stats[1] or 0),
-        "extraction_hashes": int(stats[2] or 0),
+    control_records["stable_score"] = [
+        stable_control_score(bucket, input_hash)
+        for bucket, input_hash in zip(control_records["control_bucket"], control_records["extraction_input_hash"])
+    ]
+
+    controls_by_bucket = {
+        bucket: bucket_df.sort_values("stable_score").copy()
+        for bucket, bucket_df in control_records.groupby("control_bucket", sort=True)
     }
-    log.info("Candidate queue written: %s", candidates_path)
+    targets = {
+        bucket: min(int(swe_counts.get(bucket, 0)), len(bucket_df))
+        for bucket, bucket_df in controls_by_bucket.items()
+    }
+    shortfall = sum(
+        max(int(swe_counts.get(bucket, 0)) - len(bucket_df), 0) for bucket, bucket_df in controls_by_bucket.items()
+    )
+
+    while shortfall > 0:
+        spare_buckets = [
+            bucket for bucket, bucket_df in controls_by_bucket.items() if len(bucket_df) > targets[bucket]
+        ]
+        if not spare_buckets:
+            break
+        for bucket in sorted(spare_buckets, key=lambda item: (-int(swe_counts.get(item, 0)), item)):
+            if shortfall <= 0 or len(controls_by_bucket[bucket]) <= targets[bucket]:
+                continue
+            targets[bucket] += 1
+            shortfall -= 1
+
+    selected_hashes: set[str] = set()
+    frames = []
+    for bucket, bucket_df in controls_by_bucket.items():
+        target_n = targets.get(bucket, 0)
+        bucket_df = bucket_df.copy()
+        bucket_df["selected_for_control_cohort"] = False
+        if target_n > 0:
+            bucket_df.loc[bucket_df.index[:target_n], "selected_for_control_cohort"] = True
+            selected_hashes.update(bucket_df.loc[bucket_df.index[:target_n], "extraction_input_hash"].astype(str))
+        frames.append(bucket_df)
+
+    return pd.concat(frames, ignore_index=True), selected_hashes
+
+
+def select_control_cohort(annotated: pd.DataFrame) -> pd.DataFrame:
+    control_cohort_df, _ = _select_control_cohort(annotated)
+    return control_cohort_df
+
+
+def build_extraction_candidates(annotated: pd.DataFrame, control_cohort: pd.DataFrame) -> pd.DataFrame:
+    selected_control_hashes = set(
+        control_cohort.loc[control_cohort["selected_for_control_cohort"], "extraction_input_hash"].astype(str)
+    )
+    routed = annotated.copy()
+    routed["selected_for_control_cohort"] = routed["extraction_input_hash"].astype(str).isin(selected_control_hashes)
+    routed = routed.loc[
+        (~routed["short_description_skip"])
+        & (
+            routed["eligible_for_extraction"]
+            | routed["selected_for_control_cohort"]
+        )
+    ].copy()
+    if routed.empty:
+        return pd.DataFrame()
+    routed["llm_route_group"] = "technical_extraction"
+    routed.loc[routed["selected_for_control_cohort"] & ~routed["eligible_for_extraction"], "llm_route_group"] = (
+        "control_extraction"
+    )
+    return (
+        routed.groupby("extraction_input_hash", as_index=False)
+        .agg(
+            job_id=("job_id", "first"),
+            source=("source", "first"),
+            source_platform=("source_platform", "first"),
+            title=("title", "first"),
+            company_name=("company_name", "first"),
+            description=("description", "first"),
+            description_hash=("description_hash", "first"),
+            llm_route_group=("llm_route_group", "first"),
+            selected_for_control_cohort=("selected_for_control_cohort", "max"),
+            source_row_count=("job_id", "count"),
+        )
+    )
+
+
+def process_chunk(df: pd.DataFrame, selected_control_hashes: set[str] | None = None) -> pd.DataFrame:
+    out = annotate_stage9_chunk(df)
+    selected_control_hashes = selected_control_hashes or set()
+    out["selected_for_control_cohort"] = out["extraction_input_hash"].astype(str).isin(selected_control_hashes)
+    extraction_scope = (
+        out["is_swe"].fillna(False).astype(bool)
+        | out["is_swe_adjacent"].fillna(False).astype(bool)
+        | out["selected_for_control_cohort"]
+    )
+    out["needs_llm_extraction"] = (
+        out["is_linkedin"] & out["is_english"] & out["has_raw_description"] & extraction_scope & ~out["short_description_skip"]
+    )
+    out["llm_extraction_reason"] = "not_routed"
+    out.loc[out["short_description_skip"] & extraction_scope, "llm_extraction_reason"] = "short_description"
+    out.loc[out["needs_llm_extraction"], "llm_extraction_reason"] = "routed"
+    return out
+
+
+def write_parquet_rows(rows: list[dict], output_path: Path) -> None:
+    if not rows:
+        pd.DataFrame(rows).to_parquet(output_path, index=False)
+        return
+    writer = None
+    try:
+        for batch in chunked(rows, CHUNK_SIZE):
+            table = pa.Table.from_pylist(batch)
+            if writer is None:
+                writer = pq.ParquetWriter(output_path, table.schema)
+            writer.write_table(table)
+    finally:
+        if writer is not None:
+            writer.close()
+
+
+def call_task_with_fallback(
+    *,
+    prompt: str,
+    input_hash: str,
+    error_log_path: Path,
+    log: logging.Logger,
+    codex_model: str,
+    timeout_seconds: int,
+    max_retries: int,
+    provider_order: tuple[str, ...],
+    claude_model: str,
+    quota_wait_hours: float,
+) -> dict | None:
+    for provider in provider_order:
+        model = codex_model if provider == "codex" else claude_model
+        result = try_provider(
+            provider=provider,
+            prompt=prompt,
+            model=model,
+            task_name=EXTRACTION_TASK_NAME,
+            input_hash=input_hash,
+            error_log_path=error_log_path,
+            log=log,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            payload_validator=validate_extraction_payload,
+            quota_wait_hours=quota_wait_hours,
+        )
+        if result is not None:
+            return result
+    return None
+
+
+def process_candidate_row(
+    row: dict,
+    *,
+    codex_model: str,
+    timeout_seconds: int,
+    max_retries: int,
+    error_log_path: Path,
+    log: logging.Logger,
+    provider_order: tuple[str, ...],
+    claude_model: str,
+    quota_wait_hours: float,
+) -> dict:
+    prompt, units = render_extraction_prompt(row["title"], row["company_name"], row["description"])
+    if not units:
+        payload = {
+            "task_status": EXTRACTION_STATUS_CANNOT_COMPLETE,
+            "boilerplate_unit_ids": [],
+            "uncertain_unit_ids": [],
+            "reason": "empty_description",
+        }
+        return {
+            "model": "synthetic-empty-description",
+            "response_json": json.dumps(payload, ensure_ascii=False),
+            "tokens_used": None,
+            "prompt_version": EXTRACTION_PROMPT_VERSION,
+        }
+    if len(units) == 1 and len(units[0]["text"]) >= SINGLE_UNIT_WARNING_CHARS:
+        payload = {
+            "task_status": EXTRACTION_STATUS_CANNOT_COMPLETE,
+            "boilerplate_unit_ids": [],
+            "uncertain_unit_ids": [],
+            "reason": "single_unit_description",
+        }
+        return {
+            "model": "synthetic-single-unit-fallback",
+            "response_json": json.dumps(payload, ensure_ascii=False),
+            "tokens_used": None,
+            "prompt_version": EXTRACTION_PROMPT_VERSION,
+        }
+    if len(units) > MAX_EXTRACTION_UNIT_COUNT:
+        payload = {
+            "task_status": EXTRACTION_STATUS_CANNOT_COMPLETE,
+            "boilerplate_unit_ids": [],
+            "uncertain_unit_ids": [],
+            "reason": "too_many_units",
+        }
+        return {
+            "model": "synthetic-too-many-units-fallback",
+            "response_json": json.dumps(payload, ensure_ascii=False),
+            "tokens_used": None,
+            "prompt_version": EXTRACTION_PROMPT_VERSION,
+        }
+    result = call_task_with_fallback(
+        prompt=prompt,
+        input_hash=row["extraction_input_hash"],
+        error_log_path=error_log_path,
+        log=log,
+        codex_model=codex_model,
+        timeout_seconds=timeout_seconds,
+        max_retries=max_retries,
+        provider_order=provider_order,
+        claude_model=claude_model,
+        quota_wait_hours=quota_wait_hours,
+    )
+    if result is None:
+        payload = {
+            "task_status": EXTRACTION_STATUS_CANNOT_COMPLETE,
+            "boilerplate_unit_ids": [],
+            "uncertain_unit_ids": [],
+            "reason": "provider_failed",
+        }
+        return {
+            "model": "synthetic-provider-failed",
+            "response_json": json.dumps(payload, ensure_ascii=False),
+            "tokens_used": None,
+            "prompt_version": EXTRACTION_PROMPT_VERSION,
+        }
+    result["prompt_version"] = EXTRACTION_PROMPT_VERSION
     return result
+
+
+def build_candidate_records(input_path: Path, selected_control_hashes: set[str]) -> list[dict]:
+    pf = pq.ParquetFile(input_path)
+    lookup: dict[str, dict] = {}
+    for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
+        chunk = pa.Table.from_batches([batch]).to_pandas()
+        prepared = process_chunk(chunk, selected_control_hashes=selected_control_hashes)
+        routed = prepared.loc[prepared["needs_llm_extraction"]]
+        if routed.empty:
+            continue
+        grouped = (
+            routed[
+                [
+                    "extraction_input_hash",
+                    "job_id",
+                    "source",
+                    "source_platform",
+                    "title",
+                    "company_name",
+                    "description",
+                    "description_hash",
+                ]
+            ]
+            .drop_duplicates(subset=["extraction_input_hash"])
+            .to_dict("records")
+        )
+        for row in grouped:
+            lookup.setdefault(str(row["extraction_input_hash"]), row)
+    return list(lookup.values())
 
 
 def run_stage9(
     input_path: Path = DEFAULT_INPUT_PATH,
     candidates_path: Path = DEFAULT_CANDIDATES_PATH,
-    skip_reasons_path: Path = DEFAULT_SKIP_REASONS_PATH,
-    include_control_extraction: bool = DEFAULT_INCLUDE_CONTROL_EXTRACTION,
+    results_path: Path = DEFAULT_RESULTS_PATH,
+    cleaned_path: Path = DEFAULT_CLEANED_PATH,
+    control_cohort_path: Path = DEFAULT_CONTROL_COHORT_PATH,
+    cache_db: Path = DEFAULT_CACHE_DB,
+    error_log_path: Path = DEFAULT_ERROR_LOG,
+    codex_model: str = DEFAULT_CODEX_MODEL,
+    timeout_seconds: int = 180,
+    max_retries: int = 3,
+    max_workers: int = 12,
+    provider_order: tuple[str, ...] = SUPPORTED_PROVIDERS,
+    claude_model: str = DEFAULT_CLAUDE_MODEL,
+    quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
 ) -> None:
     log = configure_logging()
     t0 = time.time()
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    INTERMEDIATE_DIR.mkdir(parents=True, exist_ok=True)
-
-    log.info("=" * 70)
-    log.info("Stage 9: LLM routing / pre-filtering")
-    log.info("=" * 70)
-    log.info("Input: %s", input_path)
-    log.info("Candidates output: %s", candidates_path)
-    log.info("Row-level output: %s", skip_reasons_path)
-    log.info("Include control extraction: %s", include_control_extraction)
-
-    if candidates_path.exists():
-        candidates_path.unlink()
-    if skip_reasons_path.exists():
-        skip_reasons_path.unlink()
-
     pf = pq.ParquetFile(input_path)
-    total_rows = pf.metadata.num_rows
-    log.info("Input rows: %s", f"{total_rows:,}")
-
-    skip_writer = None
-    route_counts: dict[str, int] = {}
-    skip_reason_counts: dict[str, int] = {}
-    classification_rows = 0
-    extraction_rows = 0
-    rows_written = 0
-
-    for chunk_num, batch in enumerate(pf.iter_batches(batch_size=CHUNK_SIZE), start=1):
-        t_chunk = time.time()
+    annotated_frames = []
+    for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
         chunk = pa.Table.from_batches([batch]).to_pandas()
-        chunk = process_chunk(chunk, include_control_extraction=include_control_extraction)
+        annotated_frames.append(annotate_chunk(chunk))
+    annotated = pd.concat(annotated_frames, ignore_index=True) if annotated_frames else pd.DataFrame()
 
-        for route_group, count in chunk["llm_route_group"].value_counts().items():
-            route_counts[route_group] = route_counts.get(route_group, 0) + int(count)
-        for reason, count in chunk["llm_skip_reason"].value_counts().items():
-            skip_reason_counts[reason] = skip_reason_counts.get(reason, 0) + int(count)
+    control_cohort_df, selected_control_hashes = _select_control_cohort(annotated)
+    candidate_rows = build_candidate_records(input_path, selected_control_hashes)
 
-        classification_rows += int(chunk["needs_llm_classification"].sum())
-        extraction_rows += int(chunk["needs_llm_extraction"].sum())
+    conn = open_cache(cache_db)
+    hashes = [str(row["extraction_input_hash"]) for row in candidate_rows]
+    cached_rows = fetch_cached_rows(conn, hashes, EXTRACTION_TASK_NAME, EXTRACTION_PROMPT_VERSION)
+    rows_to_process = [row for row in candidate_rows if str(row["extraction_input_hash"]) not in cached_rows]
 
-        skip_writer = write_table_chunk(chunk, skip_reasons_path, skip_writer)
-        rows_written += len(chunk)
+    if rows_to_process:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {
+                executor.submit(
+                    process_candidate_row,
+                    row,
+                    codex_model=codex_model,
+                    timeout_seconds=timeout_seconds,
+                    max_retries=max_retries,
+                    error_log_path=error_log_path,
+                    log=log,
+                    provider_order=provider_order,
+                    claude_model=claude_model,
+                    quota_wait_hours=quota_wait_hours,
+                ): row
+                for row in rows_to_process
+            }
+            for future in as_completed(future_map):
+                row = future_map[future]
+                result = future.result()
+                store_cached_row(
+                    conn,
+                    input_hash=row["extraction_input_hash"],
+                    task_name=EXTRACTION_TASK_NAME,
+                    model=result["model"],
+                    prompt_version=result["prompt_version"],
+                    response_json=result["response_json"],
+                    tokens_used=result["tokens_used"],
+                )
+                cached_rows[str(row["extraction_input_hash"])] = fetch_cached_row(
+                    conn,
+                    input_hash=row["extraction_input_hash"],
+                    task_name=EXTRACTION_TASK_NAME,
+                    prompt_version=EXTRACTION_PROMPT_VERSION,
+                )
 
-        elapsed = time.time() - t_chunk
-        log.info(
-            "Chunk %s done in %.1fs (%s/%s rows, class rows=%s, extraction rows=%s)",
-            chunk_num,
-            elapsed,
-            f"{rows_written:,}",
-            f"{total_rows:,}",
-            f"{classification_rows:,}",
-            f"{extraction_rows:,}",
+    tmp_candidates_path = prepare_temp_output(candidates_path)
+    tmp_results_path = prepare_temp_output(results_path)
+    tmp_cleaned_path = prepare_temp_output(cleaned_path)
+    tmp_control_cohort_path = prepare_temp_output(control_cohort_path)
+
+    try:
+        write_parquet_rows(candidate_rows, tmp_candidates_path)
+        write_parquet_rows(
+            [
+                {
+                    "extraction_input_hash": row["extraction_input_hash"],
+                    "job_id": row["job_id"],
+                    "source": row["source"],
+                    "source_platform": row["source_platform"],
+                    "title": row["title"],
+                    "company_name": row["company_name"],
+                    "description_hash": row["description_hash"],
+                    "llm_model_extraction": None
+                    if cached_rows.get(str(row["extraction_input_hash"])) is None
+                    else cached_rows[str(row["extraction_input_hash"])]["model"],
+                    "llm_prompt_version_extraction": None
+                    if cached_rows.get(str(row["extraction_input_hash"])) is None
+                    else cached_rows[str(row["extraction_input_hash"])]["prompt_version"],
+                    "extraction_response_json": None
+                    if cached_rows.get(str(row["extraction_input_hash"])) is None
+                    else cached_rows[str(row["extraction_input_hash"])]["response_json"],
+                }
+                for row in candidate_rows
+            ],
+            tmp_results_path,
         )
+        control_cohort_df.to_parquet(tmp_control_cohort_path, index=False)
 
-        del chunk, batch
-        gc.collect()
+        writer = None
+        try:
+            for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
+                chunk = pa.Table.from_batches([batch]).to_pandas()
+                prepared = process_chunk(chunk, selected_control_hashes=selected_control_hashes)
+                description_core_llm = []
+                for row in prepared.itertuples(index=False):
+                    if row.short_description_skip and (
+                        row.is_swe or row.is_swe_adjacent or row.selected_for_control_cohort
+                    ):
+                        description_core_llm.append("")
+                        continue
+                    if not row.needs_llm_extraction or row.extraction_input_hash is None:
+                        description_core_llm.append(None)
+                        continue
+                    cached = cached_rows.get(str(row.extraction_input_hash))
+                    if cached is None:
+                        description_core_llm.append(None)
+                        continue
+                    payload = json.loads(cached["response_json"])
+                    validation = validate_extraction_selection(
+                        "" if row.description is None else str(row.description),
+                        payload,
+                    )
+                    description_core_llm.append(validation["reconstructed_text"] if validation["passed"] else None)
+                prepared["description_core_llm"] = description_core_llm
+                cleaned = prepared.drop(
+                    columns=[
+                        "has_raw_description",
+                        "is_linkedin",
+                        "raw_description_word_count",
+                        "short_description_skip",
+                        "eligible_swe_extraction",
+                        "eligible_control_extraction",
+                        "needs_llm_extraction",
+                    ],
+                    errors="ignore",
+                )
+                out_table = pa.Table.from_pandas(cleaned, preserve_index=False)
+                if writer is None:
+                    writer = pq.ParquetWriter(tmp_cleaned_path, out_table.schema)
+                writer.write_table(out_table)
+        finally:
+            if writer is not None:
+                writer.close()
+    except Exception:
+        cleanup_temp_file(tmp_candidates_path)
+        cleanup_temp_file(tmp_results_path)
+        cleanup_temp_file(tmp_cleaned_path)
+        cleanup_temp_file(tmp_control_cohort_path)
+        conn.close()
+        raise
 
-    if skip_writer is not None:
-        skip_writer.close()
+    conn.close()
+    promote_temp_file(tmp_candidates_path, candidates_path)
+    promote_temp_file(tmp_results_path, results_path)
+    promote_temp_file(tmp_cleaned_path, cleaned_path)
+    promote_temp_file(tmp_control_cohort_path, control_cohort_path)
 
-    candidate_counts = build_candidate_queue(skip_reasons_path, candidates_path, log)
-
-    elapsed_total = time.time() - t0
-    log.info("=" * 70)
-    log.info("COMPLETE in %.1fs", elapsed_total)
-    log.info("=" * 70)
-    for route_group in sorted(route_counts):
-        log.info("  route[%s]: %s", route_group, f"{route_counts[route_group]:,}")
-    for reason in sorted(skip_reason_counts):
-        log.info("  skip_reason[%s]: %s", reason, f"{skip_reason_counts[reason]:,}")
-    log.info("  Rows requesting classification: %s", f"{classification_rows:,}")
-    log.info("  Rows requesting extraction: %s", f"{extraction_rows:,}")
-    log.info("  Unique hashes routed: %s", f"{candidate_counts['candidate_hashes']:,}")
-    log.info("  Unique hashes needing classification: %s", f"{candidate_counts['classification_hashes']:,}")
-    log.info("  Unique hashes needing extraction: %s", f"{candidate_counts['extraction_hashes']:,}")
+    log.info("Stage 9 complete in %.1fs", time.time() - t0)
+    log.info("Selected control hashes: %s", f"{len(selected_control_hashes):,}")
+    log.info("Extraction candidates: %s", f"{len(candidate_rows):,}")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Stage 9 LLM routing / pre-filtering")
+    parser = argparse.ArgumentParser(description="Stage 9 extraction routing and cleaned-text integration")
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT_PATH)
     parser.add_argument("--candidates-output", type=Path, default=DEFAULT_CANDIDATES_PATH)
-    parser.add_argument("--skip-reasons-output", type=Path, default=DEFAULT_SKIP_REASONS_PATH)
-    parser.add_argument(
-        "--include-control-extraction",
-        action="store_true",
-        help="Route control rows for LLM extraction as a sensitivity run.",
-    )
+    parser.add_argument("--results-output", type=Path, default=DEFAULT_RESULTS_PATH)
+    parser.add_argument("--cleaned-output", type=Path, default=DEFAULT_CLEANED_PATH)
+    parser.add_argument("--control-cohort-output", type=Path, default=DEFAULT_CONTROL_COHORT_PATH)
+    parser.add_argument("--cache-db", type=Path, default=DEFAULT_CACHE_DB)
+    parser.add_argument("--error-log", type=Path, default=DEFAULT_ERROR_LOG)
+    parser.add_argument("--codex-model", type=str, default=DEFAULT_CODEX_MODEL)
+    parser.add_argument("--timeout-seconds", type=int, default=180)
+    parser.add_argument("--max-retries", type=int, default=3)
+    parser.add_argument("--max-workers", type=int, default=12)
+    parser.add_argument("--provider-order", type=str, default="codex,claude")
+    parser.add_argument("--claude-model", type=str, default=DEFAULT_CLAUDE_MODEL)
+    parser.add_argument("--quota-wait-hours", type=float, default=DEFAULT_QUOTA_WAIT_HOURS)
     return parser.parse_args()
 
 
@@ -346,6 +650,16 @@ if __name__ == "__main__":
     run_stage9(
         input_path=args.input,
         candidates_path=args.candidates_output,
-        skip_reasons_path=args.skip_reasons_output,
-        include_control_extraction=args.include_control_extraction,
+        results_path=args.results_output,
+        cleaned_path=args.cleaned_output,
+        control_cohort_path=args.control_cohort_output,
+        cache_db=args.cache_db,
+        error_log_path=args.error_log,
+        codex_model=args.codex_model,
+        timeout_seconds=args.timeout_seconds,
+        max_retries=args.max_retries,
+        max_workers=args.max_workers,
+        provider_order=parse_provider_order(args.provider_order),
+        claude_model=args.claude_model,
+        quota_wait_hours=args.quota_wait_hours,
     )

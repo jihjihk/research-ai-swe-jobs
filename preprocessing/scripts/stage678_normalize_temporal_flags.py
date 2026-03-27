@@ -34,6 +34,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from langdetect import DetectorFactory, LangDetectException, detect
 
+from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -44,8 +46,11 @@ REFERENCE_DIR = PROJECT_ROOT / "preprocessing" / "reference"
 
 INPUT_PATH = INTERMEDIATE_DIR / "stage5_classification.parquet"
 OUTPUT_PATH = INTERMEDIATE_DIR / "stage8_final.parquet"
-TMP_OUTPUT_PATH = INTERMEDIATE_DIR / "stage8_final.parquet.tmp"
 METRO_ALIAS_PATH = REFERENCE_DIR / "metro_aliases.json"
+# Optional offline city/state reference built by:
+#   ./.venv/bin/python preprocessing/scripts/build_metro_city_state_reference.py
+# Stage 6 uses it when present and falls back to scraped search-metro evidence
+# plus manual aliases when absent.
 METRO_CITY_STATE_REFERENCE_PATH = REFERENCE_DIR / "metro_city_state_lookup.parquet"
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -442,29 +447,30 @@ def infer_metro(
 # ---------------------------------------------------------------------------
 # Stage 8a: Date validation
 # ---------------------------------------------------------------------------
+MIN_PLAUSIBLE_DATE = pd.Timestamp("2020-01-01")
+
+
 def validate_dates(row_source, row_platform, scrape_date_str, date_posted_str):
-    """Return a date_flag string. 'ok' if valid, else describes the issue."""
+    """Return a date_flag string.
+
+    Stage 8 date checks are a lightweight sanity screen, not an age heuristic.
+    A date is flagged only if it cannot be parsed or is implausibly early.
+    """
+    del row_source, row_platform
+
     flags = []
-
-    date_range = DATE_RANGES.get((row_source, row_platform))
-    if date_range is None:
-        return "unknown_source"
-
-    lo, hi = date_range
-
-    for col_name, date_str in [("scrape_date", scrape_date_str),
-                                ("date_posted", date_posted_str)]:
+    for col_name, date_str in [("scrape_date", scrape_date_str), ("date_posted", date_posted_str)]:
         if pd.isna(date_str) or not isinstance(date_str, str) or date_str.strip() == "":
-            # Missing dates are not flagged (common for date_posted)
+            # Missing dates are not flagged (common for date_posted).
             continue
         try:
             dt = pd.Timestamp(date_str)
-            if lo is not None and dt < lo:
-                flags.append(f"{col_name}_out_of_range")
-            elif hi is not None and dt > hi:
-                flags.append(f"{col_name}_out_of_range")
         except (ValueError, pd.errors.OutOfBoundsDatetime):
             flags.append(f"{col_name}_invalid")
+            continue
+
+        if dt < MIN_PLAUSIBLE_DATE:
+            flags.append(f"{col_name}_out_of_range")
 
     return "|".join(flags) if flags else "ok"
 
@@ -670,9 +676,7 @@ def main():
         f"  Cached city/state reference keys: {reference_lookup_stats['reference_keys']:,}"
     )
 
-    if TMP_OUTPUT_PATH.exists():
-        log.warning(f"Removing stale temp output: {TMP_OUTPUT_PATH}")
-        TMP_OUTPUT_PATH.unlink()
+    tmp_output_path = prepare_temp_output(OUTPUT_PATH)
 
     writer = None
     rows_written = 0
@@ -738,7 +742,7 @@ def main():
             out_table = pa.Table.from_pandas(df, preserve_index=False)
 
             if writer is None:
-                writer = pq.ParquetWriter(TMP_OUTPUT_PATH, out_table.schema)
+                writer = pq.ParquetWriter(tmp_output_path, out_table.schema)
 
             writer.write_table(out_table)
             rows_written += n
@@ -755,8 +759,7 @@ def main():
     except Exception:
         if writer is not None:
             writer.close()
-        if TMP_OUTPUT_PATH.exists():
-            TMP_OUTPUT_PATH.unlink()
+        cleanup_temp_file(tmp_output_path)
         raise
 
     if writer is not None:
@@ -785,7 +788,7 @@ def main():
 
     # Verify output
     log.info("--- Output verification ---")
-    out_pf = pq.ParquetFile(TMP_OUTPUT_PATH)
+    out_pf = pq.ParquetFile(tmp_output_path)
     log.info(f"  Output rows: {out_pf.metadata.num_rows:,}")
     log.info(f"  Output columns: {out_pf.metadata.num_columns}")
     schema = out_pf.schema_arrow
@@ -793,7 +796,7 @@ def main():
     for i in range(len(schema)):
         log.info(f"    {schema.field(i).name}: {schema.field(i).type}")
 
-    TMP_OUTPUT_PATH.replace(OUTPUT_PATH)
+    promote_temp_file(tmp_output_path, OUTPUT_PATH)
     log.info(f"Promoted temp output to final path: {OUTPUT_PATH}")
 
 

@@ -17,14 +17,21 @@ import time
 from pathlib import Path
 
 import duckdb
-import pyarrow.parquet as pq
+
+from io_utils import (
+    cleanup_temp_file,
+    parquet_columns,
+    parquet_rows,
+    prepare_temp_output,
+    promote_temp_file,
+)
 
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
 DATA_DIR = PROJECT_ROOT / "data"
 
-UNIFIED_INPUT = INTERMEDIATE_DIR / "stage11_llm_integrated.parquet"
+UNIFIED_INPUT = INTERMEDIATE_DIR / "stage10_llm_integrated.parquet"
 OBS_INPUT = INTERMEDIATE_DIR / "stage1_observations.parquet"
 UNIFIED_OUTPUT = DATA_DIR / "unified.parquet"
 OBS_OUTPUT = DATA_DIR / "unified_observations.parquet"
@@ -39,49 +46,43 @@ STAGE_INPUTS = {
     "stage4": INTERMEDIATE_DIR / "stage4_dedup.parquet",
     "stage5": INTERMEDIATE_DIR / "stage5_classification.parquet",
     "stage8": INTERMEDIATE_DIR / "stage8_final.parquet",
-    "stage9_candidates": INTERMEDIATE_DIR / "stage9_llm_candidates.parquet",
-    "stage9_skip_reasons": INTERMEDIATE_DIR / "stage9_skip_reasons.parquet",
-    "stage10": INTERMEDIATE_DIR / "stage10_llm_results.parquet",
-    "stage11": INTERMEDIATE_DIR / "stage11_llm_integrated.parquet",
+    "stage9_extraction_candidates": INTERMEDIATE_DIR / "stage9_llm_extraction_candidates.parquet",
+    "stage9_extraction_results": INTERMEDIATE_DIR / "stage9_llm_extraction_results.parquet",
+    "stage9_cleaned": INTERMEDIATE_DIR / "stage9_llm_cleaned.parquet",
+    "stage9_control_cohort": INTERMEDIATE_DIR / "stage9_control_cohort.parquet",
+    "stage10_classification_results": INTERMEDIATE_DIR / "stage10_llm_classification_results.parquet",
+    "stage10_integrated": INTERMEDIATE_DIR / "stage10_llm_integrated.parquet",
 }
 
-
-def parquet_rows(path: Path) -> int:
-    return pq.ParquetFile(path).metadata.num_rows
-
-
-def parquet_columns(path: Path) -> int:
-    return pq.ParquetFile(path).metadata.num_columns
-
-
-def build_unified_observations() -> int:
-    unified_cols = pq.ParquetFile(UNIFIED_INPUT).schema.names
+def build_unified_observations(unified_path: Path, output_path: Path) -> int:
+    unified_cols = duckdb.execute(
+        f"DESCRIBE SELECT * FROM read_parquet('{unified_path}')"
+    ).fetchall()
 
     select_exprs = []
-    for col in unified_cols:
-        if col == "scrape_date":
+    for col_name, *_ in unified_cols:
+        if col_name == "scrape_date":
             select_exprs.append("o.scrape_date AS scrape_date")
         else:
-            select_exprs.append(f"u.{col}")
+            select_exprs.append(f"u.{col_name}")
 
     sql = f"""
     COPY (
       SELECT {", ".join(select_exprs)}
       FROM read_parquet('{OBS_INPUT}') AS o
-      INNER JOIN read_parquet('{UNIFIED_INPUT}') AS u USING (uid)
+      INNER JOIN read_parquet('{unified_path}') AS u USING (uid)
     )
-    TO '{OBS_OUTPUT}'
+    TO '{output_path}'
     (FORMAT PARQUET, COMPRESSION ZSTD);
     """
 
     duckdb.execute(sql)
-    return parquet_rows(OBS_OUTPUT)
+    return parquet_rows(output_path)
 
-
-def compute_quality_report() -> dict:
+def compute_quality_report(unified_path: Path, observations_path: Path) -> dict:
     q = f"""
     WITH unified AS (
-      SELECT * FROM read_parquet('{UNIFIED_OUTPUT}')
+      SELECT * FROM read_parquet('{unified_path}')
     )
     SELECT
       count(*) AS total_rows,
@@ -103,7 +104,7 @@ def compute_quality_report() -> dict:
     source_counts = duckdb.execute(
         f"""
         SELECT source, source_platform, count(*) AS n
-        FROM read_parquet('{UNIFIED_OUTPUT}')
+        FROM read_parquet('{unified_path}')
         GROUP BY 1, 2
         ORDER BY 1, 2
         """
@@ -112,7 +113,7 @@ def compute_quality_report() -> dict:
     swe_source_counts = duckdb.execute(
         f"""
         SELECT source, source_platform, count(*) AS n
-        FROM read_parquet('{UNIFIED_OUTPUT}')
+        FROM read_parquet('{unified_path}')
         WHERE is_swe
         GROUP BY 1, 2
         ORDER BY 1, 2
@@ -122,7 +123,7 @@ def compute_quality_report() -> dict:
     seniority_swe = duckdb.execute(
         f"""
         SELECT seniority_imputed, count(*) AS n
-        FROM read_parquet('{UNIFIED_OUTPUT}')
+        FROM read_parquet('{unified_path}')
         WHERE is_swe
         GROUP BY 1
         ORDER BY n DESC, seniority_imputed
@@ -132,7 +133,7 @@ def compute_quality_report() -> dict:
     date_flags = duckdb.execute(
         f"""
         SELECT source, source_platform, date_flag, count(*) AS n
-        FROM read_parquet('{UNIFIED_OUTPUT}')
+        FROM read_parquet('{unified_path}')
         GROUP BY 1, 2, 3
         ORDER BY 1, 2, n DESC
         """
@@ -147,12 +148,12 @@ def compute_quality_report() -> dict:
             name: parquet_rows(path) for name, path in STAGE_INPUTS.items() if path.exists()
         },
         "columns": {
-            "unified": parquet_columns(UNIFIED_OUTPUT),
-            "unified_observations": parquet_columns(OBS_OUTPUT),
+            "unified": parquet_columns(unified_path),
+            "unified_observations": parquet_columns(observations_path),
         },
         "funnel": {
             "final_unified": totals[0],
-            "final_observations": parquet_rows(OBS_OUTPUT),
+            "final_observations": parquet_rows(observations_path),
             "final_swe": totals[1],
             "final_control": totals[2],
             "final_adjacent": totals[3],
@@ -201,7 +202,7 @@ def compute_quality_report() -> dict:
     }
 
 
-def write_log(report: dict) -> None:
+def build_log_text(report: dict) -> str:
     lines = [
         "PREPROCESSING PIPELINE LOG",
         "==========================",
@@ -257,7 +258,7 @@ def write_log(report: dict) -> None:
     for row in report["seniority_distribution_swe"]:
         lines.append(f"{row['seniority_imputed']:<12} {row['rows']:>10,}")
 
-    LOG_OUTPUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "\n".join(lines) + "\n"
 
 
 def main() -> None:
@@ -268,19 +269,36 @@ def main() -> None:
     print("FINAL OUTPUT: unified.parquet + unified_observations.parquet")
     print("=" * 70)
 
-    print(f"[1/4] Copying {UNIFIED_INPUT} -> {UNIFIED_OUTPUT}")
-    shutil.copy2(UNIFIED_INPUT, UNIFIED_OUTPUT)
+    tmp_unified_output = prepare_temp_output(UNIFIED_OUTPUT)
+    tmp_obs_output = prepare_temp_output(OBS_OUTPUT)
+    tmp_quality_output = prepare_temp_output(QUALITY_OUTPUT)
+    tmp_log_output = prepare_temp_output(LOG_OUTPUT)
 
-    print(f"[2/4] Building {OBS_OUTPUT.name}")
-    obs_rows = build_unified_observations()
-    print(f"  Observation rows written: {obs_rows:,}")
+    try:
+        print(f"[1/4] Copying {UNIFIED_INPUT} -> {tmp_unified_output}")
+        shutil.copy2(UNIFIED_INPUT, tmp_unified_output)
 
-    print(f"[3/4] Writing {QUALITY_OUTPUT.name}")
-    report = compute_quality_report()
-    QUALITY_OUTPUT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        print(f"[2/4] Building {OBS_OUTPUT.name}")
+        obs_rows = build_unified_observations(tmp_unified_output, tmp_obs_output)
+        print(f"  Observation rows written: {obs_rows:,}")
 
-    print(f"[4/4] Writing {LOG_OUTPUT.name}")
-    write_log(report)
+        print(f"[3/4] Writing {QUALITY_OUTPUT.name}")
+        report = compute_quality_report(tmp_unified_output, tmp_obs_output)
+        tmp_quality_output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+
+        print(f"[4/4] Writing {LOG_OUTPUT.name}")
+        tmp_log_output.write_text(build_log_text(report), encoding="utf-8")
+
+        promote_temp_file(tmp_unified_output, UNIFIED_OUTPUT)
+        promote_temp_file(tmp_obs_output, OBS_OUTPUT)
+        promote_temp_file(tmp_quality_output, QUALITY_OUTPUT)
+        promote_temp_file(tmp_log_output, LOG_OUTPUT)
+    except Exception:
+        cleanup_temp_file(tmp_unified_output)
+        cleanup_temp_file(tmp_obs_output)
+        cleanup_temp_file(tmp_quality_output)
+        cleanup_temp_file(tmp_log_output)
+        raise
 
     elapsed = time.time() - t0
     print(f"Complete in {elapsed:.1f}s")

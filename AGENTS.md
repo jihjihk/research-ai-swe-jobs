@@ -1,6 +1,6 @@
 # SWE Labor Market Research — Project Instructions
 
-Last updated: 2026-03-23
+Last updated: 2026-03-27
 
 ## Project Charter
 
@@ -45,9 +45,12 @@ Academic writing, research design, literature review, interview protocol, method
 ### Global Rules
 
 - Read `docs/1-research-design.md` first. It defines RQ1-RQ4 and the empirical strategy.
+- Use test-driven development for preprocessing and analysis-lane code whenever practical: write or update the smallest high-signal failing test first, then implement the code change, then rerun the targeted tests before broader validation.
 - Use DuckDB for parquet/CSV inspection through the repo virtualenv. Avoid inline Python for data inspection.
 - 31GB RAM limit. Use pyarrow chunked I/O for pipeline code. Never load full parquet into pandas unless the data volume is known to be safe.
 - Do not overwrite large data artifacts unless the task requires it.
+- Reader-facing pipeline outputs should be written to sibling temp files and atomically promoted only after the write completes; do not stream long-running writes directly to final artifact paths.
+- Treat the `tests/` suite as part of the preprocessing contract. Logic changes, schema-boundary changes, and dependency-seam changes should land with matching test updates.
 - After completing work, update this file if pipeline status, known issues, or priorities changed.
 
 ### Research Questions
@@ -88,6 +91,8 @@ Academic writing, research design, literature review, interview protocol, method
 | `docs/plan-exploration.md` | Validation + exploration spec (Stages 13-14) |
 | `docs/plan-analysis.md` | Analysis + robustness spec (Stages 15-16) |
 | `docs/handoff-preprocessing-implementation.md` | Task brief for pipeline work |
+| `docs/testing/preprocessing-test-strategy.md` | Testing strategy and stage coverage model |
+| `docs/testing/test-implementation-workpacks.md` | TDD execution playbook for stage test implementation |
 | `docs/6-methods-learning.md` | Methods guidance |
 | `research/AMPLIFY.md` | Writing instructions |
 
@@ -130,30 +135,38 @@ Academic writing, research design, literature review, interview protocol, method
 | 2 | `stage2_aggregators.py` | Updated 2026-03-23 | Added Turing to aggregator list with negative lookahead for Pharmaceutical/Medical; derives `company_name_effective` |
 | 3 | `stage3_boilerplate.py` | Updated 2026-03-23 | Expanded header (16 new), EEO (10 new), and benefits (22 new) patterns; ~44% accuracy still limited by rule-based approach; LLM version will supersede |
 | 4 | `stage4_dedup.py` | Rebuilt on current data | Canonicalizes `company_name_effective` and applies description-supported key-first dedup; needs validation sampling |
-| 5 | `stage5_classification.py` | Updated 2026-03-23 | Language-specific SWE regex (Fix 1); systems engineer disambiguation (Fix 2); mutual exclusion SWE>adj>control (Fix 4); native_backfill bug fixed; tier2_title_lookup expanded to 523 titles (Fix 6); remaining validation risk in weak-title and no-native title-prior behavior |
-| 6-8 | `stage678_normalize_temporal_flags.py` | Revalidated on current data | Row-preserving field normalization, temporal alignment, and quality/provenance flags; `posting_age_days` computed here; `ghost_job_risk` now keys off canonical `seniority_final` rather than the coarse 3-level bucket |
-| 9-12 | LLM stages | Stage 9-11 reworked and wired into orchestration; still needs larger validation | Stage 9 now does fixed-universe forward routing with controls disabled by default and technical-corpus classification skip logic; Stage 10/11 honor task-specific routing and Stage 11 feeds the final canonical output path; Stage 10 now pins Codex to `gpt-5.4-mini`, Claude to `haiku`, commits each successful task to SQLite immediately, and pauses 5 hours on quota/rate-limit failures before retrying; Stage 12 remains scaffolded / smoke-tested rather than production-validated |
+| 5 | `stage5_classification.py` | Updated 2026-03-27 | YOE extractor now uses raw `description`, clause-aware section segmentation, richer candidate tagging, revised resolver hierarchy, audit fields (`yoe_min_extracted`, `yoe_max_extracted`, `yoe_match_count`, `yoe_resolution_rule`, `yoe_all_mentions_json`), and stronger false-positive guards; title-side SWE recall was also widened for technical-family misses (`network/security/data-science/admin/cloud/SAP/VMware/Salesforce/ServiceNow/.NET/mainframe` patterns plus adjacent-family rescue); fixed YOE regressions now live in `tests/test_stage5_yoe_extractor.py`; remaining validation risk is the long tail of mixed multi-mention rows, hard-negative tuning, and broader SWE-vs-adjacent recall/precision sampling |
+| 6-8 | `stage678_normalize_temporal_flags.py` | Updated 2026-03-27 | Row-preserving field normalization, temporal alignment, and quality/provenance flags; `posting_age_days` computed here; `date_flag` is now a permissive sanity check (parseable dates with a 2020 floor, no future-date or scrape-window enforcement on `date_posted`); `ghost_job_risk` now keys off canonical `seniority_final` rather than the coarse 3-level bucket; rerun after the 2026-03-26 Stage 5 YOE changes if refreshed `stage8_final.parquet` is needed |
+| 9-12 | LLM stages | Updated 2026-03-27; larger validation still needed | Stage 9 now owns the LLM analysis universe, deterministic control-cohort selection, extraction-only routing/execution, short-description hard skips, and the posting-level cleaned-text contract (`description_core_llm`, `selected_for_control_cohort`). Stage 10 now owns classification routing/execution on the cleaned-description fallback chain, task-specific cache keys (`input_hash`), and the canonical row-preserving posting artifact at `stage10_llm_integrated.parquet`. The cache DB remains `preprocessing/cache/llm_responses.db`; Codex is pinned to `gpt-5.4-mini`, Claude to `haiku`; successful task responses commit to SQLite immediately; quota/rate-limit failures pause 5 hours before retry. Stage 11 is now compatibility-only at most, not the architectural posting boundary. Stage 12 remains scaffolded / smoke-tested rather than production-validated |
 | final | `stage_final_output.py` | Revalidated on current data | Produces `unified.parquet` and `unified_observations.parquet` |
 
 Current `unified.parquet` and `unified_observations.parquet`: rebuilt on current sources after the Stage 1 redesign and salary-field removal.
 
-Operational note for future Stage 9-11 reruns: rerun Stage 9 first, then run Stage 10 directly with only the runtime controls that matter operationally (for example `--provider-order claude --quota-wait-hours 5 --max-workers 48`). Model selection is fixed in code: Codex uses `gpt-5.4-mini` and Claude uses `haiku`. The durable Stage 10 checkpoint is `preprocessing/cache/llm_responses.db`; rerunning Stage 10 reuses completed `(description_hash, task_name, prompt_version)` cache entries even if the prior run stopped before writing `stage10_llm_results.parquet`.
+Operational note for future LLM reruns: rerun Stage 9 first, then run Stage 10 directly with only the runtime controls that matter operationally (for example `--provider-order claude --quota-wait-hours 5 --max-workers 48`). Model selection is fixed in code: Codex uses `gpt-5.4-mini` and Claude uses `haiku`. The durable checkpoint is `preprocessing/cache/llm_responses.db`; rerunning Stage 10 reuses completed `(input_hash, task_name, prompt_version)` cache entries even if the prior run stopped before writing the final Stage 10 parquet outputs.
 
 ### Known Issues
 
 - [ ] RQ1 seniority direction not robust until seniority_llm runs (T02)
 - [ ] Asaniczka has no entry-level seniority labels
 - [ ] Seniority classifier recall: entry 30-61%, associate 8-15%, director 17% (T02)
-- [ ] SWE embedding_llm tier still has elevated FP rate; needs swe_classification_llm (T04)
-- [ ] Rule-based boilerplate ~44% accuracy; LLM version (Stage 10/11) will supersede
+- [ ] SWE title_lookup_llm tier still has elevated FP rate; needs swe_classification_llm (T04)
+- [ ] Stage 5 rule-based technical-corpus recall was expanded on 2026-03-27, but a broader false-negative / false-positive validation pass is still needed before treating the new SWE-adjacent boundary as production-clean
+- [ ] Rule-based boilerplate ~44% accuracy; LLM extraction/classification sequence will supersede it once the redesigned Stage 9-10 flow is validated
+- [ ] YOE extractor substantially improved on 2026-03-26, but mixed multi-mention rows and clause-local hard negatives still need targeted validation before calling it production-clean
 - [ ] Stage 4 dedup needs validation sampling on real pairs
+- [ ] `preprocessing/intermediate/stage5_classification.parquet` is currently unreadable (`No magic bytes found at end of file`); add artifact-health checks before trusting downstream stages
 - [ ] LLM stages (9-12) need broader validation before full-batch run
+- [ ] Stage 9/10 artifacts need a fresh end-to-end rerun after the sequence redesign; current final outputs still look rule-based rather than LLM-augmented
 - [ ] ghost_job_risk too conservative (354 non-low); needs LLM ghost_assessment_llm (T15)
 - [ ] "Jobs via Dice" (130 rows): check if `real_employer` was extracted (T13)
 
 ### Exploration Phase Status
 
-**All exploration tasks (T01-T18) are complete** as of 2026-03-23.
+**All exploration tasks (T01-T20) are complete** as of 2026-03-24.
+
+T25-T26 handoff update on 2026-03-24: interview elicitation artifacts were added under `exploration/artifacts/` and the consolidated analysis handoff is `exploration/reports/SYNTHESIS.md`.
+
+Post-gate repair on 2026-03-24: T10 and T11 were rerun with `description_core`-first text, SWE-only T11 counters, and cleaned term filtering. The blocker in `exploration/reports/INDEX.md` was cleared.
 
 - Wave 1 (T01-T07): Data audit and validation -- done
 - Wave 2 (T08-T16): Exploratory analysis -- done
@@ -166,6 +179,6 @@ Operational note for future Stage 9-11 reruns: rerun Stage 9 first, then run Sta
 ### Priorities
 
 1. **Fix Stage 5 native_backfill bug** (blocking for analysis; workaround available)
-2. **Run seniority_llm** (Stage 10/11) to resolve seniority direction disagreement
-3. **Run swe_classification_llm** (Stage 10/11) to reduce 26% FP in embedding_llm tier
+2. **Run seniority_llm** (Stage 10) to resolve seniority direction disagreement
+3. **Run swe_classification_llm** (Stage 10) to reduce 26% FP in title_lookup_llm tier
 4. **Analysis phase** (Stages 15-16) -- read `exploration/reports/SYNTHESIS.md` first

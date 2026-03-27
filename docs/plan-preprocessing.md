@@ -143,9 +143,8 @@ Raw Data (3 sources: arshkon CSV, asaniczka CSV+joins, daily scraped CSVs)
   v
 intermediate/stage8_final.parquet (rule-based pipeline output)
   |
-  +-- Stage 9: LLM Pre-Filtering                    [task routing]
-  +-- Stage 10: LLM Task Execution                  [cached extraction + classification]
-  +-- Stage 11: LLM Response Integration            [row-preserving reattachment]
+  +-- Stage 9: LLM Extraction + Cleaned Text        [control cohort + extraction + row-preserving integration]
+  +-- Stage 10: LLM Classification + Final Merge    [classification + row-preserving posting artifact]
   +-- Stage 12: Three-Way Validation                 [UNCHANGED from v2]
   |
   v
@@ -157,7 +156,7 @@ data/unified_observations.parquet  (daily panel: one row per posting per scrape_
 
 **Design principle:** The rule-based pipeline (Stages 1-8) runs first and produces the baseline corpus plus fallback labels. The LLM layer (Stages 9-12) is a separate augmentation layer that can be validated independently; the baseline output remains usable without it, but the intended production analysis dataset adds LLM-derived columns alongside rule-based columns once the LLM stages are trusted. This means:
 - Stages 1-8 remain necessary because they define the baseline corpus, cache keys, and fallback labels
-- The default production pipeline does not stop at Stage 8; it continues through Stages 9-11 before writing `unified.parquet`
+- The default production pipeline does not stop at Stage 8; it continues through Stages 9-10 before writing `unified.parquet`
 - LLM outputs are additive — they do not erase the rule-based columns, which remain for ablations and failure fallback
 - If an LLM call fails for a posting, the rule-based values remain and the LLM columns stay null
 
@@ -165,7 +164,7 @@ data/unified_observations.parquet  (daily panel: one row per posting per scrape_
 - `unified.parquet`: One row per unique posting. For Kaggle sources, each posting appears once. For scraped data, each unique `id` appears once with its first-seen metadata. This is the primary analysis file.
 - `unified_observations.parquet`: One row per posting per scrape_date. Only meaningful for scraped data (Kaggle sources appear once). Tracks when postings appear/disappear from search results. Supports posting-duration analysis and daily-panel sensitivity checks.
 
-Each stage produces logged counts (rows in, rows out, rows flagged) for the methodology section.
+Each stage produces logged counts (rows in, rows out, rows flagged) for the methodology section. Reader-facing parquet and text outputs should be written to sibling temp files and atomically promoted only after the write completes.
 
 ---
 
@@ -358,9 +357,17 @@ Stage 6 output semantics:
 - `metro_area` is a posting-location metro label aligned to the study metro frame
   when Stage 6 can infer one
 - `metro_source` records how the metro was assigned (`search_metro`,
-  `manual_alias`, `city_state_lookup`, or `unresolved`)
+  `manual_alias`, `city_state_lookup`, `city_state_reference`, or `unresolved`)
 - `metro_confidence` is a coarse confidence tier for the metro assignment
 - location parsing is best-effort row-level enrichment, not a dedup or sample-definition step
+
+If `preprocessing/reference/metro_city_state_lookup.parquet` is present, Stage 6
+uses it as an offline fallback for unresolved US city/state pairs. Regenerate the
+reference files with:
+
+```bash
+./.venv/bin/python preprocessing/scripts/build_metro_city_state_reference.py
+```
 
 Stage 6 does not own:
 - rewriting `is_remote`
@@ -403,7 +410,7 @@ Stage 8 owns:
 
 Stage 8 output semantics:
 - `date_flag` is a row-level validation summary for `scrape_date` and `date_posted`
-- `description_hash` is the stable hash used for LLM caching and reattachment
+- `description_hash` is the stable raw-description lineage hash; LLM caching now uses task-specific `input_hash` values
 - `ghost_job_risk` is a rule-based heuristic derived from Stage 5 fields:
   canonical `seniority_final` (entry-like only), `yoe_extracted`, and
   `yoe_seniority_contradiction`
@@ -416,11 +423,11 @@ Stage 8 does not own:
 
 ---
 
-## Stage 9: LLM pre-filtering
+## Stage 9: Cohort Selection, Extraction, and Cleaned-Text Integration
 
 ### Goal
 
-Reduce the number of LLM calls to the subset where they materially improve the production dataset. Stage 9 is not a binary send/skip filter. It is a forward-only task router over a fixed default analysis universe.
+Define the LLM analysis universe, choose the deterministic control cohort, run extraction only, validate extraction responses, and materialize the posting-level cleaned-description contract that Stage 10 will classify against.
 
 ### Fixed default analysis universe
 
@@ -429,9 +436,10 @@ The default LLM routing universe is:
 - `is_english == True`
 - raw `description` is present
 
-Within that universe, the default production path includes:
+Within that universe, the default extraction corpus includes:
 - all Stage 5 `is_swe == True` rows
 - all Stage 5 `is_swe_adjacent == True` rows
+- selected control-cohort rows only
 
 Rows outside that universe stay in the dataset, but they are not part of the default LLM routing path.
 
@@ -439,105 +447,73 @@ This explicitly excludes:
 - non-English rows
 - rows with null/empty raw `description`
 - Indeed rows in the default production path
-- control rows in the default production path
+- control rows that were not selected into the deterministic control cohort
 - unresolved Stage 5 rows as a default LLM-recovery target
 
-Unresolved-row recovery is moved to a separate audit/sensitivity workflow, not the core pipeline. Stage 9 does not route rows back in after Stage 11.
+Unresolved-row recovery is moved to a separate audit/sensitivity workflow, not the core pipeline.
 
-### Task routing model
+### Short-description hard skip
 
-Stage 9 assigns two independent task flags:
-- `needs_llm_classification`
-- `needs_llm_extraction`
+If raw `description` is present but has fewer than 15 words:
+- do not send the row to extraction
+- set `description_core_llm = ''`
+- record the skip reason on the posting row
+- let Stage 10 inherit that exclusion when it builds classification candidates
 
-This is the key design change. Boilerplate extraction and classification are routed separately.
+### Control cohort selection
 
-### Row-family routing rules
+Controls are selected before any extraction calls are planned.
 
-**1. SWE rows (`is_swe == True`):**
-- `needs_llm_extraction = True`
-- `needs_llm_classification = True` only when the rule-based labels are not already high-confidence
+Recommended algorithm:
+1. Build the eligible control pool at the extraction call unit using the same base text rules as extraction.
+2. Create `control_bucket`:
+   - scraped rows: `scraped|YYYY-WW`
+   - historical rows: `source|period`
+3. Match the total selected controls to eligible SWE counts by bucket, redistributing shortfall to buckets with spare capacity.
+4. Rank controls deterministically inside each bucket using a stable pseudo-random score derived from `control_bucket` and `extraction_input_hash`.
+5. Select the lowest-score controls up to each bucket target.
 
-**2. SWE-adjacent rows (`is_swe_adjacent == True`):**
-- `needs_llm_extraction = True`
-- `needs_llm_classification = True` only when the rule-based labels are not already high-confidence
-
-**3. Control rows (`is_control == True`):**
-- `needs_llm_extraction = False` by default
-- `needs_llm_classification = False` by default
-
-Controls stay in the dataset, but they are excluded from the default LLM routing path to keep production task volume tractable. Control extraction can be enabled in a separate sensitivity run when cross-occupation text comparisons need `description_core_llm`.
-
-### Classification skip logic inside the technical corpus
-
-For the default technical corpus (`is_swe` or `is_swe_adjacent`), skip LLM classification when all of the following are true:
-- `swe_classification_tier` is one of `regex`, `embedding_high`, or `embedding_llm`
-- `seniority_source` starts with `title_`
-- `ghost_job_risk == "low"`
-
-These rows keep rule-based occupation and seniority labels in the default dataset, while still receiving LLM boilerplate extraction.
-
-Route LLM classification when any of the following are true:
-- `swe_classification_tier == "embedding_adjacent"`
-- `seniority_source` is `unknown` or `description_explicit`
-- `ghost_job_risk != "low"`
-
-### Hard LLM exclusions
-
-Set both task flags to `False` when:
-- `is_english != True`
-- raw `description` is null/empty
-- `source_platform != "linkedin"` in the default run
-
-### Description dedup for caching
-
-Stage 9 still deduplicates by `description_hash` before Stage 10:
-- Compute or reuse `sha256(description_text)` from Stage 8
-- Build the Stage 10 queue at one row per unique `description_hash`
-- OR task flags across all postings sharing the same hash
-
-This remains the main volume reducer, but it now operates on a task-routed candidate set rather than a single generic queue.
+The selected cohort must be stable across reruns and monotone as the eligible SWE corpus grows.
 
 ### Required Stage 9 outputs
 
-**Row-level audit table:**
-- original Stage 8 columns
-- `needs_llm_classification`
-- `needs_llm_extraction`
-- `llm_route_group`
-- `llm_skip_reason`
+- `preprocessing/intermediate/stage9_control_cohort.parquet`
+- `preprocessing/intermediate/stage9_llm_extraction_candidates.parquet`
+- `preprocessing/intermediate/stage9_llm_extraction_results.parquet`
+- `preprocessing/intermediate/stage9_llm_cleaned.parquet`
 
-**Hash-level Stage 10 queue:**
-- one row per unique `description_hash`
-- representative prompt fields (`job_id`, `source`, `source_platform`, `title`, `company_name`, `description`, `description_hash`)
-- task flags OR-ed across rows sharing the hash
+`stage9_llm_cleaned.parquet` is row-preserving and posting-level. It should carry the stable cleaned-text contract used later by Stage 10, especially:
+- `description_core_llm`
+- `selected_for_control_cohort`
+- short-description skip state needed by Stage 10 classification routing
 
-### Expected default volume profile
-
-On the current March 2026 / 2024 rebuilt corpus, the default routing design implies approximately:
-- ~31.7K unique technical hashes (`SWE` + `SWE-adjacent`) for LLM extraction
-- ~15.6K unique technical hashes for LLM classification after skip logic
-
-With the current Stage 10 split-task architecture, that is roughly:
-- ~31.7K extraction task calls
-- ~15.6K classification task calls
-- ~47.3K total task calls before cache hits from prior runs
-
-These are production-path estimates, not the cost of a broader unresolved-row recovery audit or a separate control-extraction sensitivity run.
-
-## Stage 10: LLM task execution
+## Stage 10: Classification Routing, Execution, and Final Integration
 
 ### Architecture
 
-Stage 10 consumes the Stage 9 hash-level queue and executes the requested LLM tasks per unique `description_hash`.
+Stage 10 consumes `stage9_llm_cleaned.parquet`, builds the classification candidate set, executes classification per unique `classification_input_hash`, and writes the canonical posting-level LLM artifact.
 
-The current production architecture uses two cached tasks:
-- classification task: SWE / seniority / ghost assessment
-- extraction task: adaptive sentence-like unit boilerplate selection
+The classification universe is:
+- `source_platform == "linkedin"`
+- `is_english == True`
+- not excluded by the Stage 9 short-description rule
+- technical corpus plus `selected_for_control_cohort == True`
 
-This avoids forcing every routed row through the full task bundle. The queue produced by Stage 9 decides which task(s) each hash needs.
+Default classification skip logic preserves the current production behavior. Skip LLM classification when all of the following hold:
+- `swe_classification_tier` is one of `regex`, `embedding_high`, or `title_lookup_llm`
+- `seniority_source` starts with `title_`
+- `ghost_job_risk == "low"`
 
-All prompts operate on the full job description, not truncated snippets. This preserves the v3 principle of avoiding the truncation bias that plagued the earlier LLM validation.
+The critical redesign change is the classifier input order:
+- `description_core_llm` when non-empty
+- else `description_core`
+- else raw `description`
+
+Stage 10 produces:
+- `preprocessing/intermediate/stage10_llm_classification_results.parquet`
+- `preprocessing/intermediate/stage10_llm_integrated.parquet`
+
+This makes Stage 10 the canonical posting-level artifact. Stage 11 is compatibility-only if it exists at all.
 
 ### Model selection
 
@@ -557,106 +533,24 @@ Provider order is a runtime choice:
 
 ### Prompt design
 
-Stage 10 maintains two prompt families derived from four semantic tasks:
-- classification prompt: SWE classification + seniority + ghost assessment
-- extraction prompt: adaptive sentence-like unit boilerplate selection
+Stage 10 maintains the classification prompt family only:
+- SWE classification
+- seniority
+- ghost assessment
+- YOE extraction
 
 ```
-You are a labor economics research assistant classifying job postings.
-Perform the requested task(s) below on this job posting. Return ONLY valid JSON.
+Classification prompt:
+- `swe_classification`
+- `seniority`
+- `ghost_assessment`
+- `yoe_min_years`
 
-TASK 1 — SWE CLASSIFICATION
-Classify this role into exactly one category:
-- "SWE": The role's primary function is writing, designing, or maintaining
-  software. Includes: software engineers, full-stack developers,
-  frontend/backend engineers, mobile developers, ML engineers, data engineers
-  who primarily write code, DevOps engineers whose description emphasizes
-  writing code for infrastructure. Test: does this person spend most of their
-  time producing or maintaining code?
-- "SWE_ADJACENT": Technical roles that involve some code but where coding is
-  not the primary function. Includes: data analysts who write SQL/Python,
-  DevOps focused on operations rather than code, QA/SDET roles, technical
-  program managers, solutions architects. Test: this person uses code as a
-  tool but their primary output is not software.
-- "NOT_SWE": Roles where software development is not a meaningful part of
-  the job. Includes: hardware engineers, civil/mechanical/electrical
-  engineers, sales engineers, support engineers, project managers,
-  non-technical roles. Also includes roles with misleading titles (e.g.,
-  "Systems Engineer - Train Control" at a transit agency).
-
-Edge cases:
-- Firmware engineers: SWE if primarily writing firmware code, SWE_ADJACENT if
-  primarily hardware integration
-- "Systems Engineer": depends entirely on description
-- Data engineers: SWE if building data pipelines in code, SWE_ADJACENT if
-  managing/analyzing data
-
-TASK 2 — SENIORITY CLASSIFICATION
-Look ONLY for explicit seniority signals in the title and description:
-- "junior", "jr", "intern", "new grad", "entry-level", "early career" -> "entry"
-- "associate", "I", "1" (as a level code) -> "associate"
-- "senior", "sr", "II", "2", "staff", "principal", "lead", "architect" -> "mid-senior"
-- "director", "VP", "head of", "chief" -> "director"
-- No clear signal -> "unknown"
-
-IMPORTANT: Do NOT infer seniority from:
-- Responsibilities, tech stack complexity, or team size
-- Years-of-experience requirements (companies inflate YOE)
-- Company reputation or typical leveling
-When in doubt, classify as "unknown". We want high precision, not high recall.
-
-TASK 3 — BOILERPLATE IDENTIFICATION
-Segment the description into numbered sentence-like units before the call.
-Units may be blank-line blocks, headings, bullets, metadata lines, or sentence
-groups. Mark only the units that are clearly boilerplate.
-
-Boilerplate units include: company overview/About Us, EEO/diversity statements,
-benefits/compensation sections, application instructions, recruiter platform
-framing (e.g., "This is a job that [name] is recruiting for..."), corporate
-mission/values statements, and metadata-only fragments.
-
-Core job units include: role description, responsibilities, requirements,
-qualifications, nice-to-haves, tech stack, and mixed units that contain real
-job content.
-
-Rules:
-- Prefer high precision on dropping. When uncertain, keep the unit.
-- If the description collapses to one unit or the segmentation is nonsensical,
-  return `cannot_complete`.
-- Do not paraphrase or reconstruct text in the response.
-
-TASK 4 — GHOST JOB ASSESSMENT
-Assess whether this posting's requirements are realistic for its stated level:
-- "realistic": Requirements match the stated or apparent seniority level
-- "inflated": Requirements are significantly higher than what the stated
-  level would normally demand (e.g., entry-level title asking for 5+ years,
-  or a junior role requiring expertise in 10+ technologies)
-- "ghost_likely": Strong signals this is not a genuine open position
-  (impossibly broad requirements, contradictory signals, copy-paste template
-  with no specific details)
-
-If the seniority is unclear, assess based on what a reasonable interpretation
-of the role would require.
-
----
-
-TITLE: {title}
-COMPANY: {company}
-DESCRIPTION:
-{full_description}
-
----
-
-Respond with task-specific JSON:
-- classification task:
-  - `swe_classification`
-  - `seniority`
-  - `ghost_assessment`
-- extraction task:
-  - `task_status`
-  - `boilerplate_unit_ids`
-  - `uncertain_unit_ids`
-  - `reason`
+The classification prompt keeps seniority and YOE explicitly separated:
+- `seniority` uses only title/description seniority language and must not be
+  inferred from YOE.
+- `yoe_min_years` is a cross-check field. It extracts the binding YOE floor for
+  the role from explicit YOE mentions only and may return `null`.
 ```
 
 ### Seniority classification — design rationale
@@ -678,6 +572,22 @@ This is the most important design change from v1. The LLM validation showed that
 
 YOE mentions do NOT drive the enum. An "entry-level" posting asking for "3+ years" is still classified as entry, and separately flagged as potentially inflated in ghost job assessment.
 
+### LLM YOE cross-check field
+
+The classification prompt also returns `yoe_min_years`, a nullable LLM
+cross-check column.
+
+Design intent:
+- This is not a seniority input. It exists only for ablation / cross-validation
+  against the Stage 5 rule-based YOE extractor.
+- The LLM returns the binding YOE floor for the role using explicit YOE
+  mentions only.
+- If the posting gives multiple acceptable qualification paths, return the
+  lowest path-level YOE floor.
+- Tool/framework/domain-specific YOE counts if it is the only YOE mention on a
+  path, or if it is higher than the general-role YOE on that path.
+- If no relevant explicit YOE exists, return `null`.
+
 ### Three seniority ablations
 
 Preserve all three seniority signals for analysis:
@@ -689,9 +599,9 @@ Preserve all three seniority signals for analysis:
 | `seniority_native` | Canonically mapped native/source-provided label | Cross-validation |
 | `seniority_raw` | Original source label before mapping | Mapping audit / refinement |
 
-### Boilerplate removal — unit-ID contract
+### Boilerplate removal — cleaned-text contract
 
-Stage 10 does not return cleaned text. It returns which sentence-like units are boilerplate and which units are uncertain. Stage 11 reconstructs the cleaned description by keeping all non-boilerplate units in original order.
+Stage 9 returns extraction responses, validates them locally, and reconstructs `description_core_llm` on the posting row before Stage 10 classification begins.
 
 Validation happens locally:
 
@@ -705,7 +615,7 @@ Validation happens locally:
 | Column | Source |
 |---|---|
 | `description_core` | Rule-based removal (existing, Stage 3) |
-| `description_core_llm` | LLM-based removal reconstructed locally from Stage 10 unit IDs |
+| `description_core_llm` | LLM-based removal reconstructed locally from Stage 9 extraction output |
 
 Analysis will run on both and compare results.
 
@@ -713,19 +623,21 @@ Analysis will run on both and compare results.
 
 Apply these improvements from the LLM validation report (implemented in Stage 5 regardless of LLM augmentation):
 
-1. **YOE cross-check column:** Regex for "X+ years", "X-Y years experience" patterns. Extract the minimum YOE mentioned. Compare against imputed seniority level and flag contradictions (e.g., entry-level title + 5+ YOE requirement). This feeds ghost job detection, not seniority assignment.
+1. **YOE cross-check columns:** Extract YOE from raw `description`, not `description_core`, using layered candidate rules rather than one narrow regex. Segment raw text into lightweight section-aware clauses, tag candidates with richer role/section metadata, resolve a posting-level primary YOE into `yoe_extracted`, preserve lower/upper bounds in `yoe_min_extracted` and `yoe_max_extracted`, store `yoe_match_count`, `yoe_resolution_rule`, and `yoe_all_mentions_json` for auditability, and then compare the resolved primary YOE against canonical `seniority_final` to flag contradictions. `seniority_imputed` remains available for ablation and QA, but `yoe_seniority_contradiction` follows the canonical resolved seniority used downstream. This feeds ghost job detection, not seniority assignment. Fixed YOE regression cases now live in `tests/test_stage5_yoe_extractor.py`.
 
 2. **Entry-level strict filter:** For entry-level-specific analysis, filter to postings where the title contains explicit junior signals: "Junior", "Entry", "New Grad", "I" (as a level), "Intern", "Associate". This reduces noise from mislabeled postings.
 
 ---
 
-## Stage 11: LLM response integration
+## Stage 11: Compatibility Alias Only
 
 ### Caching
 
-- **Cache key:** `sha256(description_text)`
+- **Cache key:** task-specific `input_hash`
+- extraction: `sha256(title, company_name, raw description)`
+- classification: `sha256(title, company_name, classifier input)`
 - **Cache storage:** SQLite database at `preprocessing/cache/llm_responses.db`
-  - Schema: one row per `(description_hash, task_name, prompt_version)` with `model`, `response_json`, `timestamp`, and `tokens_used`
+  - Schema: one row per `(input_hash, task_name, prompt_version)` with `model`, `response_json`, `timestamp`, and `tokens_used`
 - **On re-run:** Check cache first. Only call LLM for uncached descriptions.
 - **Cache invalidation:** If the prompt changes (tracked by `prompt_version`), re-run all cached entries with the new prompt. Keep old entries for comparison.
 - **Commit behavior:** Successful task responses are committed immediately to SQLite, so reruns resume from cache even if Stage 10 was interrupted before writing its final parquet.
@@ -749,7 +661,7 @@ Apply these improvements from the LLM validation report (implemented in Stage 5 
 
 For a production rerun from the current Stage 8 artifact:
 
-1. Rebuild the Stage 9 queue:
+1. Run Stage 9:
    ```bash
    /usr/bin/time -v ./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py
    ```
@@ -762,48 +674,33 @@ For a production rerun from the current Stage 8 artifact:
      --max-workers 48
    ```
 
-3. Run Stage 11 after Stage 10 finishes:
-   ```bash
-   /usr/bin/time -v ./.venv/bin/python preprocessing/scripts/stage11_llm_integrate.py
-   ```
-
-4. If you use the orchestrator from Stage 9 onward, be aware that the simplest and most transparent path for LLM reruns is still the direct Stage 9 / 10 / 11 commands above.
+3. If you keep the optional compatibility alias, treat it as transitional only. The architectural handoff is Stage 10, not Stage 11.
 
 Operational behavior worth remembering:
 - Successful Stage 10 task responses are committed to SQLite immediately after each task finishes.
-- The durable checkpoint is `preprocessing/cache/llm_responses.db`, not `stage10_llm_results.parquet`.
+- The durable checkpoint is `preprocessing/cache/llm_responses.db`, not the parquet outputs.
 - If Stage 10 is interrupted, rerun the same Stage 10 command; completed tasks will be loaded from cache and skipped.
-- Cache reuse keys on `(description_hash, task_name, prompt_version)`.
+- Cache reuse keys on `(input_hash, task_name, prompt_version)`.
 
 ### Memory constraint
 
 31GB RAM limit. Continue using pyarrow chunked I/O:
 - Process cache lookups / output assembly in batches of 1,000 descriptions
 - Use SQLite as the durable incremental checkpoint during Stage 10
-- Write `stage10_llm_results.parquet` after the cached/fresh task set is complete
-- Final merge with `stage9_skip_reasons.parquet` in Stage 11 is chunked and row-preserving
+- Write the Stage 10 results/integrated parquets after the cached/fresh task set is complete
+- Any compatibility alias should be a row-preserving copy of the Stage 10 integrated output, not a new integration boundary
 
 ### Integration into unified.parquet
 
-After all LLM calls complete, merge LLM-derived columns into the final output:
+After Stage 10 completes, the posting-level integrated parquet is the direct input to final output generation:
 
 ```python
-# For each row in stage8_final.parquet:
-# If a classification response exists for this description_hash:
+# For each row in stage10_llm_integrated.parquet:
 row["swe_classification_llm"] = class_response["swe_classification"]
 row["seniority_llm"] = class_response["seniority"]
 row["ghost_assessment_llm"] = class_response["ghost_assessment"]
-
-# If an extraction response exists for this description_hash and it completed:
-row["llm_extraction_status"] = extract_response["task_status"]
-row["llm_extraction_unit_ids"] = extract_response["boilerplate_unit_ids"]
-row["llm_extraction_uncertain_unit_ids"] = extract_response["uncertain_unit_ids"]
-row["description_core_llm"] = reconstruct_description_core(
-    row["description"],
-    extract_response["boilerplate_unit_ids"],
-)
-
-# Else: those columns remain null and the rule-based columns remain available
+row["yoe_min_years_llm"] = class_response["yoe_min_years"]
+# description_core_llm and extraction diagnostics were already integrated in Stage 9
 ```
 
 ---
@@ -904,18 +801,25 @@ with both `scrape_date` and `date_posted`.
 | `seniority_llm` | string | entry / associate / mid-senior / director / unknown / null | LLM Stage 10 |
 | `description_core_llm` | string | Core content reconstructed locally from Stage 10 unit IDs / null | LLM Stage 10 |
 | `ghost_assessment_llm` | string | realistic / inflated / ghost_likely / null | LLM Stage 10 |
+| `yoe_min_years_llm` | int | Binding LLM YOE floor for the role / null | LLM Stage 10 |
 | `llm_extraction_status` | string | ok / cannot_complete / null | LLM Stage 10 |
 | `llm_extraction_unit_ids` | string | JSON list of boilerplate unit IDs / null | LLM Stage 10 |
 | `llm_extraction_uncertain_unit_ids` | string | JSON list of uncertain unit IDs / null | LLM Stage 10 |
 | `llm_model` | string | Model name that produced the classification / null | LLM Stage 10 |
 | `llm_prompt_version` | string | Prompt version hash / null | LLM Stage 10 |
-| `yoe_extracted` | float | Minimum years-of-experience mentioned in description / null | Stage 5 improvement |
-| `yoe_seniority_contradiction` | bool | True if YOE contradicts seniority label | Stage 5 improvement |
+| `yoe_extracted` | float | Resolved primary years-of-experience requirement from raw description / null | Stage 5 improvement |
+| `yoe_min_extracted` | float | Minimum valid accepted YOE mention / null | Stage 5 improvement |
+| `yoe_max_extracted` | float | Maximum valid accepted YOE bound / null | Stage 5 improvement |
+| `yoe_match_count` | int | Number of accepted YOE mentions used for resolution | Stage 5 improvement |
+| `yoe_resolution_rule` | string | Rule used to choose `yoe_extracted` | Stage 5 improvement |
+| `yoe_all_mentions_json` | string | Compact JSON audit trail of YOE candidate mentions | Stage 5 improvement |
+| `yoe_seniority_contradiction` | bool | True if resolved primary YOE contradicts canonical `seniority_final` | Stage 5 improvement |
 
 `seniority_source` is a controlled rule-based provenance field with values:
 `title_keyword`, `title_level_number`, `description_explicit`, or `unknown`.
 YOE extraction remains a cross-check only and does not create its own seniority
-source state.
+source state. `yoe_min_years_llm` is also cross-validation only and must not
+drive seniority assignment.
 
 **Null values in LLM columns** mean that the posting was not routed to that specific LLM task by Stage 9 or that the corresponding LLM call failed. In either case, the rule-based columns remain available as fallback / ablation columns.
 
@@ -1044,29 +948,16 @@ Phase 1: Rule-based pipeline rebuild
 
 Phase 2: LLM augmentation
   3. Stage 9: Pre-filtering script                 depends on: stage8_final.parquet
-     - Compute description hashes
-     - Apply skip conditions
-     - Output: candidate list with description hashes
+     - Select control cohort
+     - Apply short-description skips
+     - Output: extraction candidates, extraction results, and cleaned posting table
      |
-  4. Profiling run (small stratified subset, then 100 calls) depends on: Stage 9
-     - Test both Codex and Claude CLI
-     - Measure latency, cost, parse reliability
-     - Include one-unit, multi-unit, and metadata-heavy descriptions
-     - Manual review of 10 responses
-     - Decision: which model to use
-     |
-  5. Stage 10: Full LLM batch                      depends on: profiling run
-     - Run all candidate descriptions through chosen model
+  4. Stage 10: Full classification batch           depends on: Stage 9
+     - Run classification against cleaned-description-first inputs
      - Cache responses in SQLite
-     - Log errors separately
+     - Write classification results and final posting-level integrated artifact
      |
-  6. Stage 11: Integration                         depends on: Stage 10
-     - Merge LLM columns into stage8_final.parquet
-     - Reconstruct `description_core_llm` locally from unit IDs
-     - Validate unit IDs against the source description
-     - Produce unified.parquet + unified_observations.parquet
-     |
-  7. Stage 12: Three-way validation                depends on: Stage 11
+  5. Stage 12: Three-way validation                depends on: Stage 10
      - Sample stratified postings
      - Run GPT-5.4 (full) on the validation sample
      - Compute agreement matrices and kappa

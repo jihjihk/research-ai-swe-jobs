@@ -46,126 +46,188 @@ STAGES = [
         "num": 1,
         "name": "Ingest & Schema Unification",
         "script": "stage1_ingest.py",
-        "output": "stage1_unified.parquet",
-        "min_rows": 1_200_000,
+        "outputs": [
+            {"path": INTERMEDIATE_DIR / "stage1_unified.parquet", "kind": "parquet", "min_rows": 1_200_000},
+            {"path": INTERMEDIATE_DIR / "stage1_observations.parquet", "kind": "parquet", "min_rows": 1_200_000},
+        ],
         "timeout_seconds": 2 * 3600,
     },
     {
         "num": 2,
         "name": "Aggregator Handling",
         "script": "stage2_aggregators.py",
-        "output": "stage2_aggregators.parquet",
-        "min_rows": 1_200_000,
-        "check_col": "company_name_effective",
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage2_aggregators.parquet",
+                "kind": "parquet",
+                "min_rows": 1_200_000,
+                "check_col": "company_name_effective",
+            }
+        ],
         "timeout_seconds": 2 * 3600,
     },
     {
         "num": 3,
         "name": "Boilerplate Removal",
         "script": "stage3_boilerplate.py",
-        "output": "stage3_boilerplate.parquet",
-        "min_rows": 1_200_000,
-        "check_col": "description_core",
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage3_boilerplate.parquet",
+                "kind": "parquet",
+                "min_rows": 1_200_000,
+                "check_col": "description_core",
+            }
+        ],
         "timeout_seconds": 2 * 3600,
     },
     {
         "num": 4,
         "name": "Company Canonicalization + Deduplication",
         "script": "stage4_dedup.py",
-        "output": "stage4_dedup.parquet",
-        "min_rows": 1_000_000,
-        "check_col": "company_name_canonical",
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage4_dedup.parquet",
+                "kind": "parquet",
+                "min_rows": 1_000_000,
+                "check_col": "company_name_canonical",
+            },
+            {
+                "path": INTERMEDIATE_DIR / "stage4_company_name_lookup.parquet",
+                "kind": "parquet",
+                "min_rows": 1,
+                "check_col": "company_name_canonical",
+            },
+        ],
         "timeout_seconds": 2 * 3600,
     },
     {
         "num": 5,
         "name": "Classification (SWE + Seniority)",
         "script": "stage5_classification.py",
-        "output": "stage5_classification.parquet",
-        "min_rows": 1_000_000,
-        "check_col": "seniority_final",
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage5_classification.parquet",
+                "kind": "parquet",
+                "min_rows": 1_000_000,
+                "check_col": "seniority_final",
+            }
+        ],
         "timeout_seconds": 2 * 3600,
     },
     {
         "num": "6-8",
         "name": "Normalization + Temporal + Quality Flags",
         "script": "stage678_normalize_temporal_flags.py",
-        "output": "stage8_final.parquet",
-        "min_rows": 1_000_000,
-        "check_col": "period",
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage8_final.parquet",
+                "kind": "parquet",
+                "min_rows": 1_000_000,
+                "check_col": "period",
+            }
+        ],
         "timeout_seconds": 2 * 3600,
     },
     {
         "num": 9,
-        "name": "LLM Routing / Pre-filtering",
+        "name": "LLM Extraction + Cleaned Text Integration",
         "script": "stage9_llm_prefilter.py",
-        "output": "stage9_llm_candidates.parquet",
-        "min_rows": 1,
-        "check_col": "needs_llm_extraction",
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage9_llm_extraction_candidates.parquet",
+                "kind": "parquet",
+                "min_rows": 1,
+                "check_col": "extraction_input_hash",
+            },
+            {
+                "path": INTERMEDIATE_DIR / "stage9_llm_extraction_results.parquet",
+                "kind": "parquet",
+                "min_rows": 1,
+                "check_col": "extraction_response_json",
+            },
+            {
+                "path": INTERMEDIATE_DIR / "stage9_llm_cleaned.parquet",
+                "kind": "parquet",
+                "min_rows": 1_000_000,
+                "check_col": "description_core_llm",
+            },
+            {
+                "path": INTERMEDIATE_DIR / "stage9_control_cohort.parquet",
+                "kind": "parquet",
+                "min_rows": 1,
+                "check_col": "selected_for_control_cohort",
+            },
+        ],
         "timeout_seconds": 2 * 3600,
     },
     {
         "num": 10,
-        "name": "LLM Task Execution",
+        "name": "LLM Classification + Final Integration",
         "script": "stage10_llm_classify.py",
-        "output": "stage10_llm_results.parquet",
-        "min_rows": 1,
-        "check_col": "description_hash",
-        # Stage 10 makes external LLM calls and can run for many hours on a full batch.
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage10_llm_classification_results.parquet",
+                "kind": "parquet",
+                "min_rows": 1,
+                "check_col": "classification_input_hash",
+            },
+            {
+                "path": INTERMEDIATE_DIR / "stage10_llm_integrated.parquet",
+                "kind": "parquet",
+                "min_rows": 1_000_000,
+                "check_col": "description_core_llm",
+            }
+        ],
         "timeout_seconds": 24 * 3600,
-    },
-    {
-        "num": 11,
-        "name": "LLM Response Integration",
-        "script": "stage11_llm_integrate.py",
-        "output": "stage11_llm_integrated.parquet",
-        "min_rows": 1_000_000,
-        "check_col": "description_core_llm",
-        "timeout_seconds": 6 * 3600,
     },
     {
         "num": "final",
         "name": "Final Output Generation",
         "script": "stage_final_output.py",
-        "output": None,  # Writes to data/unified.parquet directly
+        "outputs": [
+            {"path": DATA_DIR / "unified.parquet", "kind": "parquet", "min_rows": 1_000_000},
+            {"path": DATA_DIR / "unified_observations.parquet", "kind": "parquet", "min_rows": 1_000_000},
+            {"path": DATA_DIR / "quality_report.json", "kind": "text"},
+            {"path": DATA_DIR / "preprocessing_log.txt", "kind": "text"},
+        ],
         "timeout_seconds": 6 * 3600,
     },
 ]
 
 
 def validate_output(stage: dict) -> bool:
-    """Check that a stage's output exists and meets minimum requirements."""
-    if stage["output"] is None:
-        # Final stage writes to data/
-        output = DATA_DIR / "unified.parquet"
-    else:
-        output = INTERMEDIATE_DIR / stage["output"]
-
-    if not output.exists():
-        log.error(f"  Output not found: {output}")
-        return False
-
-    try:
-        pf = pq.ParquetFile(output)
-        rows = pf.metadata.num_rows
-        cols = pf.metadata.num_columns
-
-        min_rows = stage.get("min_rows", 0)
-        if rows < min_rows:
-            log.error(f"  Too few rows: {rows:,} (expected >= {min_rows:,})")
+    """Check that a stage's outputs exist and meet minimum requirements."""
+    for output_spec in stage["outputs"]:
+        output = output_spec["path"]
+        if not output.exists():
+            log.error(f"  Output not found: {output}")
             return False
 
-        check_col = stage.get("check_col")
-        if check_col and check_col not in pf.schema.names:
-            log.error(f"  Missing expected column: {check_col}")
+        if output_spec["kind"] != "parquet":
+            log.info(f"  Validated: {output}")
+            continue
+
+        try:
+            pf = pq.ParquetFile(output)
+            rows = pf.metadata.num_rows
+            cols = pf.metadata.num_columns
+
+            min_rows = output_spec.get("min_rows", 0)
+            if rows < min_rows:
+                log.error(f"  Too few rows in {output.name}: {rows:,} (expected >= {min_rows:,})")
+                return False
+
+            check_col = output_spec.get("check_col")
+            if check_col and check_col not in pf.schema.names:
+                log.error(f"  Missing expected column in {output.name}: {check_col}")
+                return False
+
+            log.info(f"  Validated {output.name}: {rows:,} rows, {cols} columns")
+        except Exception as e:
+            log.error(f"  Validation failed for {output.name}: {e}")
             return False
 
-        log.info(f"  Validated: {rows:,} rows, {cols} columns")
-        return True
-
-    except Exception as e:
-        log.error(f"  Validation failed: {e}")
-        return False
+    return True
 
 
 def run_stage(stage: dict) -> bool:

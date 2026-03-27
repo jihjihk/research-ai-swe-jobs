@@ -29,6 +29,7 @@ import pyarrow.parquet as pq
 from rapidfuzz import fuzz
 
 from company_name_canonicalization import build_company_name_lookup
+from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
@@ -164,7 +165,10 @@ def _titles_are_near_duplicates(a: str, b: str) -> bool:
 # Pass 1: Build the keep/drop index + description hashes
 # ---------------------------------------------------------------------------
 
-def build_stage4_company_lookup(input_path: Path) -> tuple[pd.DataFrame, dict[str, str], dict[str, str], str]:
+def build_stage4_company_lookup(
+    input_path: Path,
+    lookup_output_path: Path,
+) -> tuple[pd.DataFrame, dict[str, str], dict[str, str], str]:
     schema_names = pq.ParquetFile(input_path).schema.names
     company_source_col = "company_name_effective" if "company_name_effective" in schema_names else "company_name"
 
@@ -188,8 +192,8 @@ def build_stage4_company_lookup(input_path: Path) -> tuple[pd.DataFrame, dict[st
     for method, count in sorted(method_counts.items()):
         log.info("    %-16s %10s", method + ":", f"{count:,}")
 
-    lookup_df.to_parquet(LOOKUP_OUTPUT_PATH, index=False)
-    log.info("  Wrote lookup artifact: %s", LOOKUP_OUTPUT_PATH)
+    lookup_df.to_parquet(lookup_output_path, index=False)
+    log.info("  Wrote lookup artifact: %s", lookup_output_path)
 
     canonical_map = dict(
         zip(lookup_df["company_name_effective"], lookup_df["company_name_canonical"])
@@ -508,30 +512,43 @@ def run_stage4():
 
     input_path = INTERMEDIATE_DIR / "stage3_boilerplate.parquet"
     output_path = INTERMEDIATE_DIR / "stage4_dedup.parquet"
+    tmp_output_path = prepare_temp_output(output_path)
+    tmp_lookup_output_path = prepare_temp_output(LOOKUP_OUTPUT_PATH)
 
     pf = pq.ParquetFile(input_path)
     total_rows = pf.metadata.num_rows
     log.info(f"Input: {total_rows:,} rows")
 
-    _, canonical_map, method_map, company_source_col = build_stage4_company_lookup(input_path)
+    try:
+        _, canonical_map, method_map, company_source_col = build_stage4_company_lookup(
+            input_path,
+            tmp_lookup_output_path,
+        )
 
-    # Pass 1: determine which rows to keep
-    keep_indices, multi_loc_indices, funnel = pass1_build_index(
-        input_path,
-        company_source_col,
-        canonical_map,
-    )
+        # Pass 1: determine which rows to keep
+        keep_indices, multi_loc_indices, funnel = pass1_build_index(
+            input_path,
+            company_source_col,
+            canonical_map,
+        )
 
-    # Pass 2: write filtered output
-    written = pass2_write_output(
-        input_path,
-        output_path,
-        keep_indices,
-        multi_loc_indices,
-        company_source_col,
-        canonical_map,
-        method_map,
-    )
+        # Pass 2: write filtered output
+        written = pass2_write_output(
+            input_path,
+            tmp_output_path,
+            keep_indices,
+            multi_loc_indices,
+            company_source_col,
+            canonical_map,
+            method_map,
+        )
+    except Exception:
+        cleanup_temp_file(tmp_lookup_output_path)
+        cleanup_temp_file(tmp_output_path)
+        raise
+
+    promote_temp_file(tmp_lookup_output_path, LOOKUP_OUTPUT_PATH)
+    promote_temp_file(tmp_output_path, output_path)
 
     # -------------------------------------------------------------------
     # 4d. Dedup funnel report

@@ -24,8 +24,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
+
+from io_utils import write_parquet_atomic, write_text_atomic
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -222,11 +222,6 @@ def finalize_frame(df: pd.DataFrame) -> pd.DataFrame:
             out[col] = pd.NA
 
     return out[OUTPUT_COLUMNS]
-
-
-def write_parquet(df: pd.DataFrame, path: Path) -> None:
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, path, compression=PARQUET_COMPRESSION)
 
 
 def load_arshkon_companions() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -631,9 +626,9 @@ def run_stage1() -> tuple[pd.DataFrame, pd.DataFrame]:
     observations_path = INTERMEDIATE_DIR / "stage1_observations.parquet"
     summary_path = LOG_DIR / "stage1_ingest_summary.json"
 
-    write_parquet(canonical, unified_path)
-    write_parquet(observations, observations_path)
-    summary_path.write_text(json.dumps(summary, indent=2))
+    write_parquet_atomic(canonical, unified_path, compression=PARQUET_COMPRESSION)
+    write_parquet_atomic(observations, observations_path, compression=PARQUET_COMPRESSION)
+    write_text_atomic(json.dumps(summary, indent=2), summary_path)
 
     log.info("Saved %s", unified_path)
     log.info("Saved %s", observations_path)
