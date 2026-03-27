@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
+import random
 import re
 import sqlite3
 import statistics
@@ -13,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Callable
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -197,13 +200,32 @@ SWE_ENUM = {"SWE", "SWE_ADJACENT", "NOT_SWE"}
 SENIORITY_ENUM = {"entry", "associate", "mid-senior", "director", "unknown"}
 GHOST_ENUM = {"realistic", "inflated", "ghost_likely"}
 SUPPORTED_PROVIDERS = ("codex", "claude")
+ENGINE_TIER_FULL = "full"
+ENGINE_TIER_NON_INTRUSIVE = "non_intrusive"
+SUPPORTED_ENGINE_TIERS = (ENGINE_TIER_FULL, ENGINE_TIER_NON_INTRUSIVE)
 DEFAULT_QUOTA_WAIT_HOURS = 5.0
+DEFAULT_RETRY_SLEEP_SECONDS = 60.0
 DEFAULT_CODEX_MODEL = "gpt-5.4-mini"
 DEFAULT_CLAUDE_MODEL = "haiku"
+DEFAULT_ENGINE_TIMEZONE = "America/Los_Angeles"
 
 STOP_REQUESTED = False
 QUOTA_PAUSE_LOCK = threading.Lock()
 QUOTA_PAUSED_UNTIL = 0.0
+
+
+class LLMEngineConfig:
+    def __init__(self, provider: str, model: str, tier: str = ENGINE_TIER_FULL) -> None:
+        self.provider = provider
+        self.model = model
+        self.tier = tier
+
+
+class LLMEngineState:
+    def __init__(self) -> None:
+        self.slot_key: str | None = None
+        self.slot_calls_started = 0
+        self.paused_until_ts = 0.0
 
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])(?:\s+|(?=[A-Z0-9(]))")
 BULLET_LINE_RE = re.compile(r"^\s*(?:[-*•+]|[0-9]+[.)])\s+")
@@ -338,6 +360,255 @@ def request_stop() -> None:
     global STOP_REQUESTED
     STOP_REQUESTED = True
 
+
+def parse_engine_list(value: str) -> tuple[str, ...]:
+    providers = tuple(part.strip().lower() for part in value.split(",") if part.strip())
+    if not providers:
+        raise ValueError("engines must include at least one provider")
+    invalid = [provider for provider in providers if provider not in SUPPORTED_PROVIDERS]
+    if invalid:
+        raise ValueError(f"unsupported engines: {', '.join(invalid)}")
+    if len(providers) != len(set(providers)):
+        raise ValueError("engines must not contain duplicates")
+    return providers
+
+
+def parse_engine_tiers(
+    value: str | None,
+    enabled_providers: tuple[str, ...] | list[str] | None = None,
+) -> dict[str, str]:
+    providers = tuple(enabled_providers or SUPPORTED_PROVIDERS)
+    tiers = {provider: ENGINE_TIER_FULL for provider in providers}
+    if not value:
+        return tiers
+
+    for assignment in value.split(","):
+        assignment = assignment.strip()
+        if not assignment:
+            continue
+        provider, sep, tier = assignment.partition("=")
+        provider = provider.strip().lower()
+        tier = tier.strip().lower()
+        if not sep:
+            raise ValueError("engine tier assignments must use provider=tier")
+        if provider not in tiers:
+            raise ValueError(f"engine tier specified for disabled or unknown provider: {provider}")
+        if tier not in SUPPORTED_ENGINE_TIERS:
+            raise ValueError(f"unsupported engine tier for {provider}: {tier}")
+        tiers[provider] = tier
+    return tiers
+
+
+def build_engine_configs(
+    enabled_engines: tuple[str, ...],
+    *,
+    codex_model: str,
+    claude_model: str,
+    engine_tiers: dict[str, str] | None = None,
+) -> tuple[LLMEngineConfig, ...]:
+    resolved_tiers = parse_engine_tiers(None, enabled_engines) if engine_tiers is None else dict(engine_tiers)
+    configs: list[LLMEngineConfig] = []
+    for provider in enabled_engines:
+        if provider == "codex":
+            model = codex_model
+        elif provider == "claude":
+            model = claude_model
+        else:  # pragma: no cover
+            raise ValueError(f"unsupported provider: {provider}")
+        tier = resolved_tiers.get(provider, ENGINE_TIER_FULL)
+        if tier not in SUPPORTED_ENGINE_TIERS:
+            raise ValueError(f"unsupported engine tier for {provider}: {tier}")
+        configs.append(LLMEngineConfig(provider=provider, model=model, tier=tier))
+    return tuple(configs)
+
+
+def format_engine_labels(engines: tuple[LLMEngineConfig, ...] | list[LLMEngineConfig]) -> str:
+    return ", ".join(f"{engine.provider}({engine.tier}:{engine.model})" for engine in engines)
+
+
+def build_progress_checkpoints(total: int) -> tuple[int, ...]:
+    if total <= 0:
+        return ()
+    fractions = (0.10, 0.25, 0.50, 0.75, 0.90, 1.0)
+    checkpoints = {1, total}
+    checkpoints.update(max(1, math.ceil(total * fraction)) for fraction in fractions)
+    return tuple(sorted(value for value in checkpoints if value <= total))
+
+
+class LLMEngineRuntime:
+    def __init__(
+        self,
+        engines: tuple[LLMEngineConfig, ...] | list[LLMEngineConfig],
+        *,
+        slot_timezone: str = DEFAULT_ENGINE_TIMEZONE,
+        rng_seed: int | None = None,
+    ) -> None:
+        self.engines = tuple(engines)
+        if not self.engines:
+            raise ValueError("at least one engine config is required")
+        providers = [engine.provider for engine in self.engines]
+        if len(providers) != len(set(providers)):
+            raise ValueError("engine configs must not repeat providers")
+        self._engine_lookup = {engine.provider: engine for engine in self.engines}
+        self._state = {engine.provider: LLMEngineState() for engine in self.engines}
+        self._lock = threading.Lock()
+        self._rng = random.Random(rng_seed)
+        self._slot_timezone = ZoneInfo(slot_timezone)
+
+    def _coerce_now(self, now: datetime | None = None) -> datetime:
+        current = now or datetime.now(self._slot_timezone)
+        if current.tzinfo is None:
+            return current.replace(tzinfo=self._slot_timezone)
+        return current.astimezone(self._slot_timezone)
+
+    def _slot_window(self, now: datetime) -> tuple[str, float, int | None]:
+        local_now = self._coerce_now(now)
+        start_hour = min((local_now.hour // 5) * 5, 20)
+        slot_start = local_now.replace(hour=start_hour, minute=0, second=0, microsecond=0)
+        next_boundary = 24 if start_hour == 20 else start_hour + 5
+        slot_end = slot_start.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(hours=next_boundary)
+        slot_index = {0: 0, 5: 1, 10: 2, 15: 3, 20: 4}[start_hour]
+        if slot_index == 0:
+            call_cap = None
+        elif slot_index == 1:
+            call_cap = 2_000
+        else:
+            call_cap = 1_000
+        return slot_start.isoformat(timespec="seconds"), slot_end.timestamp(), call_cap
+
+    def _refresh_state_for_slot_locked(
+        self,
+        engine: LLMEngineConfig,
+        state: LLMEngineState,
+        now: datetime,
+    ) -> tuple[float | None, int | None]:
+        if engine.tier != ENGINE_TIER_NON_INTRUSIVE:
+            return None, None
+        slot_key, slot_end_ts, call_cap = self._slot_window(now)
+        if state.slot_key != slot_key:
+            state.slot_key = slot_key
+            state.slot_calls_started = 0
+        return slot_end_ts, call_cap
+
+    def _provider_wait_locked(self, provider: str, now: datetime) -> float:
+        engine = self._engine_lookup[provider]
+        state = self._state[provider]
+        now_ts = self._coerce_now(now).timestamp()
+        slot_end_ts, call_cap = self._refresh_state_for_slot_locked(engine, state, now)
+        waits: list[float] = []
+        if state.paused_until_ts > now_ts:
+            waits.append(state.paused_until_ts - now_ts)
+        if call_cap is not None and state.slot_calls_started >= call_cap and slot_end_ts is not None:
+            waits.append(max(slot_end_ts - now_ts, 0.0))
+        return max(min(waits), 0.0) if waits else 0.0
+
+    def claim_next_engine(
+        self,
+        *,
+        now: datetime | None = None,
+        exclude_providers: set[str] | None = None,
+    ) -> LLMEngineConfig | None:
+        excluded = exclude_providers or set()
+        current = self._coerce_now(now)
+        with self._lock:
+            available = [
+                engine
+                for engine in self.engines
+                if engine.provider not in excluded and self._provider_wait_locked(engine.provider, current) <= 0
+            ]
+            if not available:
+                return None
+            chosen = self._rng.choice(available)
+            if chosen.tier == ENGINE_TIER_NON_INTRUSIVE:
+                self._state[chosen.provider].slot_calls_started += 1
+            return chosen
+
+    def next_available_delay(
+        self,
+        *,
+        now: datetime | None = None,
+        exclude_providers: set[str] | None = None,
+    ) -> float | None:
+        excluded = exclude_providers or set()
+        current = self._coerce_now(now)
+        waits: list[float] = []
+        with self._lock:
+            for engine in self.engines:
+                if engine.provider in excluded:
+                    continue
+                wait_seconds = self._provider_wait_locked(engine.provider, current)
+                if wait_seconds <= 0:
+                    return 0.0
+                waits.append(wait_seconds)
+        return min(waits) if waits else None
+
+    def provider_is_waiting(self, provider: str, *, now: datetime | None = None) -> bool:
+        current = self._coerce_now(now)
+        with self._lock:
+            return self._provider_wait_locked(provider, current) > 0
+
+    def claim_specific_engine(
+        self,
+        provider: str,
+        *,
+        now: datetime | None = None,
+    ) -> LLMEngineConfig | None:
+        current = self._coerce_now(now)
+        with self._lock:
+            if provider not in self._engine_lookup:
+                raise ValueError(f"unknown engine provider: {provider}")
+            if self._provider_wait_locked(provider, current) > 0:
+                return None
+            engine = self._engine_lookup[provider]
+            if engine.tier == ENGINE_TIER_NON_INTRUSIVE:
+                self._state[provider].slot_calls_started += 1
+            return engine
+
+    def provider_wait_delay(self, provider: str, *, now: datetime | None = None) -> float | None:
+        current = self._coerce_now(now)
+        with self._lock:
+            if provider not in self._engine_lookup:
+                raise ValueError(f"unknown engine provider: {provider}")
+            wait_seconds = self._provider_wait_locked(provider, current)
+        return wait_seconds
+
+    def note_quota_hit(
+        self,
+        *,
+        provider: str,
+        quota_wait_hours: float,
+        log: logging.Logger,
+        input_hash: str,
+        task_name: str,
+        detail: str,
+        now: datetime | None = None,
+    ) -> None:
+        current = self._coerce_now(now)
+        now_ts = current.timestamp()
+        with self._lock:
+            engine = self._engine_lookup[provider]
+            state = self._state[provider]
+            slot_end_ts, _ = self._refresh_state_for_slot_locked(engine, state, current)
+            if engine.tier == ENGINE_TIER_NON_INTRUSIVE and slot_end_ts is not None:
+                paused_until_ts = slot_end_ts
+            else:
+                paused_until_ts = now_ts + quota_retry_after_seconds(quota_wait_hours)
+            if paused_until_ts > state.paused_until_ts:
+                state.paused_until_ts = paused_until_ts
+            active_until_ts = state.paused_until_ts
+
+        resume_at = datetime.fromtimestamp(active_until_ts, tz=timezone.utc)
+        log.warning(
+            "Quota/rate limit detected for %s/%s on %s (%s). Pausing %s until %s UTC.",
+            provider,
+            self._engine_lookup[provider].model,
+            input_hash,
+            task_name,
+            provider,
+            resume_at.isoformat(timespec="seconds"),
+        )
+        if detail:
+            log.warning("Quota detail: %s", detail[:500])
 
 def compute_description_hash(text) -> str:
     if pd.isna(text):
@@ -635,7 +906,7 @@ def segment_description_into_units(text) -> list[dict]:
 def join_retained_units(units: list[dict], boilerplate_unit_ids: list[int]) -> str:
     dropped_ids = set(boilerplate_unit_ids)
     selected = [unit["text"] for unit in units if unit["unit_id"] not in dropped_ids]
-    return "\n\n".join(selected)
+    return "\n".join(selected)
 
 
 def format_numbered_units(units: list[dict]) -> str:
@@ -851,8 +1122,61 @@ def extract_first_json_object(text: str) -> str:
             obj, _ = decoder.raw_decode(candidate[idx:])
             return json.dumps(obj, ensure_ascii=False)
         except json.JSONDecodeError:
+            repaired = repair_truncated_json_object(candidate[idx:])
+            if repaired is None:
+                continue
+            obj = json.loads(repaired)
+            return json.dumps(obj, ensure_ascii=False)
             continue
     raise ValueError("no_json_object_found")
+
+
+def repair_truncated_json_object(text: str) -> str | None:
+    lines = text.splitlines()
+    for end in range(len(lines), 0, -1):
+        prefix = "\n".join(lines[:end]).rstrip()
+        repaired = repair_missing_closing_braces(prefix)
+        if repaired is not None:
+            return repaired
+    return None
+
+
+def repair_missing_closing_braces(text: str) -> str | None:
+    candidate = text.rstrip()
+    if not candidate.startswith("{") or candidate.endswith("}"):
+        return None
+
+    depth = 0
+    in_string = False
+    escape = False
+    for char in candidate:
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth < 0:
+                return None
+
+    if in_string or depth <= 0:
+        return None
+
+    repaired = candidate + ("}" * depth)
+    try:
+        json.loads(repaired)
+    except json.JSONDecodeError:
+        return None
+    return repaired
 
 
 def parse_codex_stdout(stdout: str) -> tuple[str, int | None, float | None]:
@@ -1035,7 +1359,7 @@ def activate_quota_pause(
             log.warning("Quota detail: %s", detail[:500])
 
 
-def try_provider(
+def attempt_provider_call(
     provider: str,
     prompt: str,
     model: str,
@@ -1048,19 +1372,14 @@ def try_provider(
     payload_validator: Callable[[dict], str | None],
     *,
     description_hash: str | None = None,
-    quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
-) -> dict | None:
+) -> tuple[dict | None, str | None, str]:
     backoff_seconds = [1, 2, 4]
     attempt = 1
-    wait_seconds = quota_retry_after_seconds(quota_wait_hours)
     resolved_hash = input_hash or description_hash or ""
 
     while attempt <= max_retries:
-        wait_for_quota_pause()
-        if STOP_REQUESTED:
-            return None
-        t0 = time.time()
         try:
+            t0 = time.time()
             if provider == "codex":
                 result = call_subprocess(build_codex_command(prompt, model), timeout_seconds)
             elif provider == "claude":
@@ -1092,21 +1411,12 @@ def try_provider(
                     },
                 )
                 if is_quota_limited:
-                    activate_quota_pause(
-                        provider=provider,
-                        model=model,
-                        wait_seconds=wait_seconds,
-                        log=log,
-                        description_hash=resolved_hash,
-                        task_name=task_name,
-                        detail=combined_output,
-                    )
-                    continue
+                    return None, "quota", combined_output
                 if attempt < max_retries:
                     time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
                     attempt += 1
                     continue
-                return None
+                return None, "failed", combined_output
 
             if provider == "codex":
                 response_json, tokens_used, cost_usd = parse_codex_stdout(stdout)
@@ -1136,7 +1446,7 @@ def try_provider(
                     time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
                     attempt += 1
                     continue
-                return None
+                return None, "failed", stdout[:8000]
 
             return {
                 "provider": provider,
@@ -1146,17 +1456,17 @@ def try_provider(
                 "payload": payload,
                 "tokens_used": tokens_used,
                 "cost_usd": cost_usd,
-            }
+            }, None, ""
         except subprocess.TimeoutExpired:
             append_jsonl(
                 error_log_path,
                 {
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "input_hash": resolved_hash,
-                        "description_hash": resolved_hash,
-                        "task_name": task_name,
-                        "provider": provider,
-                        "model": model,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "input_hash": resolved_hash,
+                    "description_hash": resolved_hash,
+                    "task_name": task_name,
+                    "provider": provider,
+                    "model": model,
                     "attempt": attempt,
                     "error_type": "timeout",
                     "raw_response": "",
@@ -1166,6 +1476,7 @@ def try_provider(
                 time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
                 attempt += 1
                 continue
+            return None, "failed", ""
         except (json.JSONDecodeError, ValueError) as exc:
             append_jsonl(
                 error_log_path,
@@ -1183,17 +1494,13 @@ def try_provider(
             )
             raw_text = stdout[:8000] if "stdout" in locals() else ""
             if detect_quota_or_rate_limit(raw_text):
-                activate_quota_pause(
-                    provider=provider,
-                    model=model,
-                    wait_seconds=wait_seconds,
-                    log=log,
-                    description_hash=resolved_hash,
-                    task_name=task_name,
-                    detail=raw_text,
-                )
+                return None, "quota", raw_text
+            if attempt < max_retries:
+                time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
+                attempt += 1
                 continue
-        except Exception as exc:  # noqa: BLE001
+            return None, "failed", raw_text
+        except Exception:  # noqa: BLE001
             log.exception("Provider %s failed for %s (%s)", provider, resolved_hash, task_name)
             append_jsonl(
                 error_log_path,
@@ -1205,19 +1512,144 @@ def try_provider(
                     "provider": provider,
                     "model": model,
                     "attempt": attempt,
-                    "error_type": type(exc).__name__,
+                    "error_type": "Exception",
                     "raw_response": "",
                 },
             )
+            if attempt < max_retries:
+                time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
+                attempt += 1
+                continue
+            return None, "failed", ""
 
-        if attempt < max_retries:
-            time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
-            attempt += 1
+    return None, "failed", ""
+
+
+def execute_task_with_runtime(
+    *,
+    runtime: LLMEngineRuntime,
+    task_name: str,
+    prompt: str,
+    input_hash: str,
+    error_log_path: Path,
+    log: logging.Logger,
+    timeout_seconds: int,
+    max_retries: int,
+    payload_validator: Callable[[dict], str | None],
+    retry_sleep_seconds: float = DEFAULT_RETRY_SLEEP_SECONDS,
+    quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
+) -> dict | None:
+    while True:
+        engine = runtime.claim_next_engine()
+        if engine is None:
+            wait_seconds = runtime.next_available_delay()
+            if wait_seconds is None:
+                return None
+            if wait_seconds > 0:
+                time.sleep(min(wait_seconds, retry_sleep_seconds))
+                continue
+            return None
+
+        while True:
+            result, failure_kind, detail = attempt_provider_call(
+                provider=engine.provider,
+                prompt=prompt,
+                model=engine.model,
+                task_name=task_name,
+                input_hash=input_hash,
+                error_log_path=error_log_path,
+                log=log,
+                timeout_seconds=timeout_seconds,
+                max_retries=max_retries,
+                payload_validator=payload_validator,
+            )
+            if result is not None:
+                return result
+            if STOP_REQUESTED:
+                return None
+
+            if failure_kind == "quota":
+                runtime.note_quota_hit(
+                    provider=engine.provider,
+                    quota_wait_hours=quota_wait_hours,
+                    log=log,
+                    input_hash=input_hash,
+                    task_name=task_name,
+                    detail=detail,
+                )
+            else:
+                log.warning(
+                    "Call failed for %s on %s (%s). Waiting %.0fs before retrying the same engine.",
+                    input_hash,
+                    engine.provider,
+                    task_name,
+                    retry_sleep_seconds,
+                )
+                time.sleep(retry_sleep_seconds)
+
+            while True:
+                claimed_engine = runtime.claim_specific_engine(engine.provider)
+                if claimed_engine is not None:
+                    engine = claimed_engine
+                    break
+                wait_seconds = runtime.provider_wait_delay(engine.provider)
+                if wait_seconds is None:
+                    return None
+                if wait_seconds > 0:
+                    time.sleep(min(wait_seconds, retry_sleep_seconds))
+                    continue
+                time.sleep(retry_sleep_seconds)
+
+
+def try_provider(
+    provider: str,
+    prompt: str,
+    model: str,
+    task_name: str,
+    input_hash: str | None,
+    error_log_path: Path,
+    log: logging.Logger,
+    timeout_seconds: int,
+    max_retries: int,
+    payload_validator: Callable[[dict], str | None],
+    *,
+    description_hash: str | None = None,
+    quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
+) -> dict | None:
+    wait_seconds = quota_retry_after_seconds(quota_wait_hours)
+    resolved_hash = input_hash or description_hash or ""
+
+    while True:
+        wait_for_quota_pause()
+        if STOP_REQUESTED:
+            return None
+        result, failure_kind, detail = attempt_provider_call(
+            provider=provider,
+            prompt=prompt,
+            model=model,
+            task_name=task_name,
+            input_hash=input_hash,
+            error_log_path=error_log_path,
+            log=log,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            payload_validator=payload_validator,
+            description_hash=description_hash,
+        )
+        if result is not None:
+            return result
+        if failure_kind == "quota":
+            activate_quota_pause(
+                provider=provider,
+                model=model,
+                wait_seconds=wait_seconds,
+                log=log,
+                description_hash=resolved_hash,
+                task_name=task_name,
+                detail=detail,
+            )
             continue
-
         return None
-
-    return None
 
 
 def normalize_ws(text: str) -> str:

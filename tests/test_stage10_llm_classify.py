@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import Counter
 
 import pandas as pd
 import pytest
@@ -142,7 +143,7 @@ def test_sqlite_cache_roundtrip_and_uncached_detection(tmp_path):
 
 
 @pytest.mark.unit
-def test_try_provider_and_fallback_use_stubbed_subprocess_and_order(monkeypatch, tmp_path):
+def test_try_provider_and_engine_runtime_use_stubbed_subprocess_and_config(monkeypatch, tmp_path):
     log = logging.getLogger("stage10-test")
     log.addHandler(logging.NullHandler())
 
@@ -173,15 +174,14 @@ def test_try_provider_and_fallback_use_stubbed_subprocess_and_order(monkeypatch,
     )
     assert result["tokens_used"] == 123
 
-    calls: list[str] = []
+    captured = {}
 
-    def fake_try_provider(**kwargs):
-        calls.append(kwargs["provider"])
-        if kwargs["provider"] == "codex":
-            return None
+    def fake_execute_task_with_runtime(**kwargs):
+        captured["providers"] = [engine.provider for engine in kwargs["runtime"].engines]
+        captured["tiers"] = [engine.tier for engine in kwargs["runtime"].engines]
         return {
-            "provider": kwargs["provider"],
-            "model": kwargs["model"],
+            "provider": "claude",
+            "model": "haiku",
             "latency_seconds": 0.0,
             "response_json": json.dumps(payload),
             "payload": payload,
@@ -189,22 +189,30 @@ def test_try_provider_and_fallback_use_stubbed_subprocess_and_order(monkeypatch,
             "cost_usd": None,
         }
 
-    monkeypatch.setattr(stage10, "try_provider", fake_try_provider)
-    result = stage10.call_task_with_fallback(
+    monkeypatch.setattr(stage10, "execute_task_with_runtime", fake_execute_task_with_runtime)
+    result = stage10.call_task_with_engine(
         task_name=stage10.CLASSIFICATION_TASK_NAME,
         prompt="prompt",
         input_hash="hash-b",
         error_log_path=tmp_path / "errors.jsonl",
         log=log,
-        codex_model="gpt-5.4-mini",
-        timeout_seconds=1,
-        max_retries=1,
         payload_validator=stage10.validate_classification_payload,
-        provider_order=("codex", "claude"),
-        claude_model="haiku",
+        enabled_engines=("codex", "claude"),
+        engine_tiers={"codex": "full", "claude": "non_intrusive"},
     )
-    assert calls == ["codex", "claude"]
+    assert captured["providers"] == ["codex", "claude"]
+    assert captured["tiers"] == ["full", "non_intrusive"]
     assert result["provider"] == "claude"
+
+
+@pytest.mark.unit
+def test_parse_args_defaults_to_30_workers(monkeypatch):
+    monkeypatch.setattr(
+        "sys.argv",
+        ["stage10_llm_classify.py"],
+    )
+    args = stage10.parse_args()
+    assert args.max_workers == 30
 
 
 @pytest.mark.unit
@@ -238,3 +246,37 @@ def test_build_results_row_maps_classification_payload():
     assert out["swe_classification_llm"] == "SWE"
     assert out["seniority_llm"] == "entry"
     assert out["ghost_assessment_llm"] == "realistic"
+
+
+@pytest.mark.unit
+def test_summarize_stage10_routing_reports_volume_drivers():
+    summary = stage10.summarize_stage10_routing(
+        total_rows=20,
+        routed_rows=9,
+        selected_control_rows=3,
+        reason_counts=Counter(
+            {
+                "routed": 9,
+                "high_confidence_technical_rules": 6,
+                "short_description_excluded_by_stage9": 2,
+                "not_routed": 3,
+            }
+        ),
+        unique_task_count=7,
+        duplicate_rows_collapsed=2,
+        cached_task_count=4,
+        fresh_task_count=3,
+    )
+
+    assert summary == {
+        "total_rows": 20,
+        "routed_rows": 9,
+        "selected_control_rows": 3,
+        "short_skip_rows": 2,
+        "high_confidence_skip_rows": 6,
+        "not_routed_rows": 3,
+        "unique_tasks": 7,
+        "duplicate_rows_collapsed": 2,
+        "cached_tasks": 4,
+        "fresh_tasks": 3,
+    }

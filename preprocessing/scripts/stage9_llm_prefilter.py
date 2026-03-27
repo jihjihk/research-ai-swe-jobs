@@ -7,6 +7,7 @@ and posting-level cleaned-text integration.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import hashlib
 import json
 import logging
@@ -20,19 +21,27 @@ import pyarrow.parquet as pq
 
 from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
 from llm_shared import (
+    DEFAULT_ENGINE_TIMEZONE,
     DEFAULT_CLAUDE_MODEL,
     DEFAULT_CODEX_MODEL,
     DEFAULT_QUOTA_WAIT_HOURS,
     EXTRACTION_PROMPT_VERSION,
     EXTRACTION_STATUS_CANNOT_COMPLETE,
     EXTRACTION_TASK_NAME,
+    LLMEngineRuntime,
     MAX_EXTRACTION_UNIT_COUNT,
     SINGLE_UNIT_WARNING_CHARS,
     SUPPORTED_PROVIDERS,
+    build_engine_configs,
+    build_progress_checkpoints,
     chunked,
     compute_description_hash,
     compute_extraction_input_hash,
+    execute_task_with_runtime,
+    format_engine_labels,
     open_cache,
+    parse_engine_tiers,
+    parse_engine_list,
     render_extraction_prompt,
     segment_description_into_units,
     store_cached_row,
@@ -73,18 +82,6 @@ def configure_logging() -> logging.Logger:
         ],
     )
     return logging.getLogger(__name__)
-
-
-def parse_provider_order(value: str) -> tuple[str, ...]:
-    providers = tuple(part.strip().lower() for part in value.split(",") if part.strip())
-    if not providers:
-        raise ValueError("provider order must include at least one provider")
-    invalid = [provider for provider in providers if provider not in SUPPORTED_PROVIDERS]
-    if invalid:
-        raise ValueError(f"unsupported providers in order: {', '.join(invalid)}")
-    if len(providers) != len(set(providers)):
-        raise ValueError("provider order must not contain duplicates")
-    return providers
 
 
 def english_mask(df: pd.DataFrame) -> pd.Series:
@@ -315,49 +312,53 @@ def write_parquet_rows(rows: list[dict], output_path: Path) -> None:
             writer.close()
 
 
-def call_task_with_fallback(
+def call_task_with_engine(
     *,
     prompt: str,
     input_hash: str,
     error_log_path: Path,
     log: logging.Logger,
-    codex_model: str,
-    timeout_seconds: int,
-    max_retries: int,
-    provider_order: tuple[str, ...],
-    claude_model: str,
-    quota_wait_hours: float,
+    runtime: LLMEngineRuntime | None = None,
+    codex_model: str = DEFAULT_CODEX_MODEL,
+    timeout_seconds: int = 180,
+    max_retries: int = 3,
+    enabled_engines: tuple[str, ...] = SUPPORTED_PROVIDERS,
+    claude_model: str = DEFAULT_CLAUDE_MODEL,
+    quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
+    engine_tiers: dict[str, str] | None = None,
+    engine_timezone: str = DEFAULT_ENGINE_TIMEZONE,
 ) -> dict | None:
-    for provider in provider_order:
-        model = codex_model if provider == "codex" else claude_model
-        result = try_provider(
-            provider=provider,
-            prompt=prompt,
-            model=model,
-            task_name=EXTRACTION_TASK_NAME,
-            input_hash=input_hash,
-            error_log_path=error_log_path,
-            log=log,
-            timeout_seconds=timeout_seconds,
-            max_retries=max_retries,
-            payload_validator=validate_extraction_payload,
-            quota_wait_hours=quota_wait_hours,
-        )
-        if result is not None:
-            return result
-    return None
+    runtime = runtime or LLMEngineRuntime(
+        build_engine_configs(
+            enabled_engines,
+            codex_model=codex_model,
+            claude_model=claude_model,
+            engine_tiers=engine_tiers,
+        ),
+        slot_timezone=engine_timezone,
+    )
+    return execute_task_with_runtime(
+        runtime=runtime,
+        task_name=EXTRACTION_TASK_NAME,
+        prompt=prompt,
+        input_hash=input_hash,
+        error_log_path=error_log_path,
+        log=log,
+        timeout_seconds=timeout_seconds,
+        max_retries=max_retries,
+        payload_validator=validate_extraction_payload,
+        quota_wait_hours=quota_wait_hours,
+    )
 
 
 def process_candidate_row(
     row: dict,
     *,
-    codex_model: str,
+    runtime: LLMEngineRuntime,
     timeout_seconds: int,
     max_retries: int,
     error_log_path: Path,
     log: logging.Logger,
-    provider_order: tuple[str, ...],
-    claude_model: str,
     quota_wait_hours: float,
 ) -> dict:
     prompt, units = render_extraction_prompt(row["title"], row["company_name"], row["description"])
@@ -400,16 +401,14 @@ def process_candidate_row(
             "tokens_used": None,
             "prompt_version": EXTRACTION_PROMPT_VERSION,
         }
-    result = call_task_with_fallback(
+    result = call_task_with_engine(
+        runtime=runtime,
         prompt=prompt,
         input_hash=row["extraction_input_hash"],
         error_log_path=error_log_path,
         log=log,
-        codex_model=codex_model,
         timeout_seconds=timeout_seconds,
         max_retries=max_retries,
-        provider_order=provider_order,
-        claude_model=claude_model,
         quota_wait_hours=quota_wait_hours,
     )
     if result is None:
@@ -459,6 +458,98 @@ def build_candidate_records(input_path: Path, selected_control_hashes: set[str])
     return list(lookup.values())
 
 
+def resolve_description_core_llm(row, cached_rows: dict[str, dict]) -> str | None:
+    if row.short_description_skip and (
+        row.is_swe or row.is_swe_adjacent or row.selected_for_control_cohort
+    ):
+        return ""
+    if not row.needs_llm_extraction or row.extraction_input_hash is None:
+        return None
+
+    cached = cached_rows.get(str(row.extraction_input_hash))
+    if cached is None:
+        return None
+
+    payload = json.loads(cached["response_json"])
+    validation = validate_extraction_selection(
+        "" if row.description is None else str(row.description),
+        payload,
+    )
+    if validation["passed"]:
+        return validation["reconstructed_text"]
+    if validation["reason"] == "all_units_dropped":
+        return ""
+    return None
+
+
+def summarize_stage9_routing(
+    prepared: pd.DataFrame,
+    candidate_summary: pd.DataFrame,
+    selected_control_count: int,
+    cached_task_count: int,
+    fresh_task_count: int,
+) -> dict[str, int]:
+    reason_counts = Counter(prepared["llm_extraction_reason"].fillna("unknown").astype(str))
+    route_group_counts = (
+        Counter(candidate_summary["llm_route_group"].fillna("unknown").astype(str))
+        if not candidate_summary.empty
+        else Counter()
+    )
+    routed_row_count = int(candidate_summary["source_row_count"].sum()) if not candidate_summary.empty else 0
+    unique_task_count = int(len(candidate_summary))
+    return {
+        "total_rows": int(len(prepared)),
+        "linkedin_rows": int(prepared["is_linkedin"].fillna(False).sum()),
+        "english_rows": int(prepared["is_english"].fillna(False).sum()),
+        "technical_scope_rows": int(
+            (prepared["is_swe"].fillna(False).astype(bool) | prepared["is_swe_adjacent"].fillna(False).astype(bool)).sum()
+        ),
+        "control_pool_rows": int(prepared["eligible_control_extraction"].fillna(False).sum()),
+        "selected_control_rows": int(selected_control_count),
+        "short_skip_rows": int(reason_counts.get("short_description", 0)),
+        "routed_rows": int(reason_counts.get("routed", 0)),
+        "not_routed_rows": int(reason_counts.get("not_routed", 0)),
+        "unique_tasks": unique_task_count,
+        "technical_tasks": int(route_group_counts.get("technical_extraction", 0)),
+        "control_tasks": int(route_group_counts.get("control_extraction", 0)),
+        "duplicate_rows_collapsed": int(routed_row_count - unique_task_count),
+        "cached_tasks": int(cached_task_count),
+        "fresh_tasks": int(fresh_task_count),
+    }
+
+
+def log_stage9_plan(log: logging.Logger, summary: dict[str, int], *, max_workers: int, runtime: LLMEngineRuntime) -> None:
+    log.info(
+        "Execution plan | workers=%s | engines=%s",
+        max_workers,
+        format_engine_labels(runtime.engines),
+    )
+    log.info(
+        "Routing summary | rows=%s | linkedin=%s | english=%s | technical_scope=%s | control_pool=%s | selected_controls=%s",
+        f"{summary['total_rows']:,}",
+        f"{summary['linkedin_rows']:,}",
+        f"{summary['english_rows']:,}",
+        f"{summary['technical_scope_rows']:,}",
+        f"{summary['control_pool_rows']:,}",
+        f"{summary['selected_control_rows']:,}",
+    )
+    log.info(
+        "Extraction volume | routed_rows=%s | short_skips=%s | not_routed=%s | unique_tasks=%s | technical_tasks=%s | control_tasks=%s | deduped_rows=%s",
+        f"{summary['routed_rows']:,}",
+        f"{summary['short_skip_rows']:,}",
+        f"{summary['not_routed_rows']:,}",
+        f"{summary['unique_tasks']:,}",
+        f"{summary['technical_tasks']:,}",
+        f"{summary['control_tasks']:,}",
+        f"{summary['duplicate_rows_collapsed']:,}",
+    )
+    log.info(
+        "Cache plan | cached=%s | fresh=%s",
+        f"{summary['cached_tasks']:,}",
+        f"{summary['fresh_tasks']:,}",
+    )
+
+
 def run_stage9(
     input_path: Path = DEFAULT_INPUT_PATH,
     candidates_path: Path = DEFAULT_CANDIDATES_PATH,
@@ -470,13 +561,24 @@ def run_stage9(
     codex_model: str = DEFAULT_CODEX_MODEL,
     timeout_seconds: int = 180,
     max_retries: int = 3,
-    max_workers: int = 12,
-    provider_order: tuple[str, ...] = SUPPORTED_PROVIDERS,
+    max_workers: int = 30,
+    enabled_engines: tuple[str, ...] = SUPPORTED_PROVIDERS,
     claude_model: str = DEFAULT_CLAUDE_MODEL,
     quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
+    engine_tiers: dict[str, str] | None = None,
+    engine_timezone: str = DEFAULT_ENGINE_TIMEZONE,
 ) -> None:
     log = configure_logging()
     t0 = time.time()
+    runtime = LLMEngineRuntime(
+        build_engine_configs(
+            enabled_engines,
+            codex_model=codex_model,
+            claude_model=claude_model,
+            engine_tiers=engine_tiers,
+        ),
+        slot_timezone=engine_timezone,
+    )
 
     pf = pq.ParquetFile(input_path)
     annotated_frames = []
@@ -486,26 +588,40 @@ def run_stage9(
     annotated = pd.concat(annotated_frames, ignore_index=True) if annotated_frames else pd.DataFrame()
 
     control_cohort_df, selected_control_hashes = _select_control_cohort(annotated)
+    prepared_for_logging = process_chunk(annotated, selected_control_hashes=selected_control_hashes)
+    candidate_summary = build_extraction_candidates(annotated, control_cohort_df)
     candidate_rows = build_candidate_records(input_path, selected_control_hashes)
 
     conn = open_cache(cache_db)
     hashes = [str(row["extraction_input_hash"]) for row in candidate_rows]
     cached_rows = fetch_cached_rows(conn, hashes, EXTRACTION_TASK_NAME, EXTRACTION_PROMPT_VERSION)
     rows_to_process = [row for row in candidate_rows if str(row["extraction_input_hash"]) not in cached_rows]
+    log_stage9_plan(
+        log,
+        summarize_stage9_routing(
+            prepared_for_logging,
+            candidate_summary,
+            int(len(selected_control_hashes)),
+            cached_task_count=len(cached_rows),
+            fresh_task_count=len(rows_to_process),
+        ),
+        max_workers=max_workers,
+        runtime=runtime,
+    )
 
     if rows_to_process:
+        progress_checkpoints = set(build_progress_checkpoints(len(rows_to_process)))
+        completed = 0
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {
                 executor.submit(
                     process_candidate_row,
                     row,
-                    codex_model=codex_model,
+                    runtime=runtime,
                     timeout_seconds=timeout_seconds,
                     max_retries=max_retries,
                     error_log_path=error_log_path,
                     log=log,
-                    provider_order=provider_order,
-                    claude_model=claude_model,
                     quota_wait_hours=quota_wait_hours,
                 ): row
                 for row in rows_to_process
@@ -513,6 +629,7 @@ def run_stage9(
             for future in as_completed(future_map):
                 row = future_map[future]
                 result = future.result()
+                completed += 1
                 store_cached_row(
                     conn,
                     input_hash=row["extraction_input_hash"],
@@ -528,6 +645,13 @@ def run_stage9(
                     task_name=EXTRACTION_TASK_NAME,
                     prompt_version=EXTRACTION_PROMPT_VERSION,
                 )
+                if completed in progress_checkpoints:
+                    log.info(
+                        "Stage 9 progress | completed=%s/%s fresh extraction tasks (%.1f%%)",
+                        f"{completed:,}",
+                        f"{len(rows_to_process):,}",
+                        100.0 * completed / len(rows_to_process),
+                    )
 
     tmp_candidates_path = prepare_temp_output(candidates_path)
     tmp_results_path = prepare_temp_output(results_path)
@@ -567,27 +691,10 @@ def run_stage9(
             for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
                 chunk = pa.Table.from_batches([batch]).to_pandas()
                 prepared = process_chunk(chunk, selected_control_hashes=selected_control_hashes)
-                description_core_llm = []
-                for row in prepared.itertuples(index=False):
-                    if row.short_description_skip and (
-                        row.is_swe or row.is_swe_adjacent or row.selected_for_control_cohort
-                    ):
-                        description_core_llm.append("")
-                        continue
-                    if not row.needs_llm_extraction or row.extraction_input_hash is None:
-                        description_core_llm.append(None)
-                        continue
-                    cached = cached_rows.get(str(row.extraction_input_hash))
-                    if cached is None:
-                        description_core_llm.append(None)
-                        continue
-                    payload = json.loads(cached["response_json"])
-                    validation = validate_extraction_selection(
-                        "" if row.description is None else str(row.description),
-                        payload,
-                    )
-                    description_core_llm.append(validation["reconstructed_text"] if validation["passed"] else None)
-                prepared["description_core_llm"] = description_core_llm
+                prepared["description_core_llm"] = [
+                    resolve_description_core_llm(row, cached_rows)
+                    for row in prepared.itertuples(index=False)
+                ]
                 cleaned = prepared.drop(
                     columns=[
                         "has_raw_description",
@@ -638,15 +745,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--codex-model", type=str, default=DEFAULT_CODEX_MODEL)
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--max-retries", type=int, default=3)
-    parser.add_argument("--max-workers", type=int, default=12)
-    parser.add_argument("--provider-order", type=str, default="codex,claude")
+    parser.add_argument("--max-workers", type=int, default=30)
+    parser.add_argument("--engines", type=str, default="codex,claude")
     parser.add_argument("--claude-model", type=str, default=DEFAULT_CLAUDE_MODEL)
     parser.add_argument("--quota-wait-hours", type=float, default=DEFAULT_QUOTA_WAIT_HOURS)
+    parser.add_argument("--engine-tiers", type=str, default=None)
+    parser.add_argument("--engine-timezone", type=str, default=DEFAULT_ENGINE_TIMEZONE)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    enabled_engines = parse_engine_list(args.engines)
     run_stage9(
         input_path=args.input,
         candidates_path=args.candidates_output,
@@ -659,7 +769,9 @@ if __name__ == "__main__":
         timeout_seconds=args.timeout_seconds,
         max_retries=args.max_retries,
         max_workers=args.max_workers,
-        provider_order=parse_provider_order(args.provider_order),
+        enabled_engines=enabled_engines,
         claude_model=args.claude_model,
         quota_wait_hours=args.quota_wait_hours,
+        engine_tiers=parse_engine_tiers(args.engine_tiers, enabled_engines),
+        engine_timezone=args.engine_timezone,
     )

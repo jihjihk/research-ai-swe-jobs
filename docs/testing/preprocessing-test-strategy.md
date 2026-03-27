@@ -635,8 +635,9 @@ Owns classification routing, provider calls, classification caching, retries, fi
 
 - payload validators
 - cache schema and fetch/store
-- provider-order parsing
+- engine-list parsing
 - quota/rate-limit detection and pause logic
+- same-engine retry behavior without cross-engine fallback
 - synthetic fallbacks
 - classifier-input fallback chain
 - final posting-level integration
@@ -646,7 +647,7 @@ Owns classification routing, provider calls, classification caching, retries, fi
 - valid classification payload accepted
 - malformed JSON / missing keys rejected
 - cache hit skips subprocess call
-- quota text triggers shared pause logic
+- quota text triggers provider-scoped pause logic
 - duplicate classification inputs collapse before execution
 - classifier input falls back `description_core_llm -> description_core -> description`
 - high-confidence technical rows are skipped while selected controls remain eligible

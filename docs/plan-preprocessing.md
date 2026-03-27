@@ -527,9 +527,12 @@ This makes Stage 10 the canonical posting-level artifact. Stage 11 is compatibil
   ```
 - **Validation model:** GPT-5.4 (full) for the three-way comparison (Stage 12).
 
-Provider order is a runtime choice:
-- `--provider-order codex,claude` means Codex first, Claude fallback
-- `--provider-order claude` means Claude-only
+Enabled engines are a runtime choice:
+- `--engines codex,claude` enables both engines
+- `--engines claude` means Claude-only
+- `--engine-tiers codex=full,claude=non_intrusive` assigns Codex to full-utilization mode and Claude to conservative slot-budget mode
+- When multiple enabled engines are currently available, tasks are assigned across them from the shared queue
+- Once a task is assigned to an engine, retries stay on that same engine; the runtime does not fall back to a different model for that task
 
 ### Prompt design
 
@@ -644,9 +647,8 @@ Apply these improvements from the LLM validation report (implemented in Stage 5 
 
 ### Robustness
 
-- **Rate limiting:** Respect API limits. Configurable delay between calls (default: 0.5s for Codex, 1.0s for Claude).
-- **Retry:** Exponential backoff on transient errors (rate limits, timeouts). Max 3 retries per call.
-- **Quota handling:** On provider quota / rate-limit failures, Stage 10 activates a shared pause window across workers and waits `--quota-wait-hours` before retrying. Default is 5 hours.
+- **Retry:** Each subprocess call still retries internally up to 3 times on malformed output / timeout paths. If the task still fails, the outer engine runtime waits 1 minute and retries the same task on the same engine rather than falling back to another engine.
+- **Quota handling:** Quota state is provider-scoped, not global. Full-utilization engines pause for `--quota-wait-hours` after quota / rate-limit failures. Non-intrusive engines follow midnight-aligned five-hour slots in the configured timezone: `00:00-05:00` runs until quota exhaustion, `05:00-10:00` allows 2,000 calls, and later slots allow 1,000 calls each. Quota hits on a non-intrusive engine pause that engine until the current slot ends.
 - **Parse validation:** Every response must parse as valid task-specific JSON with valid enum values or valid extraction IDs/status. Malformed responses are logged to `preprocessing/logs/llm_errors.jsonl` and excluded from the final data. The rule-based values remain for these postings.
 - **Profiling run:** Before the full batch, run a small stratified subset first, then the first 100 calls in profile mode, and report:
   - Mean/P95 latency per call
@@ -663,15 +665,20 @@ For a production rerun from the current Stage 8 artifact:
 
 1. Run Stage 9:
    ```bash
-   /usr/bin/time -v ./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py
+   /usr/bin/time -v ./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py \
+     --engines codex,claude \
+     --engine-tiers codex=full,claude=non_intrusive \
+     --quota-wait-hours 5 \
+     --max-workers 30
    ```
 
-2. Run Stage 10 directly when you need explicit provider controls:
+2. Run Stage 10 directly with the same engine controls:
    ```bash
    /usr/bin/time -v ./.venv/bin/python preprocessing/scripts/stage10_llm_classify.py \
-     --provider-order claude \
+     --engines codex,claude \
+     --engine-tiers codex=full,claude=non_intrusive \
      --quota-wait-hours 5 \
-     --max-workers 48
+     --max-workers 30
    ```
 
 3. If you keep the optional compatibility alias, treat it as transitional only. The architectural handoff is Stage 10, not Stage 11.
@@ -1026,7 +1033,7 @@ Sample 500 postings stratified by source, predicted seniority, and classificatio
 | 10 | **Boilerplate removal** | Rule-based + LLM as dual columns for ablation. | v1 regex works for tail-end boilerplate but misses front-matter. LLM handles both. |
 | 11 | **Stage 4 near-dedup design** | Key-first dedup with description-supported exact opening matches and same-location fuzzy-title fallback. | Simpler and more auditable than a global cosine threshold; keeps description as supporting evidence rather than a standalone dedup key. |
 | 12 | **Embedding model** | Dual-model: JobBERT-v2 for titles, general-purpose for descriptions. | JobBERT-v2 has 64-token limit. |
-| 13 | **LLM model for classification** | GPT-5.4 mini primary, GPT-5.4 full for validation. Claude Haiku as fallback. | Cost-effective for thousands of calls. Validation uses the stronger model. |
+| 13 | **LLM model for classification** | GPT-5.4 mini and Claude Haiku as runtime engines. GPT-5.4 full for validation. | Cost-effective for thousands of calls. Validation uses the stronger model. |
 | 14 | **LLM boilerplate constraint** | Verbatim extraction only, no paraphrasing. Programmatic check. | Ensures the LLM doesn't introduce artifacts into the text we analyze. |
 | 15 | **Seniority from YOE** | YOE is extracted but NOT used for seniority assignment. Used only for contradiction flagging and ghost job detection. | Companies inflate YOE requirements. Using YOE to assign seniority would bake that inflation into the labels. |
 | 16 | **Old scraped data (Mar 5-18)** | Skip incompatible legacy scraped files, but do not hard-code a month/date ceiling for current-format files. | Old format lacked search metadata columns. Current-format scraped data should be loaded for any available date once it matches the 41-column schema. |

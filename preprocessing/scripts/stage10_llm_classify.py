@@ -15,6 +15,7 @@ Outputs:
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import logging
 import shutil
@@ -31,17 +32,25 @@ from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
 from llm_shared import (
     CLASSIFICATION_PROMPT_VERSION,
     CLASSIFICATION_TASK_NAME,
+    DEFAULT_ENGINE_TIMEZONE,
     DEFAULT_CLAUDE_MODEL,
     DEFAULT_CODEX_MODEL,
     DEFAULT_QUOTA_WAIT_HOURS,
+    LLMEngineRuntime,
     SUPPORTED_PROVIDERS,
+    build_engine_configs,
+    build_progress_checkpoints,
     call_subprocess,
     chunked,
     compute_classification_input_hash,
     derive_classification_input,
+    execute_task_with_runtime,
     fetch_cached_row,
     fetch_cached_rows,
+    format_engine_labels,
     open_cache,
+    parse_engine_tiers,
+    parse_engine_list,
     render_classification_prompt,
     segment_description_into_units,
     store_cached_row,
@@ -80,18 +89,6 @@ def configure_logging() -> logging.Logger:
         ],
     )
     return logging.getLogger(__name__)
-
-
-def parse_provider_order(value: str) -> tuple[str, ...]:
-    providers = tuple(part.strip().lower() for part in value.split(",") if part.strip())
-    if not providers:
-        raise ValueError("provider order must include at least one provider")
-    invalid = [provider for provider in providers if provider not in SUPPORTED_PROVIDERS]
-    if invalid:
-        raise ValueError(f"unsupported providers in order: {', '.join(invalid)}")
-    if len(providers) != len(set(providers)):
-        raise ValueError("provider order must not contain duplicates")
-    return providers
 
 
 def classification_skip_mask(df: pd.DataFrame) -> pd.Series:
@@ -155,64 +152,54 @@ def has_uncached_rows(df: pd.DataFrame, conn) -> bool:
     return any(candidate_hash not in cached for candidate_hash in candidate_hashes)
 
 
-def call_task_with_fallback(
+def call_task_with_engine(
     task_name: str,
     prompt: str,
     input_hash: str,
     error_log_path: Path,
     log: logging.Logger,
-    codex_model: str,
-    timeout_seconds: int,
-    max_retries: int,
     payload_validator,
-    provider_order: tuple[str, ...] = SUPPORTED_PROVIDERS,
+    runtime: LLMEngineRuntime | None = None,
+    codex_model: str = DEFAULT_CODEX_MODEL,
+    timeout_seconds: int = 180,
+    max_retries: int = 3,
+    enabled_engines: tuple[str, ...] = SUPPORTED_PROVIDERS,
     claude_model: str = DEFAULT_CLAUDE_MODEL,
     quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
+    engine_tiers: dict[str, str] | None = None,
+    engine_timezone: str = DEFAULT_ENGINE_TIMEZONE,
 ) -> dict | None:
-    for idx, provider in enumerate(provider_order):
-        if provider == "codex":
-            model = codex_model
-        elif provider == "claude":
-            model = claude_model
-        else:  # pragma: no cover
-            raise ValueError(f"unsupported provider: {provider}")
-
-        result = try_provider(
-            provider=provider,
-            prompt=prompt,
-            model=model,
-            task_name=task_name,
-            input_hash=input_hash,
-            error_log_path=error_log_path,
-            log=log,
-            timeout_seconds=timeout_seconds,
-            max_retries=max_retries,
-            payload_validator=payload_validator,
-            quota_wait_hours=quota_wait_hours,
-        )
-        if result is not None:
-            return result
-        if idx + 1 < len(provider_order):
-            log.warning(
-                "Falling back from %s to %s for %s (%s)",
-                provider,
-                provider_order[idx + 1],
-                input_hash,
-                task_name,
-            )
-    return None
+    runtime = runtime or LLMEngineRuntime(
+        build_engine_configs(
+            enabled_engines,
+            codex_model=codex_model,
+            claude_model=claude_model,
+            engine_tiers=engine_tiers,
+        ),
+        slot_timezone=engine_timezone,
+    )
+    return execute_task_with_runtime(
+        runtime=runtime,
+        task_name=task_name,
+        prompt=prompt,
+        input_hash=input_hash,
+        error_log_path=error_log_path,
+        log=log,
+        timeout_seconds=timeout_seconds,
+        max_retries=max_retries,
+        payload_validator=payload_validator,
+        quota_wait_hours=quota_wait_hours,
+    )
 
 
 def process_candidate_row(
     row: dict,
     *,
-    codex_model: str,
+    runtime: LLMEngineRuntime,
     timeout_seconds: int,
     max_retries: int,
     error_log_path: Path,
     log: logging.Logger,
-    provider_order: tuple[str, ...],
-    claude_model: str,
     quota_wait_hours: float,
 ) -> dict | None:
     prompt = render_classification_prompt(
@@ -220,18 +207,16 @@ def process_candidate_row(
         row["company_name"],
         row["classification_input"],
     )
-    return call_task_with_fallback(
+    return call_task_with_engine(
         task_name=CLASSIFICATION_TASK_NAME,
+        runtime=runtime,
         prompt=prompt,
         input_hash=row["classification_input_hash"],
         error_log_path=error_log_path,
         log=log,
-        codex_model=codex_model,
         timeout_seconds=timeout_seconds,
         max_retries=max_retries,
         payload_validator=validate_classification_payload,
-        provider_order=provider_order,
-        claude_model=claude_model,
         quota_wait_hours=quota_wait_hours,
     )
 
@@ -294,6 +279,58 @@ def integrate_chunk(chunk: pd.DataFrame, classification_cache: dict[str, dict]) 
     return out.drop(columns=["classification_input"], errors="ignore")
 
 
+def summarize_stage10_routing(
+    *,
+    total_rows: int,
+    routed_rows: int,
+    selected_control_rows: int,
+    reason_counts: Counter,
+    unique_task_count: int,
+    duplicate_rows_collapsed: int,
+    cached_task_count: int,
+    fresh_task_count: int,
+) -> dict[str, int]:
+    return {
+        "total_rows": int(total_rows),
+        "routed_rows": int(routed_rows),
+        "selected_control_rows": int(selected_control_rows),
+        "short_skip_rows": int(reason_counts.get("short_description_excluded_by_stage9", 0)),
+        "high_confidence_skip_rows": int(reason_counts.get("high_confidence_technical_rules", 0)),
+        "not_routed_rows": int(reason_counts.get("not_routed", 0)),
+        "unique_tasks": int(unique_task_count),
+        "duplicate_rows_collapsed": int(duplicate_rows_collapsed),
+        "cached_tasks": int(cached_task_count),
+        "fresh_tasks": int(fresh_task_count),
+    }
+
+
+def log_stage10_plan(log: logging.Logger, summary: dict[str, int], *, max_workers: int, runtime: LLMEngineRuntime) -> None:
+    log.info(
+        "Execution plan | workers=%s | engines=%s",
+        max_workers,
+        format_engine_labels(runtime.engines),
+    )
+    log.info(
+        "Routing summary | rows=%s | selected_controls=%s | routed_rows=%s | short_skips=%s | high_confidence_skips=%s | not_routed=%s",
+        f"{summary['total_rows']:,}",
+        f"{summary['selected_control_rows']:,}",
+        f"{summary['routed_rows']:,}",
+        f"{summary['short_skip_rows']:,}",
+        f"{summary['high_confidence_skip_rows']:,}",
+        f"{summary['not_routed_rows']:,}",
+    )
+    log.info(
+        "Classification volume | unique_tasks=%s | deduped_rows=%s",
+        f"{summary['unique_tasks']:,}",
+        f"{summary['duplicate_rows_collapsed']:,}",
+    )
+    log.info(
+        "Cache plan | cached=%s | fresh=%s",
+        f"{summary['cached_tasks']:,}",
+        f"{summary['fresh_tasks']:,}",
+    )
+
+
 def write_parquet_rows(rows: list[dict], output_path: Path) -> None:
     if not rows:
         pd.DataFrame(rows).to_parquet(output_path, index=False)
@@ -320,13 +357,24 @@ def run_stage10(
     codex_model: str = DEFAULT_CODEX_MODEL,
     timeout_seconds: int = 180,
     max_retries: int = 3,
-    max_workers: int = 12,
-    provider_order: tuple[str, ...] = SUPPORTED_PROVIDERS,
+    max_workers: int = 30,
+    enabled_engines: tuple[str, ...] = SUPPORTED_PROVIDERS,
     claude_model: str = DEFAULT_CLAUDE_MODEL,
     quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
+    engine_tiers: dict[str, str] | None = None,
+    engine_timezone: str = DEFAULT_ENGINE_TIMEZONE,
 ) -> None:
     log = configure_logging()
     t0 = time.time()
+    runtime = LLMEngineRuntime(
+        build_engine_configs(
+            enabled_engines,
+            codex_model=codex_model,
+            claude_model=claude_model,
+            engine_tiers=engine_tiers,
+        ),
+        slot_timezone=engine_timezone,
+    )
 
     log.info("=" * 70)
     log.info("Stage 10: LLM classification + final integration")
@@ -340,10 +388,16 @@ def run_stage10(
     pf = pq.ParquetFile(input_path)
     candidate_lookup: dict[str, dict] = {}
     total_rows = pf.metadata.num_rows
+    reason_counts: Counter = Counter()
+    routed_row_count = 0
+    selected_control_rows = 0
 
     for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
         chunk = pa.Table.from_batches([batch]).to_pandas()
         prepared = prepare_classification_rows(chunk)
+        reason_counts.update(prepared["llm_classification_reason"].fillna("unknown").astype(str))
+        routed_row_count += int(prepared["needs_llm_classification"].fillna(False).sum())
+        selected_control_rows += int(prepared["selected_for_control_cohort"].fillna(False).sum())
         candidates = prepared.loc[prepared["needs_llm_classification"]].copy()
         if candidates.empty:
             continue
@@ -364,29 +418,41 @@ def run_stage10(
             candidate_lookup.setdefault(str(row["classification_input_hash"]), row)
 
     candidate_rows = list(candidate_lookup.values())
-    log.info("Input rows: %s", f"{total_rows:,}")
-    log.info("Unique classification inputs: %s", f"{len(candidate_rows):,}")
 
     conn = open_cache(cache_db)
     hashes = [str(row["classification_input_hash"]) for row in candidate_rows]
     cached_rows = fetch_cached_rows(conn, hashes, CLASSIFICATION_TASK_NAME, CLASSIFICATION_PROMPT_VERSION)
 
     rows_to_process = [row for row in candidate_rows if str(row["classification_input_hash"]) not in cached_rows]
-    log.info("Fresh classification calls needed: %s", f"{len(rows_to_process):,}")
+    log_stage10_plan(
+        log,
+        summarize_stage10_routing(
+            total_rows=total_rows,
+            routed_rows=routed_row_count,
+            selected_control_rows=selected_control_rows,
+            reason_counts=reason_counts,
+            unique_task_count=len(candidate_rows),
+            duplicate_rows_collapsed=max(routed_row_count - len(candidate_rows), 0),
+            cached_task_count=len(cached_rows),
+            fresh_task_count=len(rows_to_process),
+        ),
+        max_workers=max_workers,
+        runtime=runtime,
+    )
 
     if rows_to_process:
+        progress_checkpoints = set(build_progress_checkpoints(len(rows_to_process)))
+        completed = 0
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {
                 executor.submit(
                     process_candidate_row,
                     row,
-                    codex_model=codex_model,
+                    runtime=runtime,
                     timeout_seconds=timeout_seconds,
                     max_retries=max_retries,
                     error_log_path=error_log_path,
                     log=log,
-                    provider_order=provider_order,
-                    claude_model=claude_model,
                     quota_wait_hours=quota_wait_hours,
                 ): row
                 for row in rows_to_process
@@ -395,6 +461,7 @@ def run_stage10(
                 row = future_map[future]
                 input_hash = str(row["classification_input_hash"])
                 result = future.result()
+                completed += 1
                 if result is None:
                     continue
                 store_cached_row(
@@ -412,6 +479,13 @@ def run_stage10(
                     task_name=CLASSIFICATION_TASK_NAME,
                     prompt_version=CLASSIFICATION_PROMPT_VERSION,
                 )
+                if completed in progress_checkpoints:
+                    log.info(
+                        "Stage 10 progress | completed=%s/%s fresh classification tasks (%.1f%%)",
+                        f"{completed:,}",
+                        f"{len(rows_to_process):,}",
+                        100.0 * completed / len(rows_to_process),
+                    )
 
     tmp_results_path = prepare_temp_output(results_path)
     tmp_integrated_path = prepare_temp_output(integrated_path)
@@ -477,15 +551,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--codex-model", type=str, default=DEFAULT_CODEX_MODEL)
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--max-retries", type=int, default=3)
-    parser.add_argument("--max-workers", type=int, default=12)
-    parser.add_argument("--provider-order", type=str, default="codex,claude")
+    parser.add_argument("--max-workers", type=int, default=30)
+    parser.add_argument("--engines", type=str, default="codex,claude")
     parser.add_argument("--claude-model", type=str, default=DEFAULT_CLAUDE_MODEL)
     parser.add_argument("--quota-wait-hours", type=float, default=DEFAULT_QUOTA_WAIT_HOURS)
+    parser.add_argument("--engine-tiers", type=str, default=None)
+    parser.add_argument("--engine-timezone", type=str, default=DEFAULT_ENGINE_TIMEZONE)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    enabled_engines = parse_engine_list(args.engines)
     run_stage10(
         input_path=args.input,
         results_path=args.results_output,
@@ -497,7 +574,9 @@ if __name__ == "__main__":
         timeout_seconds=args.timeout_seconds,
         max_retries=args.max_retries,
         max_workers=args.max_workers,
-        provider_order=parse_provider_order(args.provider_order),
+        enabled_engines=enabled_engines,
         claude_model=args.claude_model,
         quota_wait_hours=args.quota_wait_hours,
+        engine_tiers=parse_engine_tiers(args.engine_tiers, enabled_engines),
+        engine_timezone=args.engine_timezone,
     )

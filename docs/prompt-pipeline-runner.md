@@ -4,9 +4,9 @@ You are a pipeline orchestrator agent. Your job is to run the preprocessing pipe
 
 The main expectations are:
 - Stages 1-8 are deterministic. Run them sequentially and verify each output is healthy.
-- Stage 9 is deterministic routing. Run it after Stage 8.
-- Stage 10 is the long-running cached LLM stage. Use Claude Haiku as the runtime path, wait 5 hours on quota/rate-limit pauses, use 40 workers, and rely on the durable cache DB so reruns resume cleanly.
-- Monitor Stage 10 roughly hourly. Confirm the cache is growing unless the log clearly shows a quota pause.
+- Stages 9 and 10 use the shared engine runtime. Run them after Stage 8 with the configured engines and engine tiers.
+- Use 30 workers for both LLM stages unless there is a concrete reason to change it.
+- Monitor the LLM stages roughly hourly. Confirm the cache is growing unless the log clearly shows an intentional engine pause.
 - If something crashes, read the error and fix small issues. If the problem is materially larger than a small repair/restart, notify the user.
 - Stages 11 and 12 have not been exercised end-to-end in production yet. Expect possible bugs there and handle them carefully.
 - There is no artificial 10-hour stop. Let the run continue until it is done unless you hit a materially larger issue.
@@ -127,7 +127,11 @@ If the row count is drastically off or key columns are missing, do not continue 
 Stage 9 is now the extraction stage. It selects the LLM analysis universe, builds the deterministic control cohort, applies the short-description hard skip, runs extraction only, and materializes the posting-level cleaned-text artifact.
 
 ```bash
-./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py
+./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py \
+  --engines codex,claude \
+  --engine-tiers codex=full,claude=non_intrusive \
+  --quota-wait-hours 5 \
+  --max-workers 30
 ```
 
 Verify the key outputs:
@@ -158,25 +162,29 @@ PY
 Stage 10 is now the classification stage plus final posting-level integration. It reads `stage9_llm_cleaned.parquet`, routes only the rows that still need classification, executes classification on the cleaned-description fallback chain, and writes the canonical LLM-integrated posting table.
 
 The important operational facts are:
-- Primary provider/model should be Claude Haiku.
-- Use `--provider-order claude`.
-- Quota/rate-limit failures trigger a shared 5-hour pause and then retry.
-- Use 40 workers.
+- Engine selection is explicit via `--engines`.
+- Tier assignment is explicit via `--engine-tiers`.
+- A task is assigned to one engine and stays on that engine until it succeeds.
+- Non-quota failures wait 1 minute and retry the same engine.
+- Quota pauses are provider-scoped, not global.
+- Use 30 workers.
 - Progress is checkpointed to `preprocessing/cache/llm_responses.db` immediately after each successful task.
 - The final Stage 10 parquets are only materialized at the end of a clean full run. Partial progress lives in the cache DB and log.
 
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage10_llm_classify.py \
-  --provider-order claude \
+  --engines codex,claude \
+  --engine-tiers codex=full,claude=non_intrusive \
   --quota-wait-hours 5 \
-  --max-workers 40
+  --max-workers 30
 ```
 
 Current defaults already match the intended settings:
 - Claude model: `haiku`
 - Codex model: `gpt-5.4-mini`
 - Quota wait: `5.0` hours
-- Max workers: `40`
+- Retry wait after a failed task attempt: `60` seconds
+- Max workers: `30`
 
 ### Stage 10 Monitoring
 
@@ -207,13 +215,17 @@ PY
 
 Interpretation:
 - If the cache counts and latest timestamp are moving forward, Stage 10 is healthy.
-- If the cache is flat but the log shows a quota/rate-limit pause with a future UTC resume time, that is expected. Leave it alone.
+- If the cache is flat but the log shows a quota/rate-limit pause with a future UTC resume time for one engine, that is expected. Leave it alone.
 - If the cache is flat for a long time and the log does not show an intentional quota pause, inspect the latest error and decide whether a small fix/restart is needed.
 
 Quota behavior:
-- On quota/rate-limit errors, the script pauses all new provider calls for 5 hours and then retries.
-- Do not stop the run just because it is in a logged quota pause.
-- Keep Stage 10 on `claude` unless the user explicitly wants a provider fallback change.
+- Full-tier engines pause for 5 hours on quota/rate-limit errors and then retry.
+- Non-intrusive engines pause until the current five-hour slot ends after a quota hit.
+- Do not stop the run just because one engine is in a logged quota pause.
+
+Failure behavior:
+- If a task attempt fails without a quota pause, the runtime waits 1 minute and retries the same engine.
+- The runtime does not fall back to a different engine for that task.
 
 Crash behavior:
 - If Stage 10 crashes on a small issue, read the traceback, fix it, and restart with the same command.

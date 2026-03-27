@@ -5,6 +5,7 @@ from tests.helpers.imports import load_module
 
 
 stage9 = load_module("stage9_llm_prefilter", "preprocessing/scripts/stage9_llm_prefilter.py")
+llm_shared = load_module("llm_shared", "preprocessing/scripts/llm_shared.py")
 
 
 @pytest.mark.unit
@@ -287,3 +288,131 @@ def test_build_extraction_candidates_collapses_duplicate_inputs_and_includes_sel
     control = candidates[candidates["llm_route_group"] == "control_extraction"].iloc[0]
     assert control["source_row_count"] == 1
     assert control["selected_for_control_cohort"] == True
+
+
+@pytest.mark.unit
+def test_resolve_description_core_llm_returns_empty_string_when_ok_response_drops_all_units():
+    row = pd.Series(
+        {
+            "description": "see our Careers page on our website for further information.\nShow more\nShow less",
+            "short_description_skip": False,
+            "is_swe": True,
+            "is_swe_adjacent": False,
+            "selected_for_control_cohort": False,
+            "needs_llm_extraction": True,
+            "extraction_input_hash": "hash-1",
+        }
+    )
+    cached_rows = {
+        "hash-1": {
+            "response_json": (
+                '{"task_status":"ok","boilerplate_unit_ids":[1],"uncertain_unit_ids":[],"reason":"application instruction"}'
+            )
+        }
+    }
+
+    assert stage9.resolve_description_core_llm(row, cached_rows) == ""
+
+
+@pytest.mark.unit
+def test_summarize_stage9_routing_reports_volume_drivers():
+    prepared = pd.DataFrame(
+        [
+            {
+                "is_linkedin": True,
+                "is_english": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "eligible_control_extraction": False,
+                "llm_extraction_reason": "routed",
+            },
+            {
+                "is_linkedin": True,
+                "is_english": True,
+                "is_swe": False,
+                "is_swe_adjacent": True,
+                "eligible_control_extraction": False,
+                "llm_extraction_reason": "short_description",
+            },
+            {
+                "is_linkedin": True,
+                "is_english": True,
+                "is_swe": False,
+                "is_swe_adjacent": False,
+                "eligible_control_extraction": True,
+                "llm_extraction_reason": "not_routed",
+            },
+        ]
+    )
+    candidate_summary = pd.DataFrame(
+        [
+            {"llm_route_group": "technical_extraction", "source_row_count": 2},
+            {"llm_route_group": "control_extraction", "source_row_count": 1},
+        ]
+    )
+
+    summary = stage9.summarize_stage9_routing(
+        prepared,
+        candidate_summary,
+        selected_control_count=1,
+        cached_task_count=1,
+        fresh_task_count=2,
+    )
+
+    assert summary == {
+        "total_rows": 3,
+        "linkedin_rows": 3,
+        "english_rows": 3,
+        "technical_scope_rows": 2,
+        "control_pool_rows": 1,
+        "selected_control_rows": 1,
+        "short_skip_rows": 1,
+        "routed_rows": 1,
+        "not_routed_rows": 1,
+        "unique_tasks": 2,
+        "technical_tasks": 1,
+        "control_tasks": 1,
+        "duplicate_rows_collapsed": 1,
+        "cached_tasks": 1,
+        "fresh_tasks": 2,
+    }
+
+
+@pytest.mark.unit
+def test_extract_first_json_object_repairs_missing_final_brace():
+    stdout = """codex
+{
+  "task_status": "ok",
+  "boilerplate_unit_ids": [1, 2],
+  "uncertain_unit_ids": [],
+  "reason": "drop boilerplate"
+
+tokens used
+4,796
+"""
+
+    assert llm_shared.extract_first_json_object(stdout) == (
+        '{"task_status": "ok", "boilerplate_unit_ids": [1, 2], '
+        '"uncertain_unit_ids": [], "reason": "drop boilerplate"}'
+    )
+
+
+@pytest.mark.unit
+def test_stage9_parse_args_defaults_to_30_workers(monkeypatch):
+    monkeypatch.setattr(
+        "sys.argv",
+        ["stage9_llm_prefilter.py"],
+    )
+    args = stage9.parse_args()
+    assert args.max_workers == 30
+
+
+@pytest.mark.unit
+def test_join_retained_units_uses_single_newlines():
+    units = [
+        {"unit_id": 1, "text": "First line"},
+        {"unit_id": 2, "text": "Second line"},
+        {"unit_id": 3, "text": "Third line"},
+    ]
+
+    assert llm_shared.join_retained_units(units, [2]) == "First line\nThird line"
