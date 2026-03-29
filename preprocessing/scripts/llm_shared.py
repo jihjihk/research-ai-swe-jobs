@@ -211,6 +211,7 @@ DEFAULT_CLAUDE_MODEL = "haiku"
 DEFAULT_ENGINE_TIMEZONE = "America/Los_Angeles"
 SAMPLED_RESPONSE_LOG_EVERY = 5_000
 SAMPLED_RESPONSE_LOG_MAX_CHARS = 2_000
+COMMAND_ERROR_LOG_MAX_CHARS = 4_000
 REMOTE_SSH_KEY_PATH = "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem"
 REMOTE_SSH_HOST = "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com"
 REMOTE_SSH_CONTROL_PATH = "~/.ssh/ssh-mux-%C"
@@ -487,6 +488,45 @@ def log_sampled_llm_response(
         model or "-",
         _truncate_log_value(meta_preview),
         _truncate_log_value(payload_preview),
+    )
+
+
+def stderr_looks_like_error(text: str) -> bool:
+    candidate = (text or "").lower()
+    if not candidate:
+        return False
+    patterns = (
+        "error",
+        "failed",
+        "exception",
+        "traceback",
+        "fatal",
+        "no such file or directory",
+        "syntax error",
+        "permission denied",
+    )
+    return any(pattern in candidate for pattern in patterns)
+
+
+def log_command_output(
+    log: logging.Logger,
+    *,
+    level: int,
+    summary: str,
+    stdout: str,
+    stderr: str,
+    returncode: int | None = None,
+) -> None:
+    extra = ""
+    if returncode is not None:
+        extra = f" | returncode={returncode}"
+    log.log(
+        level,
+        "%s%s | stderr=%s | stdout=%s",
+        summary,
+        extra,
+        _truncate_log_value(stderr or "-", max_chars=COMMAND_ERROR_LOG_MAX_CHARS),
+        _truncate_log_value(stdout or "-", max_chars=COMMAND_ERROR_LOG_MAX_CHARS),
     )
 
 
@@ -1479,6 +1519,8 @@ def build_codex_command(prompt: str, model: str) -> list[str]:
     return [
         "codex",
         "exec",
+        "--disable",
+        "shell_snapshot",
         "--full-auto",
         "--ephemeral",
         "--config",
@@ -1592,6 +1634,9 @@ def attempt_provider_call(
     backoff_seconds = [1, 2, 4]
     attempt = 1
     resolved_hash = input_hash or description_hash or ""
+    stdout = ""
+    stderr = ""
+    combined_output = ""
 
     while attempt <= max_retries:
         try:
@@ -1610,6 +1655,17 @@ def attempt_provider_call(
 
             if result.returncode != 0:
                 is_quota_limited = detect_quota_or_rate_limit(combined_output)
+                log_command_output(
+                    log,
+                    level=logging.ERROR,
+                    summary=(
+                        f"Subprocess failed for {provider}/{model} on "
+                        f"{resolved_hash or '-'} ({task_name})"
+                    ),
+                    stdout=stdout,
+                    stderr=stderr,
+                    returncode=result.returncode,
+                )
                 append_jsonl(
                     error_log_path,
                     {
@@ -1634,6 +1690,19 @@ def attempt_provider_call(
                     continue
                 return None, "failed", combined_output
 
+            if stderr_looks_like_error(stderr):
+                log_command_output(
+                    log,
+                    level=logging.WARNING,
+                    summary=(
+                        f"Command stderr for {provider}/{model} on "
+                        f"{resolved_hash or '-'} ({task_name})"
+                    ),
+                    stdout=stdout,
+                    stderr=stderr,
+                    returncode=result.returncode,
+                )
+
             if provider == "codex":
                 response_json, tokens_used, cost_usd = parse_codex_stdout(stdout)
                 response_model = model
@@ -1644,6 +1713,16 @@ def attempt_provider_call(
             payload = json.loads(response_json)
             validation_error = payload_validator(payload)
             if validation_error is not None:
+                log_command_output(
+                    log,
+                    level=logging.ERROR,
+                    summary=(
+                        f"Provider response validation failed for {provider}/{response_model} on "
+                        f"{resolved_hash or '-'} ({task_name}): {validation_error}"
+                    ),
+                    stdout=stdout,
+                    stderr=stderr,
+                )
                 append_jsonl(
                     error_log_path,
                     {
@@ -1655,6 +1734,7 @@ def attempt_provider_call(
                         "model": response_model,
                         "attempt": attempt,
                         "error_type": validation_error,
+                        "stderr": stderr[:2000],
                         "raw_response": stdout[:8000],
                     },
                 )
@@ -1674,6 +1754,14 @@ def attempt_provider_call(
                 "cost_usd": cost_usd,
             }, None, ""
         except subprocess.TimeoutExpired:
+            log.error(
+                "Subprocess timed out for %s/%s on %s (%s) after %ss.",
+                provider,
+                model,
+                resolved_hash or "-",
+                task_name,
+                timeout_seconds,
+            )
             append_jsonl(
                 error_log_path,
                 {
@@ -1694,6 +1782,16 @@ def attempt_provider_call(
                 continue
             return None, "failed", ""
         except (json.JSONDecodeError, ValueError) as exc:
+            log_command_output(
+                log,
+                level=logging.ERROR,
+                summary=(
+                    f"Provider output parsing failed for {provider}/{model} on "
+                    f"{resolved_hash or '-'} ({task_name}): {type(exc).__name__}"
+                ),
+                stdout=stdout,
+                stderr=stderr,
+            )
             append_jsonl(
                 error_log_path,
                 {
@@ -1705,6 +1803,7 @@ def attempt_provider_call(
                     "model": model,
                     "attempt": attempt,
                     "error_type": type(exc).__name__,
+                    "stderr": stderr[:2000],
                     "raw_response": stdout[:8000] if "stdout" in locals() else "",
                 },
             )

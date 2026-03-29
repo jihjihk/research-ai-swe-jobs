@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from tests.helpers.imports import load_module
-from tests.helpers.llm_fakes import codex_stdout
+from tests.helpers.llm_fakes import codex_stdout, completed_process
 
 
 llm_shared = load_module("llm_shared_runtime", "preprocessing/scripts/llm_shared.py")
@@ -57,6 +57,8 @@ def test_build_codex_command_uses_json_event_output():
     assert command == [
         "codex",
         "exec",
+        "--disable",
+        "shell_snapshot",
         "--full-auto",
         "--ephemeral",
         "--config",
@@ -191,6 +193,79 @@ tokens used
     assert json.loads(response_json) == {"ok": True}
     assert tokens_used == 12190
     assert cost is None
+
+
+@pytest.mark.unit
+def test_attempt_provider_call_logs_subprocess_failure_details(monkeypatch, tmp_path, caplog):
+    monkeypatch.setattr(
+        llm_shared,
+        "call_subprocess",
+        lambda command, timeout_seconds: completed_process(
+            stdout="partial stdout",
+            stderr="fatal provider error",
+            returncode=1,
+        ),
+    )
+    log = logging.getLogger("llm-runtime-test")
+
+    with caplog.at_level(logging.ERROR):
+        result, failure_kind, detail = llm_shared.attempt_provider_call(
+            provider="codex",
+            prompt="Return JSON",
+            model="gpt-5.4-mini",
+            task_name="classification",
+            input_hash="hash-err",
+            error_log_path=tmp_path / "llm_errors.jsonl",
+            log=log,
+            timeout_seconds=5,
+            max_retries=1,
+            payload_validator=lambda payload: None,
+        )
+
+    assert result is None
+    assert failure_kind == "failed"
+    assert detail == "fatal provider error\npartial stdout"
+    assert "Subprocess failed for codex/gpt-5.4-mini on hash-err (classification)" in caplog.text
+    assert "fatal provider error" in caplog.text
+    assert "partial stdout" in caplog.text
+
+
+@pytest.mark.unit
+def test_attempt_provider_call_logs_error_like_stderr_on_success(monkeypatch, tmp_path, caplog):
+    monkeypatch.setattr(
+        llm_shared,
+        "call_subprocess",
+        lambda command, timeout_seconds: completed_process(
+            stdout=codex_stdout({"ok": True}, tokens_used=12),
+            stderr=(
+                "2026-03-29T19:06:32Z ERROR codex_core::shell_snapshot: "
+                "Shell snapshot validation failed"
+            ),
+            returncode=0,
+        ),
+    )
+    log = logging.getLogger("llm-runtime-test")
+
+    with caplog.at_level(logging.WARNING):
+        result, failure_kind, detail = llm_shared.attempt_provider_call(
+            provider="codex",
+            prompt="Return JSON",
+            model="gpt-5.4-mini",
+            task_name="classification",
+            input_hash="hash-stderr",
+            error_log_path=tmp_path / "llm_errors.jsonl",
+            log=log,
+            timeout_seconds=5,
+            max_retries=1,
+            payload_validator=lambda payload: None,
+        )
+
+    assert failure_kind is None
+    assert detail == ""
+    assert result is not None
+    assert result["payload"] == {"ok": True}
+    assert "Command stderr for codex/gpt-5.4-mini on hash-stderr (classification)" in caplog.text
+    assert "Shell snapshot validation failed" in caplog.text
 
 
 @pytest.mark.unit
