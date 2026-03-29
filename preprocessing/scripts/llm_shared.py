@@ -1355,7 +1355,6 @@ def build_codex_command(prompt: str, model: str) -> list[str]:
         "--config", "developer_instructions='You are a labor-market research tool. Return raw JSON.'",
         "--config", "model_reasoning_effort=medium",
         "--config", "model_verbosity=low",
-        prompt,
         "--skip-git-repo-check",
         "--json",
         prompt,

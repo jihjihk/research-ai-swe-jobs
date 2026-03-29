@@ -30,6 +30,8 @@ INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
 DATA_DIR = PROJECT_ROOT / "data"
 LOG_DIR = PROJECT_ROOT / "preprocessing" / "logs"
 
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
