@@ -1323,6 +1323,18 @@ def validate_extraction_payload(payload: dict) -> str | None:
 
 
 def call_subprocess(command: list[str], timeout_seconds: int) -> subprocess.CompletedProcess:
+    
+    # temporary overwrite to run commands on a diff machine
+    remote_cmd_string = " ".join(f"'{arg}'" if " " in arg else arg for arg in command)
+    ssh_call = [
+        "ssh", "-i", "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem", "-o", "ControlMaster=auto",
+        "-o", "ControlPath=~/.ssh/ssh-mux-%r@%h:%p",
+        "-o", "ControlPersist=10m",
+        "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com",
+        remote_cmd_string
+    ]
+    command = ssh_call
+
     return subprocess.run(
         command,
         capture_output=True,
@@ -1337,8 +1349,13 @@ def build_codex_command(prompt: str, model: str) -> list[str]:
         "codex",
         "exec",
         "--full-auto",
+        "--ephemeral",
         "--config",
         f"model={model}",
+        "--config", "developer_instructions='You are a labor-market research tool. Return raw JSON.'",
+        "--config", "model_reasoning_effort=medium",
+        "--config", "model_verbosity=low",
+        prompt,
         "--skip-git-repo-check",
         "--json",
         prompt,

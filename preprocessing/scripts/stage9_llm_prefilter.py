@@ -261,21 +261,20 @@ def build_extraction_candidates(annotated: pd.DataFrame, control_cohort: pd.Data
     routed.loc[routed["selected_for_control_cohort"] & ~routed["eligible_for_extraction"], "llm_route_group"] = (
         "control_extraction"
     )
-    return (
-        routed.groupby("extraction_input_hash", as_index=False)
-        .agg(
-            job_id=("job_id", "first"),
-            source=("source", "first"),
-            source_platform=("source_platform", "first"),
-            title=("title", "first"),
-            company_name=("company_name", "first"),
-            description=("description", "first"),
-            description_hash=("description_hash", "first"),
-            llm_route_group=("llm_route_group", "first"),
-            selected_for_control_cohort=("selected_for_control_cohort", "max"),
-            source_row_count=("job_id", "count"),
-        )
+    agg_spec = dict(
+        job_id=("job_id", "first"),
+        source=("source", "first"),
+        source_platform=("source_platform", "first"),
+        title=("title", "first"),
+        company_name=("company_name", "first"),
+        description_hash=("description_hash", "first"),
+        llm_route_group=("llm_route_group", "first"),
+        selected_for_control_cohort=("selected_for_control_cohort", "max"),
+        source_row_count=("job_id", "count"),
     )
+    if "description" in routed.columns:
+        agg_spec["description"] = ("description", "first")
+    return routed.groupby("extraction_input_hash", as_index=False).agg(**agg_spec)
 
 
 def process_chunk(df: pd.DataFrame, selected_control_hashes: set[str] | None = None) -> pd.DataFrame:
@@ -580,16 +579,62 @@ def run_stage9(
         slot_timezone=engine_timezone,
     )
 
+    # ---- Pass 1: stream chunks, keep only lightweight columns for control
+    # cohort selection and summary logging.  Text columns (description, etc.)
+    # are dropped after annotation to avoid holding the full dataset in RAM.
+    _LIGHTWEIGHT_COLS = [
+        "job_id", "source", "source_platform", "title", "company_name",
+        "description_hash", "is_english", "is_swe", "is_swe_adjacent",
+        "is_control", "has_raw_description", "is_linkedin",
+        "short_description_skip", "control_bucket",
+        "eligible_swe_extraction", "eligible_control_extraction",
+        "eligible_control_unit", "eligible_for_extraction",
+        "extraction_input_hash", "raw_description_word_count",
+    ]
     pf = pq.ParquetFile(input_path)
-    annotated_frames = []
+    lightweight_frames = []
     for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
         chunk = pa.Table.from_batches([batch]).to_pandas()
-        annotated_frames.append(annotate_chunk(chunk))
-    annotated = pd.concat(annotated_frames, ignore_index=True) if annotated_frames else pd.DataFrame()
+        annotated_chunk = annotate_chunk(chunk)
+        cols_to_keep = [c for c in _LIGHTWEIGHT_COLS if c in annotated_chunk.columns]
+        lightweight_frames.append(annotated_chunk[cols_to_keep])
+    annotated_light = pd.concat(lightweight_frames, ignore_index=True) if lightweight_frames else pd.DataFrame()
+    del lightweight_frames
 
-    control_cohort_df, selected_control_hashes = _select_control_cohort(annotated)
-    prepared_for_logging = process_chunk(annotated, selected_control_hashes=selected_control_hashes)
-    candidate_summary = build_extraction_candidates(annotated, control_cohort_df)
+    control_cohort_df, selected_control_hashes = _select_control_cohort(annotated_light)
+
+    # Build the logging summary directly from the lightweight frame.
+    # This replicates the flag logic from process_chunk() without needing
+    # the description column (all input flags are already present).
+    annotated_light["selected_for_control_cohort"] = (
+        annotated_light["extraction_input_hash"].astype(str).isin(selected_control_hashes)
+    )
+    extraction_scope = (
+        annotated_light["is_swe"].fillna(False).astype(bool)
+        | annotated_light["is_swe_adjacent"].fillna(False).astype(bool)
+        | annotated_light["selected_for_control_cohort"]
+    )
+    annotated_light["needs_llm_extraction"] = (
+        annotated_light["is_linkedin"]
+        & annotated_light["is_english"]
+        & annotated_light["has_raw_description"]
+        & extraction_scope
+        & ~annotated_light["short_description_skip"]
+    )
+    annotated_light["llm_extraction_reason"] = "not_routed"
+    annotated_light.loc[
+        annotated_light["short_description_skip"] & extraction_scope,
+        "llm_extraction_reason",
+    ] = "short_description"
+    annotated_light.loc[
+        annotated_light["needs_llm_extraction"],
+        "llm_extraction_reason",
+    ] = "routed"
+    candidate_summary = build_extraction_candidates(annotated_light, control_cohort_df)
+    prepared_for_logging = annotated_light
+    del annotated_light
+
+    # ---- Pass 2: build candidate records (streams from parquet again)
     candidate_rows = build_candidate_records(input_path, selected_control_hashes)
 
     conn = open_cache(cache_db)
@@ -608,6 +653,7 @@ def run_stage9(
         max_workers=max_workers,
         runtime=runtime,
     )
+    del prepared_for_logging, candidate_summary
 
     if rows_to_process:
         progress_checkpoints = set(build_progress_checkpoints(len(rows_to_process)))
