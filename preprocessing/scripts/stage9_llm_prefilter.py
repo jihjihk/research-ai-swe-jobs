@@ -39,6 +39,7 @@ from llm_shared import (
     compute_extraction_input_hash,
     execute_task_with_runtime,
     format_engine_labels,
+    log_sampled_llm_response,
     open_cache,
     parse_engine_tiers,
     parse_engine_list,
@@ -549,6 +550,22 @@ def log_stage9_plan(log: logging.Logger, summary: dict[str, int], *, max_workers
     )
 
 
+def log_stage9_sample_response(log: logging.Logger, *, completed: int, row: dict, result: dict) -> None:
+    log_sampled_llm_response(
+        log,
+        stage_label="Stage 9",
+        completed=completed,
+        input_hash=str(row.get("extraction_input_hash") or ""),
+        job_id=str(row.get("job_id") or ""),
+        model=str(result.get("model") or ""),
+        response_json=result.get("response_json"),
+        extra_fields={
+            "route_group": row.get("llm_route_group"),
+            "source_row_count": row.get("source_row_count"),
+        },
+    )
+
+
 def run_stage9(
     input_path: Path = DEFAULT_INPUT_PATH,
     candidates_path: Path = DEFAULT_CANDIDATES_PATH,
@@ -676,6 +693,7 @@ def run_stage9(
                 row = future_map[future]
                 result = future.result()
                 completed += 1
+                log_stage9_sample_response(log, completed=completed, row=row, result=result)
                 store_cached_row(
                     conn,
                     input_hash=row["extraction_input_hash"],

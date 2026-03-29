@@ -208,6 +208,8 @@ DEFAULT_RETRY_SLEEP_SECONDS = 60.0
 DEFAULT_CODEX_MODEL = "gpt-5.4-mini"
 DEFAULT_CLAUDE_MODEL = "haiku"
 DEFAULT_ENGINE_TIMEZONE = "America/Los_Angeles"
+SAMPLED_RESPONSE_LOG_EVERY = 5_000
+SAMPLED_RESPONSE_LOG_MAX_CHARS = 2_000
 
 STOP_REQUESTED = False
 QUOTA_PAUSE_LOCK = threading.Lock()
@@ -433,6 +435,53 @@ def build_progress_checkpoints(total: int) -> tuple[int, ...]:
     checkpoints = {1, total}
     checkpoints.update(max(1, math.ceil(total * fraction)) for fraction in fractions)
     return tuple(sorted(value for value in checkpoints if value <= total))
+
+
+def should_log_sampled_response(completed: int, every_n: int = SAMPLED_RESPONSE_LOG_EVERY) -> bool:
+    return completed == 1 or (every_n > 0 and completed % every_n == 0)
+
+
+def _truncate_log_value(text: str, *, max_chars: int = SAMPLED_RESPONSE_LOG_MAX_CHARS) -> str:
+    if len(text) <= max_chars:
+        return text
+    return f"{text[:max_chars]}...<truncated>"
+
+
+def log_sampled_llm_response(
+    log: logging.Logger,
+    *,
+    stage_label: str,
+    completed: int,
+    input_hash: str | None,
+    job_id: str | None,
+    model: str | None,
+    response_json: str | None,
+    extra_fields: dict[str, object] | None = None,
+    every_n: int = SAMPLED_RESPONSE_LOG_EVERY,
+) -> None:
+    if not should_log_sampled_response(completed, every_n):
+        return
+
+    payload_preview = "" if response_json is None else str(response_json)
+    try:
+        payload_preview = json.dumps(json.loads(payload_preview), ensure_ascii=False, sort_keys=True)
+    except (TypeError, json.JSONDecodeError):
+        pass
+
+    meta_preview = "-"
+    if extra_fields:
+        meta_preview = json.dumps(extra_fields, ensure_ascii=False, sort_keys=True)
+
+    log.info(
+        "%s sample parsed response | completed=%s | job_id=%s | input_hash=%s | model=%s | meta=%s | payload=%s",
+        stage_label,
+        f"{completed:,}",
+        job_id or "-",
+        input_hash or "-",
+        model or "-",
+        _truncate_log_value(meta_preview),
+        _truncate_log_value(payload_preview),
+    )
 
 
 class LLMEngineRuntime:

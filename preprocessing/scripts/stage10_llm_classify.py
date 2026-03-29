@@ -48,6 +48,7 @@ from llm_shared import (
     fetch_cached_row,
     fetch_cached_rows,
     format_engine_labels,
+    log_sampled_llm_response,
     open_cache,
     parse_engine_tiers,
     parse_engine_list,
@@ -331,6 +332,22 @@ def log_stage10_plan(log: logging.Logger, summary: dict[str, int], *, max_worker
     )
 
 
+def log_stage10_sample_response(log: logging.Logger, *, completed: int, row: dict, result: dict) -> None:
+    log_sampled_llm_response(
+        log,
+        stage_label="Stage 10",
+        completed=completed,
+        input_hash=str(row.get("classification_input_hash") or ""),
+        job_id=str(row.get("job_id") or ""),
+        model=str(result.get("model") or ""),
+        response_json=result.get("response_json"),
+        extra_fields={
+            "row_count": row.get("classification_row_count"),
+            "source_platform": row.get("source_platform"),
+        },
+    )
+
+
 def write_parquet_rows(rows: list[dict], output_path: Path) -> None:
     if not rows:
         pd.DataFrame(rows).to_parquet(output_path, index=False)
@@ -464,6 +481,7 @@ def run_stage10(
                 completed += 1
                 if result is None:
                     continue
+                log_stage10_sample_response(log, completed=completed, row=row, result=result)
                 store_cached_row(
                     conn,
                     input_hash=input_hash,
