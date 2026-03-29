@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 import logging
 from zoneinfo import ZoneInfo
@@ -5,6 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from tests.helpers.imports import load_module
+from tests.helpers.llm_fakes import codex_stdout
 
 
 llm_shared = load_module("llm_shared_runtime", "preprocessing/scripts/llm_shared.py")
@@ -45,6 +47,50 @@ def test_format_engine_labels_and_progress_checkpoints_are_compact():
         "codex(full:gpt-5.4-mini), claude(non_intrusive:haiku)"
     )
     assert llm_shared.build_progress_checkpoints(20) == (1, 2, 5, 10, 15, 18, 20)
+
+
+@pytest.mark.unit
+def test_build_codex_command_uses_json_event_output():
+    command = llm_shared.build_codex_command("Return JSON", "gpt-5.4-mini")
+
+    assert command == [
+        "codex",
+        "exec",
+        "--full-auto",
+        "--config",
+        "model=gpt-5.4-mini",
+        "--skip-git-repo-check",
+        "--json",
+        "Return JSON",
+    ]
+
+
+@pytest.mark.unit
+def test_parse_codex_stdout_reads_jsonl_events_and_usage():
+    payload = {"swe_classification": "SWE", "seniority": "entry"}
+    stdout = codex_stdout(payload, tokens_used=123)
+
+    response_json, tokens_used, cost = llm_shared.parse_codex_stdout(stdout)
+
+    assert json.loads(response_json) == payload
+    assert tokens_used == 123
+    assert cost is None
+
+
+@pytest.mark.unit
+def test_parse_codex_stdout_falls_back_to_legacy_transcript_format():
+    stdout = """codex
+{"ok": true}
+tokens used
+12,190
+{"ok": true}
+"""
+
+    response_json, tokens_used, cost = llm_shared.parse_codex_stdout(stdout)
+
+    assert json.loads(response_json) == {"ok": True}
+    assert tokens_used == 12190
+    assert cost is None
 
 
 @pytest.mark.unit

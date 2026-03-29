@@ -1179,7 +1179,75 @@ def repair_missing_closing_braces(text: str) -> str | None:
     return repaired
 
 
+def looks_like_codex_json_event_stream(stdout: str) -> bool:
+    for raw_line in stdout.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            return False
+        return isinstance(event, dict) and isinstance(event.get("type"), str)
+    return False
+
+
+def parse_codex_usage_tokens(usage: object) -> int | None:
+    if not isinstance(usage, dict):
+        return None
+
+    total = 0
+    found = False
+    for field_name in ("input_tokens", "output_tokens"):
+        value = usage.get(field_name)
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            total += value
+            found = True
+
+    if not found or total == 0:
+        return None
+    return total
+
+
+def parse_codex_json_event_stream(stdout: str) -> tuple[str, int | None, float | None]:
+    response_text = None
+    tokens_used = None
+
+    for raw_line in stdout.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        event = json.loads(line)
+        if not isinstance(event, dict):
+            continue
+
+        if event.get("type") == "item.completed":
+            item = event.get("item")
+            if (
+                isinstance(item, dict)
+                and item.get("type") == "agent_message"
+                and isinstance(item.get("text"), str)
+            ):
+                response_text = item["text"]
+        elif event.get("type") == "turn.completed":
+            parsed_tokens = parse_codex_usage_tokens(event.get("usage"))
+            if parsed_tokens is not None:
+                tokens_used = parsed_tokens
+
+    if response_text is None:
+        raise ValueError("no_codex_agent_message")
+
+    json_text = extract_first_json_object(response_text)
+    return json_text, tokens_used, None
+
+
 def parse_codex_stdout(stdout: str) -> tuple[str, int | None, float | None]:
+    if looks_like_codex_json_event_stream(stdout):
+        return parse_codex_json_event_stream(stdout)
+
     tokens_used = None
     match = re.search(r"tokens used\s+([\d,]+)", stdout, flags=re.IGNORECASE | re.MULTILINE)
     if match:
@@ -1271,8 +1339,9 @@ def build_codex_command(prompt: str, model: str) -> list[str]:
         "--full-auto",
         "--config",
         f"model={model}",
-        prompt,
         "--skip-git-repo-check",
+        "--json",
+        prompt,
     ]
 
 
