@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 import logging
+import subprocess
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -70,6 +71,98 @@ def test_build_codex_command_uses_json_event_output():
         "--json",
         "Return JSON",
     ]
+
+
+@pytest.mark.unit
+def test_build_remote_ssh_command_reuses_hashed_control_socket():
+    command = llm_shared.build_remote_ssh_command(["codex", "exec", "Return JSON"])
+
+    assert command == [
+        "ssh",
+        "-i",
+        "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlMaster=no",
+        "-o",
+        "ControlPath=~/.ssh/ssh-mux-%C",
+        "-o",
+        "ControlPersist=10m",
+        "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com",
+        "codex exec 'Return JSON'",
+    ]
+
+
+@pytest.mark.unit
+def test_ensure_remote_ssh_master_starts_master_when_missing(monkeypatch):
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess:
+        calls.append(command)
+        if "-O" in command:
+            return subprocess.CompletedProcess(command, 255, stdout="", stderr="Master not running")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(llm_shared.subprocess, "run", fake_run)
+
+    llm_shared.ensure_remote_ssh_master(timeout_seconds=15)
+
+    assert len(calls) == 2
+    assert calls[0] == [
+        "ssh",
+        "-i",
+        "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=~/.ssh/ssh-mux-%C",
+        "-O",
+        "check",
+        "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com",
+    ]
+    assert calls[1] == [
+        "ssh",
+        "-i",
+        "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlMaster=yes",
+        "-o",
+        "ControlPath=~/.ssh/ssh-mux-%C",
+        "-o",
+        "ControlPersist=10m",
+        "-N",
+        "-f",
+        "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com",
+    ]
+
+
+@pytest.mark.unit
+def test_ensure_remote_ssh_master_skips_start_when_master_exists(monkeypatch):
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="Master running", stderr="")
+
+    monkeypatch.setattr(llm_shared.subprocess, "run", fake_run)
+
+    llm_shared.ensure_remote_ssh_master(timeout_seconds=15)
+
+    assert calls == [[
+        "ssh",
+        "-i",
+        "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=~/.ssh/ssh-mux-%C",
+        "-O",
+        "check",
+        "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com",
+    ]]
 
 
 @pytest.mark.unit

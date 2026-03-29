@@ -6,6 +6,7 @@ import logging
 import math
 import random
 import re
+import shlex
 import sqlite3
 import statistics
 import subprocess
@@ -210,10 +211,15 @@ DEFAULT_CLAUDE_MODEL = "haiku"
 DEFAULT_ENGINE_TIMEZONE = "America/Los_Angeles"
 SAMPLED_RESPONSE_LOG_EVERY = 5_000
 SAMPLED_RESPONSE_LOG_MAX_CHARS = 2_000
+REMOTE_SSH_KEY_PATH = "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem"
+REMOTE_SSH_HOST = "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com"
+REMOTE_SSH_CONTROL_PATH = "~/.ssh/ssh-mux-%C"
+REMOTE_SSH_CONTROL_PERSIST = "10m"
 
 STOP_REQUESTED = False
 QUOTA_PAUSE_LOCK = threading.Lock()
 QUOTA_PAUSED_UNTIL = 0.0
+REMOTE_SSH_MASTER_LOCK = threading.Lock()
 
 
 class LLMEngineConfig:
@@ -1371,18 +1377,94 @@ def validate_extraction_payload(payload: dict) -> str | None:
     return None
 
 
-def call_subprocess(command: list[str], timeout_seconds: int) -> subprocess.CompletedProcess:
-    
-    # temporary overwrite to run commands on a diff machine
-    remote_cmd_string = " ".join(f"'{arg}'" if " " in arg else arg for arg in command)
-    ssh_call = [
-        "ssh", "-i", "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem", "-o", "ControlMaster=auto",
-        "-o", "ControlPath=~/.ssh/ssh-mux-%r@%h:%p",
-        "-o", "ControlPersist=10m",
-        "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com",
-        remote_cmd_string
+def build_remote_ssh_master_check_command() -> list[str]:
+    return [
+        "ssh",
+        "-i",
+        REMOTE_SSH_KEY_PATH,
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        f"ControlPath={REMOTE_SSH_CONTROL_PATH}",
+        "-O",
+        "check",
+        REMOTE_SSH_HOST,
     ]
-    command = ssh_call
+
+
+def build_remote_ssh_master_start_command() -> list[str]:
+    return [
+        "ssh",
+        "-i",
+        REMOTE_SSH_KEY_PATH,
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlMaster=yes",
+        "-o",
+        f"ControlPath={REMOTE_SSH_CONTROL_PATH}",
+        "-o",
+        f"ControlPersist={REMOTE_SSH_CONTROL_PERSIST}",
+        "-N",
+        "-f",
+        REMOTE_SSH_HOST,
+    ]
+
+
+def ensure_remote_ssh_master(timeout_seconds: int) -> None:
+    with REMOTE_SSH_MASTER_LOCK:
+        check_result = subprocess.run(
+            build_remote_ssh_master_check_command(),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+        if check_result.returncode == 0:
+            return
+
+        start_result = subprocess.run(
+            build_remote_ssh_master_start_command(),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+        if start_result.returncode == 0:
+            return
+
+        raise subprocess.CalledProcessError(
+            start_result.returncode,
+            start_result.args,
+            output=start_result.stdout,
+            stderr=start_result.stderr,
+        )
+
+
+def build_remote_ssh_command(command: list[str]) -> list[str]:
+    remote_cmd_string = shlex.join(command)
+    return [
+        "ssh",
+        "-i",
+        REMOTE_SSH_KEY_PATH,
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlMaster=no",
+        "-o",
+        f"ControlPath={REMOTE_SSH_CONTROL_PATH}",
+        "-o",
+        f"ControlPersist={REMOTE_SSH_CONTROL_PERSIST}",
+        REMOTE_SSH_HOST,
+        remote_cmd_string,
+    ]
+
+
+def call_subprocess(command: list[str], timeout_seconds: int) -> subprocess.CompletedProcess:
+    # Temporary redirect: run the provider CLIs on the remote machine via a
+    # single prewarmed SSH master to avoid ControlMaster race conditions.
+    ensure_remote_ssh_master(timeout_seconds)
+    command = build_remote_ssh_command(command)
 
     return subprocess.run(
         command,
