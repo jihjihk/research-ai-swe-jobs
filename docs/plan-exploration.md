@@ -48,7 +48,7 @@ Wave 4 → dispatch agent M
 
 At each gate, read the `exploration/reports/T*.md` files from the just-completed wave. Check:
 
-1. **Blocking issues** — Did any task report data that makes downstream work invalid?
+1. **Blocking issues** — Did any task report data that makes downstream work invalid? For example:
    - Column coverage too low for a required analysis
    - SWE classification fundamentally broken (>20% estimated false positive/negative)
    - Seniority labels contradictory across sources in a way that invalidates cross-period comparison
@@ -85,8 +85,6 @@ You are a sub-agent executing exploration tasks for a SWE labor market research 
 Read `docs/schema-stage8-and-stage12.md` for column definitions and recommended usage.
 
 **Key data context:**
-- The pipeline has been updated with: native_backfill fix (seniority unknown rate ~4% for SWE, down from 35%), expanded SWE regex (language-specific patterns), Systems Engineer disambiguation, and improved boilerplate patterns.
-- Check whether `description_core_llm` column exists (LLM boilerplate removal). If it does: use it as the primary description for text analysis, with `description_core` as fallback where null. If it does not exist: use `description_core` as the default text field for Stage 8 text analysis, with `description` only as a last-resort fallback where `description_core` is null.
 - asaniczka has zero entry-level native labels (only mid-senior and associate). Default: exclude it from entry-level trend analysis. T03 now explicitly tests whether `associate` can support a limited junior-proxy sensitivity; do not assume `Associate == entry` unless that audit recommends it.
 - 31GB RAM limit — use DuckDB or pyarrow for queries, never load full parquet into pandas.
 
@@ -98,14 +96,11 @@ WHERE source_platform = 'linkedin'
 ```
 
 **Three periods:** 2024-01 (asaniczka), 2024-04 (arshkon), 2026-03 (scraped)
-**Three sources:** kaggle_arshkon (118K rows), kaggle_asaniczka (1.06M rows), scraped (40K rows)
+**Three sources:** kaggle_arshkon (118K rows), kaggle_asaniczka (1.06M rows), scraped (40K rows and growing)
 
-**Text analysis hygiene rules — apply to ALL text-based tasks (T10+):**
+**Text analysis hygiene suggestions — apply to text-based tasks (T10+):**
 
 1. **Company-name stripping.** Before any corpus comparison or term-frequency analysis, build a stoplist from all `company_name_canonical` values, tokenize them into words, and strip them during tokenization. This prevents company names from dominating results ("Capital One" was the top distinguishing term in multiple v1 comparisons).
-
-2. **Boilerplate removal.** Strip EEO/legal sections, benefits lists, and "about the company" blocks before tokenization. Use regex to detect: "equal opportunity", "reasonable accommodation", "protected class", "benefits include", "about us", "privacy notice", "fair chance". If `description_core_llm` is available, this step is handled — use that column directly.
-   - If `description_core_llm` is not available but `description_core` is, start from `description_core` and apply only incremental cleanup needed for residual legal/company-name artifacts.
 
 3. **Artifact filtering.** For emerging/disappearing term lists:
    - Require terms to appear in >=20 distinct companies (prevents single-company artifacts like "dataannotation", "amazonians")
@@ -139,6 +134,8 @@ WHERE source_platform = 'linkedin'
   [1-3 sentence headline result]
   ## Implication for analysis
   [What this means for RQ1-RQ4]
+  ## Methodology
+  [How was the conclusion derived from the data]
   ## Data quality note
   [Caveats, issues, thin samples]
   ## Action items
@@ -158,7 +155,7 @@ Launch 4 agents in parallel. These establish what we have and whether it's usabl
 
 #### Agent A: Data coverage (T01 + T03)
 
-**Dispatch:** Audit column coverage and missing data patterns across all sources and the SWE subset. Produce the coverage heatmap and missing data tables that all downstream tasks depend on understanding. Also run the native-label comparability audit for whether asaniczka `associate` behaves enough like arshkon `entry` to justify a limited sensitivity use. Execute tasks T01 and T03.
+**Dispatch:** Audit column coverage and missing data patterns across all sources and the SWE subset. Produce the coverage heatmap and missing data tables that all downstream tasks depend on understanding. Also run the native-label comparability audit for whether asaniczka `associate` behaves enough like arshkon `entry` to justify a limited sensitivity use. What are some alternative labels that we can use? Execute tasks T01 and T03.
 
 #### Agent B: Classifier quality (T02 + T04)
 
@@ -198,11 +195,11 @@ Launch 4 agents in parallel. These generate the substantive findings.
 
 #### Agent F: Text analysis (T10 + T11)
 
-**Dispatch:** Run Fightin' Words corpus comparisons (6 pairs: junior/senior x period, plus cross-occupation) to identify statistically distinguishing terms. Then measure temporal drift via Jensen-Shannon divergence, keyword emergence/disappearance, and AI term prevalence. Apply all text hygiene rules from the preamble — this is critical for quality. Execute tasks T10 and T11.
+**Dispatch:** Run Fightin' Words corpus comparisons (6 pairs: junior/senior x period, plus cross-occupation) to identify statistically distinguishing terms. Then measure temporal drift via Jensen-Shannon divergence, keyword emergence/disappearance, and AI term prevalence. Apply text hygiene rules from the preamble and proactively identify new hygenie rules — this is critical for quality. Execute tasks T10 and T11.
 
 #### Agent G: Requirements & companies (T12 + T13)
 
-**Dispatch:** Parse job description requirements sections to extract structured data (YOE, education, tech count, soft skills). Then analyze company-level patterns: within-company vs between-company changes for companies appearing in both periods. Execute tasks T12 and T13.
+**Dispatch:** Parse job description requirements sections to extract structured data (education, tech count, soft skills) and use data from existing columns (i.e. YOE). Then analyze company-level patterns: within-company vs between-company changes for companies appearing in both periods. Execute tasks T12 and T13.
 
 #### Agent H: RQ3 + quality + controls (T14 + T15 + T16)
 
@@ -486,8 +483,8 @@ Each task is assigned to one agent. The agent receives the task spec below as pa
 
 **Steps:**
 1. AI requirement rate in SWE postings, by period and seniority. Separate "AI-as-tool" (copilot, cursor, LLM, prompt engineering) from "AI-as-domain" (ML, DL, NLP).
-2. Pull Anthropic occupation-level AI usage data. Map to comparable SOC codes. Also use StackOverflow Developer Survey benchmarks.
-3. Divergence: requirement rate vs usage rate, by seniority
+2. Pull Anthropic occupation-level AI usage data (https://www.anthropic.com/research/labor-market-impacts, https://www.anthropic.com/economic-index). Map to comparable SOC codes. Also use StackOverflow Developer Survey benchmarks.
+3. Divergence: requirement rate vs usage rate, by seniority. Make sure to do fair analysis given the data sources are completely different. What comparisons can we make?
 4. Produce divergence chart
 
 **Output:** `exploration/reports/T14.md` + divergence chart (becomes interview artifact)

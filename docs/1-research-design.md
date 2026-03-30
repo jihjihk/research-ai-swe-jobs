@@ -54,12 +54,12 @@ The design below assumes only the data we actually control.
 
 ### RQ1: Employer-side restructuring
 
-How did employer-side SWE requirements restructure across seniority levels from 2023 to 2026?
+How did employer-side SWE requirements restructure across seniority levels from 2023 to 2026? Note that our dataset is not exhaustive, but a representative scrape of Linkedin.
 
 Primary focus:
 
 - junior posting share and volume
-- junior scope inflation
+- junior scope redfinition
 - senior role redefinition
 - source-specific and metro-specific heterogeneity
 
@@ -186,6 +186,7 @@ We should compare our findings to theirs, but not present our employer-side vaca
 - LinkedIn + Indeed pooled estimates
 - exclusion of aggregator-like employers
 - metro-balanced subsamples
+- columns with various levels of preprocessing
 - dedupe and repost sensitivity
 - measures using canonical postings vs. daily observations
 
@@ -210,12 +211,6 @@ We should compare our findings to theirs, but not present our employer-side vaca
 4. Regression estimates for senior archetype shift
 5. Sensitivity and robustness checks
 6. Interview sample and mechanism summary table
-
-### Dataset outputs
-
-- `unified.parquet`: canonical postings corpus
-- `unified_observations.parquet`: daily observation panel
-- measurement appendix documenting dedupe, cleaning, and construct definitions
 
 ## Interview Integration
 

@@ -1015,30 +1015,3 @@ Sample 500 postings stratified by source, predicted seniority, and classificatio
 
 **Warning (Ashwin et al. 2025):** LLM coding errors are NOT random — they correlate with text characteristics. Always validate against human labels before trusting LLM annotations at scale.
 
----
-
-## Resolved decisions
-
-| # | Question | Decision | Rationale |
-|---|---|---|---|
-| 1 | **Historical baseline sources** | Use both Kaggle datasets. Arshkon is the primary historical baseline for entry-level analysis (RQ1). Asaniczka provides mid-senior/associate content for RQ2. | Asaniczka has zero entry-level postings — cannot support junior-share analysis. Arshkon has full seniority distribution. |
-| 2 | **Indeed inclusion** | LinkedIn-only for primary analysis. Indeed for sensitivity only. | Both Kaggle sources are LinkedIn-only. LinkedIn-only analysis provides cleanest cross-period comparison. |
-| 3 | **Description length discrepancy** | Investigate through LLM-assisted matched-pair comparison + automated checks. Do not draw length-based conclusions until resolved. | 55% gap could be scraping artifact. |
-| 4 | **Seniority classification** | Three ablations: LLM-classified (primary), rule-based imputed, LinkedIn native. | Addresses v1 validation failure (32% agreement). LLM uses explicit signals only. |
-| 5 | **SWE classification approach** | Rule-based remains primary (high precision on unambiguous cases). LLM adds coverage for ambiguous cases. | v1 validation showed 64% raw agreement but 83% when collapsing SWE+adjacent. The boundary is the problem, not the core classification. |
-| 6 | **Kaggle arshkon companion files** | Join during ingest (Stage 1a). | Confirmed joinable. 99.3% industry coverage. |
-| 7 | **Multi-location postings** | Keep all variants as default. Sensitivity-test collapsing. | Literature standard (Hershbein & Kahn 2018). |
-| 8 | **Aggregator postings** | Keep and flag. Sensitivity-test excluding. | Present across all sources. |
-| 9 | **DataAnnotation dominance** | Flag and sensitivity-test excluding. | 168 postings = 5.4% of Kaggle SWE. May be crowdwork. |
-| 10 | **Boilerplate removal** | Rule-based + LLM as dual columns for ablation. | v1 regex works for tail-end boilerplate but misses front-matter. LLM handles both. |
-| 11 | **Stage 4 near-dedup design** | Key-first dedup with description-supported exact opening matches and same-location fuzzy-title fallback. | Simpler and more auditable than a global cosine threshold; keeps description as supporting evidence rather than a standalone dedup key. |
-| 12 | **Embedding model** | Dual-model: JobBERT-v2 for titles, general-purpose for descriptions. | JobBERT-v2 has 64-token limit. |
-| 13 | **LLM model for classification** | GPT-5.4 mini and Claude Haiku as runtime engines. GPT-5.4 full for validation. | Cost-effective for thousands of calls. Validation uses the stronger model. |
-| 14 | **LLM boilerplate constraint** | Verbatim extraction only, no paraphrasing. Programmatic check. | Ensures the LLM doesn't introduce artifacts into the text we analyze. |
-| 15 | **Seniority from YOE** | YOE is extracted but NOT used for seniority assignment. Used only for contradiction flagging and ghost job detection. | Companies inflate YOE requirements. Using YOE to assign seniority would bake that inflation into the labels. |
-| 16 | **Old scraped data (Mar 5-18)** | Skip incompatible legacy scraped files, but do not hard-code a month/date ceiling for current-format files. | Old format lacked search metadata columns. Current-format scraped data should be loaded for any available date once it matches the 41-column schema. |
-| 17 | **Schema unification ownership** | Pipeline Stage 1 handles all three schemas independently. Does NOT rely on `scraper/harmonize.py`. | Each source has a different schema. Centralizing in the pipeline ensures reproducibility and makes schema differences explicit. |
-| 18 | **Asaniczka description join** | Left join `job_summary.csv` on `job_link`. Postings without descriptions (3.8%) remain with null description. Preserve `description_raw` separately from the normalized working `description` column. | Dropping them would bias against postings that lost their descriptions. Keeping a raw text column preserves source fidelity while later stages operate on a normalized working copy. |
-| 19 | **Two output files** | `unified.parquet` (canonical) + `unified_observations.parquet` (daily panel). | Canonical postings are the primary unit of analysis. Daily observations support duration analysis and sensitivity checks per the research design, and row-wise observations are much easier to query than list-valued appearance columns. |
-| 20 | **Asaniczka ID format** | Hash `job_link` URL to create a fixed-length ID: `"asaniczka_" + sha256(job_link)[:16]`. | Raw URLs are too long and unwieldy as IDs. Hash preserves uniqueness. |
-| 21 | **Raw vs mapped seniority** | Preserve the original source label in `seniority_raw` and store the canonical mapping in `seniority_native`. Unmapped values should stay null in `seniority_native`. | This keeps Stage 1 faithful to source data while preserving a normalized cross-source field for downstream deduplication, cross-checking, and validation. |
