@@ -232,7 +232,10 @@ def validate_output(stage: dict) -> bool:
     return True
 
 
-def run_stage(stage: dict) -> bool:
+LLM_STAGES = {9, 10}
+
+
+def run_stage(stage: dict, extra_args: list[str] | None = None) -> bool:
     """Run a single pipeline stage."""
     script = SCRIPTS_DIR / stage["script"]
     if not script.exists():
@@ -243,8 +246,9 @@ def run_stage(stage: dict) -> bool:
     t0 = time.time()
     timeout_seconds = stage.get("timeout_seconds", 3600)
 
+    cmd = [sys.executable, str(script)] + (extra_args or [])
     result = subprocess.run(
-        [sys.executable, str(script)],
+        cmd,
         capture_output=True, text=True,
         timeout=timeout_seconds,
     )
@@ -266,6 +270,8 @@ def main():
                         help="Start from this stage number (default: 1)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Just validate existing outputs, don't run stages")
+    parser.add_argument("--remote", action="store_true", default=False,
+                        help="Run LLM commands on the remote EC2 instance via SSH (stages 9-10)")
     args = parser.parse_args()
 
     log.info("=" * 60)
@@ -298,7 +304,8 @@ def main():
             continue
 
         # Run
-        if not run_stage(stage):
+        extra_args = ["--remote"] if args.remote and stage["num"] in LLM_STAGES else None
+        if not run_stage(stage, extra_args=extra_args):
             log.error(f"\nPIPELINE FAILED at Stage {stage_num}")
             return 1
 

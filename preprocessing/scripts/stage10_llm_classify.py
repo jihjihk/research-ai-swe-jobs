@@ -43,6 +43,7 @@ from llm_shared import (
     call_subprocess,
     chunked,
     compute_classification_input_hash,
+    configure_remote_execution,
     derive_classification_input,
     execute_task_with_runtime,
     fetch_cached_row,
@@ -575,11 +576,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--quota-wait-hours", type=float, default=DEFAULT_QUOTA_WAIT_HOURS)
     parser.add_argument("--engine-tiers", type=str, default=None)
     parser.add_argument("--engine-timezone", type=str, default=DEFAULT_ENGINE_TIMEZONE)
+    parser.add_argument("--remote", action="store_true", default=False,
+                        help="Run LLM commands on the remote EC2 instance via SSH")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    configure_remote_execution(args.remote)
     enabled_engines = parse_engine_list(args.engines)
     run_stage10(
         input_path=args.input,

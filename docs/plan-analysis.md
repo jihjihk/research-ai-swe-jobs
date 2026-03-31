@@ -3,7 +3,7 @@
 Date: 2026-03-20
 Status: Draft — ready for review before implementation
 
-This document covers Stage 15 (formal analysis for RQ1-RQ4) and Stage 16 (statistical verification and robustness). It runs after preprocessing (Stages 1-12 in `plan-preprocessing.md`) and exploration/validation (Stages 13-14 in `plan-exploration.md`) are complete.
+This document covers Stage 15 (formal analysis for RQ1-RQ4) and Stage 16 (statistical verification and robustness). It runs after preprocessing (Stages 1-12 in `preprocessing-guide.md`) and exploration/validation (Stages 13-14 in `plan-exploration.md`) are complete.
 
 **Research questions:** RQ1 (employer-side restructuring), RQ2 (task and requirement migration), RQ3 (employer-requirement / worker-usage divergence), RQ4 (mechanisms). See `docs/1-research-design.md` for full specifications.
 

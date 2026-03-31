@@ -3,7 +3,7 @@
 Date: 2026-03-23
 Status: Executable (v5 — enhanced)
 Input: `preprocessing/intermediate/stage8_final.parquet` (~76 cols, ~1.22M rows)
-Schema reference: `docs/schema-stage8-and-stage12.md`
+Schema reference: `docs/preprocessing-schema.md`
 
 ---
 
@@ -82,7 +82,7 @@ Prepend this to every sub-agent prompt.
 You are a sub-agent executing exploration tasks for a SWE labor market research project.
 
 **Input data:** `preprocessing/intermediate/stage8_final.parquet` (~76 columns, ~1.22M rows)
-Read `docs/schema-stage8-and-stage12.md` for column definitions and recommended usage.
+Read `docs/preprocessing-schema.md` for column definitions and recommended usage.
 
 **Key data context:**
 - asaniczka has zero entry-level native labels (only mid-senior and associate). Default: exclude it from entry-level trend analysis. T03 now explicitly tests whether `associate` can support a limited junior-proxy sensitivity; do not assume `Associate == entry` unless that audit recommends it.

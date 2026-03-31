@@ -217,10 +217,18 @@ REMOTE_SSH_HOST = "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com"
 REMOTE_SSH_CONTROL_PATH = "~/.ssh/ssh-mux-%C"
 REMOTE_SSH_CONTROL_PERSIST = "10m"
 
+_REMOTE_EXECUTION = False
+
 STOP_REQUESTED = False
 QUOTA_PAUSE_LOCK = threading.Lock()
 QUOTA_PAUSED_UNTIL = 0.0
 REMOTE_SSH_MASTER_LOCK = threading.Lock()
+
+
+def configure_remote_execution(enabled: bool) -> None:
+    """Enable or disable SSH-based remote execution for LLM subprocess calls."""
+    global _REMOTE_EXECUTION
+    _REMOTE_EXECUTION = enabled
 
 
 class LLMEngineConfig:
@@ -1501,10 +1509,9 @@ def build_remote_ssh_command(command: list[str]) -> list[str]:
 
 
 def call_subprocess(command: list[str], timeout_seconds: int) -> subprocess.CompletedProcess:
-    # Temporary redirect: run the provider CLIs on the remote machine via a
-    # single prewarmed SSH master to avoid ControlMaster race conditions.
-    ensure_remote_ssh_master(timeout_seconds)
-    command = build_remote_ssh_command(command)
+    if _REMOTE_EXECUTION:
+        ensure_remote_ssh_master(timeout_seconds)
+        command = build_remote_ssh_command(command)
 
     return subprocess.run(
         command,
