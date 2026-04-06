@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import heapq
 import json
 import logging
 import math
@@ -1084,6 +1085,302 @@ def ensure_cache_schema(conn: sqlite3.Connection) -> None:
         """
     )
     conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Budget-constrained LLM selection
+# ---------------------------------------------------------------------------
+# Stages 9/10 accept a --llm-budget that caps NEW LLM calls across all data.
+# The budget is split across SWE / SWE-adjacent / control categories, and
+# within each category it is water-filled across scrape_date buckets so
+# budget flows to thin days first.
+BUDGET_CATEGORIES = ("swe", "swe_adjacent", "control")
+DEFAULT_BUDGET_SPLIT = "0.4,0.3,0.3"
+
+
+def _coerce_day(value: object) -> str:
+    """Return `value` as a non-empty day string, or "unknown" for missing values.
+
+    NaN is truthy in Python, so we check explicitly rather than using `or`.
+    """
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return "unknown"
+    s = str(value).strip()
+    return s or "unknown"
+
+
+def stable_budget_score(scrape_date: str, input_hash: str) -> str:
+    """Deterministic per-row score for budget-constrained within-day selection.
+
+    Mirrors the stable_control_score pattern used for control cohort selection.
+    Two runs with identical (scrape_date, input_hash) inputs produce identical
+    scores, so selection is reproducible and incremental (higher budgets select
+    supersets of lower budgets).
+    """
+    seed = f"budget-selection-v1|{scrape_date}|{input_hash}"
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+def split_budget_by_category(
+    budget: int,
+    uncached_per_category: dict[str, int],
+    shares: dict[str, float],
+) -> dict[str, int]:
+    """Split `budget` across categories using share-weighted proportional allocation.
+
+    Each category gets `floor(budget * share / share_sum)`, capped by its
+    uncached capacity. Floor remainders and any surplus from capped categories
+    are distributed round-robin over the still-eligible categories in sorted
+    order. Net effect: share ratios are preserved among eligible categories.
+
+    Returns {category: number_allocated} with sum == budget (or less iff total
+    capacity is exhausted).
+    """
+    allocation: dict[str, int] = {cat: 0 for cat in uncached_per_category}
+    if budget <= 0:
+        return allocation
+    eligible = {cat: cap for cat, cap in uncached_per_category.items() if cap > 0}
+    if not eligible:
+        return allocation
+
+    # Initial share-weighted distribution, capped by each category's capacity.
+    share_sum = sum(shares.get(cat, 0.0) for cat in eligible) or 1.0
+    for cat, cap in eligible.items():
+        weight = shares.get(cat, 0.0) / share_sum
+        allocation[cat] = min(int(math.floor(budget * weight)), cap)
+    remaining = budget - sum(allocation.values())
+
+    # Round-robin the remainder over still-eligible categories. Absorbs both
+    # floor-rounding gaps and surplus cascaded from categories that hit their cap.
+    sorted_cats = sorted(eligible)
+    while remaining > 0:
+        progressed = False
+        for cat in sorted_cats:
+            if allocation[cat] < eligible[cat]:
+                allocation[cat] += 1
+                remaining -= 1
+                progressed = True
+                if remaining == 0:
+                    break
+        if not progressed:
+            break
+
+    return allocation
+
+
+def allocate_budget_across_days(
+    uncached_per_day: dict[str, int],
+    cached_per_day: dict[str, int],
+    budget: int,
+) -> dict[str, int]:
+    """Water-fill `budget` across daily buckets, topping up the thinnest days first.
+
+    Each day's "level" starts at its cached count. We pop the lowest-level day,
+    add one unit, push it back at level+1, and repeat. Days with no uncached
+    capacity are never pushed. Ties break by day name for deterministic output.
+
+    Returns {day: number_allocated} with sum == budget, or sum < budget iff
+    total capacity is exhausted.
+    """
+    if budget <= 0:
+        return {day: 0 for day in uncached_per_day}
+
+    allocation: dict[str, int] = {day: 0 for day in uncached_per_day}
+    # Heap entries: (current_level, day). Only days with uncached capacity.
+    heap = [
+        (cached_per_day.get(day, 0), day)
+        for day, capacity in uncached_per_day.items()
+        if capacity > 0
+    ]
+    heapq.heapify(heap)
+
+    remaining = budget
+    while remaining > 0 and heap:
+        level, day = heapq.heappop(heap)
+        allocation[day] += 1
+        remaining -= 1
+        if allocation[day] < uncached_per_day[day]:
+            heapq.heappush(heap, (level + 1, day))
+
+    return allocation
+
+
+def select_rows_by_budget(
+    uncached_rows: list[dict],
+    day_key: str,
+    hash_key: str,
+    allocation: dict[str, int],
+) -> list[dict]:
+    """Pick `allocation[day]` rows from each day's bucket, ordered by stable hash.
+
+    Groups rows by `row[day_key]`, sorts each group by
+    `stable_budget_score(day, row[hash_key])`, and takes the first N per day.
+    Deterministic: same inputs → same output.
+    """
+    if not uncached_rows or not allocation:
+        return []
+    by_day: dict[object, list[dict]] = {}
+    for row in uncached_rows:
+        by_day.setdefault(row.get(day_key), []).append(row)
+    selected: list[dict] = []
+    for day, n in allocation.items():
+        if n <= 0:
+            continue
+        day_rows = by_day.get(day, [])
+        if not day_rows:
+            continue
+        day_str = str(day)
+        scored = sorted(
+            day_rows,
+            key=lambda r: stable_budget_score(day_str, str(r.get(hash_key, ""))),
+        )
+        selected.extend(scored[:n])
+    return selected
+
+
+def parse_budget_split(raw: str) -> dict[str, float]:
+    """Parse a comma-separated split like '0.4,0.3,0.3' into BUDGET_CATEGORIES.
+
+    Values are normalized to sum to 1.0, so inputs like '40,30,30' also work.
+    """
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    if len(parts) != len(BUDGET_CATEGORIES):
+        raise ValueError(
+            f"budget split must have {len(BUDGET_CATEGORIES)} comma-separated "
+            f"values (got {len(parts)}): {raw!r}"
+        )
+    try:
+        values = [float(p) for p in parts]
+    except ValueError as exc:
+        raise ValueError(f"budget split values must be numeric: {raw!r}") from exc
+    if any(v < 0 for v in values):
+        raise ValueError(f"budget split values must be non-negative: {raw!r}")
+    total = sum(values)
+    if total <= 0:
+        raise ValueError(f"budget split values must sum to > 0: {raw!r}")
+    return {cat: v / total for cat, v in zip(BUDGET_CATEGORIES, values)}
+
+
+def categorize_budget_candidate(row: dict) -> str | None:
+    """Assign a candidate to one of BUDGET_CATEGORIES.
+
+    Priority: SWE > SWE-adjacent > control. Returns None if the row matches
+    none of the three flags (should not happen for routed candidates).
+    """
+    if bool(row.get("is_swe")):
+        return "swe"
+    if bool(row.get("is_swe_adjacent")):
+        return "swe_adjacent"
+    if bool(row.get("selected_for_control_cohort")):
+        return "control"
+    return None
+
+
+def log_budget_plan(
+    log: logging.Logger,
+    *,
+    budget: int,
+    split: dict[str, float],
+    uncached_per_category: dict[str, int],
+    category_allocation: dict[str, int],
+    deferred: int,
+) -> None:
+    """Emit the budget/allocation summary before LLM calls start."""
+    log.info(
+        "Budget plan | budget=%s | split=swe:%.2f/adj:%.2f/ctrl:%.2f",
+        f"{budget:,}",
+        split.get("swe", 0.0),
+        split.get("swe_adjacent", 0.0),
+        split.get("control", 0.0),
+    )
+    log.info(
+        "Uncached | swe=%s | swe_adjacent=%s | control=%s | total=%s",
+        f"{uncached_per_category.get('swe', 0):,}",
+        f"{uncached_per_category.get('swe_adjacent', 0):,}",
+        f"{uncached_per_category.get('control', 0):,}",
+        f"{sum(uncached_per_category.values()):,}",
+    )
+    log.info(
+        "Allocation | swe=%s | swe_adjacent=%s | control=%s | total=%s",
+        f"{category_allocation.get('swe', 0):,}",
+        f"{category_allocation.get('swe_adjacent', 0):,}",
+        f"{category_allocation.get('control', 0):,}",
+        f"{sum(category_allocation.values()):,}",
+    )
+    if deferred > 0:
+        log.info("Deferred (budget-capped) | rows=%s", f"{deferred:,}")
+
+
+def select_rows_with_budget(
+    candidates: list[dict],
+    cached_hashes: set[str],
+    budget: int,
+    split: dict[str, float],
+    hash_key: str,
+) -> tuple[list[dict], dict[str, int], dict[str, int]]:
+    """Budget-constrained selection of candidate rows, two-level allocation.
+
+    Level 1: split the budget across categories (40/30/30 by default), with
+    surplus from capped categories cascading to others.
+    Level 2: water-fill each category's allocation across scrape_date buckets.
+
+    Each uncached candidate is normalized (scrape_date coerced to string) so
+    downstream selection can group by it. Cached rows count toward the
+    water-filling baseline but are never reprocessed.
+
+    Returns: (selected_rows, category_allocation, uncached_per_category).
+    """
+    uncached_by_category: dict[str, list[dict]] = {cat: [] for cat in BUDGET_CATEGORIES}
+    uncached_counts: dict[str, dict[str, int]] = {cat: {} for cat in BUDGET_CATEGORIES}
+    cached_counts: dict[str, dict[str, int]] = {cat: {} for cat in BUDGET_CATEGORIES}
+
+    for row in candidates:
+        cat = categorize_budget_candidate(row)
+        if cat is None:
+            continue
+        day = _coerce_day(row.get("scrape_date"))
+        if str(row.get(hash_key)) in cached_hashes:
+            cached_counts[cat][day] = cached_counts[cat].get(day, 0) + 1
+        else:
+            row_copy = dict(row)
+            row_copy["scrape_date"] = day
+            uncached_by_category[cat].append(row_copy)
+            uncached_counts[cat][day] = uncached_counts[cat].get(day, 0) + 1
+
+    uncached_per_category = {cat: len(rows) for cat, rows in uncached_by_category.items()}
+    if budget <= 0:
+        return [], {cat: 0 for cat in BUDGET_CATEGORIES}, uncached_per_category
+
+    category_allocation = split_budget_by_category(
+        budget=budget,
+        uncached_per_category=uncached_per_category,
+        shares=split,
+    )
+
+    selected: list[dict] = []
+    for cat in BUDGET_CATEGORIES:
+        cat_budget = category_allocation[cat]
+        if cat_budget <= 0:
+            continue
+        day_alloc = allocate_budget_across_days(
+            uncached_per_day=uncached_counts[cat],
+            cached_per_day=cached_counts[cat],
+            budget=cat_budget,
+        )
+        selected.extend(
+            select_rows_by_budget(
+                uncached_by_category[cat],
+                day_key="scrape_date",
+                hash_key=hash_key,
+                allocation=day_alloc,
+            )
+        )
+    return selected, category_allocation, uncached_per_category
+
+
+# ---------------------------------------------------------------------------
+# SQLite LLM response cache
+# ---------------------------------------------------------------------------
 
 
 def open_cache(cache_db: Path) -> sqlite3.Connection:

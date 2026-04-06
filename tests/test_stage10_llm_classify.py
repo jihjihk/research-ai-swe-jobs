@@ -10,6 +10,7 @@ from tests.helpers.llm_fakes import codex_stdout, completed_process
 
 
 stage10 = load_module("stage10_llm_classify", "preprocessing/scripts/stage10_llm_classify.py")
+llm_shared = load_module("llm_shared", "preprocessing/scripts/llm_shared.py")
 
 
 @pytest.mark.unit
@@ -209,10 +210,19 @@ def test_try_provider_and_engine_runtime_use_stubbed_subprocess_and_config(monke
 def test_parse_args_defaults_to_30_workers(monkeypatch):
     monkeypatch.setattr(
         "sys.argv",
-        ["stage10_llm_classify.py"],
+        ["stage10_llm_classify.py", "--llm-budget", "100"],
     )
     args = stage10.parse_args()
     assert args.max_workers == 30
+    assert args.llm_budget == 100
+    assert args.llm_budget_split == llm_shared.DEFAULT_BUDGET_SPLIT
+
+
+@pytest.mark.unit
+def test_parse_args_requires_llm_budget(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["stage10_llm_classify.py"])
+    with pytest.raises(SystemExit):
+        stage10.parse_args()
 
 
 @pytest.mark.unit

@@ -1,6 +1,6 @@
 # Preprocessing Pipeline Guide
 
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 
 This document is the primary reference for the preprocessing pipeline that transforms raw job-posting data into the analysis-ready `unified.parquet` and `unified_observations.parquet` datasets. It covers architecture, operations, and development practices.
 
@@ -15,7 +15,7 @@ For the detailed column-by-column schema, see [`preprocessing-schema.md`](prepro
 The pipeline has two layers:
 
 1. **Rule-based baseline (Stages 1-8):** Deterministic, fast (~30 min end-to-end), reproducible. Produces a usable corpus with rule-based classification labels. Every column from this layer is preserved even after LLM augmentation runs.
-2. **LLM augmentation (Stages 9-10):** Adds higher-quality classification and cleaned text via Claude and GPT calls. Takes hours to days depending on corpus size and API quotas. Results are cached in SQLite for resumability.
+2. **LLM augmentation (Stages 9-10):** Adds higher-quality classification and cleaned text via Codex (GPT) calls by default; Claude can be enabled via `--engines codex,claude`. Takes hours to days depending on corpus size and API quotas. Results are cached in SQLite for resumability.
 
 The rule-based layer always runs first and its outputs serve as both the fallback labels and the cache keys for the LLM layer. The intended production dataset includes both layers, but the Stage 8 output is independently usable for exploration while LLM stages are in progress.
 
@@ -213,8 +213,7 @@ Stage 9 selects the LLM analysis universe, builds the control cohort, and runs e
 
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py \
-  --engines codex,claude \
-  --engine-tiers codex=full,claude=non_intrusive \
+  --engines codex \
   --quota-wait-hours 5 \
   --max-workers 20
 ```
@@ -224,8 +223,7 @@ To run LLM commands on the remote EC2 instance, add `--remote`:
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py \
   --remote \
-  --engines codex,claude \
-  --engine-tiers codex=full,claude=non_intrusive \
+  --engines codex \
   --quota-wait-hours 5 \
   --max-workers 20
 ```
@@ -257,8 +255,7 @@ Stage 10 classifies the cleaned descriptions and writes the canonical LLM-integr
 
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage10_llm_classify.py \
-  --engines codex,claude \
-  --engine-tiers codex=full,claude=non_intrusive \
+  --engines codex \
   --quota-wait-hours 5 \
   --max-workers 20
 ```
@@ -299,6 +296,28 @@ For a full end-to-end run including LLM stages:
 
 The runner validates each stage's output (row counts, required columns) before proceeding.
 
+### S3 backup
+
+After a successful pipeline run, back up final outputs and the LLM cache to S3 with a timestamped prefix so previous backups are never overwritten:
+
+```bash
+# Standalone (after any manual run)
+./.venv/bin/python preprocessing/scripts/backup_to_s3.py
+
+# Dry run — see what would be uploaded
+./.venv/bin/python preprocessing/scripts/backup_to_s3.py --dry-run
+
+# Integrated — automatically back up after a full pipeline run
+./.venv/bin/python preprocessing/run_pipeline.py --backup
+```
+
+Uploads to `s3://swe-labor-research/backups/<YYYY-MM-DD_HHMMSS>/`:
+- `unified.parquet`, `unified_observations.parquet` — final analysis datasets
+- `quality_report.json`, `preprocessing_log.txt` — pipeline reports
+- `llm_responses.db` — LLM cache (expensive to regenerate)
+
+Missing files are skipped with a warning. Backup failure does not fail the pipeline run. Always back up after completing a full pipeline run, especially after LLM stages.
+
 ### Stage log files
 
 Each stage writes to `preprocessing/logs/`:
@@ -329,7 +348,7 @@ Each stage writes to `preprocessing/logs/`:
 
 Models are pinned in code. By default, these CLI commands run locally. Pass `--remote` to execute them on the remote EC2 instance via SSH.
 
-The `--engines` flag controls which engines are active; `--engine-tiers` assigns utilization modes:
+The `--engines` flag controls which engines are active (default: `codex`); `--engine-tiers` assigns utilization modes:
 - `full`: Standard utilization. Pauses 5 hours on quota hits, then retries.
 - `non_intrusive`: Conservative slot budget. Pauses until the current 5-hour window ends after a quota hit.
 

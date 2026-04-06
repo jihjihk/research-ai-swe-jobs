@@ -26,7 +26,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
+from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file, promote_null_schema
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
@@ -246,6 +246,13 @@ def run_stage3():
     total_rows = pf.metadata.num_rows
     log.info(f"  Input: {total_rows:,} rows, {pf.metadata.num_row_groups} row groups")
 
+    # Build stable output schema (null→string promotion + new columns)
+    output_schema = promote_null_schema(pf.schema_arrow, extra_fields=[
+        pa.field("description_core", pa.string()),
+        pa.field("core_length", pa.float64()),
+        pa.field("boilerplate_flag", pa.string()),
+    ])
+
     # Process in chunks, writing to parquet incrementally
     writer = None
     processed = 0
@@ -288,10 +295,11 @@ def run_stage3():
             for flag in ["ok", "over_removed", "under_removed", "empty_core"]:
                 flag_counts[flag] += (chunk["boilerplate_flag"] == flag).sum()
 
-            # Write chunk to parquet
+            # Write chunk to parquet (cast to unified schema)
             table = pa.Table.from_pandas(chunk, preserve_index=False)
+            table = table.cast(output_schema)
             if writer is None:
-                writer = pq.ParquetWriter(tmp_output_path, table.schema)
+                writer = pq.ParquetWriter(tmp_output_path, output_schema)
             writer.write_table(table)
 
             processed += len(chunk)

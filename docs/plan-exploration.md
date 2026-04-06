@@ -1,8 +1,8 @@
 # Exploration & Validation Plan
 
-Date: 2026-03-23
+Date: 2026-04-05
 Status: Executable (v5 — enhanced)
-Input: `preprocessing/intermediate/stage8_final.parquet` (~76 cols, ~1.22M rows)
+Input: `data/unified.parquet` (~99 cols, ~1.40M rows)
 Schema reference: `docs/preprocessing-schema.md`
 
 ---
@@ -81,12 +81,14 @@ Prepend this to every sub-agent prompt.
 
 You are a sub-agent executing exploration tasks for a SWE labor market research project.
 
-**Input data:** `preprocessing/intermediate/stage8_final.parquet` (~76 columns, ~1.22M rows)
+**Input data:** `data/unified.parquet` (~99 columns, ~1.40M rows)
 Read `docs/preprocessing-schema.md` for column definitions and recommended usage.
 
 **Key data context:**
 - asaniczka has zero entry-level native labels (only mid-senior and associate). Default: exclude it from entry-level trend analysis. T03 now explicitly tests whether `associate` can support a limited junior-proxy sensitivity; do not assume `Associate == entry` unless that audit recommends it.
 - 31GB RAM limit — use DuckDB or pyarrow for queries, never load full parquet into pandas.
+- **LLM-cleaned text**: `description_core_llm` is available for Kaggle SWE rows only (~24K rows where `llm_extraction_coverage = 'labeled'`). Scraped data has no LLM-cleaned text. Use `description_core` as fallback for scraped rows.
+- **LLM classification columns are NOT available.** `seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm` are null for all rows. Use rule-based columns: `seniority_final`, `is_swe`, `ghost_job_risk`.
 
 **Default SQL filters (apply unless task says otherwise):**
 ```sql
@@ -96,7 +98,7 @@ WHERE source_platform = 'linkedin'
 ```
 
 **Three periods:** 2024-01 (asaniczka), 2024-04 (arshkon), 2026-03 (scraped)
-**Three sources:** kaggle_arshkon (118K rows), kaggle_asaniczka (1.06M rows), scraped (40K rows and growing)
+**Three sources:** kaggle_arshkon (118K rows), kaggle_asaniczka (1.01M rows), scraped (146K LinkedIn rows)
 
 **Text analysis hygiene suggestions — apply to text-based tasks (T10+):**
 
@@ -247,8 +249,8 @@ Launch 4 agents in parallel. These tasks go deeper into the research constructs.
 
 After all Wave 3 agents complete:
 
-- [x] `T17.md` — What technology stacks are rising/declining beyond just "AI"?
-- [x] `T18.md` — What's driving description length growth? Requirements vs boilerplate?
+- [ ] `T17.md` — What technology stacks are rising/declining beyond just "AI"?
+- [ ] `T18.md` — What's driving description length growth? Requirements vs boilerplate?
 - [ ] `T19.md` — Do posting archetypes emerge? Does an "AI-augmented SWE" archetype grow?
 - [ ] `T20.md` — Does entry-2026 converge toward mid-senior-2024 (relabeling confirmed)?
 - [ ] `T21.md` — Is the management→orchestration shift real and measurable?

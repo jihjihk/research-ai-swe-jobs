@@ -34,7 +34,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from langdetect import DetectorFactory, LangDetectException, detect
 
-from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
+from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file, promote_null_schema
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -738,12 +738,14 @@ def main():
                 (df["description_quality_flag"] == "too_short").sum()
             )
 
-            # Convert back to Arrow and write
+            # Convert back to Arrow and write (cast to unified schema)
             out_table = pa.Table.from_pandas(df, preserve_index=False)
 
             if writer is None:
-                writer = pq.ParquetWriter(tmp_output_path, out_table.schema)
+                output_schema = promote_null_schema(out_table.schema)
+                writer = pq.ParquetWriter(tmp_output_path, output_schema)
 
+            out_table = out_table.cast(output_schema)
             writer.write_table(out_table)
             rows_written += n
 

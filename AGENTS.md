@@ -1,6 +1,6 @@
 # SWE Labor Market Research — Project Instructions
 
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 
 ## Purpose
 
@@ -42,6 +42,8 @@ Pipeline that transforms raw job-posting data into analysis-ready datasets.
 - **Schema:** [`docs/preprocessing-schema.md`](docs/preprocessing-schema.md) — column definitions and stage availability
 - **Testing:** [`docs/testing/preprocessing-test-strategy.md`](docs/testing/preprocessing-test-strategy.md)
 - **Outputs:** `data/unified.parquet`, `data/unified_observations.parquet`
+- **LLM budget (REQUIRED):** Stages 9 and 10 require `--llm-budget N` (no default). The budget caps all new LLM calls across all data sources, split 40% SWE / 30% SWE-adjacent / 30% control by default. See the "Budget-Constrained LLM Processing" section in `docs/preprocessing-schema.md`.
+- **Backup:** After a full pipeline run, back up outputs + LLM cache to S3: `python preprocessing/scripts/backup_to_s3.py` (or `--backup` flag on `run_pipeline.py`)
 - Do not touch: `scraper/`, research writing files
 
 ### 2. Exploration & validation

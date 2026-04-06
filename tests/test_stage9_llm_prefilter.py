@@ -401,10 +401,19 @@ tokens used
 def test_stage9_parse_args_defaults_to_30_workers(monkeypatch):
     monkeypatch.setattr(
         "sys.argv",
-        ["stage9_llm_prefilter.py"],
+        ["stage9_llm_prefilter.py", "--llm-budget", "100"],
     )
     args = stage9.parse_args()
     assert args.max_workers == 30
+    assert args.llm_budget == 100
+    assert args.llm_budget_split == llm_shared.DEFAULT_BUDGET_SPLIT
+
+
+@pytest.mark.unit
+def test_stage9_parse_args_requires_llm_budget(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["stage9_llm_prefilter.py"])
+    with pytest.raises(SystemExit):
+        stage9.parse_args()
 
 
 @pytest.mark.unit

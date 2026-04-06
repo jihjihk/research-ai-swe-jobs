@@ -21,6 +21,7 @@ import pyarrow.parquet as pq
 
 from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
 from llm_shared import (
+    DEFAULT_BUDGET_SPLIT,
     DEFAULT_ENGINE_TIMEZONE,
     DEFAULT_CLAUDE_MODEL,
     DEFAULT_CODEX_MODEL,
@@ -40,12 +41,15 @@ from llm_shared import (
     configure_remote_execution,
     execute_task_with_runtime,
     format_engine_labels,
+    log_budget_plan,
     log_sampled_llm_response,
     open_cache,
+    parse_budget_split,
     parse_engine_tiers,
     parse_engine_list,
     render_extraction_prompt,
     segment_description_into_units,
+    select_rows_with_budget,
     store_cached_row,
     try_provider,
     validate_extraction_payload,
@@ -88,7 +92,7 @@ def configure_logging() -> logging.Logger:
 
 def english_mask(df: pd.DataFrame) -> pd.Series:
     if "is_english" in df.columns:
-        return df["is_english"].fillna(False).astype(bool)
+        return df["is_english"].astype("boolean").fillna(False).astype(bool)
     if "lang_detected" in df.columns:
         return df["lang_detected"].fillna("").astype(str).eq("en")
     return pd.Series(True, index=df.index)
@@ -297,16 +301,30 @@ def process_chunk(df: pd.DataFrame, selected_control_hashes: set[str] | None = N
     return out
 
 
+def _promote_null_fields(schema: pa.Schema) -> pa.Schema:
+    """Replace null-typed fields with string so later batches can write values."""
+    fields = []
+    for field in schema:
+        if pa.types.is_null(field.type):
+            fields.append(pa.field(field.name, pa.string()))
+        else:
+            fields.append(field)
+    return pa.schema(fields, metadata=schema.metadata)
+
+
 def write_parquet_rows(rows: list[dict], output_path: Path) -> None:
     if not rows:
         pd.DataFrame(rows).to_parquet(output_path, index=False)
         return
     writer = None
+    schema = None
     try:
         for batch in chunked(rows, CHUNK_SIZE):
             table = pa.Table.from_pylist(batch)
             if writer is None:
-                writer = pq.ParquetWriter(output_path, table.schema)
+                schema = _promote_null_fields(table.schema)
+                writer = pq.ParquetWriter(output_path, schema)
+            table = table.cast(schema)
             writer.write_table(table)
     finally:
         if writer is not None:
@@ -435,9 +453,18 @@ def build_candidate_records(input_path: Path, selected_control_hashes: set[str])
     for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
         chunk = pa.Table.from_batches([batch]).to_pandas()
         prepared = process_chunk(chunk, selected_control_hashes=selected_control_hashes)
-        routed = prepared.loc[prepared["needs_llm_extraction"]]
+        routed = prepared.loc[prepared["needs_llm_extraction"]].copy()
         if routed.empty:
             continue
+        # Canonicalize scrape_date to YYYY-MM-DD strings for daily bucketing.
+        if "scrape_date" in routed.columns:
+            routed["scrape_date"] = (
+                pd.to_datetime(routed["scrape_date"], errors="coerce")
+                .dt.strftime("%Y-%m-%d")
+                .fillna("unknown")
+            )
+        else:
+            routed["scrape_date"] = "unknown"
         grouped = (
             routed[
                 [
@@ -449,6 +476,10 @@ def build_candidate_records(input_path: Path, selected_control_hashes: set[str])
                     "company_name",
                     "description",
                     "description_hash",
+                    "scrape_date",
+                    "is_swe",
+                    "is_swe_adjacent",
+                    "selected_for_control_cohort",
                 ]
             ]
             .drop_duplicates(subset=["extraction_input_hash"])
@@ -568,6 +599,9 @@ def log_stage9_sample_response(log: logging.Logger, *, completed: int, row: dict
 
 
 def run_stage9(
+    *,
+    llm_budget: int,
+    llm_budget_split: dict[str, float],
     input_path: Path = DEFAULT_INPUT_PATH,
     candidates_path: Path = DEFAULT_CANDIDATES_PATH,
     results_path: Path = DEFAULT_RESULTS_PATH,
@@ -585,6 +619,8 @@ def run_stage9(
     engine_tiers: dict[str, str] | None = None,
     engine_timezone: str = DEFAULT_ENGINE_TIMEZONE,
 ) -> None:
+    if llm_budget < 0:
+        raise ValueError(f"llm_budget must be >= 0, got {llm_budget}")
     log = configure_logging()
     t0 = time.time()
     runtime = LLMEngineRuntime(
@@ -604,7 +640,7 @@ def run_stage9(
         "job_id", "source", "source_platform", "title", "company_name",
         "description_hash", "is_english", "is_swe", "is_swe_adjacent",
         "is_control", "has_raw_description", "is_linkedin",
-        "short_description_skip", "control_bucket",
+        "short_description_skip", "control_bucket", "scrape_date",
         "eligible_swe_extraction", "eligible_control_extraction",
         "eligible_control_unit", "eligible_for_extraction",
         "extraction_input_hash", "raw_description_word_count",
@@ -658,7 +694,18 @@ def run_stage9(
     conn = open_cache(cache_db)
     hashes = [str(row["extraction_input_hash"]) for row in candidate_rows]
     cached_rows = fetch_cached_rows(conn, hashes, EXTRACTION_TASK_NAME, EXTRACTION_PROMPT_VERSION)
-    rows_to_process = [row for row in candidate_rows if str(row["extraction_input_hash"]) not in cached_rows]
+    cached_hash_set = set(cached_rows.keys())
+
+    # Budget-aware selection: all candidates go through the same budget pool.
+    rows_to_process, category_allocation, uncached_per_category = select_rows_with_budget(
+        candidates=candidate_rows,
+        cached_hashes=cached_hash_set,
+        budget=llm_budget,
+        split=llm_budget_split,
+        hash_key="extraction_input_hash",
+    )
+    deferred = sum(uncached_per_category.values()) - len(rows_to_process)
+
     log_stage9_plan(
         log,
         summarize_stage9_routing(
@@ -670,6 +717,14 @@ def run_stage9(
         ),
         max_workers=max_workers,
         runtime=runtime,
+    )
+    log_budget_plan(
+        log,
+        budget=llm_budget,
+        split=llm_budget_split,
+        uncached_per_category=uncached_per_category,
+        category_allocation=category_allocation,
+        deferred=deferred,
     )
     del prepared_for_logging, candidate_summary
 
@@ -760,6 +815,19 @@ def run_stage9(
                     resolve_description_core_llm(row, cached_rows)
                     for row in prepared.itertuples(index=False)
                 ]
+                # llm_extraction_coverage: sequential overrides starting from "not_routed".
+                in_scope = (
+                    prepared["is_swe"].fillna(False).astype(bool)
+                    | prepared["is_swe_adjacent"].fillna(False).astype(bool)
+                    | prepared["selected_for_control_cohort"].fillna(False).astype(bool)
+                )
+                routed = prepared["needs_llm_extraction"].fillna(False).astype(bool)
+                has_result = routed & prepared["extraction_input_hash"].astype(str).isin(cached_rows)
+                coverage = pd.Series("not_routed", index=prepared.index, dtype="object")
+                coverage.loc[in_scope & prepared["short_description_skip"].fillna(False)] = "skipped_short"
+                coverage.loc[routed] = "deferred"
+                coverage.loc[has_result] = "labeled"
+                prepared["llm_extraction_coverage"] = coverage
                 cleaned = prepared.drop(
                     columns=[
                         "has_raw_description",
@@ -774,7 +842,9 @@ def run_stage9(
                 )
                 out_table = pa.Table.from_pandas(cleaned, preserve_index=False)
                 if writer is None:
-                    writer = pq.ParquetWriter(tmp_cleaned_path, out_table.schema)
+                    cleaned_schema = _promote_null_fields(out_table.schema)
+                    writer = pq.ParquetWriter(tmp_cleaned_path, cleaned_schema)
+                out_table = out_table.cast(cleaned_schema)
                 writer.write_table(out_table)
         finally:
             if writer is not None:
@@ -800,6 +870,25 @@ def run_stage9(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Stage 9 extraction routing and cleaned-text integration")
+    parser.add_argument(
+        "--llm-budget",
+        type=int,
+        required=True,
+        help=(
+            "Max new LLM calls (REQUIRED, no default). "
+            "Use 0 for cache-only. Counts unique extraction tasks."
+        ),
+    )
+    parser.add_argument(
+        "--llm-budget-split",
+        type=str,
+        default=DEFAULT_BUDGET_SPLIT,
+        help=(
+            "Fractional split of the budget across categories: "
+            "swe,swe_adjacent,control. Default '0.4,0.3,0.3'. Values are "
+            "normalized to sum to 1.0."
+        ),
+    )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT_PATH)
     parser.add_argument("--candidates-output", type=Path, default=DEFAULT_CANDIDATES_PATH)
     parser.add_argument("--results-output", type=Path, default=DEFAULT_RESULTS_PATH)
@@ -811,7 +900,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--max-retries", type=int, default=3)
     parser.add_argument("--max-workers", type=int, default=30)
-    parser.add_argument("--engines", type=str, default="codex,claude")
+    parser.add_argument("--engines", type=str, default="codex")
     parser.add_argument("--claude-model", type=str, default=DEFAULT_CLAUDE_MODEL)
     parser.add_argument("--quota-wait-hours", type=float, default=DEFAULT_QUOTA_WAIT_HOURS)
     parser.add_argument("--engine-tiers", type=str, default=None)
@@ -826,6 +915,8 @@ if __name__ == "__main__":
     configure_remote_execution(args.remote)
     enabled_engines = parse_engine_list(args.engines)
     run_stage9(
+        llm_budget=args.llm_budget,
+        llm_budget_split=parse_budget_split(args.llm_budget_split),
         input_path=args.input,
         candidates_path=args.candidates_output,
         results_path=args.results_output,

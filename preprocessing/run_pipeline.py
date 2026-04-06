@@ -24,6 +24,9 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
+sys.path.insert(0, str(Path(__file__).parent / "scripts"))
+from backup_to_s3 import run_backup
+
 PROJECT_ROOT = Path(__file__).parent.parent
 SCRIPTS_DIR = PROJECT_ROOT / "preprocessing" / "scripts"
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
@@ -272,6 +275,18 @@ def main():
                         help="Just validate existing outputs, don't run stages")
     parser.add_argument("--remote", action="store_true", default=False,
                         help="Run LLM commands on the remote EC2 instance via SSH (stages 9-10)")
+    parser.add_argument("--llm-budget", type=int, default=None,
+                        help=(
+                            "Max new LLM calls per LLM stage (stages 9-10). "
+                            "REQUIRED if running stages 9 or 10. Use 0 for cache-only."
+                        ))
+    parser.add_argument("--llm-budget-split", type=str, default=None,
+                        help=(
+                            "Budget split swe,swe_adjacent,control (default: 0.4,0.3,0.3). "
+                            "Only applies when --llm-budget is provided."
+                        ))
+    parser.add_argument("--backup", action="store_true", default=False,
+                        help="Back up final outputs and LLM cache to S3 after successful run")
     args = parser.parse_args()
 
     log.info("=" * 60)
@@ -304,8 +319,20 @@ def main():
             continue
 
         # Run
-        extra_args = ["--remote"] if args.remote and stage["num"] in LLM_STAGES else None
-        if not run_stage(stage, extra_args=extra_args):
+        extra_args: list[str] = []
+        if stage["num"] in LLM_STAGES:
+            if args.remote:
+                extra_args.append("--remote")
+            if args.llm_budget is None:
+                log.error(
+                    f"Stage {stage_num} requires --llm-budget (no default). "
+                    "Pass --llm-budget N to run_pipeline.py."
+                )
+                return 1
+            extra_args.extend(["--llm-budget", str(args.llm_budget)])
+            if args.llm_budget_split is not None:
+                extra_args.extend(["--llm-budget-split", args.llm_budget_split])
+        if not run_stage(stage, extra_args=extra_args or None):
             log.error(f"\nPIPELINE FAILED at Stage {stage_num}")
             return 1
 
@@ -328,6 +355,14 @@ def main():
             log.info(f"  Rows: {pf.metadata.num_rows:,}")
             log.info(f"  Columns: {pf.metadata.num_columns}")
             log.info(f"  Size: {final.stat().st_size / 1e9:.2f} GB")
+
+        # S3 backup
+        if args.backup:
+            log.info(f"\n{'='*60}")
+            log.info("BACKING UP TO S3")
+            log.info(f"{'='*60}")
+            if not run_backup():
+                log.error("S3 backup failed (pipeline outputs are still valid locally)")
 
     return 0
 

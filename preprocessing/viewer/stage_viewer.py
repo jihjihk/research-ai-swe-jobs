@@ -10,8 +10,8 @@ import duckdb
 import pandas as pd
 import streamlit as st
 
+from viewer_shared import ROOT, inject_css, friendly_bytes, render_value
 
-ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PORT = 8501
 MAX_FACET_VALUES = 200
 DEFAULT_PAGE_SIZE = 50
@@ -64,6 +64,18 @@ DATASET_SPECS = [
         path=ROOT / "preprocessing" / "intermediate" / "stage8_final.parquet",
     ),
     DatasetSpec(
+        key="stage9_candidates",
+        label="Stage 9 LLM candidates",
+        description="Rows eligible for LLM extraction, deduplicated by input hash.",
+        path=ROOT / "preprocessing" / "intermediate" / "stage9_llm_candidates.parquet",
+    ),
+    DatasetSpec(
+        key="stage9_skip_reasons",
+        label="Stage 9 skip reasons",
+        description="Full dataset with LLM routing decisions and skip reasons.",
+        path=ROOT / "preprocessing" / "intermediate" / "stage9_skip_reasons.parquet",
+    ),
+    DatasetSpec(
         key="stage10",
         label="Stage 10 integrated",
         description="Post-LLM integrated artifact that feeds final canonical output.",
@@ -85,48 +97,10 @@ DATASET_SPECS = [
 
 
 st.set_page_config(
-    page_title="Parquet Stage Viewer",
+    page_title="Stage Viewer",
     page_icon=":material/table_rows:",
     layout="wide",
 )
-
-
-def inject_css() -> None:
-    st.markdown(
-        """
-        <style>
-        .main .block-container {
-            padding-top: 1.2rem;
-            padding-bottom: 2rem;
-        }
-        .viewer-kicker {
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            font-size: 0.78rem;
-            color: #6b7280;
-            margin-bottom: 0.15rem;
-        }
-        .viewer-title {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.4rem;
-        }
-        .viewer-subtitle {
-            color: #4b5563;
-            max-width: 66rem;
-            margin-bottom: 1rem;
-        }
-        .viewer-card {
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            border-radius: 14px;
-            padding: 0.75rem 1rem;
-            background: linear-gradient(180deg, rgba(252, 250, 247, 1) 0%, rgba(248, 244, 238, 1) 100%);
-            margin-bottom: 1rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 def parquet_expr(path_str: str) -> str:
@@ -138,16 +112,6 @@ def quote_ident(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
-def friendly_bytes(size_bytes: int) -> str:
-    units = ["B", "KB", "MB", "GB", "TB"]
-    size = float(size_bytes)
-    for unit in units:
-        if size < 1024 or unit == units[-1]:
-            return f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size_bytes} B"
-
-
 def family_for_type(type_name: str) -> str:
     kind = type_name.upper()
     if "BOOL" in kind:
@@ -157,13 +121,6 @@ def family_for_type(type_name: str) -> str:
     if any(token in kind for token in ["DATE", "TIMESTAMP", "TIME"]):
         return "temporal"
     return "text"
-
-
-def render_value(value: Any) -> str:
-    if value is None or (isinstance(value, float) and math.isnan(value)):
-        return "<NULL>"
-    text = str(value)
-    return text if len(text) <= 120 else text[:117] + "..."
 
 
 def dataset_options() -> tuple[list[DatasetSpec], list[DatasetSpec]]:
@@ -739,5 +696,7 @@ def main() -> None:
         )
 
 
-if __name__ == "__main__":
-    main()
+parquet_page = st.Page(main, title="Parquet Browser", icon=":material/table_rows:", default=True)
+cache_page = st.Page("cache_viewer.py", title="LLM Cache Browser", icon=":material/database:")
+nav = st.navigation([parquet_page, cache_page])
+nav.run()

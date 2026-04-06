@@ -35,7 +35,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
+from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file, promote_null_schema
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -1699,6 +1699,7 @@ def streaming_write(
 
     pf = pq.ParquetFile(input_path)
     total_rows = pf.metadata.num_rows
+    output_schema = None  # Built from first chunk after new columns are added
     writer = None
     written = 0
 
@@ -1909,10 +1910,13 @@ def streaming_write(
         for col in chunk.select_dtypes(include=["object"]).columns:
             chunk[col] = chunk[col].astype("string")
 
-        # ---- Write ----
+        # ---- Write (cast to unified schema) ----
         table = pa.Table.from_pandas(chunk, preserve_index=False)
+        if output_schema is None:
+            output_schema = promote_null_schema(table.schema)
+        table = table.cast(output_schema)
         if writer is None:
-            writer = pq.ParquetWriter(output_path, table.schema)
+            writer = pq.ParquetWriter(output_path, output_schema)
         writer.write_table(table)
 
         written += n

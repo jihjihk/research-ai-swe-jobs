@@ -32,6 +32,7 @@ from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
 from llm_shared import (
     CLASSIFICATION_PROMPT_VERSION,
     CLASSIFICATION_TASK_NAME,
+    DEFAULT_BUDGET_SPLIT,
     DEFAULT_ENGINE_TIMEZONE,
     DEFAULT_CLAUDE_MODEL,
     DEFAULT_CODEX_MODEL,
@@ -49,12 +50,15 @@ from llm_shared import (
     fetch_cached_row,
     fetch_cached_rows,
     format_engine_labels,
+    log_budget_plan,
     log_sampled_llm_response,
     open_cache,
+    parse_budget_split,
     parse_engine_tiers,
     parse_engine_list,
     render_classification_prompt,
     segment_description_into_units,
+    select_rows_with_budget,
     store_cached_row,
     try_provider,
     validate_classification_payload,
@@ -278,6 +282,19 @@ def integrate_chunk(chunk: pd.DataFrame, classification_cache: dict[str, dict]) 
     out["yoe_min_years_llm"] = pd.Series(yoe_values, dtype="Int64")
     out["llm_model_classification"] = model_values
     out["llm_prompt_version_classification"] = prompt_values
+
+    # llm_classification_coverage: map routing reason → coverage, upgrade to
+    # "labeled" when a cache hit exists for a routed row.
+    reason = out["llm_classification_reason"].fillna("not_routed").astype(str)
+    coverage = reason.map({
+        "not_routed": "not_routed",
+        "short_description_excluded_by_stage9": "skipped_short",
+        "high_confidence_technical_rules": "rule_sufficient",
+        "routed": "deferred",
+    }).fillna("not_routed")
+    has_result = reason.eq("routed") & out["classification_input_hash"].astype(str).isin(classification_cache)
+    coverage.loc[has_result] = "labeled"
+    out["llm_classification_coverage"] = coverage
     return out.drop(columns=["classification_input"], errors="ignore")
 
 
@@ -349,16 +366,30 @@ def log_stage10_sample_response(log: logging.Logger, *, completed: int, row: dic
     )
 
 
+def _promote_null_fields(schema: pa.Schema) -> pa.Schema:
+    """Replace null-typed fields with string so later batches can write values."""
+    fields = []
+    for field in schema:
+        if pa.types.is_null(field.type):
+            fields.append(pa.field(field.name, pa.string()))
+        else:
+            fields.append(field)
+    return pa.schema(fields, metadata=schema.metadata)
+
+
 def write_parquet_rows(rows: list[dict], output_path: Path) -> None:
     if not rows:
         pd.DataFrame(rows).to_parquet(output_path, index=False)
         return
     writer = None
+    schema = None
     try:
         for batch in chunked(rows, CHUNK_SIZE):
             table = pa.Table.from_pylist(batch)
             if writer is None:
-                writer = pq.ParquetWriter(output_path, table.schema)
+                schema = _promote_null_fields(table.schema)
+                writer = pq.ParquetWriter(output_path, schema)
+            table = table.cast(schema)
             writer.write_table(table)
     finally:
         if writer is not None:
@@ -366,6 +397,9 @@ def write_parquet_rows(rows: list[dict], output_path: Path) -> None:
 
 
 def run_stage10(
+    *,
+    llm_budget: int,
+    llm_budget_split: dict[str, float],
     input_path: Path = DEFAULT_INPUT_PATH,
     results_path: Path = DEFAULT_RESULTS_PATH,
     integrated_path: Path = DEFAULT_INTEGRATED_PATH,
@@ -382,6 +416,8 @@ def run_stage10(
     engine_tiers: dict[str, str] | None = None,
     engine_timezone: str = DEFAULT_ENGINE_TIMEZONE,
 ) -> None:
+    if llm_budget < 0:
+        raise ValueError(f"llm_budget must be >= 0, got {llm_budget}")
     log = configure_logging()
     t0 = time.time()
     runtime = LLMEngineRuntime(
@@ -419,6 +455,19 @@ def run_stage10(
         candidates = prepared.loc[prepared["needs_llm_classification"]].copy()
         if candidates.empty:
             continue
+        # Normalize scrape_date for stable bucketing.
+        if "scrape_date" in candidates.columns:
+            candidates["scrape_date"] = (
+                pd.to_datetime(candidates["scrape_date"], errors="coerce")
+                .dt.strftime("%Y-%m-%d")
+                .fillna("unknown")
+            )
+        else:
+            candidates["scrape_date"] = "unknown"
+        # Ensure category flags exist for budget allocation.
+        for col in ("is_swe", "is_swe_adjacent", "selected_for_control_cohort"):
+            if col not in candidates.columns:
+                candidates[col] = False
         grouped = (
             candidates.groupby("classification_input_hash", dropna=True, as_index=False)
             .agg(
@@ -429,6 +478,10 @@ def run_stage10(
                 company_name=("company_name", "first"),
                 classification_input=("classification_input", "first"),
                 classification_row_count=("job_id", "count"),
+                scrape_date=("scrape_date", "first"),
+                is_swe=("is_swe", "max"),
+                is_swe_adjacent=("is_swe_adjacent", "max"),
+                selected_for_control_cohort=("selected_for_control_cohort", "max"),
             )
             .to_dict("records")
         )
@@ -440,8 +493,18 @@ def run_stage10(
     conn = open_cache(cache_db)
     hashes = [str(row["classification_input_hash"]) for row in candidate_rows]
     cached_rows = fetch_cached_rows(conn, hashes, CLASSIFICATION_TASK_NAME, CLASSIFICATION_PROMPT_VERSION)
+    cached_hash_set = set(cached_rows.keys())
 
-    rows_to_process = [row for row in candidate_rows if str(row["classification_input_hash"]) not in cached_rows]
+    # Budget-aware selection: all candidates go through the same budget pool.
+    rows_to_process, category_allocation, uncached_per_category = select_rows_with_budget(
+        candidates=candidate_rows,
+        cached_hashes=cached_hash_set,
+        budget=llm_budget,
+        split=llm_budget_split,
+        hash_key="classification_input_hash",
+    )
+    deferred = sum(uncached_per_category.values()) - len(rows_to_process)
+
     log_stage10_plan(
         log,
         summarize_stage10_routing(
@@ -456,6 +519,14 @@ def run_stage10(
         ),
         max_workers=max_workers,
         runtime=runtime,
+    )
+    log_budget_plan(
+        log,
+        budget=llm_budget,
+        split=llm_budget_split,
+        uncached_per_category=uncached_per_category,
+        category_allocation=category_allocation,
+        deferred=deferred,
     )
 
     if rows_to_process:
@@ -537,7 +608,9 @@ def run_stage10(
                 integrated = integrate_chunk(chunk, batch_cache)
                 out_table = pa.Table.from_pandas(integrated, preserve_index=False)
                 if writer is None:
-                    writer = pq.ParquetWriter(tmp_integrated_path, out_table.schema)
+                    integrated_schema = _promote_null_fields(out_table.schema)
+                    writer = pq.ParquetWriter(tmp_integrated_path, integrated_schema)
+                out_table = out_table.cast(integrated_schema)
                 writer.write_table(out_table)
         finally:
             if writer is not None:
@@ -561,6 +634,25 @@ def run_stage10(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Stage 10 LLM classification and integration")
+    parser.add_argument(
+        "--llm-budget",
+        type=int,
+        required=True,
+        help=(
+            "Max new LLM calls (REQUIRED, no default). "
+            "Use 0 for cache-only. Counts unique classification tasks."
+        ),
+    )
+    parser.add_argument(
+        "--llm-budget-split",
+        type=str,
+        default=DEFAULT_BUDGET_SPLIT,
+        help=(
+            "Fractional split of the budget across categories: "
+            "swe,swe_adjacent,control. Default '0.4,0.3,0.3'. Values are "
+            "normalized to sum to 1.0."
+        ),
+    )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT_PATH)
     parser.add_argument("--results-output", type=Path, default=DEFAULT_RESULTS_PATH)
     parser.add_argument("--integrated-output", type=Path, default=DEFAULT_INTEGRATED_PATH)
@@ -571,7 +663,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--max-retries", type=int, default=3)
     parser.add_argument("--max-workers", type=int, default=30)
-    parser.add_argument("--engines", type=str, default="codex,claude")
+    parser.add_argument("--engines", type=str, default="codex")
     parser.add_argument("--claude-model", type=str, default=DEFAULT_CLAUDE_MODEL)
     parser.add_argument("--quota-wait-hours", type=float, default=DEFAULT_QUOTA_WAIT_HOURS)
     parser.add_argument("--engine-tiers", type=str, default=None)
@@ -586,6 +678,8 @@ if __name__ == "__main__":
     configure_remote_execution(args.remote)
     enabled_engines = parse_engine_list(args.engines)
     run_stage10(
+        llm_budget=args.llm_budget,
+        llm_budget_split=parse_budget_split(args.llm_budget_split),
         input_path=args.input,
         results_path=args.results_output,
         integrated_path=args.integrated_output,

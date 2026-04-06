@@ -29,7 +29,7 @@ import pyarrow.parquet as pq
 from rapidfuzz import fuzz
 
 from company_name_canonicalization import build_company_name_lookup
-from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
+from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file, promote_null_schema
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
@@ -444,6 +444,14 @@ def pass2_write_output(
 
     pf = pq.ParquetFile(input_path)
     total_rows = pf.metadata.num_rows
+
+    # Build stable output schema (null→string promotion + new columns)
+    output_schema = promote_null_schema(pf.schema_arrow, extra_fields=[
+        pa.field("company_name_canonical", pa.string()),
+        pa.field("company_name_canonical_method", pa.string()),
+        pa.field("is_multi_location", pa.bool_()),
+    ])
+
     writer = None
     written = 0
     offset = 0
@@ -481,10 +489,11 @@ def pass2_write_output(
         chunk["company_name_canonical_method"] = chunk["company_name_canonical_method"].astype("string")
         chunk["is_multi_location"] = chunk["is_multi_location"].astype(bool)
 
-        # Write
+        # Write (cast to unified schema)
         table = pa.Table.from_pandas(chunk, preserve_index=False)
+        table = table.cast(output_schema)
         if writer is None:
-            writer = pq.ParquetWriter(output_path, table.schema)
+            writer = pq.ParquetWriter(output_path, output_schema)
         writer.write_table(table)
 
         written += len(chunk)

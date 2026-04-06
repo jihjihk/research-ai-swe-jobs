@@ -14,10 +14,13 @@ Output: intermediate/stage2_aggregators.parquet
 import re
 import logging
 from pathlib import Path
+from collections import Counter
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
-from io_utils import write_parquet_atomic
+from io_utils import prepare_temp_output, promote_temp_file, cleanup_temp_file, promote_null_schema
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
@@ -193,76 +196,146 @@ def extract_real_employer(description: str, company_name: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Main
+# Main (chunked, memory-safe)
 # ---------------------------------------------------------------------------
+CHUNK_SIZE = 200_000
+
+
+def _process_chunk(chunk: pd.DataFrame) -> pd.DataFrame:
+    """Apply aggregator flagging, real employer extraction, and effective name to a chunk."""
+    chunk["is_aggregator"] = chunk["company_name"].apply(is_aggregator)
+
+    chunk["real_employer"] = None
+    agg_mask = chunk["is_aggregator"]
+    if agg_mask.any():
+        chunk.loc[agg_mask, "real_employer"] = chunk.loc[agg_mask].apply(
+            lambda r: extract_real_employer(r["description"], r["company_name"]),
+            axis=1,
+        )
+
+    chunk["company_name_effective"] = chunk["real_employer"]
+    effective_missing = chunk["company_name_effective"].isna() | chunk["company_name_effective"].astype(str).str.strip().eq("")
+    chunk.loc[effective_missing, "company_name_effective"] = chunk.loc[effective_missing, "company_name"]
+
+    return chunk
+
+
 def run_stage2():
     log.info("=" * 60)
-    log.info("STAGE 2: Aggregator / Staffing Company Handling")
+    log.info("STAGE 2: Aggregator / Staffing Company Handling (chunked, memory-safe)")
     log.info("=" * 60)
 
     input_path = INTERMEDIATE_DIR / "stage1_unified.parquet"
-    log.info(f"Loading {input_path}...")
-    df = pd.read_parquet(input_path)
-    log.info(f"  Loaded: {len(df):,} rows")
+    output_path = INTERMEDIATE_DIR / "stage2_aggregators.parquet"
+    tmp_output_path = prepare_temp_output(output_path)
 
-    # --- Flag aggregators ---
-    log.info("Flagging aggregator companies...")
-    df["is_aggregator"] = df["company_name"].apply(is_aggregator)
-    agg_count = df["is_aggregator"].sum()
-    log.info(f"  Aggregator postings: {agg_count:,} ({agg_count/len(df):.1%})")
+    pf = pq.ParquetFile(input_path)
+    total_rows = pf.metadata.num_rows
+    log.info(f"  Input: {total_rows:,} rows, {pf.metadata.num_row_groups} row groups")
 
-    # Breakdown by source
-    for src in df["source"].unique():
-        sub = df[df["source"] == src]
-        agg_sub = sub["is_aggregator"].sum()
-        log.info(f"    {src}: {agg_sub:,} / {len(sub):,} ({agg_sub/len(sub):.1%})")
+    # Build output schema: input schema + new columns, with null types promoted to string
+    output_schema = promote_null_schema(pf.schema_arrow, extra_fields=[
+        pa.field("is_aggregator", pa.bool_()),
+        pa.field("real_employer", pa.string()),
+        pa.field("company_name_effective", pa.string()),
+    ])
 
-    # Top aggregators
-    agg_df = df[df["is_aggregator"]]
+    writer = None
+    processed = 0
+
+    # Lightweight accumulators for summary stats (no full-data copies)
+    total_agg = 0
+    total_extracted = 0
+    agg_by_source: dict[str, tuple[int, int]] = {}   # source -> (agg_count, total)
+    top_agg_companies: Counter = Counter()
+    sample_extractions: list[tuple[str, str, str]] = []  # (company, real_employer, title)
+    da_count = 0
+
+    try:
+        for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
+            chunk = batch.to_pandas()
+            chunk = _process_chunk(chunk)
+
+            # Accumulate stats
+            agg_mask = chunk["is_aggregator"]
+            chunk_agg = int(agg_mask.sum())
+            total_agg += chunk_agg
+            total_extracted += int(chunk.loc[agg_mask, "real_employer"].notna().sum())
+
+            for src in chunk["source"].dropna().unique():
+                src_mask = chunk["source"] == src
+                prev_agg, prev_total = agg_by_source.get(src, (0, 0))
+                agg_by_source[src] = (
+                    prev_agg + int((src_mask & agg_mask).sum()),
+                    prev_total + int(src_mask.sum()),
+                )
+
+            if chunk_agg > 0:
+                top_agg_companies.update(
+                    chunk.loc[agg_mask, "company_name"].dropna().tolist()
+                )
+
+            if len(sample_extractions) < 20:
+                extracted_rows = chunk.loc[
+                    agg_mask & chunk["real_employer"].notna(),
+                    ["company_name", "real_employer", "title"],
+                ]
+                for _, row in extracted_rows.iterrows():
+                    if len(sample_extractions) >= 20:
+                        break
+                    sample_extractions.append(
+                        (row["company_name"], row["real_employer"], row["title"])
+                    )
+
+            da_count += int(
+                chunk["company_name"].str.contains(r'(?i)data\s*annotation', na=False).sum()
+            )
+
+            # Write chunk, casting to unified output schema
+            table = pa.Table.from_pandas(chunk, preserve_index=False)
+            table = table.cast(output_schema)
+            if writer is None:
+                writer = pq.ParquetWriter(tmp_output_path, output_schema)
+            writer.write_table(table)
+
+            processed += len(chunk)
+            del chunk, table
+            log.info(f"  Processed {processed:,} / {total_rows:,} rows")
+
+        if writer is not None:
+            writer.close()
+            writer = None
+
+        promote_temp_file(tmp_output_path, output_path)
+        log.info(f"\nSaved to {output_path}")
+
+    except Exception:
+        if writer is not None:
+            writer.close()
+        cleanup_temp_file(tmp_output_path)
+        raise
+
+    # --- Summary logging ---
+    log.info(f"  Aggregator postings: {total_agg:,} ({total_agg/max(total_rows,1):.1%})")
+    for src, (a, t) in sorted(agg_by_source.items()):
+        log.info(f"    {src}: {a:,} / {t:,} ({a/max(t,1):.1%})")
+
     log.info("\n  Top aggregator companies:")
-    for company, count in agg_df["company_name"].value_counts().head(20).items():
+    for company, count in top_agg_companies.most_common(20):
         log.info(f"    {company}: {count:,}")
 
-    # --- Extract real employers ---
-    log.info("\nExtracting real employers from aggregator descriptions...")
-    agg_mask = df["is_aggregator"]
-    df["real_employer"] = None
-    df.loc[agg_mask, "real_employer"] = df.loc[agg_mask].apply(
-        lambda r: extract_real_employer(r["description"], r["company_name"]),
-        axis=1,
-    )
-    extracted = df.loc[agg_mask, "real_employer"].notna().sum()
-    log.info(f"  Real employer extracted: {extracted:,} / {agg_count:,} ({extracted/max(agg_count,1):.1%})")
+    log.info(f"\n  Real employer extracted: {total_extracted:,} / {total_agg:,} ({total_extracted/max(total_agg,1):.1%})")
+    log.info(f"  company_name_effective uses extracted real employer for {total_extracted:,} rows")
 
-    # Main-pipeline company field for Stage 4 canonicalization and dedup.
-    df["company_name_effective"] = df["real_employer"]
-    effective_missing = df["company_name_effective"].isna() | df["company_name_effective"].astype(str).str.strip().eq("")
-    df.loc[effective_missing, "company_name_effective"] = df.loc[effective_missing, "company_name"]
-    effective_from_real = int(df["real_employer"].notna().sum())
-    log.info(
-        "  company_name_effective uses extracted real employer for %s rows",
-        f"{effective_from_real:,}",
-    )
-
-    # Sample of extractions
-    extracted_df = df.loc[agg_mask & df["real_employer"].notna(),
-                          ["company_name", "real_employer", "title"]].head(20)
     log.info("\n  Sample real employer extractions:")
-    for _, row in extracted_df.iterrows():
-        log.info(f"    {row['company_name']} -> {row['real_employer']} ({row['title'][:50]})")
+    for company, employer, title in sample_extractions:
+        log.info(f"    {company} -> {employer} ({title[:50]})")
 
-    # DataAnnotation remains a flagged special case for sensitivity analysis.
-    da_count = df["company_name"].str.contains(r'(?i)data\s*annotation', na=False).sum()
     log.info(f"\n  DataAnnotation postings flagged: {da_count:,}")
 
-    # --- Save ---
-    output_path = INTERMEDIATE_DIR / "stage2_aggregators.parquet"
-    write_parquet_atomic(df, output_path)
-    log.info(f"\nSaved to {output_path}")
-
-    return df
+    return total_rows, total_agg
 
 
 if __name__ == "__main__":
-    df = run_stage2()
-    print(f"\nDone: {len(df):,} rows, {df['is_aggregator'].sum():,} aggregators flagged")
+    total, agg = run_stage2()
+    print(f"\nDone: {total:,} rows, {agg:,} aggregators flagged")
