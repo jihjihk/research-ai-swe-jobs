@@ -5,6 +5,7 @@ import heapq
 import json
 import logging
 import math
+import os
 import random
 import re
 import shlex
@@ -13,12 +14,14 @@ import statistics
 import subprocess
 import threading
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
 
+import httpx
 import pandas as pd
 
 try:
@@ -201,7 +204,7 @@ EXTRACTION_KEYS = {"task_status", "boilerplate_unit_ids", "uncertain_unit_ids", 
 SWE_ENUM = {"SWE", "SWE_ADJACENT", "NOT_SWE"}
 SENIORITY_ENUM = {"entry", "associate", "mid-senior", "director", "unknown"}
 GHOST_ENUM = {"realistic", "inflated", "ghost_likely"}
-SUPPORTED_PROVIDERS = ("codex", "claude")
+SUPPORTED_PROVIDERS = ("codex", "claude", "openai")
 ENGINE_TIER_FULL = "full"
 ENGINE_TIER_NON_INTRUSIVE = "non_intrusive"
 SUPPORTED_ENGINE_TIERS = (ENGINE_TIER_FULL, ENGINE_TIER_NON_INTRUSIVE)
@@ -209,10 +212,15 @@ DEFAULT_QUOTA_WAIT_HOURS = 5.0
 DEFAULT_RETRY_SLEEP_SECONDS = 60.0
 DEFAULT_CODEX_MODEL = "gpt-5.4-mini"
 DEFAULT_CLAUDE_MODEL = "haiku"
+DEFAULT_OPENAI_MODEL = "gpt-5.4-nano"
 DEFAULT_ENGINE_TIMEZONE = "America/Los_Angeles"
 SAMPLED_RESPONSE_LOG_EVERY = 5_000
 SAMPLED_RESPONSE_LOG_MAX_CHARS = 2_000
 COMMAND_ERROR_LOG_MAX_CHARS = 4_000
+OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses"
+DEFAULT_OPENAI_ENV_FILE = "~/.config/job-research/openai.env"
+OPENAI_ENV_FILE_OVERRIDE = "JOB_RESEARCH_OPENAI_ENV_FILE"
+OPENAI_ENV_KEYS = ("OPENAI_API_KEY", "OPENAI_ORGANIZATION", "OPENAI_PROJECT")
 REMOTE_SSH_KEY_PATH = "/home/jihgaboot/gabor/job-research/keys/scraper-key.pem"
 REMOTE_SSH_HOST = "ec2-user@ec2-18-216-89-129.us-east-2.compute.amazonaws.com"
 REMOTE_SSH_CONTROL_PATH = "~/.ssh/ssh-mux-%C"
@@ -422,6 +430,7 @@ def build_engine_configs(
     *,
     codex_model: str,
     claude_model: str,
+    openai_model: str,
     engine_tiers: dict[str, str] | None = None,
 ) -> tuple[LLMEngineConfig, ...]:
     resolved_tiers = parse_engine_tiers(None, enabled_engines) if engine_tiers is None else dict(engine_tiers)
@@ -431,6 +440,8 @@ def build_engine_configs(
             model = codex_model
         elif provider == "claude":
             model = claude_model
+        elif provider == "openai":
+            model = openai_model
         else:  # pragma: no cover
             raise ValueError(f"unsupported provider: {provider}")
         tier = resolved_tiers.get(provider, ENGINE_TIER_FULL)
@@ -1091,9 +1102,9 @@ def ensure_cache_schema(conn: sqlite3.Connection) -> None:
 # Budget-constrained LLM selection
 # ---------------------------------------------------------------------------
 # Stages 9/10 accept a --llm-budget that caps NEW LLM calls across all data.
-# The budget is split across SWE / SWE-adjacent / control categories, and
-# within each category it is water-filled across scrape_date buckets so
-# budget flows to thin days first.
+# The budget is split across SWE / SWE-adjacent / control categories, then
+# balanced across sources by absolute labeled counts. Scraped rows are further
+# water-filled across scrape_date buckets so budget flows to thin days first.
 BUDGET_CATEGORIES = ("swe", "swe_adjacent", "control")
 DEFAULT_BUDGET_SPLIT = "0.4,0.3,0.3"
 
@@ -1103,6 +1114,14 @@ def _coerce_day(value: object) -> str:
 
     NaN is truthy in Python, so we check explicitly rather than using `or`.
     """
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return "unknown"
+    s = str(value).strip()
+    return s or "unknown"
+
+
+def _coerce_source(value: object) -> str:
+    """Return `value` as a non-empty source string, or "unknown" for missing."""
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return "unknown"
     s = str(value).strip()
@@ -1203,6 +1222,49 @@ def allocate_budget_across_days(
             heapq.heappush(heap, (level + 1, day))
 
     return allocation
+
+
+def allocate_budget_across_sources_and_categories(
+    uncached_per_category_source: dict[str, dict[str, int]],
+    cached_total_per_source: dict[str, int],
+    category_allocation: dict[str, int],
+) -> dict[str, dict[str, int]]:
+    """Water-fill source allocations while preserving per-category quotas.
+
+    Budget advances one unit at a time in category round-robin order. Within a
+    category, the next unit goes to the source with the lowest total labeled
+    count across the full routed universe. This keeps absolute labeled counts
+    across sources as balanced as possible while respecting the category split.
+    """
+    allocations: dict[str, dict[str, int]] = {
+        cat: {source: 0 for source in uncached_per_category_source.get(cat, {})}
+        for cat in BUDGET_CATEGORIES
+    }
+    remaining = {cat: int(category_allocation.get(cat, 0)) for cat in BUDGET_CATEGORIES}
+    source_levels = {source: int(level) for source, level in cached_total_per_source.items()}
+
+    while sum(remaining.values()) > 0:
+        progressed = False
+        for cat in BUDGET_CATEGORIES:
+            if remaining[cat] <= 0:
+                continue
+            source_caps = uncached_per_category_source.get(cat, {})
+            eligible_sources = [
+                source
+                for source, cap in source_caps.items()
+                if allocations[cat].get(source, 0) < cap
+            ]
+            if not eligible_sources:
+                continue
+            chosen = min(eligible_sources, key=lambda source: (source_levels.get(source, 0), source))
+            allocations[cat][chosen] = allocations[cat].get(chosen, 0) + 1
+            source_levels[chosen] = source_levels.get(chosen, 0) + 1
+            remaining[cat] -= 1
+            progressed = True
+        if not progressed:
+            break
+
+    return allocations
 
 
 def select_rows_by_budget(
@@ -1330,24 +1392,41 @@ def select_rows_with_budget(
 
     Returns: (selected_rows, category_allocation, uncached_per_category).
     """
-    uncached_by_category: dict[str, list[dict]] = {cat: [] for cat in BUDGET_CATEGORIES}
-    uncached_counts: dict[str, dict[str, int]] = {cat: {} for cat in BUDGET_CATEGORIES}
-    cached_counts: dict[str, dict[str, int]] = {cat: {} for cat in BUDGET_CATEGORIES}
+    uncached_by_category_source: dict[str, dict[str, list[dict]]] = {
+        cat: {} for cat in BUDGET_CATEGORIES
+    }
+    uncached_counts: dict[str, dict[str, dict[str, int]]] = {
+        cat: {} for cat in BUDGET_CATEGORIES
+    }
+    cached_counts: dict[str, dict[str, dict[str, int]]] = {
+        cat: {} for cat in BUDGET_CATEGORIES
+    }
+    cached_total_per_source: dict[str, int] = {}
 
     for row in candidates:
         cat = categorize_budget_candidate(row)
         if cat is None:
             continue
+        source = _coerce_source(row.get("source"))
         day = _coerce_day(row.get("scrape_date"))
+        bucket = day if source == "scraped" else source
         if str(row.get(hash_key)) in cached_hashes:
-            cached_counts[cat][day] = cached_counts[cat].get(day, 0) + 1
+            cached_total_per_source[source] = cached_total_per_source.get(source, 0) + 1
+            cached_counts[cat].setdefault(source, {})
+            cached_counts[cat][source][bucket] = cached_counts[cat][source].get(bucket, 0) + 1
         else:
             row_copy = dict(row)
             row_copy["scrape_date"] = day
-            uncached_by_category[cat].append(row_copy)
-            uncached_counts[cat][day] = uncached_counts[cat].get(day, 0) + 1
+            row_copy["source"] = source
+            row_copy["_budget_bucket"] = bucket
+            uncached_by_category_source[cat].setdefault(source, []).append(row_copy)
+            uncached_counts[cat].setdefault(source, {})
+            uncached_counts[cat][source][bucket] = uncached_counts[cat][source].get(bucket, 0) + 1
 
-    uncached_per_category = {cat: len(rows) for cat, rows in uncached_by_category.items()}
+    uncached_per_category = {
+        cat: sum(len(rows) for rows in by_source.values())
+        for cat, by_source in uncached_by_category_source.items()
+    }
     if budget <= 0:
         return [], {cat: 0 for cat in BUDGET_CATEGORIES}, uncached_per_category
 
@@ -1356,25 +1435,34 @@ def select_rows_with_budget(
         uncached_per_category=uncached_per_category,
         shares=split,
     )
+    uncached_per_category_source = {
+        cat: {source: len(rows) for source, rows in by_source.items()}
+        for cat, by_source in uncached_by_category_source.items()
+    }
+    category_source_allocation = allocate_budget_across_sources_and_categories(
+        uncached_per_category_source=uncached_per_category_source,
+        cached_total_per_source=cached_total_per_source,
+        category_allocation=category_allocation,
+    )
 
     selected: list[dict] = []
     for cat in BUDGET_CATEGORIES:
-        cat_budget = category_allocation[cat]
-        if cat_budget <= 0:
-            continue
-        day_alloc = allocate_budget_across_days(
-            uncached_per_day=uncached_counts[cat],
-            cached_per_day=cached_counts[cat],
-            budget=cat_budget,
-        )
-        selected.extend(
-            select_rows_by_budget(
-                uncached_by_category[cat],
-                day_key="scrape_date",
-                hash_key=hash_key,
-                allocation=day_alloc,
+        for source, source_budget in category_source_allocation.get(cat, {}).items():
+            if source_budget <= 0:
+                continue
+            bucket_alloc = allocate_budget_across_days(
+                uncached_per_day=uncached_counts[cat].get(source, {}),
+                cached_per_day=cached_counts[cat].get(source, {}),
+                budget=source_budget,
             )
-        )
+            selected.extend(
+                select_rows_by_budget(
+                    uncached_by_category_source[cat][source],
+                    day_key="_budget_bucket",
+                    hash_key=hash_key,
+                    allocation=bucket_alloc,
+                )
+            )
     return selected, category_allocation, uncached_per_category
 
 
@@ -1400,6 +1488,7 @@ def fetch_cached_rows(
     *,
     input_hashes: list[str] | None = None,
     description_hashes: list[str] | None = None,
+    exclude_retryable_failures: bool = False,
 ) -> dict[str, dict]:
     hashes = input_hashes or description_hashes or hashes or []
     rows: dict[str, dict] = {}
@@ -1414,7 +1503,7 @@ def fetch_cached_rows(
         )
         params = [task_name, prompt_version, *batch]
         for row in conn.execute(query, params):
-            rows[row[0]] = {
+            cached_row = {
                 "input_hash": row[0],
                 "description_hash": row[0],
                 "task_name": row[1],
@@ -1424,6 +1513,9 @@ def fetch_cached_rows(
                 "timestamp": row[5],
                 "tokens_used": row[6],
             }
+            if exclude_retryable_failures and is_retryable_cache_failure(cached_row):
+                continue
+            rows[row[0]] = cached_row
     return rows
 
 
@@ -1435,6 +1527,7 @@ def fetch_cached_row(
     *,
     input_hash: str | None = None,
     description_hash: str | None = None,
+    exclude_retryable_failures: bool = False,
 ) -> dict | None:
     resolved_hash = input_hash or description_hash or hash_value
     if resolved_hash is None or task_name is None or prompt_version is None:
@@ -1449,7 +1542,7 @@ def fetch_cached_row(
     ).fetchone()
     if row is None:
         return None
-    return {
+    cached_row = {
         "input_hash": row[0],
         "description_hash": row[0],
         "task_name": row[1],
@@ -1459,6 +1552,9 @@ def fetch_cached_row(
         "timestamp": row[5],
         "tokens_used": row[6],
     }
+    if exclude_retryable_failures and is_retryable_cache_failure(cached_row):
+        return None
+    return cached_row
 
 
 def store_cached_row(
@@ -1499,6 +1595,24 @@ def store_cached_row(
         ),
     )
     conn.commit()
+
+
+def is_retryable_cache_failure(cached_row: dict | None) -> bool:
+    if not cached_row or cached_row.get("task_name") != EXTRACTION_TASK_NAME:
+        return False
+    if cached_row.get("model") == "synthetic-provider-failed":
+        return True
+    response_json = cached_row.get("response_json")
+    if not isinstance(response_json, str) or not response_json:
+        return False
+    try:
+        payload = json.loads(response_json)
+    except json.JSONDecodeError:
+        return False
+    return (
+        payload.get("task_status") == EXTRACTION_STATUS_CANNOT_COMPLETE
+        and payload.get("reason") == "provider_failed"
+    )
 
 
 def normalize_json_candidate(text: str) -> str:
@@ -1722,6 +1836,276 @@ def validate_extraction_payload(payload: dict) -> str | None:
     return None
 
 
+CLASSIFICATION_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "swe_classification": {
+            "type": "string",
+            "enum": sorted(SWE_ENUM),
+        },
+        "seniority": {
+            "type": "string",
+            "enum": sorted(SENIORITY_ENUM),
+        },
+        "ghost_assessment": {
+            "type": "string",
+            "enum": sorted(GHOST_ENUM),
+        },
+        "yoe_min_years": {
+            "anyOf": [
+                {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20,
+                },
+                {"type": "null"},
+            ]
+        },
+    },
+    "required": [
+        "swe_classification",
+        "seniority",
+        "ghost_assessment",
+        "yoe_min_years",
+    ],
+    "additionalProperties": False,
+}
+
+EXTRACTION_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "task_status": {
+            "type": "string",
+            "enum": sorted(EXTRACTION_STATUS_ENUM),
+        },
+        "boilerplate_unit_ids": {
+            "type": "array",
+            "items": {
+                "type": "integer",
+                "minimum": 1,
+            },
+        },
+        "uncertain_unit_ids": {
+            "type": "array",
+            "items": {
+                "type": "integer",
+                "minimum": 1,
+            },
+        },
+        "reason": {
+            "type": "string",
+        },
+    },
+    "required": [
+        "task_status",
+        "boilerplate_unit_ids",
+        "uncertain_unit_ids",
+        "reason",
+    ],
+    "additionalProperties": False,
+}
+
+
+def normalize_extraction_payload(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        return payload
+    normalized = dict(payload)
+    for field_name in ("boilerplate_unit_ids", "uncertain_unit_ids"):
+        values = normalized.get(field_name)
+        if not isinstance(values, list):
+            continue
+        if any(isinstance(value, bool) or not isinstance(value, int) for value in values):
+            continue
+        normalized[field_name] = sorted(set(values))
+    return normalized
+
+
+def provider_uses_exact_request_budget(provider: str) -> bool:
+    return provider == "openai"
+
+
+def structured_output_schema_for_task(task_name: str) -> dict:
+    if task_name == CLASSIFICATION_TASK_NAME:
+        return CLASSIFICATION_JSON_SCHEMA
+    if task_name == EXTRACTION_TASK_NAME:
+        return EXTRACTION_JSON_SCHEMA
+    raise ValueError(f"unsupported task for structured output schema: {task_name}")
+
+
+def structured_output_name_for_task(task_name: str) -> str:
+    if task_name == CLASSIFICATION_TASK_NAME:
+        return "job_posting_classification"
+    if task_name == EXTRACTION_TASK_NAME:
+        return "job_posting_core_extraction_units"
+    raise ValueError(f"unsupported task for structured output name: {task_name}")
+
+
+def resolve_openai_env_file() -> Path:
+    raw_path = os.environ.get(OPENAI_ENV_FILE_OVERRIDE, DEFAULT_OPENAI_ENV_FILE)
+    return Path(raw_path).expanduser()
+
+
+def parse_simple_env_line(line: str) -> tuple[str, str] | None:
+    candidate = line.strip()
+    if not candidate or candidate.startswith("#"):
+        return None
+    if candidate.startswith("export "):
+        candidate = candidate[len("export "):].strip()
+    name, sep, raw_value = candidate.partition("=")
+    if not sep:
+        return None
+    key = name.strip()
+    if key not in OPENAI_ENV_KEYS:
+        return None
+    value = raw_value.strip()
+    if not value:
+        return key, ""
+    parsed = shlex.split(value, posix=True)
+    if len(parsed) != 1:
+        raise RuntimeError(f"Invalid value for {key} in {resolve_openai_env_file()}")
+    return key, parsed[0]
+
+
+def load_openai_env_from_file() -> Path:
+    env_file = resolve_openai_env_file()
+    if not env_file.exists():
+        return env_file
+
+    for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+        parsed = parse_simple_env_line(raw_line)
+        if parsed is None:
+            continue
+        key, value = parsed
+        if value:
+            os.environ.setdefault(key, value)
+    return env_file
+
+
+def require_openai_env_value(key: str) -> str:
+    value = os.environ.get(key, "").strip()
+    if value:
+        return value
+    env_file = load_openai_env_from_file()
+    value = os.environ.get(key, "").strip()
+    if value:
+        return value
+    raise RuntimeError(
+        f"{key} is not set. Put it in {env_file} or export it in the environment."
+    )
+
+
+def build_openai_headers(*, input_hash: str | None, task_name: str) -> dict[str, str]:
+    api_key = require_openai_env_value("OPENAI_API_KEY")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    load_openai_env_from_file()
+    organization = os.environ.get("OPENAI_ORGANIZATION", "").strip()
+    project = os.environ.get("OPENAI_PROJECT", "").strip()
+    if organization:
+        headers["OpenAI-Organization"] = organization
+    if project:
+        headers["OpenAI-Project"] = project
+
+    request_id = input_hash or uuid.uuid4().hex
+    headers["X-Client-Request-Id"] = f"job-research:{task_name}:{request_id}"[:512]
+    return headers
+
+
+def build_openai_payload(*, prompt: str, task_name: str, model: str) -> dict:
+    return {
+        "model": model,
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": prompt,
+                    }
+                ],
+            }
+        ],
+        "reasoning": {
+            "effort": "low",
+        },
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": structured_output_name_for_task(task_name),
+                "strict": True,
+                "schema": structured_output_schema_for_task(task_name),
+            }
+        },
+    }
+
+
+def _iter_json_text_candidates(value: object):
+    if isinstance(value, str):
+        yield value
+        return
+    if isinstance(value, list):
+        for item in value:
+            yield from _iter_json_text_candidates(item)
+        return
+    if not isinstance(value, dict):
+        return
+
+    for key in ("output_text", "text", "content", "value"):
+        candidate = value.get(key)
+        if isinstance(candidate, str):
+            yield candidate
+
+    for candidate in value.values():
+        yield from _iter_json_text_candidates(candidate)
+
+
+def parse_openai_response(response: httpx.Response) -> tuple[str, int | None, float | None, str | None, str | None]:
+    outer = response.json()
+    usage = outer.get("usage", {}) or {}
+    tokens_used = usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
+    if tokens_used == 0:
+        tokens_used = None
+
+    json_text = None
+    for candidate in _iter_json_text_candidates(outer):
+        try:
+            json_text = extract_first_json_object(candidate)
+            break
+        except ValueError:
+            continue
+
+    if json_text is None:
+        raise ValueError("no_openai_json_payload")
+
+    response_model = outer.get("model")
+    request_id = response.headers.get("x-request-id") or outer.get("request_id")
+    return json_text, tokens_used, None, response_model, request_id
+
+
+def summarize_openai_error(response: httpx.Response) -> str:
+    request_id = response.headers.get("x-request-id")
+    reset_requests = response.headers.get("x-ratelimit-reset-requests")
+    reset_tokens = response.headers.get("x-ratelimit-reset-tokens")
+    try:
+        body_preview = json.dumps(response.json(), ensure_ascii=False, sort_keys=True)
+    except (ValueError, json.JSONDecodeError):
+        body_preview = response.text
+
+    parts = [f"status={response.status_code}"]
+    if request_id:
+        parts.append(f"request_id={request_id}")
+    if reset_requests:
+        parts.append(f"reset_requests={reset_requests}")
+    if reset_tokens:
+        parts.append(f"reset_tokens={reset_tokens}")
+    parts.append(body_preview)
+    return " | ".join(parts)
+
+
 def build_remote_ssh_master_check_command() -> list[str]:
     return [
         "ssh",
@@ -1937,27 +2321,78 @@ def attempt_provider_call(
 ) -> tuple[dict | None, str | None, str]:
     backoff_seconds = [1, 2, 4]
     attempt = 1
+    max_attempts = 1 if provider_uses_exact_request_budget(provider) else max_retries
     resolved_hash = input_hash or description_hash or ""
     stdout = ""
     stderr = ""
     combined_output = ""
 
-    while attempt <= max_retries:
+    while attempt <= max_attempts:
         try:
             t0 = time.time()
             if provider == "codex":
                 result = call_subprocess(build_codex_command(prompt, model), timeout_seconds)
+                response = None
             elif provider == "claude":
                 result = call_subprocess(build_claude_command(prompt, model), timeout_seconds)
+                response = None
+            elif provider == "openai":
+                result = None
+                response = httpx.post(
+                    OPENAI_RESPONSES_API_URL,
+                    headers=build_openai_headers(input_hash=resolved_hash or None, task_name=task_name),
+                    json=build_openai_payload(prompt=prompt, task_name=task_name, model=model),
+                    timeout=timeout_seconds,
+                )
             else:
                 raise ValueError(f"unknown provider: {provider}")
 
             latency = time.time() - t0
-            stdout = result.stdout or ""
-            stderr = result.stderr or ""
-            combined_output = "\n".join(part for part in (stderr, stdout) if part)
+            if response is not None:
+                stdout = response.text or ""
+                stderr = ""
+                combined_output = stdout
+            else:
+                stdout = result.stdout or ""
+                stderr = result.stderr or ""
+                combined_output = "\n".join(part for part in (stderr, stdout) if part)
 
-            if result.returncode != 0:
+            if response is not None and response.status_code >= 400:
+                detail = summarize_openai_error(response)
+                is_quota_limited = response.status_code == 429 or detect_quota_or_rate_limit(detail)
+                log.error(
+                    "HTTP request failed for %s/%s on %s (%s): %s",
+                    provider,
+                    model,
+                    resolved_hash or "-",
+                    task_name,
+                    _truncate_log_value(detail, max_chars=COMMAND_ERROR_LOG_MAX_CHARS),
+                )
+                append_jsonl(
+                    error_log_path,
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "input_hash": resolved_hash,
+                        "description_hash": resolved_hash,
+                        "task_name": task_name,
+                        "provider": provider,
+                        "model": model,
+                        "attempt": attempt,
+                        "error_type": f"http_{response.status_code}",
+                        "returncode": response.status_code,
+                        "stderr": "",
+                        "raw_response": stdout[:4000],
+                    },
+                )
+                if is_quota_limited:
+                    return None, "quota", detail
+                if attempt < max_attempts:
+                    time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
+                    attempt += 1
+                    continue
+                return None, "failed", detail
+
+            if result is not None and result.returncode != 0:
                 is_quota_limited = detect_quota_or_rate_limit(combined_output)
                 log_command_output(
                     log,
@@ -1988,13 +2423,13 @@ def attempt_provider_call(
                 )
                 if is_quota_limited:
                     return None, "quota", combined_output
-                if attempt < max_retries:
+                if attempt < max_attempts:
                     time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
                     attempt += 1
                     continue
                 return None, "failed", combined_output
 
-            if stderr_looks_like_error(stderr):
+            if result is not None and stderr_looks_like_error(stderr):
                 log_command_output(
                     log,
                     level=logging.WARNING,
@@ -2010,11 +2445,23 @@ def attempt_provider_call(
             if provider == "codex":
                 response_json, tokens_used, cost_usd = parse_codex_stdout(stdout)
                 response_model = model
-            else:
+            elif provider == "claude":
                 response_json, tokens_used, cost_usd = parse_claude_stdout(stdout)
                 response_model = model
+            else:
+                response_json, tokens_used, cost_usd, response_model, request_id = parse_openai_response(response)
+                if request_id:
+                    log.info(
+                        "OpenAI response received | task=%s | input_hash=%s | request_id=%s",
+                        task_name,
+                        resolved_hash or "-",
+                        request_id,
+                    )
+                response_model = response_model or model
 
             payload = json.loads(response_json)
+            if task_name == EXTRACTION_TASK_NAME:
+                payload = normalize_extraction_payload(payload)
             validation_error = payload_validator(payload)
             if validation_error is not None:
                 log_command_output(
@@ -2042,7 +2489,7 @@ def attempt_provider_call(
                         "raw_response": stdout[:8000],
                     },
                 )
-                if attempt < max_retries:
+                if attempt < max_attempts:
                     time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
                     attempt += 1
                     continue
@@ -2057,15 +2504,25 @@ def attempt_provider_call(
                 "tokens_used": tokens_used,
                 "cost_usd": cost_usd,
             }, None, ""
-        except subprocess.TimeoutExpired:
-            log.error(
-                "Subprocess timed out for %s/%s on %s (%s) after %ss.",
-                provider,
-                model,
-                resolved_hash or "-",
-                task_name,
-                timeout_seconds,
-            )
+        except (subprocess.TimeoutExpired, httpx.TimeoutException):
+            if provider == "openai":
+                log.error(
+                    "HTTP request timed out for %s/%s on %s (%s) after %ss.",
+                    provider,
+                    model,
+                    resolved_hash or "-",
+                    task_name,
+                    timeout_seconds,
+                )
+            else:
+                log.error(
+                    "Subprocess timed out for %s/%s on %s (%s) after %ss.",
+                    provider,
+                    model,
+                    resolved_hash or "-",
+                    task_name,
+                    timeout_seconds,
+                )
             append_jsonl(
                 error_log_path,
                 {
@@ -2080,7 +2537,7 @@ def attempt_provider_call(
                     "raw_response": "",
                 },
             )
-            if attempt < max_retries:
+            if attempt < max_attempts:
                 time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
                 attempt += 1
                 continue
@@ -2114,11 +2571,67 @@ def attempt_provider_call(
             raw_text = stdout[:8000] if "stdout" in locals() else ""
             if detect_quota_or_rate_limit(raw_text):
                 return None, "quota", raw_text
-            if attempt < max_retries:
+            if attempt < max_attempts:
                 time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
                 attempt += 1
                 continue
             return None, "failed", raw_text
+        except RuntimeError as exc:
+            detail = str(exc)
+            log.error(
+                "Provider configuration failed for %s/%s on %s (%s): %s",
+                provider,
+                model,
+                resolved_hash or "-",
+                task_name,
+                detail,
+            )
+            append_jsonl(
+                error_log_path,
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "input_hash": resolved_hash,
+                    "description_hash": resolved_hash,
+                    "task_name": task_name,
+                    "provider": provider,
+                    "model": model,
+                    "attempt": attempt,
+                    "error_type": type(exc).__name__,
+                    "raw_response": "",
+                },
+            )
+            return None, "failed", detail
+        except httpx.HTTPError as exc:
+            detail = str(exc)
+            log.error(
+                "HTTP provider failure for %s/%s on %s (%s): %s",
+                provider,
+                model,
+                resolved_hash or "-",
+                task_name,
+                detail,
+            )
+            append_jsonl(
+                error_log_path,
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "input_hash": resolved_hash,
+                    "description_hash": resolved_hash,
+                    "task_name": task_name,
+                    "provider": provider,
+                    "model": model,
+                    "attempt": attempt,
+                    "error_type": type(exc).__name__,
+                    "raw_response": "",
+                },
+            )
+            if detect_quota_or_rate_limit(detail):
+                return None, "quota", detail
+            if attempt < max_attempts:
+                time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
+                attempt += 1
+                continue
+            return None, "failed", detail
         except Exception:  # noqa: BLE001
             log.exception("Provider %s failed for %s (%s)", provider, resolved_hash, task_name)
             append_jsonl(
@@ -2135,7 +2648,7 @@ def attempt_provider_call(
                     "raw_response": "",
                 },
             )
-            if attempt < max_retries:
+            if attempt < max_attempts:
                 time.sleep(backoff_seconds[min(attempt - 1, len(backoff_seconds) - 1)])
                 attempt += 1
                 continue
@@ -2196,7 +2709,11 @@ def execute_task_with_runtime(
                     task_name=task_name,
                     detail=detail,
                 )
+                if provider_uses_exact_request_budget(engine.provider):
+                    return None
             else:
+                if provider_uses_exact_request_budget(engine.provider):
+                    return None
                 log.warning(
                     "Call failed for %s on %s (%s). Waiting %.0fs before retrying the same engine.",
                     input_hash,
@@ -2267,7 +2784,11 @@ def try_provider(
                 task_name=task_name,
                 detail=detail,
             )
+            if provider_uses_exact_request_budget(provider):
+                return None
             continue
+        if provider_uses_exact_request_budget(provider):
+            return None
         return None
 
 

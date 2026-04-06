@@ -25,6 +25,7 @@ from llm_shared import (
     DEFAULT_ENGINE_TIMEZONE,
     DEFAULT_CLAUDE_MODEL,
     DEFAULT_CODEX_MODEL,
+    DEFAULT_OPENAI_MODEL,
     DEFAULT_QUOTA_WAIT_HOURS,
     EXTRACTION_PROMPT_VERSION,
     EXTRACTION_STATUS_CANNOT_COMPLETE,
@@ -88,6 +89,10 @@ def configure_logging() -> logging.Logger:
         ],
     )
     return logging.getLogger(__name__)
+
+
+def should_cache_extraction_result(result: dict) -> bool:
+    return str(result.get("model") or "") != "synthetic-provider-failed"
 
 
 def english_mask(df: pd.DataFrame) -> pd.Series:
@@ -339,6 +344,7 @@ def call_task_with_engine(
     log: logging.Logger,
     runtime: LLMEngineRuntime | None = None,
     codex_model: str = DEFAULT_CODEX_MODEL,
+    openai_model: str = DEFAULT_OPENAI_MODEL,
     timeout_seconds: int = 180,
     max_retries: int = 3,
     enabled_engines: tuple[str, ...] = SUPPORTED_PROVIDERS,
@@ -352,6 +358,7 @@ def call_task_with_engine(
             enabled_engines,
             codex_model=codex_model,
             claude_model=claude_model,
+            openai_model=openai_model,
             engine_tiers=engine_tiers,
         ),
         slot_timezone=engine_timezone,
@@ -610,6 +617,7 @@ def run_stage9(
     cache_db: Path = DEFAULT_CACHE_DB,
     error_log_path: Path = DEFAULT_ERROR_LOG,
     codex_model: str = DEFAULT_CODEX_MODEL,
+    openai_model: str = DEFAULT_OPENAI_MODEL,
     timeout_seconds: int = 180,
     max_retries: int = 3,
     max_workers: int = 30,
@@ -628,6 +636,7 @@ def run_stage9(
             enabled_engines,
             codex_model=codex_model,
             claude_model=claude_model,
+            openai_model=openai_model,
             engine_tiers=engine_tiers,
         ),
         slot_timezone=engine_timezone,
@@ -693,7 +702,13 @@ def run_stage9(
 
     conn = open_cache(cache_db)
     hashes = [str(row["extraction_input_hash"]) for row in candidate_rows]
-    cached_rows = fetch_cached_rows(conn, hashes, EXTRACTION_TASK_NAME, EXTRACTION_PROMPT_VERSION)
+    cached_rows = fetch_cached_rows(
+        conn,
+        hashes,
+        EXTRACTION_TASK_NAME,
+        EXTRACTION_PROMPT_VERSION,
+        exclude_retryable_failures=True,
+    )
     cached_hash_set = set(cached_rows.keys())
 
     # Budget-aware selection: all candidates go through the same budget pool.
@@ -750,21 +765,25 @@ def run_stage9(
                 result = future.result()
                 completed += 1
                 log_stage9_sample_response(log, completed=completed, row=row, result=result)
-                store_cached_row(
-                    conn,
-                    input_hash=row["extraction_input_hash"],
-                    task_name=EXTRACTION_TASK_NAME,
-                    model=result["model"],
-                    prompt_version=result["prompt_version"],
-                    response_json=result["response_json"],
-                    tokens_used=result["tokens_used"],
-                )
-                cached_rows[str(row["extraction_input_hash"])] = fetch_cached_row(
-                    conn,
-                    input_hash=row["extraction_input_hash"],
-                    task_name=EXTRACTION_TASK_NAME,
-                    prompt_version=EXTRACTION_PROMPT_VERSION,
-                )
+                if should_cache_extraction_result(result):
+                    store_cached_row(
+                        conn,
+                        input_hash=row["extraction_input_hash"],
+                        task_name=EXTRACTION_TASK_NAME,
+                        model=result["model"],
+                        prompt_version=result["prompt_version"],
+                        response_json=result["response_json"],
+                        tokens_used=result["tokens_used"],
+                    )
+                    cached_rows[str(row["extraction_input_hash"])] = fetch_cached_row(
+                        conn,
+                        input_hash=row["extraction_input_hash"],
+                        task_name=EXTRACTION_TASK_NAME,
+                        prompt_version=EXTRACTION_PROMPT_VERSION,
+                        exclude_retryable_failures=True,
+                    )
+                else:
+                    cached_rows.pop(str(row["extraction_input_hash"]), None)
                 if completed in progress_checkpoints:
                     log.info(
                         "Stage 9 progress | completed=%s/%s fresh extraction tasks (%.1f%%)",
@@ -897,6 +916,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cache-db", type=Path, default=DEFAULT_CACHE_DB)
     parser.add_argument("--error-log", type=Path, default=DEFAULT_ERROR_LOG)
     parser.add_argument("--codex-model", type=str, default=DEFAULT_CODEX_MODEL)
+    parser.add_argument("--openai-model", type=str, default=DEFAULT_OPENAI_MODEL)
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--max-retries", type=int, default=3)
     parser.add_argument("--max-workers", type=int, default=30)
@@ -914,6 +934,8 @@ if __name__ == "__main__":
     args = parse_args()
     configure_remote_execution(args.remote)
     enabled_engines = parse_engine_list(args.engines)
+    if args.remote and "openai" in enabled_engines:
+        raise SystemExit("--remote is not supported when using the openai engine")
     run_stage9(
         llm_budget=args.llm_budget,
         llm_budget_split=parse_budget_split(args.llm_budget_split),
@@ -925,6 +947,7 @@ if __name__ == "__main__":
         cache_db=args.cache_db,
         error_log_path=args.error_log,
         codex_model=args.codex_model,
+        openai_model=args.openai_model,
         timeout_seconds=args.timeout_seconds,
         max_retries=args.max_retries,
         max_workers=args.max_workers,

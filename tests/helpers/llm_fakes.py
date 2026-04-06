@@ -56,5 +56,31 @@ def claude_stdout(payload: dict, *, input_tokens: int = 0, output_tokens: int = 
     )
 
 
+def openai_response_json(payload: dict, *, input_tokens: int = 0, output_tokens: int = 0, model: str = "gpt-5.4-nano-2026-03-17") -> str:
+    return json.dumps(
+        {
+            "id": "resp_123",
+            "model": model,
+            "output": [
+                {
+                    "id": "out_123",
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": json.dumps(payload, ensure_ascii=False),
+                        }
+                    ],
+                }
+            ],
+            "usage": {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+            },
+        },
+        ensure_ascii=False,
+    )
+
+
 def quota_error_text() -> str:
     return "429 rate limit exceeded"

@@ -15,7 +15,7 @@ For the detailed column-by-column schema, see [`preprocessing-schema.md`](prepro
 The pipeline has two layers:
 
 1. **Rule-based baseline (Stages 1-8):** Deterministic, fast (~30 min end-to-end), reproducible. Produces a usable corpus with rule-based classification labels. Every column from this layer is preserved even after LLM augmentation runs.
-2. **LLM augmentation (Stages 9-10):** Adds higher-quality classification and cleaned text via Codex (GPT) calls by default; Claude can be enabled via `--engines codex,claude`. Takes hours to days depending on corpus size and API quotas. Results are cached in SQLite for resumability.
+2. **LLM augmentation (Stages 9-10):** Adds higher-quality classification and cleaned text via Codex (GPT) calls by default; Claude and OpenAI API execution can be enabled via `--engines ...`. Takes hours to days depending on corpus size and API quotas. Results are cached in SQLite for resumability.
 
 The rule-based layer always runs first and its outputs serve as both the fallback labels and the cache keys for the LLM layer. The intended production dataset includes both layers, but the Stage 8 output is independently usable for exploration while LLM stages are in progress.
 
@@ -345,12 +345,15 @@ Each stage writes to `preprocessing/logs/`:
 |---|---|---|
 | Codex | `gpt-5.4-mini` | `codex exec --full-auto --config model=gpt-5.4-mini` |
 | Claude | `haiku` | `claude -p "<prompt>" --model haiku --output-format json` |
+| OpenAI | `gpt-5.4-nano-2026-03-17` | Direct HTTPS call to `POST /v1/responses` |
 
-Models are pinned in code. By default, these CLI commands run locally. Pass `--remote` to execute them on the remote EC2 instance via SSH.
+Models are pinned in code. By default, CLI engines run locally. Pass `--remote` to execute CLI engines on the remote EC2 instance via SSH. `openai` is local-only in the current implementation and requires `OPENAI_API_KEY` in the environment.
 
 The `--engines` flag controls which engines are active (default: `codex`); `--engine-tiers` assigns utilization modes:
 - `full`: Standard utilization. Pauses 5 hours on quota hits, then retries.
 - `non_intrusive`: Conservative slot budget. Pauses until the current 5-hour window ends after a quota hit.
+
+For `openai`, the runtime will automatically load credentials from `~/.config/job-research/openai.env` if `OPENAI_API_KEY` is not already exported in the shell
 
 ### Monitoring
 

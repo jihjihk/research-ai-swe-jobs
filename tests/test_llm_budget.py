@@ -275,11 +275,12 @@ def test_parse_budget_split_rejects_all_zero():
 # --- select_rows_with_budget ----------------------------------------
 
 
-def _make_candidate(hash_id, day, category):
+def _make_candidate(hash_id, day, category, *, source="scraped"):
     """Build a fake candidate row."""
     return {
         "extraction_input_hash": hash_id,
         "scrape_date": day,
+        "source": source,
         "is_swe": category == "swe",
         "is_swe_adjacent": category == "swe_adjacent",
         "selected_for_control_cohort": category == "control",
@@ -389,6 +390,7 @@ def test_select_budget_handles_nan_scrape_date():
         {
             "extraction_input_hash": "a-2",
             "scrape_date": float("nan"),
+            "source": "scraped",
             "is_swe": True,
             "is_swe_adjacent": False,
             "selected_for_control_cohort": False,
@@ -396,6 +398,7 @@ def test_select_budget_handles_nan_scrape_date():
         {
             "extraction_input_hash": "a-3",
             "scrape_date": None,
+            "source": "scraped",
             "is_swe": True,
             "is_swe_adjacent": False,
             "selected_for_control_cohort": False,
@@ -424,6 +427,7 @@ def test_select_budget_hash_key_parameter():
         {
             "classification_input_hash": f"h-{i}",
             "scrape_date": "2026-03-20",
+            "source": "scraped",
             "is_swe": True,
             "is_swe_adjacent": False,
             "selected_for_control_cohort": False,
@@ -459,3 +463,44 @@ def test_categorize_budget_candidate_priority_ordering():
     assert llm_shared.categorize_budget_candidate(
         {"is_swe": False, "is_swe_adjacent": False, "selected_for_control_cohort": False}
     ) is None
+
+
+@pytest.mark.unit
+def test_source_balancing_prefers_less_labeled_source_before_historical_backfill():
+    candidates = (
+        [_make_candidate(f"scraped-{i}", "2026-03-20", "swe", source="scraped") for i in range(20)]
+        + [_make_candidate(f"asaniczka-{i}", "unknown", "swe", source="kaggle_asaniczka") for i in range(20)]
+        + [_make_candidate(f"arshkon-{i}", "unknown", "swe", source="kaggle_arshkon") for i in range(20)]
+    )
+    cached = {f"asaniczka-{i}" for i in range(12)} | {f"arshkon-{i}" for i in range(8)}
+    selected, alloc, _ = llm_shared.select_rows_with_budget(
+        candidates=candidates,
+        cached_hashes=cached,
+        budget=6,
+        split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        hash_key="extraction_input_hash",
+    )
+    assert alloc["swe"] == 6
+    assert {row["source"] for row in selected} == {"scraped"}
+
+
+@pytest.mark.unit
+def test_scraped_source_water_fills_across_days_after_source_balancing():
+    candidates = (
+        [_make_candidate(f"scraped-a-{i}", "2026-03-20", "swe", source="scraped") for i in range(50)]
+        + [_make_candidate(f"scraped-b-{i}", "2026-03-21", "swe", source="scraped") for i in range(50)]
+        + [_make_candidate(f"hist-{i}", "unknown", "swe", source="kaggle_asaniczka") for i in range(50)]
+    )
+    cached = {f"scraped-a-{i}" for i in range(20)} | {f"hist-{i}" for i in range(40)}
+    selected, _, _ = llm_shared.select_rows_with_budget(
+        candidates=candidates,
+        cached_hashes=cached,
+        budget=10,
+        split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        hash_key="extraction_input_hash",
+    )
+    per_day: dict[str, int] = {}
+    for row in selected:
+        per_day[row["scrape_date"]] = per_day.get(row["scrape_date"], 0) + 1
+    assert {row["source"] for row in selected} == {"scraped"}
+    assert per_day.get("2026-03-21", 0) > per_day.get("2026-03-20", 0)

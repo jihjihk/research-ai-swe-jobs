@@ -425,3 +425,9 @@ def test_join_retained_units_uses_single_newlines():
     ]
 
     assert llm_shared.join_retained_units(units, [2]) == "First line\nThird line"
+
+
+@pytest.mark.unit
+def test_should_cache_extraction_result_skips_transient_provider_failures():
+    assert not stage9.should_cache_extraction_result({"model": "synthetic-provider-failed"})
+    assert stage9.should_cache_extraction_result({"model": "synthetic-too-many-units-fallback"})

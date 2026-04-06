@@ -26,6 +26,14 @@ import pyarrow.parquet as pq
 
 sys.path.insert(0, str(Path(__file__).parent / "scripts"))
 from backup_to_s3 import run_backup
+from llm_shared import (
+    DEFAULT_CLAUDE_MODEL,
+    DEFAULT_CODEX_MODEL,
+    DEFAULT_ENGINE_TIMEZONE,
+    DEFAULT_OPENAI_MODEL,
+    DEFAULT_QUOTA_WAIT_HOURS,
+    parse_engine_list,
+)
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SCRIPTS_DIR = PROJECT_ROOT / "preprocessing" / "scripts"
@@ -285,9 +293,28 @@ def main():
                             "Budget split swe,swe_adjacent,control (default: 0.4,0.3,0.3). "
                             "Only applies when --llm-budget is provided."
                         ))
+    parser.add_argument("--engines", type=str, default="codex",
+                        help="Comma-separated LLM engines for stages 9-10 (default: codex)")
+    parser.add_argument("--codex-model", type=str, default=DEFAULT_CODEX_MODEL,
+                        help=f"Codex model for stages 9-10 (default: {DEFAULT_CODEX_MODEL})")
+    parser.add_argument("--claude-model", type=str, default=DEFAULT_CLAUDE_MODEL,
+                        help=f"Claude model for stages 9-10 (default: {DEFAULT_CLAUDE_MODEL})")
+    parser.add_argument("--openai-model", type=str, default=DEFAULT_OPENAI_MODEL,
+                        help=f"OpenAI model for stages 9-10 (default: {DEFAULT_OPENAI_MODEL})")
+    parser.add_argument("--quota-wait-hours", type=float, default=DEFAULT_QUOTA_WAIT_HOURS,
+                        help="Quota pause duration for full-tier engines")
+    parser.add_argument("--engine-tiers", type=str, default=None,
+                        help="Comma-separated provider=tier assignments for stages 9-10")
+    parser.add_argument("--engine-timezone", type=str, default=DEFAULT_ENGINE_TIMEZONE,
+                        help=f"Timezone used for engine slot windows (default: {DEFAULT_ENGINE_TIMEZONE})")
     parser.add_argument("--backup", action="store_true", default=False,
                         help="Back up final outputs and LLM cache to S3 after successful run")
     args = parser.parse_args()
+
+    enabled_engines = parse_engine_list(args.engines)
+    if args.remote and "openai" in enabled_engines:
+        log.error("--remote is not supported when using the openai engine")
+        return 1
 
     log.info("=" * 60)
     log.info("V2 PREPROCESSING PIPELINE")
@@ -332,6 +359,14 @@ def main():
             extra_args.extend(["--llm-budget", str(args.llm_budget)])
             if args.llm_budget_split is not None:
                 extra_args.extend(["--llm-budget-split", args.llm_budget_split])
+            extra_args.extend(["--engines", args.engines])
+            extra_args.extend(["--codex-model", args.codex_model])
+            extra_args.extend(["--claude-model", args.claude_model])
+            extra_args.extend(["--openai-model", args.openai_model])
+            extra_args.extend(["--quota-wait-hours", str(args.quota_wait_hours)])
+            extra_args.extend(["--engine-timezone", args.engine_timezone])
+            if args.engine_tiers is not None:
+                extra_args.extend(["--engine-tiers", args.engine_tiers])
         if not run_stage(stage, extra_args=extra_args or None):
             log.error(f"\nPIPELINE FAILED at Stage {stage_num}")
             return 1
