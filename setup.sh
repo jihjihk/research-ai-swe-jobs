@@ -92,7 +92,7 @@ fi
 # ---------------------------------------------------------------------------
 info "Installing dependencies..."
 pip install --upgrade pip -q
-pip install python-jobspy pandas pyarrow requests beautifulsoup4 -q
+pip install python-jobspy pandas pyarrow requests beautifulsoup4 httpx -q
 ok "Dependencies installed"
 
 # Verify import

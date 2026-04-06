@@ -64,7 +64,7 @@ chmod +x setup.sh scraper/run_daily.sh
 This will:
 1. Detect Python (>= 3.10 required)
 2. Create a virtual environment (`.venv/`)
-3. Install dependencies (`python-jobspy`, `pandas`, `pyarrow`, `requests`, `beautifulsoup4`)
+3. Install dependencies (`python-jobspy`, `pandas`, `pyarrow`, `requests`, `beautifulsoup4`, `httpx`)
 4. Run a test scrape to verify everything works
 5. Offer to install the daily cron job
 
@@ -73,7 +73,7 @@ This will:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install python-jobspy pandas pyarrow requests beautifulsoup4
+pip install python-jobspy pandas pyarrow requests beautifulsoup4 httpx
 mkdir -p data/scraped logs
 
 # Test

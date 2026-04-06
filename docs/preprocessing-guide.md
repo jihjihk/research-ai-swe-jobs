@@ -345,7 +345,7 @@ Each stage writes to `preprocessing/logs/`:
 |---|---|---|
 | Codex | `gpt-5.4-mini` | `codex exec --full-auto --config model=gpt-5.4-mini` |
 | Claude | `haiku` | `claude -p "<prompt>" --model haiku --output-format json` |
-| OpenAI | `gpt-5.4-nano-2026-03-17` | Direct HTTPS call to `POST /v1/responses` |
+| OpenAI | `gpt-5.4-nano` | Direct HTTPS call to `POST /v1/responses` |
 
 Models are pinned in code. By default, CLI engines run locally. Pass `--remote` to execute CLI engines on the remote EC2 instance via SSH. `openai` is local-only in the current implementation and requires `OPENAI_API_KEY` in the environment.
 
@@ -387,7 +387,8 @@ PY
 ### Cache and checkpointing
 
 - All LLM responses are cached immediately in `preprocessing/cache/llm_responses.db`.
-- Cache key: `(input_hash, task_name, model, prompt_version)`.
+- Cache key: `(input_hash, task_name, prompt_version)`.
+- Provider/model is stored as provenance on the cached row, but prior Codex, Claude, and OpenAI Stage 9/10 results are intentionally reused across engines when the input hash and prompt version match.
 - Restarting a stage reuses all cached responses — no duplicate API calls.
 - Final parquet outputs are only written at the end of a clean full run. Partial progress lives in the cache DB.
 

@@ -10,9 +10,13 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 
 **Primary analysis file:** `data/unified.parquet` (~99 columns, ~1.40M rows). This is the Stage 11 final output containing all rule-based columns plus LLM columns from Stages 9-10.
 
-**Current LLM coverage status (as of 2026-04-05):**
-- Stage 9 (`description_core_llm`): Available for Kaggle SWE rows (~24K labeled). Scraped data is all deferred (no budget allocated).
-- Stage 10 (`seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`): No budget allocated — all null. Use rule-based columns (`seniority_final`, `is_swe`, `ghost_job_risk`).
+**LLM column usage (updated 2026-04-06):**
+- `description_core_llm`: Primary text column for all text-dependent analyses. Check `llm_extraction_coverage` for coverage by source. `description_core` (rule-based) is a sensitivity check only — it retains substantial boilerplate.
+- `seniority_llm`: Primary seniority variable. Applies uniform explicit-signal-only classification across all sources. Check `llm_classification_coverage`. Use `seniority_native`/`seniority_final`/`seniority_imputed` as ablation variants.
+- `ghost_assessment_llm`: Primary ghost indicator (`realistic`/`inflated`/`ghost_likely`). Richer than rule-based `ghost_job_risk`. Use `ghost_job_risk` as fallback.
+- `swe_classification_llm`, `yoe_min_years_llm`: Cross-check columns.
+
+Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. Filter to `labeled` when using LLM columns.
 
 ---
 
@@ -53,19 +57,19 @@ This table shows when each column category first becomes available:
 
 Work from `data/unified.parquet` (Stage 11 output, includes all rule-based + available LLM columns).
 
-| Analysis need | Primary column | Fallback | Notes |
+| Analysis need | Primary column | Ablation / fallback | Notes |
 |---|---|---|---|
-| SWE sample | `is_swe` | — | ~33K rows. `is_swe_adjacent` for broader tech sample. |
-| Seniority | `seniority_final` | `seniority_native` | 71.8% unknown. Filter to non-unknown for stratified analysis. |
+| SWE sample | `is_swe` | `swe_classification_llm` where labeled | `is_swe_adjacent` for broader tech sample. |
+| Seniority | `seniority_llm` | `seniority_native`, `seniority_final`, `seniority_imputed` | Report all 4 for entry-level metrics (ablation framework). |
 | Seniority (coarse) | `seniority_3level` | — | junior/mid/senior/unknown |
 | Time period | `period` | `date_posted` | Three periods: 2024-01, 2024-04, 2026-03 |
-| Description text | `description_core` | `description` | ~44% accuracy on boilerplate removal |
+| Description text | `description_core_llm` | `description_core`, `description` | `description_core` retains boilerplate — sensitivity check only. |
 | Company | `company_name_effective` | `company_name` | Resolves aggregators |
 | Company (grouped) | `company_name_canonical` | `company_name_effective` | For grouping across spelling variants |
 | Geography | `metro_area` | `state_normalized` | 26-metro study frame |
 | Remote status | `is_remote_inferred` | `is_remote` | Combines source flag + text inference |
-| Ghost/inflation | `ghost_job_risk` | — | Very conservative; pair with `yoe_extracted` |
-| Aggregator filter | `is_aggregator` | — | 73K aggregator rows |
+| Ghost/inflation | `ghost_assessment_llm` | `ghost_job_risk` | Rule-based is very conservative (519 non-low / 1.4M). LLM is richer. |
+| Aggregator filter | `is_aggregator` | — | Aggregator rows |
 
 **Default filters for most analyses:**
 
@@ -142,8 +146,10 @@ Note: Filtered counts (LinkedIn, English, date_flag=ok) shown for SWE. Total row
 
 **Recommended text column priority:**
 1. `description_core_llm` (after Stage 9) — highest quality boilerplate removal
-2. `description_core` (Stage 3+) — rule-based, ~44% accuracy
+2. `description_core` (Stage 3+) — rule-based, ~44% accuracy, retains substantial boilerplate
 3. `description` (Stage 1+) — full text including boilerplate
+
+**Usage guidance:** For binary keyword presence (does the posting mention X?), raw `description` is acceptable and may improve recall. For density/frequency metrics (mentions per 1K chars), use the best available cleaned text (`description_core_llm` > `description_core`) to avoid denominator inflation from boilerplate. For embeddings, topic modeling, and corpus comparison, use `description_core_llm` where available.
 
 ---
 
@@ -227,15 +233,13 @@ This reduces the unknown rate from 80.4% (imputed alone) to 71.8%.
 
 #### Recommended seniority usage
 
-**At Stage 8:**
-1. `seniority_final` — primary variable, best coverage
-2. `seniority_final_source` — stratify by this to understand label provenance
-3. `seniority_3level` — for coarse analyses needing larger cell sizes
-4. `seniority_native` — high-confidence platform-label-only analysis
+**Seniority ablation framework (report all for entry-level metrics):**
+1. `seniority_llm` — **primary variable**, uniform explicit-signal-only classification across all sources. Resolves the asaniczka entry-level gap.
+2. `seniority_native` — platform-provided labels, highest quality where available. Asaniczka has only mid-senior/associate.
+3. `seniority_final` — combined rule + native, best coverage but mixes methods across sources
+4. `seniority_imputed` (where != unknown) — rule-based only, thin coverage, low entry recall
 
-**After Stage 10:**
-1. `seniority_llm` — primary variable, explicit-signal-only classification
-2. `seniority_final` — ablation baseline / fallback when `seniority_llm` is null
+**Critical:** Asaniczka has zero native entry-level labels. For entry-level metrics, use arshkon as the sole 2024 baseline unless `seniority_llm` provides genuine asaniczka entry labels. Pooling asaniczka with columns that lack entry coverage can flip the direction of the entry-level trend.
 3. `seniority_native` — cross-validation anchor
 
 #### LLM seniority design rationale
@@ -404,16 +408,16 @@ Budget is split across three categories via `--llm-budget-split swe,swe_adjacent
 
 If a category has fewer uncached rows than its share, the surplus cascades to the other categories proportionally to their shares.
 
-**Daily water-filling:**
-Within each category, budget is distributed across `scrape_date` (YYYY-MM-DD) buckets using water-filling — the least-covered days get budget first. This prevents temporal bias at daily granularity. Within-day selection is deterministic (SHA-256 hash) for reproducibility.
+**Source balancing + scraped-day water-filling:**
+Within each category, budget is first allocated across sources to keep the absolute number of labeled rows as balanced as possible across `scraped`, `kaggle_arshkon`, and `kaggle_asaniczka`, subject to each source's remaining uncached capacity. For `scraped`, that source allocation is then water-filled across `scrape_date` (YYYY-MM-DD) buckets so the least-covered days get budget first. Historical sources are selected deterministically within-source rather than being water-filled on a fake `"unknown"` date bucket.
 
 **Coverage tracking:**
 - `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track whether each row has LLM results.
 - Values: `labeled` (has results), `deferred` (eligible but budget-capped), `not_routed` (not eligible), `skipped_short` (< 15 words), `rule_sufficient` (Stage 10 only, rules confident enough).
 - **Downstream analyses using LLM columns must filter to `*_coverage == 'labeled'`.**
 
-**Historical skew (accepted):**
-Early scrape dates were processed with the old "label everything" behavior and have dense LLM coverage. Water-filling naturally routes new budget to less-covered (recent) days. Older days retain their dense coverage — the baseline skew is permanent and accepted.
+**Source coverage behavior:**
+Incremental runs now prioritize under-covered sources until absolute labeled counts converge as much as source capacities allow. Once budget reaches `scraped`, coverage within that source is still date-balanced by `scrape_date`.
 
 **Incremental runs:**
 Each run adds to the cache. Re-running with a higher budget selects a deterministic superset. Running with budget=0 is valid (uses only existing cache, no new calls).

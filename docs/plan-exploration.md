@@ -2,7 +2,7 @@
 
 Date: 2026-04-05
 Status: Executable (v5 — enhanced)
-Input: `data/unified.parquet` (~99 cols, ~1.40M rows)
+Input: `data/unified.parquet`
 Schema reference: `docs/preprocessing-schema.md`
 
 ---
@@ -81,14 +81,15 @@ Prepend this to every sub-agent prompt.
 
 You are a sub-agent executing exploration tasks for a SWE labor market research project.
 
-**Input data:** `data/unified.parquet` (~99 columns, ~1.40M rows)
+**Input data:** `data/unified.parquet`
 Read `docs/preprocessing-schema.md` for column definitions and recommended usage.
 
 **Key data context:**
-- asaniczka has zero entry-level native labels (only mid-senior and associate). Default: exclude it from entry-level trend analysis. T03 now explicitly tests whether `associate` can support a limited junior-proxy sensitivity; do not assume `Associate == entry` unless that audit recommends it.
+- Three sources: kaggle_arshkon (April 2024), kaggle_asaniczka (Jan 2024), scraped (March 2026). Row counts grow daily — query the data for current counts.
+- Asaniczka has ZERO native entry-level labels. Exclude from seniority-stratified analyses.
+- `description_core_llm` (high-quality LLM boilerplate removal) is available for Kaggle SWE rows only (where `llm_extraction_coverage = 'labeled'`). `description_core` (rule-based, ~44% accuracy) retains substantial garbage boilerplate. Prefer `description_core_llm` for text-dependent analyses.
+- LLM classification columns (`seniority_llm`, `swe_classification_llm`, etc.) are ALL NULL. Use rule-based columns.
 - 31GB RAM limit — use DuckDB or pyarrow for queries, never load full parquet into pandas.
-- **LLM-cleaned text**: `description_core_llm` is available for Kaggle SWE rows only (~24K rows where `llm_extraction_coverage = 'labeled'`). Scraped data has no LLM-cleaned text. Use `description_core` as fallback for scraped rows.
-- **LLM classification columns are NOT available.** `seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm` are null for all rows. Use rule-based columns: `seniority_final`, `is_swe`, `ghost_job_risk`.
 
 **Default SQL filters (apply unless task says otherwise):**
 ```sql
@@ -98,7 +99,6 @@ WHERE source_platform = 'linkedin'
 ```
 
 **Three periods:** 2024-01 (asaniczka), 2024-04 (arshkon), 2026-03 (scraped)
-**Three sources:** kaggle_arshkon (118K rows), kaggle_asaniczka (1.01M rows), scraped (146K LinkedIn rows)
 
 **Text analysis hygiene suggestions — apply to text-based tasks (T10+):**
 

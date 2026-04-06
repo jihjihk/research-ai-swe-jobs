@@ -1,6 +1,6 @@
 # SWE Labor Market Research — Project Instructions
 
-Last updated: 2026-04-01
+Last updated: 2026-04-05 (All 26 exploration tasks complete; SYNTHESIS.md written)
 
 ## Purpose
 
@@ -51,9 +51,10 @@ Pipeline that transforms raw job-posting data into analysis-ready datasets.
 Exploratory analysis on pipeline outputs to validate data quality and surface research insights.
 
 - **Plan:** [`docs/plan-exploration.md`](docs/plan-exploration.md) — task specs and dispatch blocks
-- **Task reference:** [`docs/task-reference-exploration.md`](docs/task-reference-exploration.md) — shared preamble and all 26 task specs
+- **Task reference:** [`docs/task-reference-exploration.md`](docs/task-reference-exploration.md) — shared preamble, 26 task specs + 2 verification agents
 - **Orchestrator:** [`docs/prompt-exploration-orchestrator.md`](docs/prompt-exploration-orchestrator.md)
-- **Synthesis:** `exploration/reports/SYNTHESIS.md` — consolidated findings from T01-T20
+- **Synthesis:** `exploration/reports/SYNTHESIS.md` — consolidated findings from T01-T26 (THE handoff document for analysis phase)
+- **Retrospectives:** `exploration/memos/wave*_retrospective.md` — lessons learned per wave; `exploration/memos/post_exploration_action_plan.md` — improvements for next re-run
 
 ### 3. Analysis
 

@@ -56,7 +56,7 @@ def claude_stdout(payload: dict, *, input_tokens: int = 0, output_tokens: int = 
     )
 
 
-def openai_response_json(payload: dict, *, input_tokens: int = 0, output_tokens: int = 0, model: str = "gpt-5.4-nano-2026-03-17") -> str:
+def openai_response_json(payload: dict, *, input_tokens: int = 0, output_tokens: int = 0, model: str = "gpt-5.4-nano") -> str:
     return json.dumps(
         {
             "id": "resp_123",
