@@ -18,8 +18,8 @@ This is NOT for general literature review (that lives in `docs/4-literature-sour
 
 Before any research, read these files to understand the study's framework:
 - `docs/1-research-design.md` — canonical research design (RQ1-RQ4)
-- `docs/plan-exploration.md` — validation and exploration approaches
-- `docs/plan-analysis.md` — analysis and robustness approaches
+- `docs/task-reference-exploration.md` — exploration task specs and shared preamble
+- `docs/prompt-exploration-orchestrator.md` — exploration orchestrator prompt
 - `docs/4-literature-sources.md` — known sources (do not duplicate)
 - `docs/3-literature-review.md` — existing literature review
 

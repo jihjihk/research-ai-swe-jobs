@@ -112,14 +112,14 @@ Stages 9 and 10 now require an explicit `--llm-budget` parameter — **there is 
 - Within each category, budget is first used to balance absolute labeled counts across sources. For `scraped`, the allocated share is then water-filled across `scrape_date` buckets so the least-covered days get priority.
 - Budget=0 is valid: the stage runs on cached results only with no new LLM calls.
 
-**What this means for agents:** Not every scraped row will have LLM-derived columns. The columns `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track which rows were labeled. **Instruct sub-agents to filter to `llm_*_coverage == 'labeled'` whenever they use LLM columns** (`seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `description_core_llm`, `yoe_min_years_llm`).
+**What this means for agents:** Not every scraped row will have LLM-derived columns. The columns `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track which rows were labeled. Stage 9 and Stage 10 use separate caches, so coverage can differ row-by-row; a row may have Stage 9 text without Stage 10 classification, or vice versa. `selected_for_llm_frame` marks the sticky balanced core only; `selection_target` is the minimum core size. Supplemental cache rows can expand the usable LLM set, but they do not change the balanced core frame. **Instruct sub-agents to filter to `llm_*_coverage == 'labeled'` whenever they use raw LLM columns** (`seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `description_core_llm`, `yoe_min_years_llm`). For best-available Stage 10 analysis, `rule_sufficient` rows may also be treated as usable if the report explicitly says so and keeps them separate.
 
-**Statistical framing:** Findings from LLM columns are based on a category-balanced sample with explicit source balancing across historical and scraped datasets, plus date balancing within `scraped`. Report `n` of labeled rows alongside total eligible in all analyses. Flag thin cells.
+**Statistical framing:** Findings from LLM columns are based on the sticky core frame (`selected_for_llm_frame = true`) plus any explicitly labeled supplemental cache rows you decide to include. Report `n` of labeled rows alongside total eligible in all analyses, and separate core from supplemental-cache counts. Flag thin cells. Balanced-sample claims apply only to the core frame.
 
 ## Setup
 
 1. Read `docs/task-reference-exploration.md` — the shared preamble, agent assignments, and all 26 task specs.
-2. Read `docs/preprocessing-schema.md` (or `docs/schema-stage8-and-stage12.md` if unavailable) — the data schema.
+2. Read `docs/preprocessing-schema.md` — the data schema.
 3. Read `docs/1-research-design.md` — the initial research design. Understand it, but don't be bound by it.
 4. Read `AGENTS.md` — project context and rules.
 5. Create directories: `exploration/reports/`, `exploration/figures/`, `exploration/tables/`, `exploration/artifacts/`, `exploration/artifacts/shared/`, `exploration/memos/`

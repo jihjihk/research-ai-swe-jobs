@@ -15,7 +15,7 @@ For the detailed column-by-column schema, see [`preprocessing-schema.md`](prepro
 The pipeline has two layers:
 
 1. **Rule-based baseline (Stages 1-8):** Deterministic, fast (~30 min end-to-end), reproducible. Produces a usable corpus with rule-based classification labels. Every column from this layer is preserved even after LLM augmentation runs.
-2. **LLM augmentation (Stages 9-10):** Adds higher-quality classification and cleaned text via Codex (GPT) calls by default; Claude and OpenAI API execution can be enabled via `--engines ...`. Takes hours to days depending on corpus size and API quotas. Results are cached in SQLite for resumability.
+2. **LLM augmentation (Stages 9-10):** Adds higher-quality classification and cleaned text via Codex (GPT) calls by default; Claude and OpenAI API execution can be enabled via `--engines ...`. Takes hours to days depending on corpus size and API quotas. Stage 9 and Stage 10 use separate caches, so coverage can differ row-by-row. Results are cached in SQLite for resumability.
 
 The rule-based layer always runs first and its outputs serve as both the fallback labels and the cache keys for the LLM layer. The intended production dataset includes both layers, but the Stage 8 output is independently usable for exploration while LLM stages are in progress.
 
@@ -78,7 +78,7 @@ Raw Data (3 sources)
 | 4 | `stage4_dedup.py` | ~1.0M out | Company canonicalization + posting dedup |
 | 5 | `stage5_classification.py` | Preserved | SWE/seniority classification, YOE extraction |
 | 6-8 | `stage678_normalize_temporal_flags.py` | Preserved | Location, temporal, quality flags |
-| 9 | `stage9_llm_prefilter.py` | Preserved | Control cohort, LLM extraction, cleaned text |
+| 9 | `stage9_llm_prefilter.py` | Preserved | Core-frame selection, LLM extraction, cleaned text |
 | 10 | `stage10_llm_classify.py` | Preserved | LLM classification + posting-level integration |
 | 11 | `stage11_llm_integrate.py` | Preserved | Compatibility shim (copies Stage 10 output) |
 | final | `stage_final_output.py` | Preserved | Produces `data/unified*.parquet` + reports |
@@ -99,9 +99,10 @@ Raw Data (3 sources)
 
 **Stages 6-8 — Normalization, Temporal, Quality Flags.** A single script implementing three logical stages. Stage 6 parses locations into city/state/country, infers remote status, and assigns metro areas. Stage 7 derives `period`, `posting_age_days`, and `scrape_week`. Stage 8 adds language detection, date validation, ghost-job heuristics, and description quality flags. All three are row-preserving.
 
-**Stage 9 — LLM Extraction + Cleaned Text.** Defines the LLM analysis universe (LinkedIn, English, has description). Selects a deterministic control cohort. Segments descriptions into sentence units and asks LLMs to identify boilerplate units for removal. Produces `description_core_llm` — the LLM-cleaned description used by Stage 10. Hard-skips descriptions under 15 words.
+**Stage 9 — LLM Extraction + Cleaned Text.** Defines the LLM analysis universe (LinkedIn, English, has description). Selects a deterministic sticky core over `source × analysis_group × date_bin` via `selection_target` (the minimum core size; defaults to `--llm-budget` when omitted). `selected_for_llm_frame` marks that core only. `selected_for_control_cohort` is kept only for compatibility. Segments descriptions into sentence units and asks LLMs to identify boilerplate units for removal. Produces `description_core_llm` — the LLM-cleaned description used by Stage 10. Hard-skips descriptions under 15 words. Cache-backed supplemental rows may expand the usable LLM set, but they do not change the selected core frame or balanced-sample claims.
 
-**Stage 10 — LLM Classification + Final Integration.** Routes eligible rows to LLM classification: SWE type, seniority, ghost-job assessment, and YOE cross-check. Skips rows where rule-based confidence is already high. Merges LLM results back to the full posting table. The output `stage10_llm_integrated.parquet` is the canonical LLM-augmented artifact.
+**Stage 10 — LLM Classification + Final Integration.** Reuses the Stage 9 core frame and routes eligible rows to LLM classification: SWE type, seniority, ghost-job assessment, and YOE cross-check. Skips rows where rule-based confidence is already high. Merges LLM results back to the full posting table. The output `stage10_llm_integrated.parquet` is the canonical LLM-augmented artifact. Stage 10 uses its own cache, so row-level coverage can differ from Stage 9 even on the same posting.
+Inside the selected core frame, rows can resolve by rules, cache reuse, fresh LLM calls, or defer due to budget. Supplemental cache rows may be usable outside the core frame, but they are not part of the balanced frame.
 
 **Stage 11 — Compatibility Shim.** Simply copies Stage 10 output to legacy paths. Not architecturally significant.
 
@@ -209,10 +210,12 @@ Remote mode uses a prewarmed SSH master connection (ControlMaster multiplexing) 
 
 ### Running Stage 9 (LLM extraction)
 
-Stage 9 selects the LLM analysis universe, builds the control cohort, and runs extraction only:
+Stage 9 selects the LLM analysis universe, builds the deterministic core frame, and runs extraction only. `--llm-budget` is required; add `--selection-target` when you want the core frame size to differ from the fresh-call budget:
 
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py \
+  --llm-budget 300 \
+  --selection-target 900 \
   --engines codex \
   --quota-wait-hours 5 \
   --max-workers 20
@@ -223,6 +226,7 @@ To run LLM commands on the remote EC2 instance, add `--remote`:
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage9_llm_prefilter.py \
   --remote \
+  --llm-budget 300 \
   --engines codex \
   --quota-wait-hours 5 \
   --max-workers 20
@@ -251,16 +255,19 @@ PY
 
 ### Running Stage 10 (LLM classification)
 
-Stage 10 classifies the cleaned descriptions and writes the canonical LLM-integrated artifact:
+Stage 10 classifies the cleaned descriptions and writes the canonical LLM-integrated artifact. It inherits the Stage 9 core frame; `--llm-budget` is required for fresh calls:
 
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage10_llm_classify.py \
+  --llm-budget 300 \
   --engines codex \
   --quota-wait-hours 5 \
   --max-workers 20
 ```
 
 Add `--remote` to run LLM commands on the remote EC2 instance (same as Stage 9).
+Cached rows do not consume budget, and rows resolved as `rule_sufficient` remain inside the inherited frame without making a new LLM call.
+Stage 9 extraction coverage and Stage 10 classification coverage are independent: a row may have usable Stage 9 text without Stage 10 classification, or vice versa.
 
 This is the longest-running stage (hours to days). See "LLM Stage Operations" below for monitoring and recovery.
 

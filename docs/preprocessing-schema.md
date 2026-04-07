@@ -8,7 +8,7 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 
 ## How to Use This Document
 
-**Primary analysis file:** `data/unified.parquet` (~99 columns, ~1.40M rows). This is the Stage 11 final output containing all rule-based columns plus LLM columns from Stages 9-10.
+**Primary analysis file:** `data/unified.parquet` (~101 columns, ~1.40M rows). This is the Stage 11 final output containing all rule-based columns plus LLM columns from Stages 9-10.
 
 **LLM column usage (updated 2026-04-06):**
 - `description_core_llm`: Primary text column for all text-dependent analyses. Check `llm_extraction_coverage` for coverage by source. `description_core` (rule-based) is a sensitivity check only — it retains substantial boilerplate.
@@ -16,7 +16,9 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 - `ghost_assessment_llm`: Primary ghost indicator (`realistic`/`inflated`/`ghost_likely`). Richer than rule-based `ghost_job_risk`. Use `ghost_job_risk` as fallback.
 - `swe_classification_llm`, `yoe_min_years_llm`: Cross-check columns.
 
-Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. Filter to `labeled` when using LLM columns.
+Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. Filter to `labeled` when using raw Stage 9/Stage 10 LLM columns. For best-available Stage 10 analysis, `rule_sufficient` rows may also be treated as usable if you explicitly report that choice and keep the counts separate.
+
+Balanced-sample claims apply only to `selected_for_llm_frame = true`. Supplemental cache rows can extend the usable LLM set, but they are not part of the balanced core frame.
 
 ---
 
@@ -40,14 +42,14 @@ This table shows when each column category first becomes available:
 | Temporal derivations | Stage 7 | 3 | `period`, `posting_age_days`, `scrape_week` |
 | Quality flags | Stage 8 | 5 | `date_flag`, `is_english`, `ghost_job_risk`, `description_quality_flag` |
 | Pipeline metadata | Stage 8 | 3 | `preprocessing_version`, `dedup_method`, `boilerplate_removed` |
-| LLM cleaned text | Stage 9 | 2 | `description_core_llm`, `selected_for_control_cohort` |
-| LLM coverage tracking | Stage 9-10 | 2 | `llm_extraction_coverage`, `llm_classification_coverage` |
+| LLM frame + cleaned text | Stage 9 | 5 | `description_core_llm`, `selected_for_llm_frame`, `selection_date_bin`, `selected_for_control_cohort`, `llm_extraction_sample_tier` |
+| LLM coverage tracking | Stage 9-10 | 4 | `llm_extraction_coverage`, `llm_extraction_resolution`, `llm_classification_coverage`, `llm_classification_resolution` |
 | LLM extraction diagnostics | Stage 9 | 9 | `llm_extraction_status`, `llm_extraction_drop_ratio`, etc. |
-| LLM classification | Stage 10 | 4 | `seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm` |
+| LLM classification | Stage 10 | 5 | `seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`, `llm_classification_sample_tier` |
 | LLM provenance | Stage 9-10 | 4 | `llm_model_*`, `llm_prompt_version_*` |
 
 **Total at Stage 8:** ~80 columns, 1,395,790 rows.
-**Total at Stage 11 / unified.parquet:** 99 columns, 1,395,790 rows (all Stage 8 columns preserved + LLM additions).
+**Total at Stage 11 / unified.parquet:** 101 columns, 1,395,790 rows (all Stage 8 columns preserved + LLM additions).
 
 ---
 
@@ -85,7 +87,9 @@ Work from `preprocessing/intermediate/stage9_llm_cleaned.parquet`. Same row coun
 
 New columns available:
 - `description_core_llm`: LLM-cleaned description. Use as primary text for analysis. Falls back to `description_core` when null/empty.
-- `selected_for_control_cohort`: Whether this row is in the deterministic control group for LLM analysis.
+- `selected_for_llm_frame`: Whether this row is in the deterministic Stage 9 selected core frame.
+- `selection_date_bin`: Source-specific balancing date for the selected core frame.
+- `selected_for_control_cohort`: Compatibility-only mirror for legacy consumers; equivalent to `selected_for_llm_frame & is_control`.
 
 ### At Stage 10 (LLM classification complete)
 
@@ -98,7 +102,7 @@ Work from `preprocessing/intermediate/stage10_llm_integrated.parquet` or `data/u
 | Clean text | `description_core_llm` | `description_core`, `description` |
 | Ghost / inflation | `ghost_assessment_llm` | `ghost_job_risk` |
 
-LLM columns are null for rows not routed to LLM classification. In those cases, use the rule-based columns as fallback.
+LLM columns are null for rows not resolved by cached/fresh LLM classification. For `llm_classification_coverage = 'rule_sufficient'`, use the rule-based columns as the analysis values inside the selected core frame.
 
 ---
 
@@ -358,9 +362,14 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 | `ghost_assessment_llm` | VARCHAR | 10 | `realistic`, `inflated`, `ghost_likely` | LLM ghost-job assessment. |
 | `yoe_min_years_llm` | INT64 | 10 | Numeric or null | LLM-extracted YOE floor. Cross-check only. |
 | `description_core_llm` | VARCHAR | 9 | Text | LLM-cleaned description. Empty string for short-description skips. |
-| `selected_for_control_cohort` | BOOL | 9 | true/false | Deterministic control-cohort flag. |
-| `llm_extraction_coverage` | VARCHAR | 9 | `labeled`, `deferred`, `not_routed`, `skipped_short` | Stage 9 LLM coverage status. **Filter to `labeled` when using `description_core_llm`.** |
-| `llm_classification_coverage` | VARCHAR | 10 | `labeled`, `deferred`, `not_routed`, `skipped_short`, `rule_sufficient` | Stage 10 LLM coverage status. **Filter to `labeled` when using `seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, or `yoe_min_years_llm`.** |
+| `selected_for_llm_frame` | BOOL | 9-10 | true/false | Deterministic core-frame flag propagated from Stage 9. Marks the sticky balanced core only. |
+| `selected_for_control_cohort` | BOOL | 9-10 | true/false | Compatibility-only mirror for legacy consumers. Equivalent to `selected_for_llm_frame & is_control` when the legacy flag is still needed. |
+| `llm_extraction_sample_tier` | VARCHAR | 9 | `core`, `supplemental_cache`, `none` | Stage 9 extraction sample tier. `core` rows belong to the sticky balanced frame. |
+| `llm_classification_sample_tier` | VARCHAR | 10 | `core`, `supplemental_cache`, `none` | Stage 10 classification sample tier. May differ row-by-row from Stage 9. |
+| `llm_extraction_coverage` | VARCHAR | 9 | `labeled`, `deferred`, `not_selected`, `skipped_short` | Stage 9 LLM coverage status. **Filter to `labeled` when using `description_core_llm`.** |
+| `llm_extraction_resolution` | VARCHAR | 9 | `cached_llm`, `fresh_llm`, `deferred`, `not_selected`, `skipped_short` | Stage 9 resolution method. Separates cache hits from fresh calls. |
+| `llm_classification_coverage` | VARCHAR | 10 | `labeled`, `deferred`, `not_selected`, `skipped_short`, `rule_sufficient` | Stage 10 LLM coverage status. **Filter to `labeled` when using raw LLM columns; include `rule_sufficient` only if you explicitly report that best-available Stage 10 choice.** |
+| `llm_classification_resolution` | VARCHAR | 10 | `cached_llm`, `fresh_llm`, `rule_sufficient`, `deferred`, `not_selected`, `skipped_short` | Stage 10 resolution method. Keeps rule-based resolution separate from cached and fresh LLM calls. |
 
 #### LLM extraction diagnostics
 
@@ -387,21 +396,24 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 
 #### LLM routing rules
 
-**Extraction (Stage 9):** Routes rows that are LinkedIn, English, have a raw description, and are SWE/SWE-adjacent/selected-control. Hard-skips descriptions under 15 words.
+**Extraction (Stage 9):** Routes rows that are LinkedIn, English, have a raw description, and are in the Stage 9 selected core frame. Hard-skips descriptions under 15 words.
 
 **Classification (Stage 10):** Skips LLM classification when all hold:
 - `swe_classification_tier` in {`regex`, `embedding_high`, `title_lookup_llm`}
 - `seniority_source` starts with `title_`
 - `ghost_job_risk == "low"`
 
-For skipped rows, LLM columns remain null and rule-based columns serve as the analysis values.
+For skipped rows, LLM columns remain null and rule-based columns serve as the analysis values. Rows outside the inherited Stage 9 core frame are `not_selected`. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
 
 #### Budget-Constrained LLM Processing
 
 Stages 9 and 10 require an explicit `--llm-budget` parameter (no default). This caps the number of **new** LLM calls per run across all data sources (Kaggle and scraped alike).
 
+**Selection frame vs budget:**
+Stage 9 accepts an optional `--selection-target` for the core-frame size. When omitted, it defaults to `--llm-budget`. Stage 10 inherits the Stage 9 core frame and does not have a separate selection target. Supplemental cache rows can expand the usable LLM set, but they do not change the balanced core frame.
+
 **Category split (default 40/30/30):**
-Budget is split across three categories via `--llm-budget-split swe,swe_adjacent,control`:
+Fresh-call budget is split across three categories via `--llm-budget-split swe,swe_adjacent,control`:
 - SWE: 40% (primary study target)
 - SWE-adjacent: 30%
 - Control: 30%
@@ -409,18 +421,18 @@ Budget is split across three categories via `--llm-budget-split swe,swe_adjacent
 If a category has fewer uncached rows than its share, the surplus cascades to the other categories proportionally to their shares.
 
 **Source balancing + scraped-day water-filling:**
-Within each category, budget is first allocated across sources to keep the absolute number of labeled rows as balanced as possible across `scraped`, `kaggle_arshkon`, and `kaggle_asaniczka`, subject to each source's remaining uncached capacity. For `scraped`, that source allocation is then water-filled across `scrape_date` (YYYY-MM-DD) buckets so the least-covered days get budget first. Historical sources are selected deterministically within-source rather than being water-filled on a fake `"unknown"` date bucket.
+Within each category, the selected core frame is balanced across `source × analysis_group × date_bin`. Fresh-call budget is then allocated only across unresolved selected tasks, preserving the configured category split while keeping source/date selection deterministic.
 
 **Coverage tracking:**
 - `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track whether each row has LLM results.
-- Values: `labeled` (has results), `deferred` (eligible but budget-capped), `not_routed` (not eligible), `skipped_short` (< 15 words), `rule_sufficient` (Stage 10 only, rules confident enough).
-- **Downstream analyses using LLM columns must filter to `*_coverage == 'labeled'`.**
+- Values: `labeled` (has results), `deferred` (eligible but budget-capped), `not_selected` (not in the Stage 9/10 frame), `skipped_short` (< 15 words), `rule_sufficient` (Stage 10 only, rules confident enough).
+- Raw LLM columns should be filtered to `*_coverage == 'labeled'`. If you include `rule_sufficient` in Stage 10 analysis, report that explicitly and keep it separate from `labeled`.
 
 **Source coverage behavior:**
-Incremental runs now prioritize under-covered sources until absolute labeled counts converge as much as source capacities allow. Once budget reaches `scraped`, coverage within that source is still date-balanced by `scrape_date`.
+Incremental runs prioritize under-covered source × group cells until absolute fresh-call counts converge as much as source capacities allow. Once budget reaches `scraped`, coverage within that source is still date-balanced by `scrape_date`.
 
 **Incremental runs:**
-Each run adds to the cache. Re-running with a higher budget selects a deterministic superset. Running with budget=0 is valid (uses only existing cache, no new calls).
+Each run adds to the cache. Re-running with a higher `selection_target` selects a deterministic superset core frame. Re-running with a higher `llm-budget` increases fresh-call usage within that same frame. Running with budget=0 is valid (uses only existing cache, no new calls). Stage 9 and Stage 10 caches are separate, so row-level coverage can differ across stages.
 
 ---
 

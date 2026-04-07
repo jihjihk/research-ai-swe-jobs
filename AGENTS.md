@@ -1,6 +1,6 @@
 # SWE Labor Market Research — Project Instructions
 
-Last updated: 2026-04-05 (All 26 exploration tasks complete; SYNTHESIS.md written)
+Last updated: 2026-04-06 
 
 ## Purpose
 
@@ -50,9 +50,8 @@ Pipeline that transforms raw job-posting data into analysis-ready datasets.
 
 Exploratory analysis on pipeline outputs to validate data quality and surface research insights.
 
-- **Plan:** [`docs/plan-exploration.md`](docs/plan-exploration.md) — task specs and dispatch blocks
 - **Task reference:** [`docs/task-reference-exploration.md`](docs/task-reference-exploration.md) — shared preamble, 26 task specs + 2 verification agents
-- **Orchestrator:** [`docs/prompt-exploration-orchestrator.md`](docs/prompt-exploration-orchestrator.md)
+- **Orchestrator:** [`docs/prompt-exploration-orchestrator.md`](docs/prompt-exploration-orchestrator.md) — dispatch, gate logic, wave guidance
 - **Synthesis:** `exploration/reports/SYNTHESIS.md` — consolidated findings from T01-T26 (THE handoff document for analysis phase)
 - **Retrospectives:** `exploration/memos/wave*_retrospective.md` — lessons learned per wave; `exploration/memos/post_exploration_action_plan.md` — improvements for next re-run
 
@@ -88,11 +87,11 @@ Academic writing, research design, literature review, interview protocol, method
 
 ## Data Sources
 
-| Source | Rows | Period | Platform | Key strength | Key gap |
-|---|---|---|---|---|---|
-| Kaggle arshkon | 124K | Apr 2024 | LinkedIn | Entry-level labels (~385 SWE) | Small SWE count |
-| Kaggle asaniczka | 1.35M | Jan 2024 | LinkedIn | Large volume (18K US SWE) | No entry-level labels |
-| Scraped current-format | ~3.7K SWE/day | Mar 2026+ | LinkedIn + Indeed | Fresh data, search metadata | Growing daily |
+| Source | Period | Platform | Key strength | Key gap |
+|---|---|---|---|---|
+| Kaggle arshkon | Apr 2024 | LinkedIn | Entry-level labels | Small SWE count |
+| Kaggle asaniczka | Jan 2024 | LinkedIn | Large volume | No entry-level labels |
+| Scraped | Mar 2026+ | LinkedIn + Indeed | Fresh data, search metadata | Growing daily |
 
 - Primary analysis platform: LinkedIn only. Indeed: sensitivity analyses only.
 - Do not use: YC data, Apify data, old scraped format (Mar 5-18).

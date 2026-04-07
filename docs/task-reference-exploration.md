@@ -2,7 +2,7 @@
 
 Date: 2026-04-05
 Input: `data/unified.parquet`
-Schema reference: `docs/preprocessing-schema.md` (canonical), `docs/schema-stage8-and-stage12.md` (historical)
+Schema reference: `docs/preprocessing-schema.md`
 
 ---
 
@@ -27,6 +27,10 @@ Read `docs/preprocessing-schema.md` for column definitions and recommended usage
 - Asaniczka has ZERO native entry-level seniority labels. Its `seniority_final` entry rate (~0.6%) is an imputation artifact.
 - Remote work flags are 0% in 2024 sources (data artifact). Do not interpret as a real change.
 - LLM classification columns: `seniority_llm` (uniform explicit-signal-only seniority), `ghost_assessment_llm` (richer ghost detection than rule-based), `swe_classification_llm`, `yoe_min_years_llm`. Check `llm_classification_coverage` for coverage. Use `seniority_llm` as the primary seniority variable with `seniority_native`/`seniority_final`/`seniority_imputed` as ablation variants. Use `ghost_assessment_llm` as primary ghost indicator with `ghost_job_risk` as fallback.
+- `selected_for_llm_frame` marks the sticky balanced core only. `selection_target` is the minimum core size, not the full usable LLM set.
+- Stage 9 and Stage 10 use separate caches, so row coverage can differ between them. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
+- `llm_extraction_sample_tier` and `llm_classification_sample_tier` take `core`, `supplemental_cache`, or `none`. Balanced-sample claims apply only to `selected_for_llm_frame = true`.
+- For raw LLM columns, filter to `llm_*_coverage == 'labeled'`. For best-available Stage 10 analysis, `rule_sufficient` rows may also be treated as usable if you explicitly report that choice and keep it separate from `labeled`.
 - 31GB RAM limit — use DuckDB or pyarrow for queries, never load full parquet into pandas.
 
 **Entry-level metric rule (CRITICAL — the direction of the entry-share trend depends on this):**
@@ -50,6 +54,7 @@ Text column rules:
 - **Binary keyword presence** (does the posting mention X anywhere?): Raw `description` is acceptable for recall. But density metrics (mentions per 1K chars) must use cleaned text.
 - **Non-text analyses** (seniority counts, company analysis, geographic patterns): Use all rows regardless of text column.
 - **Sensitivity check:** Run text-dependent findings on both `description_core_llm` and `description_core` to quantify the boilerplate effect.
+- For Stage 10 analyses, `rule_sufficient` rows may be included if explicitly reported; do not silently mix them into the `labeled` count.
 
 **Default SQL filters (apply unless task says otherwise):**
 ```sql
