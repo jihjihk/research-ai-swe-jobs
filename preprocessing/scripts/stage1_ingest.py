@@ -16,6 +16,7 @@ Outputs:
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
 import logging
@@ -584,7 +585,7 @@ def log_null_rates(df: pd.DataFrame, label: str) -> None:
             log.info("    %-20s %.1f%%", col, 100 * rates[col])
 
 
-def run_stage1() -> tuple[pd.DataFrame, pd.DataFrame]:
+def run_stage1() -> tuple[int, int]:
     log.info("=" * 60)
     log.info("STAGE 1: INGEST AND SCHEMA UNIFICATION")
     log.info("=" * 60)
@@ -599,6 +600,10 @@ def run_stage1() -> tuple[pd.DataFrame, pd.DataFrame]:
 
     canonical = pd.concat([arshkon, asaniczka, scraped_canonical], ignore_index=True)
     observations = pd.concat([arshkon, asaniczka, scraped_observations], ignore_index=True)
+
+    # Free source DataFrames — they are fully copied into canonical/observations
+    del arshkon, asaniczka, scraped_canonical, scraped_observations
+    gc.collect()
 
     summary["stage1_unified_rows"] = int(len(canonical))
     summary["stage1_observation_rows"] = int(len(observations))
@@ -626,20 +631,29 @@ def run_stage1() -> tuple[pd.DataFrame, pd.DataFrame]:
     observations_path = INTERMEDIATE_DIR / "stage1_observations.parquet"
     summary_path = LOG_DIR / "stage1_ingest_summary.json"
 
+    # Write one DataFrame at a time to avoid OOM from simultaneous Arrow
+    # conversion.  Delete each DataFrame after writing to reclaim memory.
+    canonical_rows = len(canonical)
     write_parquet_atomic(canonical, unified_path, compression=PARQUET_COMPRESSION)
-    write_parquet_atomic(observations, observations_path, compression=PARQUET_COMPRESSION)
-    write_text_atomic(json.dumps(summary, indent=2), summary_path)
-
     log.info("Saved %s", unified_path)
+    del canonical
+    gc.collect()
+
+    observations_rows = len(observations)
+    write_parquet_atomic(observations, observations_path, compression=PARQUET_COMPRESSION)
     log.info("Saved %s", observations_path)
+    del observations
+    gc.collect()
+
+    write_text_atomic(json.dumps(summary, indent=2), summary_path)
     log.info("Saved %s", summary_path)
 
-    return canonical, observations
+    return canonical_rows, observations_rows
 
 
 if __name__ == "__main__":
-    unified_df, observations_df = run_stage1()
+    unified_rows, observations_rows = run_stage1()
     print(
-        f"stage1_unified={len(unified_df):,} rows | "
-        f"stage1_observations={len(observations_df):,} rows"
+        f"stage1_unified={unified_rows:,} rows | "
+        f"stage1_observations={observations_rows:,} rows"
     )

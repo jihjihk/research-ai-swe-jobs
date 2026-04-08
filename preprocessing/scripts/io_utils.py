@@ -51,11 +51,28 @@ def write_parquet_atomic(
     final_path: Path,
     *,
     compression: str | None = None,
+    chunk_size: int = 200_000,
 ) -> None:
     tmp_path = prepare_temp_output(final_path)
     try:
-        table = pa.Table.from_pandas(df, preserve_index=False)
-        pq.write_table(table, tmp_path, compression=compression)
+        if len(df) <= chunk_size:
+            table = pa.Table.from_pandas(df, preserve_index=False)
+            pq.write_table(table, tmp_path, compression=compression)
+        else:
+            # Chunked write: convert and flush one slice at a time so that
+            # pandas and Arrow never both hold the full dataset.
+            first_chunk = pa.Table.from_pandas(df.iloc[:chunk_size], preserve_index=False)
+            schema = promote_null_schema(first_chunk.schema)
+            writer = pq.ParquetWriter(tmp_path, schema, compression=compression)
+            writer.write_table(first_chunk.cast(schema))
+            del first_chunk
+            for start in range(chunk_size, len(df), chunk_size):
+                chunk = pa.Table.from_pandas(
+                    df.iloc[start : start + chunk_size], preserve_index=False
+                )
+                writer.write_table(chunk.cast(schema))
+                del chunk
+            writer.close()
         promote_temp_file(tmp_path, final_path)
     except Exception:
         cleanup_temp_file(tmp_path)

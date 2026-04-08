@@ -13,6 +13,21 @@ stage10 = load_module("stage10_llm_classify", "preprocessing/scripts/stage10_llm
 llm_shared = load_module("llm_shared", "preprocessing/scripts/llm_shared.py")
 
 
+def classification_payload(
+    *,
+    swe_classification: str = "SWE",
+    seniority: str = "entry",
+    ghost_assessment: str = "realistic",
+    yoe_min_years: int | None = 1,
+):
+    return {
+        "swe_classification": swe_classification,
+        "seniority": seniority,
+        "ghost_assessment": ghost_assessment,
+        "yoe_min_years": yoe_min_years,
+    }
+
+
 @pytest.mark.unit
 def test_segment_description_into_units_handles_headers_labels_and_abbrev():
     units = stage10.segment_description_into_units(
@@ -48,6 +63,7 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "description_core": "RULE CORE",
                 "description_core_llm": "LLM CORE",
                 "is_english": True,
+                "selected_for_llm_frame": True,
                 "is_swe": True,
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
@@ -64,6 +80,7 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "description_core": "RULE CORE",
                 "description_core_llm": "",
                 "is_english": True,
+                "selected_for_llm_frame": True,
                 "is_swe": False,
                 "is_swe_adjacent": True,
                 "selected_for_control_cohort": False,
@@ -80,12 +97,30 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "description_core": "RULE CORE",
                 "description_core_llm": "",
                 "is_english": True,
+                "selected_for_llm_frame": True,
                 "is_swe": True,
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "regex",
                 "seniority_source": "title_native",
                 "ghost_job_risk": "low",
+            },
+            {
+                "job_id": "c4",
+                "source_platform": "linkedin",
+                "title": "Backend Engineer",
+                "company_name": "Delta",
+                "description": "A long enough raw description for a row that should stay outside the inherited frame.",
+                "description_core": "RULE CORE",
+                "description_core_llm": "",
+                "is_english": True,
+                "selected_for_llm_frame": False,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "weak",
+                "seniority_source": "content",
+                "ghost_job_risk": "medium",
             },
         ]
     )
@@ -94,6 +129,7 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
 
     assert out.loc["c1", "classification_input"] == "LLM CORE"
     assert out.loc["c1", "needs_llm_classification"]
+    assert out.loc["c1", "llm_classification_sample_tier"] == "core"
     assert out.loc["c1", "classification_input_hash"] == stage10.compute_classification_input_hash(
         "Software Engineer",
         "Acme",
@@ -103,6 +139,36 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
     assert not out.loc["c2", "needs_llm_classification"]
     assert out.loc["c3", "llm_classification_reason"] == "high_confidence_technical_rules"
     assert not out.loc["c3", "needs_llm_classification"]
+    assert out.loc["c4", "llm_classification_reason"] == "not_selected"
+    assert out.loc["c4", "llm_classification_sample_tier"] == "none"
+    assert not out.loc["c4", "needs_llm_classification"]
+
+
+@pytest.mark.unit
+def test_prepare_classification_rows_requires_inherited_stage9_frame():
+    df = pd.DataFrame(
+        [
+            {
+                "job_id": "missing-frame",
+                "source_platform": "linkedin",
+                "title": "Software Engineer",
+                "company_name": "Acme",
+                "description": "A long enough raw description that would otherwise be eligible for Stage 10 classification.",
+                "description_core": "RULE CORE",
+                "description_core_llm": "LLM CORE",
+                "is_english": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "weak",
+                "seniority_source": "content",
+                "ghost_job_risk": "medium",
+            }
+        ]
+    )
+
+    with pytest.raises(ValueError, match="selected_for_llm_frame"):
+        stage10.prepare_classification_rows(df)
 
 
 @pytest.mark.unit
@@ -110,12 +176,7 @@ def test_sqlite_cache_roundtrip_and_uncached_detection(tmp_path):
     cache_db = tmp_path / "llm_responses.db"
     conn = stage10.open_cache(cache_db)
 
-    payload = {
-        "swe_classification": "SWE",
-        "seniority": "entry",
-        "ghost_assessment": "realistic",
-        "yoe_min_years": 1,
-    }
+    payload = classification_payload()
     stage10.store_cached_row(
         conn,
         input_hash="hash-a",
@@ -148,12 +209,7 @@ def test_try_provider_and_engine_runtime_use_stubbed_subprocess_and_config(monke
     log = logging.getLogger("stage10-test")
     log.addHandler(logging.NullHandler())
 
-    payload = {
-        "swe_classification": "SWE",
-        "seniority": "entry",
-        "ghost_assessment": "realistic",
-        "yoe_min_years": 1,
-    }
+    payload = classification_payload()
 
     monkeypatch.setitem(
         stage10.try_provider.__globals__,
@@ -227,12 +283,7 @@ def test_parse_args_requires_llm_budget(monkeypatch):
 
 @pytest.mark.unit
 def test_build_results_row_maps_classification_payload():
-    payload = {
-        "swe_classification": "SWE",
-        "seniority": "entry",
-        "ghost_assessment": "realistic",
-        "yoe_min_years": 1,
-    }
+    payload = classification_payload()
     out = stage10.build_results_row(
         {
             "job_id": "job-1",
@@ -259,6 +310,180 @@ def test_build_results_row_maps_classification_payload():
 
 
 @pytest.mark.unit
+def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states():
+    chunk = pd.DataFrame(
+        [
+            {
+                "job_id": "rule-1",
+                "source_platform": "linkedin",
+                "title": "Backend Engineer",
+                "company_name": "Gamma",
+                "description": "A long enough raw description for routing that clearly exceeds the Stage 9 short-description threshold.",
+                "description_core": "RULE CORE",
+                "description_core_llm": "",
+                "is_english": True,
+                "selected_for_llm_frame": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "regex",
+                "seniority_source": "title_native",
+                "ghost_job_risk": "low",
+            },
+            {
+                "job_id": "llm-1",
+                "source_platform": "linkedin",
+                "title": "Software Engineer",
+                "company_name": "Acme",
+                "description": "A long enough raw description that should not be excluded by the Stage 9 short-description rule.",
+                "description_core": "RULE CORE",
+                "description_core_llm": "LLM CORE",
+                "is_english": True,
+                "selected_for_llm_frame": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "weak",
+                "seniority_source": "content",
+                "ghost_job_risk": "medium",
+            },
+            {
+                "job_id": "out-1",
+                "source_platform": "linkedin",
+                "title": "Site Reliability Engineer",
+                "company_name": "Delta",
+                "description": "A long enough raw description for a row that should stay outside the inherited frame.",
+                "description_core": "RULE CORE",
+                "description_core_llm": "",
+                "is_english": True,
+                "selected_for_llm_frame": False,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "weak",
+                "seniority_source": "content",
+                "ghost_job_risk": "medium",
+            },
+        ]
+    )
+    llm_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", "LLM CORE")
+    cache = {
+        llm_hash: {
+            "response_json": json.dumps(
+                {
+                    "swe_classification": "SWE",
+                    "seniority": "entry",
+                    "ghost_assessment": "realistic",
+                    "yoe_min_years": 1,
+                }
+            ),
+            "model": "gpt-5.4-mini",
+            "prompt_version": stage10.CLASSIFICATION_PROMPT_VERSION,
+        }
+    }
+
+    out = stage10.integrate_chunk(chunk, cache, fresh_hashes=set()).set_index("job_id")
+
+    assert out.loc["rule-1", "llm_classification_sample_tier"] == "core"
+    assert out.loc["rule-1", "llm_classification_coverage"] == "rule_sufficient"
+    assert out.loc["rule-1", "llm_classification_resolution"] == "rule_sufficient"
+    assert out.loc["llm-1", "llm_classification_sample_tier"] == "core"
+    assert out.loc["llm-1", "llm_classification_coverage"] == "labeled"
+    assert out.loc["llm-1", "llm_classification_resolution"] == "cached_llm"
+    assert out.loc["llm-1", "seniority_llm"] == "entry"
+    assert out.loc["out-1", "llm_classification_sample_tier"] == "none"
+    assert out.loc["out-1", "llm_classification_coverage"] == "not_selected"
+    assert out.loc["out-1", "llm_classification_resolution"] == "not_selected"
+
+
+@pytest.mark.unit
+def test_integrate_chunk_marks_fresh_hashes_as_fresh_llm():
+    chunk = pd.DataFrame(
+        [
+            {
+                "job_id": "fresh-1",
+                "source_platform": "linkedin",
+                "title": "Software Engineer",
+                "company_name": "Acme",
+                "description": "A long enough raw description that should not be excluded by the Stage 9 short-description rule.",
+                "description_core": "RULE CORE",
+                "description_core_llm": "LLM CORE",
+                "is_english": True,
+                "selected_for_llm_frame": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "weak",
+                "seniority_source": "content",
+                "ghost_job_risk": "medium",
+            },
+        ]
+    )
+    fresh_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", "LLM CORE")
+    cache = {
+        fresh_hash: {
+            "response_json": json.dumps(
+                {
+                    "swe_classification": "SWE",
+                    "seniority": "entry",
+                    "ghost_assessment": "realistic",
+                    "yoe_min_years": 1,
+                }
+            ),
+            "model": "gpt-5.4-mini",
+            "prompt_version": stage10.CLASSIFICATION_PROMPT_VERSION,
+        }
+    }
+
+    out = stage10.integrate_chunk(chunk, cache, fresh_hashes={fresh_hash}).set_index("job_id")
+
+    assert out.loc["fresh-1", "llm_classification_sample_tier"] == "core"
+    assert out.loc["fresh-1", "llm_classification_coverage"] == "labeled"
+    assert out.loc["fresh-1", "llm_classification_resolution"] == "fresh_llm"
+
+
+@pytest.mark.unit
+def test_integrate_chunk_uses_rule_cleaned_text_when_stage9_llm_text_missing():
+    chunk = pd.DataFrame(
+        [
+            {
+                "job_id": "fallback-core-1",
+                "source_platform": "linkedin",
+                "title": "Software Engineer",
+                "company_name": "Acme",
+                "description": "A long enough raw description that should not be needed because the rule-cleaned core text is usable.",
+                "description_core": "RULE CORE ONLY",
+                "description_core_llm": "",
+                "is_english": True,
+                "selected_for_llm_frame": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "weak",
+                "seniority_source": "content",
+                "ghost_job_risk": "medium",
+            }
+        ]
+    )
+    cache_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", "RULE CORE ONLY")
+    cache = {
+        cache_hash: {
+            "response_json": json.dumps(classification_payload()),
+            "model": "gpt-5.4-mini",
+            "prompt_version": stage10.CLASSIFICATION_PROMPT_VERSION,
+        }
+    }
+
+    out = stage10.integrate_chunk(chunk, cache, fresh_hashes=set()).set_index("job_id")
+
+    assert out.loc["fallback-core-1", "classification_input_hash"] == cache_hash
+    assert out.loc["fallback-core-1", "llm_classification_sample_tier"] == "core"
+    assert out.loc["fallback-core-1", "llm_classification_coverage"] == "labeled"
+    assert out.loc["fallback-core-1", "llm_classification_resolution"] == "cached_llm"
+    assert out.loc["fallback-core-1", "seniority_llm"] == "entry"
+
+
+@pytest.mark.unit
 def test_summarize_stage10_routing_reports_volume_drivers():
     summary = stage10.summarize_stage10_routing(
         total_rows=20,
@@ -269,7 +494,7 @@ def test_summarize_stage10_routing_reports_volume_drivers():
                 "routed": 9,
                 "high_confidence_technical_rules": 6,
                 "short_description_excluded_by_stage9": 2,
-                "not_routed": 3,
+                "not_selected": 3,
             }
         ),
         unique_task_count=7,
@@ -290,3 +515,241 @@ def test_summarize_stage10_routing_reports_volume_drivers():
         "cached_tasks": 4,
         "fresh_tasks": 3,
     }
+
+
+@pytest.mark.unit
+def test_run_stage10_reuses_current_prompt_cache_for_supplemental_rows_outside_core(tmp_path):
+    input_path = tmp_path / "stage9_llm_cleaned.parquet"
+    row = {
+        "job_id": "supp-1",
+        "source": "scraped",
+        "source_platform": "linkedin",
+        "title": "Software Engineer",
+        "company_name": "Acme",
+        "description": "A long enough raw description for a supplemental cached row that remains eligible for Stage 10 classification.",
+        "description_core": "RULE CORE ONLY",
+        "description_core_llm": "",
+        "is_english": True,
+        "selected_for_llm_frame": False,
+        "is_swe": True,
+        "is_swe_adjacent": False,
+        "is_control": False,
+        "selected_for_control_cohort": False,
+        "swe_classification_tier": "weak",
+        "seniority_source": "content",
+        "ghost_job_risk": "medium",
+    }
+    pd.DataFrame([row]).to_parquet(input_path, index=False)
+
+    cache_db = tmp_path / "llm_responses.db"
+    conn = stage10.open_cache(cache_db)
+    supplemental_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", "RULE CORE ONLY")
+    stage10.store_cached_row(
+        conn,
+        input_hash=supplemental_hash,
+        task_name=stage10.CLASSIFICATION_TASK_NAME,
+        model="gpt-5.4-mini",
+        prompt_version=stage10.CLASSIFICATION_PROMPT_VERSION,
+        response_json=json.dumps(classification_payload()),
+        tokens_used=17,
+    )
+    conn.close()
+
+    results_path = tmp_path / "stage10_results.parquet"
+    integrated_path = tmp_path / "stage10_integrated.parquet"
+    stage10.run_stage10(
+        llm_budget=0,
+        llm_budget_split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        input_path=input_path,
+        results_path=results_path,
+        integrated_path=integrated_path,
+        compat_output_path=None,
+        cache_db=cache_db,
+        error_log_path=tmp_path / "llm_errors.jsonl",
+        max_workers=1,
+        enabled_engines=("codex",),
+    )
+
+    integrated = pd.read_parquet(integrated_path).set_index("job_id")
+    results = pd.read_parquet(results_path).set_index("job_id")
+
+    assert not bool(integrated.loc["supp-1", "selected_for_llm_frame"])
+    assert integrated.loc["supp-1", "llm_classification_sample_tier"] == "supplemental_cache"
+    assert integrated.loc["supp-1", "llm_classification_coverage"] == "labeled"
+    assert integrated.loc["supp-1", "llm_classification_resolution"] == "cached_llm"
+    assert integrated.loc["supp-1", "seniority_llm"] == "entry"
+    assert results.loc["supp-1", "classification_input_hash"] == supplemental_hash
+
+
+@pytest.mark.unit
+def test_run_stage10_gates_supplemental_cache_reuse_on_prompt_version(tmp_path):
+    input_path = tmp_path / "stage9_llm_cleaned.parquet"
+    row = {
+        "job_id": "supp-old-prompt-1",
+        "source": "scraped",
+        "source_platform": "linkedin",
+        "title": "Software Engineer",
+        "company_name": "Acme",
+        "description": "A long enough raw description for a supplemental row whose cached classification uses an old prompt version.",
+        "description_core": "RULE CORE ONLY",
+        "description_core_llm": "",
+        "is_english": True,
+        "selected_for_llm_frame": False,
+        "is_swe": True,
+        "is_swe_adjacent": False,
+        "is_control": False,
+        "selected_for_control_cohort": False,
+        "swe_classification_tier": "weak",
+        "seniority_source": "content",
+        "ghost_job_risk": "medium",
+    }
+    pd.DataFrame([row]).to_parquet(input_path, index=False)
+
+    cache_db = tmp_path / "llm_responses.db"
+    conn = stage10.open_cache(cache_db)
+    supplemental_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", "RULE CORE ONLY")
+    stage10.store_cached_row(
+        conn,
+        input_hash=supplemental_hash,
+        task_name=stage10.CLASSIFICATION_TASK_NAME,
+        model="gpt-5.4-mini",
+        prompt_version="stale-prompt-version",
+        response_json=json.dumps(classification_payload()),
+        tokens_used=17,
+    )
+    conn.close()
+
+    results_path = tmp_path / "stage10_results.parquet"
+    integrated_path = tmp_path / "stage10_integrated.parquet"
+    stage10.run_stage10(
+        llm_budget=0,
+        llm_budget_split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        input_path=input_path,
+        results_path=results_path,
+        integrated_path=integrated_path,
+        compat_output_path=None,
+        cache_db=cache_db,
+        error_log_path=tmp_path / "llm_errors.jsonl",
+        max_workers=1,
+        enabled_engines=("codex",),
+    )
+
+    integrated = pd.read_parquet(integrated_path).set_index("job_id")
+    results = pd.read_parquet(results_path)
+
+    assert integrated.loc["supp-old-prompt-1", "llm_classification_sample_tier"] == "none"
+    assert integrated.loc["supp-old-prompt-1", "llm_classification_coverage"] == "not_selected"
+    assert integrated.loc["supp-old-prompt-1", "llm_classification_resolution"] == "not_selected"
+    assert pd.isna(integrated.loc["supp-old-prompt-1", "seniority_llm"])
+    assert results.empty
+
+
+@pytest.mark.unit
+def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, monkeypatch):
+    input_path = tmp_path / "stage9_llm_cleaned.parquet"
+    rows = []
+    for idx in range(3):
+        rows.append(
+            {
+                "job_id": f"swe-{idx}",
+                "source": "scraped",
+                "source_platform": "linkedin",
+                "title": f"Software Engineer {idx}",
+                "company_name": f"Acme {idx}",
+                "description": f"A long enough raw description for routed SWE row {idx} that exceeds the short-description threshold.",
+                "description_core": "RULE CORE",
+                "description_core_llm": f"LLM CORE {idx}",
+                "is_english": True,
+                "selected_for_llm_frame": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "is_control": False,
+                "swe_classification_tier": "weak",
+                "seniority_source": "content",
+                "ghost_job_risk": "medium",
+                "date_posted": "2026-03-20",
+                "scrape_date": "2026-03-20",
+                "selection_date_bin": "2026-03-20",
+            }
+        )
+    for idx in range(2):
+        rows.append(
+            {
+                "job_id": f"adj-{idx}",
+                "source": "scraped",
+                "source_platform": "linkedin",
+                "title": f"QA Engineer {idx}",
+                "company_name": f"Beta {idx}",
+                "description": f"A long enough raw description for routed adjacent row {idx} that exceeds the short-description threshold.",
+                "description_core": "RULE CORE",
+                "description_core_llm": f"LLM CORE ADJ {idx}",
+                "is_english": True,
+                "selected_for_llm_frame": True,
+                "is_swe": False,
+                "is_swe_adjacent": True,
+                "is_control": False,
+                "swe_classification_tier": "weak",
+                "seniority_source": "content",
+                "ghost_job_risk": "medium",
+                "date_posted": "2026-03-20",
+                "scrape_date": "2026-03-20",
+                "selection_date_bin": "2026-03-20",
+            }
+        )
+    rows.append(
+        {
+            "job_id": "ctrl-0",
+            "source": "scraped",
+            "source_platform": "linkedin",
+            "title": "Financial Analyst",
+            "company_name": "Gamma",
+            "description": "A long enough raw description for a routed control row that exceeds the short-description threshold.",
+            "description_core": "RULE CORE",
+            "description_core_llm": "LLM CORE",
+            "is_english": True,
+            "selected_for_llm_frame": True,
+            "is_swe": False,
+            "is_swe_adjacent": False,
+            "is_control": True,
+            "swe_classification_tier": "weak",
+            "seniority_source": "content",
+            "ghost_job_risk": "medium",
+            "date_posted": "2026-03-20",
+            "scrape_date": "2026-03-20",
+            "selection_date_bin": "2026-03-20",
+        }
+    )
+    pd.DataFrame(rows).to_parquet(input_path, index=False)
+
+    calls = []
+
+    def fake_select_fresh_call_tasks(unresolved_selected_rows, *, llm_budget, hash_key, groups):
+        calls.append(
+            {
+                "groups": groups,
+                "llm_budget": llm_budget,
+                "count": len(unresolved_selected_rows),
+            }
+        )
+        return [], {"selection_target": llm_budget, "selected_count": 0}
+
+    monkeypatch.setattr(stage10, "select_fresh_call_tasks", fake_select_fresh_call_tasks)
+
+    stage10.run_stage10(
+        llm_budget=6,
+        llm_budget_split={"swe": 0.5, "swe_adjacent": 0.3, "control": 0.2},
+        input_path=input_path,
+        results_path=tmp_path / "stage10_results.parquet",
+        integrated_path=tmp_path / "stage10_integrated.parquet",
+        compat_output_path=None,
+        cache_db=tmp_path / "llm_responses.db",
+        error_log_path=tmp_path / "llm_errors.jsonl",
+        max_workers=1,
+        enabled_engines=("codex",),
+    )
+
+    assert calls == [
+        {"groups": ("swe",), "llm_budget": 3, "count": 3},
+        {"groups": ("swe_adjacent",), "llm_budget": 2, "count": 2},
+        {"groups": ("control",), "llm_budget": 1, "count": 1},
+    ]

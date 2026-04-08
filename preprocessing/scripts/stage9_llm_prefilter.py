@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-Stage 9: control-cohort selection, extraction routing, extraction execution,
-and posting-level cleaned-text integration.
+Stage 9: deterministic frame selection, extraction execution, and cleaned-text
+integration for the Stage 9 LLM sample.
 """
 
 from __future__ import annotations
 
 import argparse
 from collections import Counter
-import hashlib
 import json
 import logging
 import time
@@ -21,6 +20,7 @@ import pyarrow.parquet as pq
 
 from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
 from llm_shared import (
+    ANALYSIS_GROUP_PRIORITY,
     DEFAULT_BUDGET_SPLIT,
     DEFAULT_ENGINE_TIMEZONE,
     DEFAULT_CLAUDE_MODEL,
@@ -49,14 +49,19 @@ from llm_shared import (
     parse_engine_tiers,
     parse_engine_list,
     render_extraction_prompt,
+    select_fresh_call_tasks,
+    select_sticky_task_frame,
     segment_description_into_units,
-    select_rows_with_budget,
+    split_budget_by_category,
     store_cached_row,
     try_provider,
     validate_extraction_payload,
     validate_extraction_selection,
     fetch_cached_row,
     fetch_cached_rows,
+    derive_analysis_group,
+    derive_date_bin,
+    write_core_frame_manifest,
 )
 
 
@@ -70,11 +75,20 @@ DEFAULT_CANDIDATES_PATH = INTERMEDIATE_DIR / "stage9_llm_extraction_candidates.p
 DEFAULT_RESULTS_PATH = INTERMEDIATE_DIR / "stage9_llm_extraction_results.parquet"
 DEFAULT_CLEANED_PATH = INTERMEDIATE_DIR / "stage9_llm_cleaned.parquet"
 DEFAULT_CONTROL_COHORT_PATH = INTERMEDIATE_DIR / "stage9_control_cohort.parquet"
+DEFAULT_CORE_FRAME_MANIFEST_PATH = INTERMEDIATE_DIR / "stage9_core_frame_manifest.json"
 DEFAULT_CACHE_DB = CACHE_DIR / "llm_responses.db"
 DEFAULT_ERROR_LOG = LOG_DIR / "llm_errors.jsonl"
 
 CHUNK_SIZE = 50_000
 MIN_DESCRIPTION_WORDS = 15
+
+
+def _format_top_counts(mapping: dict[str, int] | None, *, limit: int = 8) -> str:
+    if not mapping:
+        return "none"
+    items = sorted(mapping.items(), key=lambda item: (-int(item[1]), item[0]))
+    rendered = [f"{key}={value:,}" for key, value in items[:limit] if int(value) > 0]
+    return ", ".join(rendered) if rendered else "none"
 
 
 def configure_logging() -> logging.Logger:
@@ -107,33 +121,6 @@ def has_raw_description(df: pd.DataFrame) -> pd.Series:
     return ~df["description"].isna() & df["description"].astype(str).str.strip().ne("")
 
 
-def build_control_bucket(df: pd.DataFrame) -> pd.Series:
-    scraped = df["source"].fillna("").astype(str).eq("scraped")
-    scrape_dates = pd.to_datetime(
-        df.get("scrape_date", pd.Series(index=df.index, dtype="object")),
-        errors="coerce",
-    )
-    iso = scrape_dates.dt.isocalendar()
-    buckets = (
-        df["source"].fillna("unknown").astype(str)
-        + "|"
-        + df.get("period", pd.Series(index=df.index, dtype="object")).fillna("unknown").astype(str)
-    )
-    scraped_buckets = (
-        "scraped|"
-        + iso["year"].fillna(0).astype(int).astype(str)
-        + "-"
-        + iso["week"].fillna(0).astype(int).astype(str).str.zfill(2)
-    )
-    buckets.loc[scraped] = scraped_buckets.loc[scraped]
-    return buckets
-
-
-def stable_control_score(control_bucket: str, extraction_input_hash: str) -> str:
-    seed = f"control-cohort-v1|{control_bucket}|{extraction_input_hash}"
-    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
-
-
 def annotate_stage9_chunk(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     if "description_hash" not in out.columns:
@@ -144,16 +131,27 @@ def annotate_stage9_chunk(df: pd.DataFrame) -> pd.DataFrame:
     raw_description = out["description"].fillna("").astype(str)
     out["raw_description_word_count"] = raw_description.str.split().str.len().astype("Int64")
     out["short_description_skip"] = out["raw_description_word_count"].fillna(0).lt(MIN_DESCRIPTION_WORDS)
-    out["control_bucket"] = build_control_bucket(out)
+    out["analysis_group"] = [
+        derive_analysis_group(row)
+        for row in out[["is_swe", "is_swe_adjacent", "is_control"]].to_dict("records")
+    ]
+    out["selection_date_bin"] = [
+        derive_date_bin(
+            {
+                "source": source,
+                "scrape_date": scrape_date,
+                "date_posted": date_posted,
+            }
+        )
+        for source, scrape_date, date_posted in zip(
+            out.get("source", pd.Series(index=out.index, dtype="object")),
+            out.get("scrape_date", pd.Series(index=out.index, dtype="object")),
+            out.get("date_posted", pd.Series(index=out.index, dtype="object")),
+        )
+    ]
     eligible_text = out["is_linkedin"] & out["is_english"] & out["has_raw_description"]
-    out["eligible_swe_extraction"] = eligible_text & out["is_swe"].fillna(False).astype(bool) & ~out["short_description_skip"]
-    out["eligible_control_extraction"] = (
-        eligible_text & out["is_control"].fillna(False).astype(bool) & ~out["short_description_skip"]
-    )
-    out["eligible_control_unit"] = out["eligible_control_extraction"]
-    out["eligible_for_extraction"] = eligible_text & (
-        out["is_swe"].fillna(False).astype(bool) | out["is_swe_adjacent"].fillna(False).astype(bool)
-    ) & ~out["short_description_skip"]
+    out["analysis_in_scope"] = out["analysis_group"].notna()
+    out["eligible_for_extraction"] = eligible_text & out["analysis_group"].notna() & ~out["short_description_skip"]
     out["llm_text_skip_reason"] = None
     out.loc[out["short_description_skip"], "llm_text_skip_reason"] = "short_description_under_15_words"
     out["description_core_llm"] = None
@@ -174,104 +172,12 @@ def annotate_chunk(df: pd.DataFrame) -> pd.DataFrame:
     return annotate_stage9_chunk(df)
 
 
-def _select_control_cohort(annotated: pd.DataFrame) -> tuple[pd.DataFrame, set[str]]:
-    eligible_swe = annotated.loc[annotated["eligible_swe_extraction"]]
-    eligible_controls = annotated.loc[annotated["eligible_control_extraction"]]
-
-    swe_counts = (
-        eligible_swe[["control_bucket", "extraction_input_hash"]]
-        .drop_duplicates()
-        .groupby("control_bucket")
-        .size()
-        .to_dict()
-    )
-
-    control_records = (
-        eligible_controls[
-            [
-                "control_bucket",
-                "extraction_input_hash",
-                "job_id",
-                "source",
-                "source_platform",
-                "title",
-                "company_name",
-                "description_hash",
-            ]
-        ]
-        .drop_duplicates(subset=["control_bucket", "extraction_input_hash"])
-        .copy()
-    )
-    if control_records.empty:
-        return control_records.assign(selected_for_control_cohort=False), set()
-
-    control_records["stable_score"] = [
-        stable_control_score(bucket, input_hash)
-        for bucket, input_hash in zip(control_records["control_bucket"], control_records["extraction_input_hash"])
-    ]
-
-    controls_by_bucket = {
-        bucket: bucket_df.sort_values("stable_score").copy()
-        for bucket, bucket_df in control_records.groupby("control_bucket", sort=True)
-    }
-    targets = {
-        bucket: min(int(swe_counts.get(bucket, 0)), len(bucket_df))
-        for bucket, bucket_df in controls_by_bucket.items()
-    }
-    shortfall = sum(
-        max(int(swe_counts.get(bucket, 0)) - len(bucket_df), 0) for bucket, bucket_df in controls_by_bucket.items()
-    )
-
-    while shortfall > 0:
-        spare_buckets = [
-            bucket for bucket, bucket_df in controls_by_bucket.items() if len(bucket_df) > targets[bucket]
-        ]
-        if not spare_buckets:
-            break
-        for bucket in sorted(spare_buckets, key=lambda item: (-int(swe_counts.get(item, 0)), item)):
-            if shortfall <= 0 or len(controls_by_bucket[bucket]) <= targets[bucket]:
-                continue
-            targets[bucket] += 1
-            shortfall -= 1
-
-    selected_hashes: set[str] = set()
-    frames = []
-    for bucket, bucket_df in controls_by_bucket.items():
-        target_n = targets.get(bucket, 0)
-        bucket_df = bucket_df.copy()
-        bucket_df["selected_for_control_cohort"] = False
-        if target_n > 0:
-            bucket_df.loc[bucket_df.index[:target_n], "selected_for_control_cohort"] = True
-            selected_hashes.update(bucket_df.loc[bucket_df.index[:target_n], "extraction_input_hash"].astype(str))
-        frames.append(bucket_df)
-
-    return pd.concat(frames, ignore_index=True), selected_hashes
-
-
-def select_control_cohort(annotated: pd.DataFrame) -> pd.DataFrame:
-    control_cohort_df, _ = _select_control_cohort(annotated)
-    return control_cohort_df
-
-
-def build_extraction_candidates(annotated: pd.DataFrame, control_cohort: pd.DataFrame) -> pd.DataFrame:
-    selected_control_hashes = set(
-        control_cohort.loc[control_cohort["selected_for_control_cohort"], "extraction_input_hash"].astype(str)
-    )
+def build_extraction_candidates(annotated: pd.DataFrame, selected_frame_hashes: set[str]) -> pd.DataFrame:
     routed = annotated.copy()
-    routed["selected_for_control_cohort"] = routed["extraction_input_hash"].astype(str).isin(selected_control_hashes)
-    routed = routed.loc[
-        (~routed["short_description_skip"])
-        & (
-            routed["eligible_for_extraction"]
-            | routed["selected_for_control_cohort"]
-        )
-    ].copy()
+    routed["selected_for_llm_frame"] = routed["extraction_input_hash"].astype(str).isin(selected_frame_hashes)
+    routed = routed.loc[routed["selected_for_llm_frame"] & ~routed["short_description_skip"]].copy()
     if routed.empty:
         return pd.DataFrame()
-    routed["llm_route_group"] = "technical_extraction"
-    routed.loc[routed["selected_for_control_cohort"] & ~routed["eligible_for_extraction"], "llm_route_group"] = (
-        "control_extraction"
-    )
     agg_spec = dict(
         job_id=("job_id", "first"),
         source=("source", "first"),
@@ -279,8 +185,10 @@ def build_extraction_candidates(annotated: pd.DataFrame, control_cohort: pd.Data
         title=("title", "first"),
         company_name=("company_name", "first"),
         description_hash=("description_hash", "first"),
-        llm_route_group=("llm_route_group", "first"),
-        selected_for_control_cohort=("selected_for_control_cohort", "max"),
+        analysis_group=("analysis_group", "first"),
+        selection_date_bin=("selection_date_bin", "first"),
+        selected_for_llm_frame=("selected_for_llm_frame", "max"),
+        selected_for_control_cohort=("is_control", "max"),
         source_row_count=("job_id", "count"),
     )
     if "description" in routed.columns:
@@ -288,20 +196,30 @@ def build_extraction_candidates(annotated: pd.DataFrame, control_cohort: pd.Data
     return routed.groupby("extraction_input_hash", as_index=False).agg(**agg_spec)
 
 
-def process_chunk(df: pd.DataFrame, selected_control_hashes: set[str] | None = None) -> pd.DataFrame:
-    out = annotate_stage9_chunk(df)
-    selected_control_hashes = selected_control_hashes or set()
-    out["selected_for_control_cohort"] = out["extraction_input_hash"].astype(str).isin(selected_control_hashes)
-    extraction_scope = (
-        out["is_swe"].fillna(False).astype(bool)
-        | out["is_swe_adjacent"].fillna(False).astype(bool)
-        | out["selected_for_control_cohort"]
-    )
-    out["needs_llm_extraction"] = (
-        out["is_linkedin"] & out["is_english"] & out["has_raw_description"] & extraction_scope & ~out["short_description_skip"]
-    )
-    out["llm_extraction_reason"] = "not_routed"
-    out.loc[out["short_description_skip"] & extraction_scope, "llm_extraction_reason"] = "short_description"
+def process_chunk(
+    df: pd.DataFrame,
+    selected_frame_hashes: set[str] | None = None,
+    supplemental_cached_hashes: set[str] | None = None,
+) -> pd.DataFrame:
+    if {"eligible_for_extraction", "extraction_input_hash", "analysis_group"}.issubset(df.columns):
+        out = df.copy()
+    else:
+        out = annotate_stage9_chunk(df)
+    selected_frame_hashes = selected_frame_hashes or set()
+    supplemental_cached_hashes = supplemental_cached_hashes or set()
+    extraction_hashes = out["extraction_input_hash"].astype(str)
+    eligible_for_extraction = out["eligible_for_extraction"].fillna(False).astype(bool)
+    out["selected_for_llm_frame"] = extraction_hashes.isin(selected_frame_hashes)
+    out["selected_for_control_cohort"] = out["selected_for_llm_frame"] & out["is_control"].fillna(False).astype(bool)
+    out["llm_extraction_sample_tier"] = "none"
+    out.loc[
+        eligible_for_extraction & extraction_hashes.isin(supplemental_cached_hashes),
+        "llm_extraction_sample_tier",
+    ] = "supplemental_cache"
+    out.loc[out["selected_for_llm_frame"], "llm_extraction_sample_tier"] = "core"
+    out["needs_llm_extraction"] = out["selected_for_llm_frame"]
+    out["llm_extraction_reason"] = "not_selected"
+    out.loc[out["short_description_skip"] & out["analysis_group"].notna(), "llm_extraction_reason"] = "short_description"
     out.loc[out["needs_llm_extraction"], "llm_extraction_reason"] = "routed"
     return out
 
@@ -454,55 +372,62 @@ def process_candidate_row(
     return result
 
 
-def build_candidate_records(input_path: Path, selected_control_hashes: set[str]) -> list[dict]:
+def build_candidate_records(input_path: Path) -> list[dict]:
     pf = pq.ParquetFile(input_path)
     lookup: dict[str, dict] = {}
     for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
         chunk = pa.Table.from_batches([batch]).to_pandas()
-        prepared = process_chunk(chunk, selected_control_hashes=selected_control_hashes)
-        routed = prepared.loc[prepared["needs_llm_extraction"]].copy()
+        prepared = annotate_stage9_chunk(chunk)
+        frame_mask = (
+            prepared["is_linkedin"]
+            & prepared["is_english"]
+            & prepared["has_raw_description"]
+            & prepared["analysis_group"].notna()
+            & ~prepared["short_description_skip"]
+        )
+        routed = prepared.loc[frame_mask].copy()
         if routed.empty:
             continue
-        # Canonicalize scrape_date to YYYY-MM-DD strings for daily bucketing.
-        if "scrape_date" in routed.columns:
-            routed["scrape_date"] = (
-                pd.to_datetime(routed["scrape_date"], errors="coerce")
-                .dt.strftime("%Y-%m-%d")
-                .fillna("unknown")
-            )
-        else:
-            routed["scrape_date"] = "unknown"
         grouped = (
-            routed[
-                [
-                    "extraction_input_hash",
-                    "job_id",
-                    "source",
-                    "source_platform",
-                    "title",
-                    "company_name",
-                    "description",
-                    "description_hash",
-                    "scrape_date",
-                    "is_swe",
-                    "is_swe_adjacent",
-                    "selected_for_control_cohort",
-                ]
-            ]
-            .drop_duplicates(subset=["extraction_input_hash"])
+            routed.groupby("extraction_input_hash", as_index=False)
+            .agg(
+                job_id=("job_id", "first"),
+                source=("source", "first"),
+                source_platform=("source_platform", "first"),
+                title=("title", "first"),
+                company_name=("company_name", "first"),
+                description=("description", "first"),
+                description_hash=("description_hash", "first"),
+                date_posted=("date_posted", "first"),
+                scrape_date=("scrape_date", "first"),
+                selection_date_bin=("selection_date_bin", "first"),
+                analysis_group=("analysis_group", "first"),
+                is_swe=("is_swe", "max"),
+                is_swe_adjacent=("is_swe_adjacent", "max"),
+                is_control=("is_control", "max"),
+                source_row_count=("job_id", "count"),
+            )
             .to_dict("records")
         )
         for row in grouped:
-            lookup.setdefault(str(row["extraction_input_hash"]), row)
+            key = str(row["extraction_input_hash"])
+            if key not in lookup:
+                lookup[key] = row
+                continue
+            lookup[key]["source_row_count"] = int(lookup[key].get("source_row_count", 0)) + int(
+                row.get("source_row_count", 0)
+            )
     return list(lookup.values())
 
 
 def resolve_description_core_llm(row, cached_rows: dict[str, dict]) -> str | None:
-    if row.short_description_skip and (
-        row.is_swe or row.is_swe_adjacent or row.selected_for_control_cohort
-    ):
+    if row.short_description_skip and row.analysis_group is not None:
         return ""
-    if not row.needs_llm_extraction or row.extraction_input_hash is None:
+    sample_tier = getattr(row, "llm_extraction_sample_tier", None)
+    if (
+        not bool(getattr(row, "selected_for_llm_frame", False))
+        and sample_tier != "supplemental_cache"
+    ) or row.extraction_input_hash is None:
         return None
 
     cached = cached_rows.get(str(row.extraction_input_hash))
@@ -524,13 +449,12 @@ def resolve_description_core_llm(row, cached_rows: dict[str, dict]) -> str | Non
 def summarize_stage9_routing(
     prepared: pd.DataFrame,
     candidate_summary: pd.DataFrame,
-    selected_control_count: int,
     cached_task_count: int,
     fresh_task_count: int,
 ) -> dict[str, int]:
     reason_counts = Counter(prepared["llm_extraction_reason"].fillna("unknown").astype(str))
-    route_group_counts = (
-        Counter(candidate_summary["llm_route_group"].fillna("unknown").astype(str))
+    analysis_group_counts = (
+        Counter(candidate_summary["analysis_group"].fillna("unknown").astype(str))
         if not candidate_summary.empty
         else Counter()
     )
@@ -540,17 +464,15 @@ def summarize_stage9_routing(
         "total_rows": int(len(prepared)),
         "linkedin_rows": int(prepared["is_linkedin"].fillna(False).sum()),
         "english_rows": int(prepared["is_english"].fillna(False).sum()),
-        "technical_scope_rows": int(
-            (prepared["is_swe"].fillna(False).astype(bool) | prepared["is_swe_adjacent"].fillna(False).astype(bool)).sum()
-        ),
-        "control_pool_rows": int(prepared["eligible_control_extraction"].fillna(False).sum()),
-        "selected_control_rows": int(selected_control_count),
+        "analysis_scope_rows": int(prepared["analysis_group"].notna().sum()),
+        "control_scope_rows": int(prepared["is_control"].fillna(False).sum()),
         "short_skip_rows": int(reason_counts.get("short_description", 0)),
         "routed_rows": int(reason_counts.get("routed", 0)),
-        "not_routed_rows": int(reason_counts.get("not_routed", 0)),
+        "not_selected_rows": int(reason_counts.get("not_selected", 0)),
         "unique_tasks": unique_task_count,
-        "technical_tasks": int(route_group_counts.get("technical_extraction", 0)),
-        "control_tasks": int(route_group_counts.get("control_extraction", 0)),
+        "swe_tasks": int(analysis_group_counts.get("swe", 0)),
+        "swe_adjacent_tasks": int(analysis_group_counts.get("swe_adjacent", 0)),
+        "control_tasks": int(analysis_group_counts.get("control", 0)),
         "duplicate_rows_collapsed": int(routed_row_count - unique_task_count),
         "cached_tasks": int(cached_task_count),
         "fresh_tasks": int(fresh_task_count),
@@ -564,21 +486,21 @@ def log_stage9_plan(log: logging.Logger, summary: dict[str, int], *, max_workers
         format_engine_labels(runtime.engines),
     )
     log.info(
-        "Routing summary | rows=%s | linkedin=%s | english=%s | technical_scope=%s | control_pool=%s | selected_controls=%s",
+        "Routing summary | rows=%s | linkedin=%s | english=%s | analysis_scope=%s | control_scope=%s",
         f"{summary['total_rows']:,}",
         f"{summary['linkedin_rows']:,}",
         f"{summary['english_rows']:,}",
-        f"{summary['technical_scope_rows']:,}",
-        f"{summary['control_pool_rows']:,}",
-        f"{summary['selected_control_rows']:,}",
+        f"{summary['analysis_scope_rows']:,}",
+        f"{summary['control_scope_rows']:,}",
     )
     log.info(
-        "Extraction volume | routed_rows=%s | short_skips=%s | not_routed=%s | unique_tasks=%s | technical_tasks=%s | control_tasks=%s | deduped_rows=%s",
+        "Extraction volume | routed_rows=%s | short_skips=%s | not_selected=%s | unique_tasks=%s | swe_tasks=%s | swe_adjacent_tasks=%s | control_tasks=%s | deduped_rows=%s",
         f"{summary['routed_rows']:,}",
         f"{summary['short_skip_rows']:,}",
-        f"{summary['not_routed_rows']:,}",
+        f"{summary['not_selected_rows']:,}",
         f"{summary['unique_tasks']:,}",
-        f"{summary['technical_tasks']:,}",
+        f"{summary['swe_tasks']:,}",
+        f"{summary['swe_adjacent_tasks']:,}",
         f"{summary['control_tasks']:,}",
         f"{summary['duplicate_rows_collapsed']:,}",
     )
@@ -599,9 +521,59 @@ def log_stage9_sample_response(log: logging.Logger, *, completed: int, row: dict
         model=str(result.get("model") or ""),
         response_json=result.get("response_json"),
         extra_fields={
-            "route_group": row.get("llm_route_group"),
+            "analysis_group": row.get("analysis_group"),
+            "selection_date_bin": row.get("selection_date_bin"),
             "source_row_count": row.get("source_row_count"),
         },
+    )
+
+
+def log_stage9_selection_debug(
+    log: logging.Logger,
+    *,
+    selection_summary: dict[str, object],
+    effective_selection_target: int,
+    selected_rows: list[dict],
+    preexisting_core_cached_hashes: set[str],
+    supplemental_cached_hashes: set[str],
+    fresh_candidates: list[dict],
+    rows_to_process: list[dict],
+    deferred: int,
+) -> None:
+    top_up_summary = selection_summary.get("top_up_summary", {}) if isinstance(selection_summary, dict) else {}
+    top_up_selected = int(top_up_summary.get("selected_count", 0)) if isinstance(top_up_summary, dict) else 0
+    log.info(
+        "Frame plan | selection_target=%s | selected_tasks=%s | retained=%s | top_up=%s | top_up_selected=%s | fresh_candidates=%s | deferred=%s | reset=%s",
+        f"{effective_selection_target:,}",
+        f"{len(selected_rows):,}",
+        f"{int(selection_summary.get('retained_count', 0)):,}",
+        f"{int(selection_summary.get('top_up_count', 0)):,}",
+        f"{top_up_selected:,}",
+        f"{len(fresh_candidates):,}",
+        f"{deferred:,}",
+        bool(selection_summary.get("reset", False)),
+    )
+    log.info(
+        "Manifest state | path=%s | prior_selected=%s | retained=%s | final_selected=%s",
+        selection_summary.get("manifest_path", DEFAULT_CORE_FRAME_MANIFEST_PATH),
+        f"{int(selection_summary.get('manifest_selected_count', 0)):,}",
+        f"{int(selection_summary.get('manifest_retained_count', 0)):,}",
+        f"{len(selection_summary.get('selected_hashes', [])):,}",
+    )
+    log.info(
+        "Selection targets | source_group=%s",
+        _format_top_counts(selection_summary.get("source_group_targets")),
+    )
+    log.info(
+        "Top-up targets | source_group=%s | cells=%s",
+        _format_top_counts(top_up_summary.get("source_group_targets") if isinstance(top_up_summary, dict) else None),
+        _format_top_counts(top_up_summary.get("cell_targets") if isinstance(top_up_summary, dict) else None, limit=10),
+    )
+    log.info(
+        "Selection resolution pool | core_cached=%s | supplemental_cached=%s | fresh_selected=%s",
+        f"{len(preexisting_core_cached_hashes):,}",
+        f"{len(supplemental_cached_hashes):,}",
+        f"{len(rows_to_process):,}",
     )
 
 
@@ -609,11 +581,13 @@ def run_stage9(
     *,
     llm_budget: int,
     llm_budget_split: dict[str, float],
+    selection_target: int | None = None,
     input_path: Path = DEFAULT_INPUT_PATH,
     candidates_path: Path = DEFAULT_CANDIDATES_PATH,
     results_path: Path = DEFAULT_RESULTS_PATH,
     cleaned_path: Path = DEFAULT_CLEANED_PATH,
     control_cohort_path: Path = DEFAULT_CONTROL_COHORT_PATH,
+    core_frame_manifest_path: Path = DEFAULT_CORE_FRAME_MANIFEST_PATH,
     cache_db: Path = DEFAULT_CACHE_DB,
     error_log_path: Path = DEFAULT_ERROR_LOG,
     codex_model: str = DEFAULT_CODEX_MODEL,
@@ -626,9 +600,12 @@ def run_stage9(
     quota_wait_hours: float = DEFAULT_QUOTA_WAIT_HOURS,
     engine_tiers: dict[str, str] | None = None,
     engine_timezone: str = DEFAULT_ENGINE_TIMEZONE,
+    reset_core_frame: bool = False,
 ) -> None:
     if llm_budget < 0:
         raise ValueError(f"llm_budget must be >= 0, got {llm_budget}")
+    if selection_target is not None and selection_target < 0:
+        raise ValueError(f"selection_target must be >= 0, got {selection_target}")
     log = configure_logging()
     t0 = time.time()
     runtime = LLMEngineRuntime(
@@ -642,16 +619,16 @@ def run_stage9(
         slot_timezone=engine_timezone,
     )
 
-    # ---- Pass 1: stream chunks, keep only lightweight columns for control
-    # cohort selection and summary logging.  Text columns (description, etc.)
-    # are dropped after annotation to avoid holding the full dataset in RAM.
+    # ---- Pass 1: stream chunks, keep only lightweight columns for summary
+    # logging and row-level frame annotation. Text columns are dropped after
+    # annotation to avoid holding the full dataset in RAM.
     _LIGHTWEIGHT_COLS = [
         "job_id", "source", "source_platform", "title", "company_name",
         "description_hash", "is_english", "is_swe", "is_swe_adjacent",
         "is_control", "has_raw_description", "is_linkedin",
-        "short_description_skip", "control_bucket", "scrape_date",
-        "eligible_swe_extraction", "eligible_control_extraction",
-        "eligible_control_unit", "eligible_for_extraction",
+        "short_description_skip", "scrape_date",
+        "date_posted", "analysis_group", "selection_date_bin",
+        "eligible_for_extraction",
         "extraction_input_hash", "raw_description_word_count",
     ]
     pf = pq.ParquetFile(input_path)
@@ -664,42 +641,18 @@ def run_stage9(
     annotated_light = pd.concat(lightweight_frames, ignore_index=True) if lightweight_frames else pd.DataFrame()
     del lightweight_frames
 
-    control_cohort_df, selected_control_hashes = _select_control_cohort(annotated_light)
-
-    # Build the logging summary directly from the lightweight frame.
-    # This replicates the flag logic from process_chunk() without needing
-    # the description column (all input flags are already present).
-    annotated_light["selected_for_control_cohort"] = (
-        annotated_light["extraction_input_hash"].astype(str).isin(selected_control_hashes)
-    )
-    extraction_scope = (
-        annotated_light["is_swe"].fillna(False).astype(bool)
-        | annotated_light["is_swe_adjacent"].fillna(False).astype(bool)
-        | annotated_light["selected_for_control_cohort"]
-    )
-    annotated_light["needs_llm_extraction"] = (
-        annotated_light["is_linkedin"]
-        & annotated_light["is_english"]
-        & annotated_light["has_raw_description"]
-        & extraction_scope
-        & ~annotated_light["short_description_skip"]
-    )
-    annotated_light["llm_extraction_reason"] = "not_routed"
-    annotated_light.loc[
-        annotated_light["short_description_skip"] & extraction_scope,
-        "llm_extraction_reason",
-    ] = "short_description"
-    annotated_light.loc[
-        annotated_light["needs_llm_extraction"],
-        "llm_extraction_reason",
-    ] = "routed"
-    candidate_summary = build_extraction_candidates(annotated_light, control_cohort_df)
-    prepared_for_logging = annotated_light
-    del annotated_light
-
     # ---- Pass 2: build candidate records (streams from parquet again)
-    candidate_rows = build_candidate_records(input_path, selected_control_hashes)
-
+    candidate_rows = build_candidate_records(input_path)
+    effective_selection_target = llm_budget if selection_target is None else selection_target
+    selected_rows, selection_summary = select_sticky_task_frame(
+        candidate_rows,
+        selection_target=effective_selection_target,
+        hash_key="extraction_input_hash",
+        manifest_path=core_frame_manifest_path,
+        groups=ANALYSIS_GROUP_PRIORITY,
+        reset=reset_core_frame,
+    )
+    selected_frame_hashes = {str(row["extraction_input_hash"]) for row in selected_rows}
     conn = open_cache(cache_db)
     hashes = [str(row["extraction_input_hash"]) for row in candidate_rows]
     cached_rows = fetch_cached_rows(
@@ -709,29 +662,86 @@ def run_stage9(
         EXTRACTION_PROMPT_VERSION,
         exclude_retryable_failures=True,
     )
-    cached_hash_set = set(cached_rows.keys())
+    preexisting_cached_hashes = set(cached_rows.keys())
+    preexisting_core_cached_hashes = preexisting_cached_hashes & selected_frame_hashes
+    supplemental_cached_hashes = preexisting_cached_hashes - selected_frame_hashes
 
-    # Budget-aware selection: all candidates go through the same budget pool.
-    rows_to_process, category_allocation, uncached_per_category = select_rows_with_budget(
-        candidates=candidate_rows,
-        cached_hashes=cached_hash_set,
-        budget=llm_budget,
-        split=llm_budget_split,
-        hash_key="extraction_input_hash",
+    fresh_candidates = [
+        row for row in selected_rows
+        if str(row["extraction_input_hash"]) not in preexisting_core_cached_hashes
+    ]
+    uncached_per_category = {
+        "swe": sum(1 for row in fresh_candidates if row.get("analysis_group") == "swe"),
+        "swe_adjacent": sum(1 for row in fresh_candidates if row.get("analysis_group") == "swe_adjacent"),
+        "control": sum(1 for row in fresh_candidates if row.get("analysis_group") == "control"),
+    }
+    category_targets = split_budget_by_category(llm_budget, uncached_per_category, llm_budget_split)
+    rows_to_process = []
+    for analysis_group in ANALYSIS_GROUP_PRIORITY:
+        group_rows = [row for row in fresh_candidates if row.get("analysis_group") == analysis_group]
+        if not group_rows:
+            continue
+        selected_group_rows, _fresh_summary = select_fresh_call_tasks(
+            group_rows,
+            llm_budget=category_targets.get(analysis_group, 0),
+            hash_key="extraction_input_hash",
+            groups=(analysis_group,),
+        )
+        rows_to_process.extend(selected_group_rows)
+    category_allocation = {
+        "swe": sum(1 for row in rows_to_process if row.get("analysis_group") == "swe"),
+        "swe_adjacent": sum(1 for row in rows_to_process if row.get("analysis_group") == "swe_adjacent"),
+        "control": sum(1 for row in rows_to_process if row.get("analysis_group") == "control"),
+    }
+    deferred = len(fresh_candidates) - len(rows_to_process)
+
+    prepared_for_logging = process_chunk(
+        annotated_light,
+        selected_frame_hashes=selected_frame_hashes,
+        supplemental_cached_hashes=supplemental_cached_hashes,
     )
-    deferred = sum(uncached_per_category.values()) - len(rows_to_process)
+    candidate_summary = pd.DataFrame(selected_rows)
+    control_cohort_df = pd.DataFrame(
+        [
+            {
+                "extraction_input_hash": row["extraction_input_hash"],
+                "selection_date_bin": row["selection_date_bin"],
+                "selected_for_control_cohort": True,
+                "job_id": row["job_id"],
+                "source": row["source"],
+                "source_platform": row["source_platform"],
+                "title": row["title"],
+                "company_name": row["company_name"],
+                "description_hash": row["description_hash"],
+                "source_row_count": row.get("source_row_count", 1),
+            }
+            for row in selected_rows
+            if bool(row.get("is_control"))
+        ]
+    )
+    del annotated_light
 
     log_stage9_plan(
         log,
         summarize_stage9_routing(
             prepared_for_logging,
             candidate_summary,
-            int(len(selected_control_hashes)),
-            cached_task_count=len(cached_rows),
+            cached_task_count=len(preexisting_core_cached_hashes),
             fresh_task_count=len(rows_to_process),
         ),
         max_workers=max_workers,
         runtime=runtime,
+    )
+    log_stage9_selection_debug(
+        log,
+        selection_summary=selection_summary,
+        effective_selection_target=effective_selection_target,
+        selected_rows=selected_rows,
+        preexisting_core_cached_hashes=preexisting_core_cached_hashes,
+        supplemental_cached_hashes=supplemental_cached_hashes,
+        fresh_candidates=fresh_candidates,
+        rows_to_process=rows_to_process,
+        deferred=deferred,
     )
     log_budget_plan(
         log,
@@ -742,6 +752,8 @@ def run_stage9(
         deferred=deferred,
     )
     del prepared_for_logging, candidate_summary
+
+    fresh_hashes = {str(row["extraction_input_hash"]) for row in rows_to_process}
 
     if rows_to_process:
         progress_checkpoints = set(build_progress_checkpoints(len(rows_to_process)))
@@ -798,7 +810,26 @@ def run_stage9(
     tmp_control_cohort_path = prepare_temp_output(control_cohort_path)
 
     try:
-        write_parquet_rows(candidate_rows, tmp_candidates_path)
+        write_parquet_rows(
+            [
+                {
+                    **row,
+                    "selected_for_llm_frame": str(row["extraction_input_hash"]) in selected_frame_hashes,
+                    "selected_for_control_cohort": (
+                        str(row["extraction_input_hash"]) in selected_frame_hashes and bool(row.get("is_control"))
+                    ),
+                    "llm_extraction_sample_tier": (
+                        "core"
+                        if str(row["extraction_input_hash"]) in selected_frame_hashes
+                        else "supplemental_cache"
+                        if str(row["extraction_input_hash"]) in supplemental_cached_hashes
+                        else "none"
+                    ),
+                }
+                for row in candidate_rows
+            ],
+            tmp_candidates_path,
+        )
         write_parquet_rows(
             [
                 {
@@ -809,6 +840,17 @@ def run_stage9(
                     "title": row["title"],
                     "company_name": row["company_name"],
                     "description_hash": row["description_hash"],
+                    "selected_for_llm_frame": str(row["extraction_input_hash"]) in selected_frame_hashes,
+                    "selected_for_control_cohort": (
+                        str(row["extraction_input_hash"]) in selected_frame_hashes and bool(row.get("is_control"))
+                    ),
+                    "llm_extraction_sample_tier": (
+                        "core"
+                        if str(row["extraction_input_hash"]) in selected_frame_hashes
+                        else "supplemental_cache"
+                        if str(row["extraction_input_hash"]) in supplemental_cached_hashes
+                        else "none"
+                    ),
                     "llm_model_extraction": None
                     if cached_rows.get(str(row["extraction_input_hash"])) is None
                     else cached_rows[str(row["extraction_input_hash"])]["model"],
@@ -829,32 +871,36 @@ def run_stage9(
         try:
             for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
                 chunk = pa.Table.from_batches([batch]).to_pandas()
-                prepared = process_chunk(chunk, selected_control_hashes=selected_control_hashes)
+                prepared = process_chunk(
+                    chunk,
+                    selected_frame_hashes=selected_frame_hashes,
+                    supplemental_cached_hashes=supplemental_cached_hashes,
+                )
                 prepared["description_core_llm"] = [
                     resolve_description_core_llm(row, cached_rows)
                     for row in prepared.itertuples(index=False)
                 ]
-                # llm_extraction_coverage: sequential overrides starting from "not_routed".
-                in_scope = (
-                    prepared["is_swe"].fillna(False).astype(bool)
-                    | prepared["is_swe_adjacent"].fillna(False).astype(bool)
-                    | prepared["selected_for_control_cohort"].fillna(False).astype(bool)
-                )
+                # llm_extraction_coverage: frame-aware resolution state.
                 routed = prepared["needs_llm_extraction"].fillna(False).astype(bool)
-                has_result = routed & prepared["extraction_input_hash"].astype(str).isin(cached_rows)
-                coverage = pd.Series("not_routed", index=prepared.index, dtype="object")
-                coverage.loc[in_scope & prepared["short_description_skip"].fillna(False)] = "skipped_short"
+                extraction_hashes = prepared["extraction_input_hash"].astype(str)
+                has_result = extraction_hashes.isin(cached_rows)
+                coverage = pd.Series("not_selected", index=prepared.index, dtype="object")
+                coverage.loc[prepared["analysis_group"].notna() & prepared["short_description_skip"].fillna(False)] = "skipped_short"
                 coverage.loc[routed] = "deferred"
                 coverage.loc[has_result] = "labeled"
                 prepared["llm_extraction_coverage"] = coverage
+                resolution = pd.Series("not_selected", index=prepared.index, dtype="object")
+                resolution.loc[prepared["analysis_group"].notna() & prepared["short_description_skip"].fillna(False)] = "skipped_short"
+                resolution.loc[routed] = "deferred"
+                resolution.loc[has_result] = "cached_llm"
+                resolution.loc[has_result & extraction_hashes.isin(fresh_hashes)] = "fresh_llm"
+                prepared["llm_extraction_resolution"] = resolution
                 cleaned = prepared.drop(
                     columns=[
                         "has_raw_description",
                         "is_linkedin",
                         "raw_description_word_count",
                         "short_description_skip",
-                        "eligible_swe_extraction",
-                        "eligible_control_extraction",
                         "needs_llm_extraction",
                     ],
                     errors="ignore",
@@ -881,10 +927,15 @@ def run_stage9(
     promote_temp_file(tmp_results_path, results_path)
     promote_temp_file(tmp_cleaned_path, cleaned_path)
     promote_temp_file(tmp_control_cohort_path, control_cohort_path)
+    write_core_frame_manifest(
+        core_frame_manifest_path,
+        selected_hashes=selection_summary.get("selected_hashes", []),
+        hash_key="extraction_input_hash",
+    )
 
     log.info("Stage 9 complete in %.1fs", time.time() - t0)
-    log.info("Selected control hashes: %s", f"{len(selected_control_hashes):,}")
-    log.info("Extraction candidates: %s", f"{len(candidate_rows):,}")
+    log.info("Selected frame tasks: %s", f"{len(selected_rows):,}")
+    log.info("Stage 9 candidates: %s", f"{len(candidate_rows):,}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -903,9 +954,17 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=DEFAULT_BUDGET_SPLIT,
         help=(
-            "Fractional split of the budget across categories: "
-            "swe,swe_adjacent,control. Default '0.4,0.3,0.3'. Values are "
-            "normalized to sum to 1.0."
+            "Fractional split of the fresh-call budget across categories: "
+            "swe,swe_adjacent,control. Default '0.4,0.3,0.3'."
+        ),
+    )
+    parser.add_argument(
+        "--selection-target",
+        type=int,
+        default=None,
+        help=(
+            "Minimum unique-task size for the persisted Stage 9 core frame. "
+            "Defaults to llm-budget when omitted."
         ),
     )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT_PATH)
@@ -913,6 +972,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results-output", type=Path, default=DEFAULT_RESULTS_PATH)
     parser.add_argument("--cleaned-output", type=Path, default=DEFAULT_CLEANED_PATH)
     parser.add_argument("--control-cohort-output", type=Path, default=DEFAULT_CONTROL_COHORT_PATH)
+    parser.add_argument("--core-frame-manifest", type=Path, default=DEFAULT_CORE_FRAME_MANIFEST_PATH)
+    parser.add_argument("--reset-core-frame", action="store_true", default=False)
     parser.add_argument("--cache-db", type=Path, default=DEFAULT_CACHE_DB)
     parser.add_argument("--error-log", type=Path, default=DEFAULT_ERROR_LOG)
     parser.add_argument("--codex-model", type=str, default=DEFAULT_CODEX_MODEL)
@@ -939,11 +1000,13 @@ if __name__ == "__main__":
     run_stage9(
         llm_budget=args.llm_budget,
         llm_budget_split=parse_budget_split(args.llm_budget_split),
+        selection_target=args.selection_target,
         input_path=args.input,
         candidates_path=args.candidates_output,
         results_path=args.results_output,
         cleaned_path=args.cleaned_output,
         control_cohort_path=args.control_cohort_output,
+        core_frame_manifest_path=args.core_frame_manifest,
         cache_db=args.cache_db,
         error_log_path=args.error_log,
         codex_model=args.codex_model,
@@ -956,4 +1019,5 @@ if __name__ == "__main__":
         quota_wait_hours=args.quota_wait_hours,
         engine_tiers=parse_engine_tiers(args.engine_tiers, enabled_engines),
         engine_timezone=args.engine_timezone,
+        reset_core_frame=args.reset_core_frame,
     )

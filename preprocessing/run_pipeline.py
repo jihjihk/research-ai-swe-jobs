@@ -170,6 +170,10 @@ STAGES = [
                 "min_rows": 1,
                 "check_col": "selected_for_control_cohort",
             },
+            {
+                "path": INTERMEDIATE_DIR / "stage9_core_frame_manifest.json",
+                "kind": "text",
+            },
         ],
         "timeout_seconds": 2 * 3600,
     },

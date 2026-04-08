@@ -30,6 +30,7 @@ import pyarrow.parquet as pq
 
 from io_utils import cleanup_temp_file, prepare_temp_output, promote_temp_file
 from llm_shared import (
+    ANALYSIS_GROUP_PRIORITY,
     CLASSIFICATION_PROMPT_VERSION,
     CLASSIFICATION_TASK_NAME,
     DEFAULT_BUDGET_SPLIT,
@@ -58,8 +59,9 @@ from llm_shared import (
     parse_engine_tiers,
     parse_engine_list,
     render_classification_prompt,
+    select_fresh_call_tasks,
     segment_description_into_units,
-    select_rows_with_budget,
+    split_budget_by_category,
     store_cached_row,
     try_provider,
     validate_classification_payload,
@@ -82,6 +84,14 @@ DEFAULT_ERROR_LOG = LOG_DIR / "llm_errors.jsonl"
 CHUNK_SIZE = 50_000
 MIN_DESCRIPTION_WORDS = 15
 CLASSIFICATION_STRONG_TIERS = {"regex", "embedding_high", "title_lookup_llm"}
+
+
+def _format_top_counts(mapping: dict[str, int] | None, *, limit: int = 8) -> str:
+    if not mapping:
+        return "none"
+    items = sorted(mapping.items(), key=lambda item: (-int(item[1]), item[0]))
+    rendered = [f"{key}={value:,}" for key, value in items[:limit] if int(value) > 0]
+    return ", ".join(rendered) if rendered else "none"
 
 
 def configure_logging() -> logging.Logger:
@@ -110,13 +120,14 @@ def prepare_classification_rows(df: pd.DataFrame) -> pd.DataFrame:
     raw_word_count = raw_description.str.split().str.len()
     is_linkedin = out["source_platform"].fillna("").astype(str).str.lower().eq("linkedin")
     is_english = out["is_english"].fillna(False).astype(bool)
-    in_scope = (
-        out["is_swe"].fillna(False).astype(bool)
-        | out["is_swe_adjacent"].fillna(False).astype(bool)
-        | out["selected_for_control_cohort"].fillna(False).astype(bool)
-    )
+    if "selected_for_llm_frame" not in out.columns:
+        raise ValueError(
+            "Stage 10 requires selected_for_llm_frame from Stage 9 and will not widen the core frame via fallback."
+        )
+    in_scope = out["selected_for_llm_frame"].fillna(False).astype(bool)
     short_skip = raw_word_count.lt(MIN_DESCRIPTION_WORDS)
     skip_mask = classification_skip_mask(out)
+    classification_eligible = is_linkedin & is_english & ~short_skip & ~skip_mask
 
     classification_input = [
         derive_classification_input(core_llm, core_rules, desc)
@@ -127,19 +138,21 @@ def prepare_classification_rows(df: pd.DataFrame) -> pd.DataFrame:
         )
     ]
     out["classification_input"] = classification_input
-    out["needs_llm_classification"] = is_linkedin & is_english & in_scope & ~short_skip & ~skip_mask
+    out["needs_llm_classification"] = in_scope & classification_eligible
     out["classification_input_hash"] = [
         compute_classification_input_hash(title, company, text) if needs else None
         for title, company, text, needs in zip(
             out.get("title", pd.Series(index=out.index, dtype="object")),
             out.get("company_name", pd.Series(index=out.index, dtype="object")),
             out["classification_input"],
-            out["needs_llm_classification"],
+            classification_eligible,
         )
     ]
-    out["llm_classification_reason"] = "not_routed"
-    out.loc[short_skip, "llm_classification_reason"] = "short_description_excluded_by_stage9"
-    out.loc[skip_mask & ~short_skip, "llm_classification_reason"] = "high_confidence_technical_rules"
+    out["llm_classification_sample_tier"] = "none"
+    out.loc[in_scope, "llm_classification_sample_tier"] = "core"
+    out["llm_classification_reason"] = "not_selected"
+    out.loc[in_scope & short_skip, "llm_classification_reason"] = "short_description_excluded_by_stage9"
+    out.loc[in_scope & skip_mask & ~short_skip, "llm_classification_reason"] = "high_confidence_technical_rules"
     out.loc[out["needs_llm_classification"], "llm_classification_reason"] = "routed"
     return out
 
@@ -259,8 +272,19 @@ def build_results_row(row_meta: dict, classification_input_hash: str, classifica
     }
 
 
-def integrate_chunk(chunk: pd.DataFrame, classification_cache: dict[str, dict]) -> pd.DataFrame:
+def integrate_chunk(
+    chunk: pd.DataFrame,
+    classification_cache: dict[str, dict],
+    *,
+    fresh_hashes: set[str] | None = None,
+) -> pd.DataFrame:
     out = prepare_classification_rows(chunk)
+    in_scope = out["selected_for_llm_frame"].fillna(False).astype(bool)
+    has_cached_result = out["classification_input_hash"].notna() & out["classification_input_hash"].astype(str).isin(
+        classification_cache
+    )
+    supplemental_cached_mask = ~in_scope & has_cached_result
+    out.loc[supplemental_cached_mask, "llm_classification_sample_tier"] = "supplemental_cache"
     swe_values = []
     seniority_values = []
     ghost_values = []
@@ -288,16 +312,25 @@ def integrate_chunk(chunk: pd.DataFrame, classification_cache: dict[str, dict]) 
 
     # llm_classification_coverage: map routing reason → coverage, upgrade to
     # "labeled" when a cache hit exists for a routed row.
-    reason = out["llm_classification_reason"].fillna("not_routed").astype(str)
+    reason = out["llm_classification_reason"].fillna("not_selected").astype(str)
     coverage = reason.map({
-        "not_routed": "not_routed",
+        "not_selected": "not_selected",
         "short_description_excluded_by_stage9": "skipped_short",
         "high_confidence_technical_rules": "rule_sufficient",
         "routed": "deferred",
-    }).fillna("not_routed")
-    has_result = reason.eq("routed") & out["classification_input_hash"].astype(str).isin(classification_cache)
-    coverage.loc[has_result] = "labeled"
+    }).fillna("not_selected")
+    has_core_result = reason.eq("routed") & has_cached_result
+    coverage.loc[has_core_result | supplemental_cached_mask] = "labeled"
     out["llm_classification_coverage"] = coverage
+    resolution = coverage.copy()
+    if fresh_hashes is None:
+        resolution.loc[resolution.eq("labeled")] = "cached_llm"
+    else:
+        fresh_mask = has_core_result & out["classification_input_hash"].astype(str).isin(fresh_hashes)
+        cached_mask = coverage.eq("labeled") & ~fresh_mask
+        resolution.loc[fresh_mask] = "fresh_llm"
+        resolution.loc[cached_mask] = "cached_llm"
+    out["llm_classification_resolution"] = resolution
     return out.drop(columns=["classification_input"], errors="ignore")
 
 
@@ -318,7 +351,7 @@ def summarize_stage10_routing(
         "selected_control_rows": int(selected_control_rows),
         "short_skip_rows": int(reason_counts.get("short_description_excluded_by_stage9", 0)),
         "high_confidence_skip_rows": int(reason_counts.get("high_confidence_technical_rules", 0)),
-        "not_routed_rows": int(reason_counts.get("not_routed", 0)),
+        "not_routed_rows": int(reason_counts.get("not_selected", 0)),
         "unique_tasks": int(unique_task_count),
         "duplicate_rows_collapsed": int(duplicate_rows_collapsed),
         "cached_tasks": int(cached_task_count),
@@ -366,6 +399,63 @@ def log_stage10_sample_response(log: logging.Logger, *, completed: int, row: dic
             "row_count": row.get("classification_row_count"),
             "source_platform": row.get("source_platform"),
         },
+    )
+
+
+def log_stage10_selection_debug(
+    log: logging.Logger,
+    *,
+    candidate_rows: list[dict],
+    supplemental_candidate_rows: list[dict],
+    cached_rows: dict[str, dict],
+    supplemental_cached_rows: dict[str, dict],
+    fresh_candidates: list[dict],
+    rows_to_process: list[dict],
+    deferred: int,
+) -> None:
+    core_by_group = Counter(
+        "swe" if row.get("is_swe") else "swe_adjacent" if row.get("is_swe_adjacent") else "control"
+        for row in candidate_rows
+    )
+    supplemental_by_group = Counter(
+        "swe" if row.get("is_swe") else "swe_adjacent" if row.get("is_swe_adjacent") else "control"
+        for row in supplemental_candidate_rows
+    )
+    fresh_by_group = Counter(
+        "swe" if row.get("is_swe") else "swe_adjacent" if row.get("is_swe_adjacent") else "control"
+        for row in fresh_candidates
+    )
+    log.info(
+        "Frame inheritance | core_tasks=%s | core_cached=%s | supplemental_candidates=%s | supplemental_cached=%s",
+        f"{len(candidate_rows):,}",
+        f"{len(cached_rows):,}",
+        f"{len(supplemental_candidate_rows):,}",
+        f"{len(supplemental_cached_rows):,}",
+    )
+    log.info(
+        "Core scope by group | %s",
+        _format_top_counts(dict(core_by_group), limit=3),
+    )
+    log.info(
+        "Supplemental cache by group | candidates=%s | cached=%s",
+        _format_top_counts(dict(supplemental_by_group), limit=3),
+        _format_top_counts(
+            dict(
+                Counter(
+                    "swe" if row.get("is_swe") else "swe_adjacent" if row.get("is_swe_adjacent") else "control"
+                    for row in supplemental_candidate_rows
+                    if str(row.get("classification_input_hash")) in supplemental_cached_rows
+                )
+            ),
+            limit=3,
+        ),
+    )
+    log.info(
+        "Fresh-call pool | unresolved_core=%s | selected_fresh=%s | deferred=%s | by_group=%s",
+        f"{len(fresh_candidates):,}",
+        f"{len(rows_to_process):,}",
+        f"{deferred:,}",
+        _format_top_counts(dict(fresh_by_group), limit=3),
     )
 
 
@@ -446,6 +536,7 @@ def run_stage10(
 
     pf = pq.ParquetFile(input_path)
     candidate_lookup: dict[str, dict] = {}
+    supplemental_candidate_lookup: dict[str, dict] = {}
     total_rows = pf.metadata.num_rows
     reason_counts: Counter = Counter()
     routed_row_count = 0
@@ -456,21 +547,40 @@ def run_stage10(
         prepared = prepare_classification_rows(chunk)
         reason_counts.update(prepared["llm_classification_reason"].fillna("unknown").astype(str))
         routed_row_count += int(prepared["needs_llm_classification"].fillna(False).sum())
-        selected_control_rows += int(prepared["selected_for_control_cohort"].fillna(False).sum())
+        selected_control_rows += int(
+            (
+                prepared["selected_for_llm_frame"].fillna(False).astype(bool)
+                & prepared["is_control"].fillna(False).astype(bool)
+            ).sum()
+        )
+        supplemental_candidates = prepared.loc[
+            ~prepared["selected_for_llm_frame"].fillna(False).astype(bool)
+            & prepared["classification_input_hash"].notna()
+        ].copy()
+        if not supplemental_candidates.empty:
+            grouped_supplemental = (
+                supplemental_candidates.groupby("classification_input_hash", dropna=True, as_index=False)
+                .agg(
+                    job_id=("job_id", "first"),
+                    source=("source", "first"),
+                    source_platform=("source_platform", "first"),
+                    title=("title", "first"),
+                    company_name=("company_name", "first"),
+                    classification_input=("classification_input", "first"),
+                    classification_row_count=("job_id", "count"),
+                )
+                .to_dict("records")
+            )
+            for row in grouped_supplemental:
+                input_hash = str(row["classification_input_hash"])
+                if input_hash in candidate_lookup:
+                    continue
+                supplemental_candidate_lookup.setdefault(input_hash, row)
         candidates = prepared.loc[prepared["needs_llm_classification"]].copy()
         if candidates.empty:
             continue
-        # Normalize scrape_date for stable bucketing.
-        if "scrape_date" in candidates.columns:
-            candidates["scrape_date"] = (
-                pd.to_datetime(candidates["scrape_date"], errors="coerce")
-                .dt.strftime("%Y-%m-%d")
-                .fillna("unknown")
-            )
-        else:
-            candidates["scrape_date"] = "unknown"
         # Ensure category flags exist for budget allocation.
-        for col in ("is_swe", "is_swe_adjacent", "selected_for_control_cohort"):
+        for col in ("is_swe", "is_swe_adjacent", "is_control"):
             if col not in candidates.columns:
                 candidates[col] = False
         grouped = (
@@ -483,10 +593,12 @@ def run_stage10(
                 company_name=("company_name", "first"),
                 classification_input=("classification_input", "first"),
                 classification_row_count=("job_id", "count"),
+                date_posted=("date_posted", "first"),
                 scrape_date=("scrape_date", "first"),
+                selection_date_bin=("selection_date_bin", "first"),
                 is_swe=("is_swe", "max"),
                 is_swe_adjacent=("is_swe_adjacent", "max"),
-                selected_for_control_cohort=("selected_for_control_cohort", "max"),
+                is_control=("is_control", "max"),
             )
             .to_dict("records")
         )
@@ -494,21 +606,55 @@ def run_stage10(
             candidate_lookup.setdefault(str(row["classification_input_hash"]), row)
 
     candidate_rows = list(candidate_lookup.values())
+    supplemental_candidate_rows = list(supplemental_candidate_lookup.values())
 
     conn = open_cache(cache_db)
     hashes = [str(row["classification_input_hash"]) for row in candidate_rows]
     cached_rows = fetch_cached_rows(conn, hashes, CLASSIFICATION_TASK_NAME, CLASSIFICATION_PROMPT_VERSION)
     cached_hash_set = set(cached_rows.keys())
-
-    # Budget-aware selection: all candidates go through the same budget pool.
-    rows_to_process, category_allocation, uncached_per_category = select_rows_with_budget(
-        candidates=candidate_rows,
-        cached_hashes=cached_hash_set,
-        budget=llm_budget,
-        split=llm_budget_split,
-        hash_key="classification_input_hash",
+    supplemental_hashes = [str(row["classification_input_hash"]) for row in supplemental_candidate_rows]
+    supplemental_cached_rows = fetch_cached_rows(
+        conn,
+        supplemental_hashes,
+        CLASSIFICATION_TASK_NAME,
+        CLASSIFICATION_PROMPT_VERSION,
     )
-    deferred = sum(uncached_per_category.values()) - len(rows_to_process)
+
+    fresh_candidates = [
+        row for row in candidate_rows
+        if str(row["classification_input_hash"]) not in cached_hash_set
+    ]
+    uncached_per_category = {
+        "swe": sum(1 for row in fresh_candidates if row.get("is_swe")),
+        "swe_adjacent": sum(1 for row in fresh_candidates if row.get("is_swe_adjacent")),
+        "control": sum(1 for row in fresh_candidates if row.get("is_control")),
+    }
+    category_targets = split_budget_by_category(llm_budget, uncached_per_category, llm_budget_split)
+    rows_to_process = []
+    for analysis_group in ANALYSIS_GROUP_PRIORITY:
+        group_rows = [
+            row for row in fresh_candidates
+            if (
+                (analysis_group == "swe" and row.get("is_swe"))
+                or (analysis_group == "swe_adjacent" and row.get("is_swe_adjacent"))
+                or (analysis_group == "control" and row.get("is_control"))
+            )
+        ]
+        if not group_rows:
+            continue
+        selected_group_rows, _fresh_summary = select_fresh_call_tasks(
+            group_rows,
+            llm_budget=category_targets.get(analysis_group, 0),
+            hash_key="classification_input_hash",
+            groups=(analysis_group,),
+        )
+        rows_to_process.extend(selected_group_rows)
+    category_allocation = {
+        "swe": sum(1 for row in rows_to_process if row.get("is_swe")),
+        "swe_adjacent": sum(1 for row in rows_to_process if row.get("is_swe_adjacent")),
+        "control": sum(1 for row in rows_to_process if row.get("is_control")),
+    }
+    deferred = len(fresh_candidates) - len(rows_to_process)
 
     log_stage10_plan(
         log,
@@ -531,6 +677,16 @@ def run_stage10(
         split=llm_budget_split,
         uncached_per_category=uncached_per_category,
         category_allocation=category_allocation,
+        deferred=deferred,
+    )
+    log_stage10_selection_debug(
+        log,
+        candidate_rows=candidate_rows,
+        supplemental_candidate_rows=supplemental_candidate_rows,
+        cached_rows=cached_rows,
+        supplemental_cached_rows=supplemental_cached_rows,
+        fresh_candidates=fresh_candidates,
+        rows_to_process=rows_to_process,
         deferred=deferred,
     )
 
@@ -590,15 +746,25 @@ def run_stage10(
             build_results_row(row, str(row["classification_input_hash"]), cached_rows.get(str(row["classification_input_hash"])))
             for row in candidate_rows
         ]
+        results_rows.extend(
+            build_results_row(
+                row,
+                str(row["classification_input_hash"]),
+                supplemental_cached_rows.get(str(row["classification_input_hash"])),
+            )
+            for row in supplemental_candidate_rows
+            if str(row["classification_input_hash"]) in supplemental_cached_rows
+        )
         write_parquet_rows(results_rows, tmp_results_path)
 
         writer = None
         try:
+            fresh_hashes = {str(row["classification_input_hash"]) for row in rows_to_process}
             for batch in pf.iter_batches(batch_size=CHUNK_SIZE):
                 chunk = pa.Table.from_batches([batch]).to_pandas()
                 prepared = prepare_classification_rows(chunk)
                 batch_hashes = (
-                    prepared.loc[prepared["needs_llm_classification"], "classification_input_hash"]
+                    prepared.loc[prepared["classification_input_hash"].notna(), "classification_input_hash"]
                     .dropna()
                     .astype(str)
                     .unique()
@@ -610,7 +776,11 @@ def run_stage10(
                     CLASSIFICATION_TASK_NAME,
                     CLASSIFICATION_PROMPT_VERSION,
                 )
-                integrated = integrate_chunk(chunk, batch_cache)
+                integrated = integrate_chunk(
+                    chunk,
+                    batch_cache,
+                    fresh_hashes=fresh_hashes,
+                )
                 out_table = pa.Table.from_pandas(integrated, preserve_index=False)
                 if writer is None:
                     integrated_schema = _promote_null_fields(out_table.schema)
@@ -645,7 +815,8 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help=(
             "Max new LLM calls (REQUIRED, no default). "
-            "Use 0 for cache-only. Counts unique classification tasks."
+            "Use 0 for cache-only. Counts unique classification tasks after "
+            "Stage 9 frame inheritance, rule_sufficient resolution, and cache reuse."
         ),
     )
     parser.add_argument(

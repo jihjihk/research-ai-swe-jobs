@@ -487,9 +487,12 @@ TITLE_LEAD = re.compile(
     re.IGNORECASE
 )
 TITLE_JUNIOR = re.compile(
-    r'\b(junior|jr\.?|new\s*grad|entry[- ]?level|early\s*career)\b', re.IGNORECASE
+    r'\b(junior|jr\.?|new\s*grad(?:uate)?|recent\s*grad(?:uate)?|fresh\s*grad(?:uate)?|entry[- ]?level|early\s*career)\b',
+    re.IGNORECASE,
 )
-TITLE_ASSOCIATE = re.compile(r'\bassociate\b', re.IGNORECASE)
+TITLE_ASSOCIATE = re.compile(
+    r'\b(?:associate|mid[- ]?level|intermediate)\b', re.IGNORECASE
+)
 TITLE_MANAGERISH = re.compile(r'\b(manager|supervisor)\b', re.IGNORECASE)
 TITLE_LEAD_GENERAL = re.compile(r'(^|[\s,/:()\-])lead\b|\blead(?=[\s,/:()\-]|$)', re.IGNORECASE)
 
@@ -513,11 +516,11 @@ CONTROL_ROLE_HINT = re.compile(
 TITLE_LEVEL_HIGH = re.compile(
     r'(?:engineer|developer|swe|sde)\s*(?:iii|iv|v|[3-9])\b', re.IGNORECASE
 )
-TITLE_LEVEL_SENIOR = re.compile(
+TITLE_LEVEL_ASSOCIATE = re.compile(
     r'(?:engineer|developer|swe|sde)\s*ii\b', re.IGNORECASE
 )
-TITLE_LEVEL_ASSOCIATE = re.compile(
-    r'(?:engineer|developer|swe|sde)\s*i\b', re.IGNORECASE
+TITLE_LEVEL_ENTRY = re.compile(
+    r'(?:engineer|developer|swe|sde)\s*(?:i|1|one)\b', re.IGNORECASE
 )
 
 CONTROL_LEVEL_HIGH = re.compile(
@@ -768,12 +771,12 @@ ROLE_MODIFIER_WORD = (
 ROLE_TITLE_PART = rf'(?:{ROLE_MODIFIER_WORD}|&|and)'
 ROLE_TITLE_TAIL = rf'(?:{ROLE_TITLE_PART}\s+){{0,4}}{ROLE_NOUN}\b'
 ENTRY_TITLE = (
-    rf'(?:entry[- ]?level|junior|jr\.?|new\s*grad(?:uate)?|intern(?:ship)?|'
+    rf'(?:entry[- ]?level|junior|jr\.?|new\s*grad(?:uate)?|recent\s*grad(?:uate)?|fresh\s*grad(?:uate)?|intern(?:ship)?|'
     rf'co-?op|early\s*career)\s+{ROLE_TITLE_TAIL}'
 )
 ASSOCIATE_LABEL = r'associate(?!\s+(?:vice\s*president|vp|director|head|chief|dean)\b)'
 ASSOCIATE_TITLE = (
-    rf'(?:{ASSOCIATE_LABEL}(?:\s+{ROLE_TITLE_TAIL})?|'
+    rf'(?:(?:{ASSOCIATE_LABEL}|mid[- ]?level|intermediate)(?:\s+{ROLE_TITLE_TAIL})?|'
     rf'(?:{ROLE_MODIFIER_WORD}\s+){{0,2}}{ASSOCIATE_LABEL}\b)'
 )
 MID_SENIOR_TITLE = (
@@ -794,21 +797,24 @@ DIRECTOR_TITLE = (
 DESC_ENTRY = re.compile(
     rf'(?:{DECLARATIVE_ROLE_PREFIX}{ENTRY_TITLE}|'
     rf'{HIRING_ROLE_PREFIX}{ENTRY_TITLE}|'
-    rf'{ACTION_ROLE_PREFIX}{ENTRY_TITLE})',
+    rf'{ACTION_ROLE_PREFIX}{ENTRY_TITLE})|'
+    r'\b(?:engineer|developer|swe|sde)\s*(?:i|1|one)\b|'
+    r'\b(?:new|recent|fresh)\s+grad(?:uate)?s?\s+(?:are|is)?\s*(?:strongly\s+)?(?:encouraged|welcome[ds]?|invited)\s+to\s+apply\b|'
+    r'\b(?:ideal|great|excellent)\s+for\s+(?:a\s+)?(?:new|recent|fresh)\s+grad(?:uate)?\b',
     re.IGNORECASE,
 )
 DESC_ASSOCIATE = re.compile(
     rf'(?:{DECLARATIVE_ROLE_PREFIX}{ASSOCIATE_TITLE}|'
     rf'{HIRING_ROLE_PREFIX}{ASSOCIATE_TITLE}|'
     rf'{ACTION_ROLE_PREFIX}{ASSOCIATE_TITLE})|'
-    r'\b(?:engineer|developer|swe|sde)\s*i\b',
+    r'\b(?:engineer|developer|swe|sde)\s*ii\b',
     re.IGNORECASE,
 )
 DESC_MID_SENIOR = re.compile(
     rf'(?:{DECLARATIVE_ROLE_PREFIX}{MID_SENIOR_TITLE}|'
     rf'{HIRING_ROLE_PREFIX}{MID_SENIOR_TITLE}|'
     rf'{ACTION_ROLE_PREFIX}{MID_SENIOR_TITLE})|'
-    r'\b(?:engineer|developer|swe|sde)\s*(?:ii|iii|iv|v|[2-9])\b',
+    r'\b(?:engineer|developer|swe|sde)\s*(?:iii|iv|v|[3-9])\b',
     re.IGNORECASE,
 )
 DESC_DIRECTOR = re.compile(
@@ -938,13 +944,14 @@ def classify_seniority(title: str, description: str, family: str = "other") -> t
     if TITLE_LEAD.search(title_str):
         return ("mid-senior", "title_keyword", 0.95)
 
-    # Level numbers
-    if TITLE_LEVEL_HIGH.search(title_str):
-        return ("mid-senior", "weak_title_level", 0.85)
-    if TITLE_LEVEL_SENIOR.search(title_str):
-        return ("mid-senior", "weak_title_level", 0.85)
-    if TITLE_LEVEL_ASSOCIATE.search(title_str):
-        return ("associate", "weak_title_level", 0.80)
+    # SWE-specific level numbers
+    if family == "swe":
+        if TITLE_LEVEL_HIGH.search(title_str):
+            return ("mid-senior", "weak_title_level", 0.85)
+        if TITLE_LEVEL_ASSOCIATE.search(title_str):
+            return ("associate", "weak_title_level", 0.80)
+        if TITLE_LEVEL_ENTRY.search(title_str):
+            return ("entry", "weak_title_level", 0.80)
 
     if family == "control":
         if CONTROL_LEVEL_HIGH.search(title_str):

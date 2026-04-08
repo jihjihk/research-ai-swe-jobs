@@ -102,6 +102,18 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
         ]
     ).to_parquet(stage9_control, index=False)
 
+    stage9_manifest = tmp_path / "stage9_core_frame_manifest.json"
+    stage9_manifest.write_text(
+        json.dumps(
+            {
+                "manifest_version": 1,
+                "hash_key": "extraction_input_hash",
+                "selected_hashes": ["extract-hash-1"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
     stage10_results = tmp_path / "stage10_llm_classification_results.parquet"
     pd.DataFrame(
         [
@@ -167,6 +179,7 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
             {"path": stage9_results, "kind": "parquet", "min_rows": 1, "check_col": "description_core_llm"},
             {"path": stage9_cleaned, "kind": "parquet", "min_rows": 1, "check_col": "description_core_llm"},
             {"path": stage9_control, "kind": "parquet", "min_rows": 1, "check_col": "selected_for_control_cohort"},
+            {"path": stage9_manifest, "kind": "text"},
         ],
     }
     stage10_spec = {

@@ -1107,6 +1107,8 @@ def ensure_cache_schema(conn: sqlite3.Connection) -> None:
 # water-filled across scrape_date buckets so budget flows to thin days first.
 BUDGET_CATEGORIES = ("swe", "swe_adjacent", "control")
 DEFAULT_BUDGET_SPLIT = "0.4,0.3,0.3"
+ANALYSIS_GROUP_PRIORITY = ("swe", "swe_adjacent", "control")
+CORE_FRAME_MANIFEST_VERSION = 1
 
 
 def _coerce_day(value: object) -> str:
@@ -1126,7 +1128,6 @@ def _coerce_source(value: object) -> str:
         return "unknown"
     s = str(value).strip()
     return s or "unknown"
-
 
 def stable_budget_score(scrape_date: str, input_hash: str) -> str:
     """Deterministic per-row score for budget-constrained within-day selection.
@@ -1464,6 +1465,357 @@ def select_rows_with_budget(
                 )
             )
     return selected, category_allocation, uncached_per_category
+
+
+# ---------------------------------------------------------------------------
+# Shared selection-frame logic for Stage 9/10
+# ---------------------------------------------------------------------------
+
+
+def derive_analysis_group(row: dict | pd.Series) -> str | None:
+    """Collapse the existing booleans into one three-way analysis group."""
+    if bool(row.get("is_swe")):
+        return "swe"
+    if bool(row.get("is_swe_adjacent")):
+        return "swe_adjacent"
+    if bool(row.get("is_control")) or bool(row.get("selected_for_control_cohort")):
+        return "control"
+    return None
+
+
+def derive_date_bin(row: dict | pd.Series) -> str:
+    """Return the canonical balancing date for a candidate task."""
+    source = _coerce_source(row.get("source"))
+    if source == "scraped":
+        return _coerce_day(row.get("scrape_date"))
+    return _coerce_day(row.get("date_posted"))
+
+
+def stable_frame_score(source: str, analysis_group: str, date_bin: str, input_hash: str) -> str:
+    """Deterministic within-cell ordering for frame selection."""
+    seed = f"selection-frame-v1|{source}|{analysis_group}|{date_bin}|{input_hash}"
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+def _selection_group_cycle(groups: tuple[str, ...]) -> list[str]:
+    """Small weighted cycle for remainder distribution.
+
+    The exact remainder is small (< number of source x group cells), so a short
+    deterministic cycle is enough and easier to reason about than a more
+    general weighted allocator.
+    """
+    cycle: list[str] = []
+    if "swe" in groups:
+        cycle.extend(["swe", "swe"])
+    if "swe_adjacent" in groups:
+        cycle.append("swe_adjacent")
+    if "control" in groups:
+        cycle.append("control")
+    return cycle or list(groups)
+
+
+def _allocate_evenly_with_caps(capacities: dict[str, int], target: int) -> dict[str, int]:
+    """Evenly distribute `target` across bins, capped by capacity."""
+    allocation = {key: 0 for key in capacities}
+    if target <= 0:
+        return allocation
+    heap = [(0, key) for key, cap in capacities.items() if cap > 0]
+    heapq.heapify(heap)
+    remaining = target
+    while remaining > 0 and heap:
+        level, key = heapq.heappop(heap)
+        allocation[key] += 1
+        remaining -= 1
+        if allocation[key] < capacities[key]:
+            heapq.heappush(heap, (level + 1, key))
+    return allocation
+
+
+def _rebalance_source_group_targets(
+    *,
+    initial_targets: dict[tuple[str, str], int],
+    capacities: dict[tuple[str, str], int],
+    sources: tuple[str, ...],
+    groups: tuple[str, ...],
+) -> dict[tuple[str, str], int]:
+    """Apply the minimal spill rules to source x group targets."""
+    allocation = {
+        cell: min(initial_targets.get(cell, 0), capacities.get(cell, 0))
+        for cell in initial_targets
+    }
+
+    group_shortfalls = {group: 0 for group in groups}
+    for source, group in initial_targets:
+        target = initial_targets[(source, group)]
+        group_shortfalls[group] += max(target - allocation[(source, group)], 0)
+
+    # Spill within the same analysis group to other sources.
+    for group in groups:
+        remaining = group_shortfalls[group]
+        while remaining > 0:
+            eligible = [
+                (source, group)
+                for source in sources
+                if allocation[(source, group)] < capacities[(source, group)]
+            ]
+            if not eligible:
+                break
+            chosen = min(eligible, key=lambda cell: (allocation[cell], cell[0]))
+            allocation[chosen] += 1
+            remaining -= 1
+        group_shortfalls[group] = remaining
+
+    # Global spill by group priority.
+    total_remaining = sum(group_shortfalls.values())
+    for group in groups:
+        while total_remaining > 0:
+            eligible = [
+                (source, group)
+                for source in sources
+                if allocation[(source, group)] < capacities[(source, group)]
+            ]
+            if not eligible:
+                break
+            chosen = min(eligible, key=lambda cell: (allocation[cell], cell[0]))
+            allocation[chosen] += 1
+            total_remaining -= 1
+        if total_remaining <= 0:
+            break
+
+    return allocation
+
+
+def normalize_frame_candidates(candidates: list[dict], *, hash_key: str) -> list[dict]:
+    """Attach source / analysis_group / date_bin used by the shared selector."""
+    normalized: list[dict] = []
+    for row in candidates:
+        input_hash = str(row.get(hash_key) or "").strip()
+        if not input_hash:
+            continue
+        analysis_group = derive_analysis_group(row)
+        if analysis_group is None:
+            continue
+        row_copy = dict(row)
+        row_copy["source"] = _coerce_source(row.get("source"))
+        row_copy["analysis_group"] = analysis_group
+        row_copy["date_bin"] = derive_date_bin(row)
+        row_copy["_selection_hash"] = input_hash
+        normalized.append(row_copy)
+    return normalized
+
+
+def load_core_frame_manifest(manifest_path: Path) -> dict[str, object]:
+    if not manifest_path.exists():
+        return {
+            "manifest_version": CORE_FRAME_MANIFEST_VERSION,
+            "selected_hashes": [],
+        }
+
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    selected_hashes: list[str] = []
+    for value in payload.get("selected_hashes", []):
+        hash_value = str(value or "").strip()
+        if hash_value and hash_value not in selected_hashes:
+            selected_hashes.append(hash_value)
+
+    return {
+        "manifest_version": int(payload.get("manifest_version", CORE_FRAME_MANIFEST_VERSION)),
+        "selected_hashes": selected_hashes,
+        "updated_at": payload.get("updated_at"),
+    }
+
+
+def write_core_frame_manifest(
+    manifest_path: Path,
+    *,
+    selected_hashes: list[str],
+    hash_key: str,
+) -> None:
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "manifest_version": CORE_FRAME_MANIFEST_VERSION,
+        "hash_key": hash_key,
+        "selected_hashes": [str(value) for value in selected_hashes if str(value).strip()],
+        "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    temp_path = manifest_path.with_name(f"{manifest_path.name}.tmp")
+    temp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    temp_path.replace(manifest_path)
+
+
+def select_task_frame(
+    candidates: list[dict],
+    *,
+    selection_target: int,
+    hash_key: str,
+    groups: tuple[str, ...] = BUDGET_CATEGORIES,
+) -> tuple[list[dict], dict[str, object]]:
+    """Select a deterministic task frame across source x group x date.
+
+    Selection is independent of cache and fresh-call budget. Cache and budget
+    should be applied later as resolution methods over the selected frame.
+    """
+    normalized = normalize_frame_candidates(candidates, hash_key=hash_key)
+    if selection_target <= 0 or not normalized:
+        return [], {
+            "selection_target": int(selection_target),
+            "candidate_count": int(len(normalized)),
+            "selected_count": 0,
+            "unfilled_count": int(max(selection_target, 0)),
+            "source_group_targets": {},
+            "cell_targets": {},
+        }
+
+    sources = tuple(sorted({row["source"] for row in normalized}))
+    source_group_cells = [(source, group) for source in sources for group in groups]
+    cell_rows: dict[tuple[str, str, str], list[dict]] = {}
+    source_group_capacities = {cell: 0 for cell in source_group_cells}
+    for row in normalized:
+        cell = (row["source"], row["analysis_group"], row["date_bin"])
+        cell_rows.setdefault(cell, []).append(row)
+        source_group_capacities[(row["source"], row["analysis_group"])] += 1
+
+    total_cells = len(source_group_cells) or 1
+    base = selection_target // total_cells
+    remainder = selection_target % total_cells
+    initial_targets = {cell: base for cell in source_group_cells}
+
+    remainder_cycle = _selection_group_cycle(groups)
+    cycle_index = 0
+    while remainder > 0 and remainder_cycle:
+        group = remainder_cycle[cycle_index % len(remainder_cycle)]
+        for source in sources:
+            initial_targets[(source, group)] += 1
+            remainder -= 1
+            if remainder == 0:
+                break
+        cycle_index += 1
+
+    source_group_targets = _rebalance_source_group_targets(
+        initial_targets=initial_targets,
+        capacities=source_group_capacities,
+        sources=sources,
+        groups=groups,
+    )
+
+    cell_targets: dict[tuple[str, str, str], int] = {}
+    for source, group in source_group_cells:
+        group_target = source_group_targets[(source, group)]
+        capacities_by_date = {
+            date_bin: len(rows)
+            for (row_source, row_group, date_bin), rows in cell_rows.items()
+            if row_source == source and row_group == group
+        }
+        date_targets = _allocate_evenly_with_caps(capacities_by_date, group_target)
+        for date_bin, target in date_targets.items():
+            cell_targets[(source, group, date_bin)] = target
+
+    selected: list[dict] = []
+    for cell, rows in cell_rows.items():
+        target = cell_targets.get(cell, 0)
+        if target <= 0:
+            continue
+        source, group, date_bin = cell
+        scored_rows = sorted(
+            rows,
+            key=lambda row: stable_frame_score(source, group, date_bin, str(row["_selection_hash"])),
+        )
+        selected.extend(scored_rows[:target])
+
+    summary = {
+        "selection_target": int(selection_target),
+        "candidate_count": int(len(normalized)),
+        "selected_count": int(len(selected)),
+        "unfilled_count": int(max(selection_target - len(selected), 0)),
+        "source_group_targets": {
+            f"{source}|{group}": int(target)
+            for (source, group), target in source_group_targets.items()
+            if target > 0
+        },
+        "cell_targets": {
+            f"{source}|{group}|{date_bin}": int(target)
+            for (source, group, date_bin), target in cell_targets.items()
+            if target > 0
+        },
+    }
+    return selected, summary
+
+
+def select_sticky_task_frame(
+    candidates: list[dict],
+    *,
+    selection_target: int,
+    hash_key: str,
+    manifest_path: Path,
+    groups: tuple[str, ...] = BUDGET_CATEGORIES,
+    reset: bool = False,
+) -> tuple[list[dict], dict[str, object]]:
+    normalized = normalize_frame_candidates(candidates, hash_key=hash_key)
+    eligible_by_hash: dict[str, dict] = {}
+    for row in normalized:
+        eligible_by_hash.setdefault(str(row["_selection_hash"]), row)
+
+    manifest = (
+        {
+            "manifest_version": CORE_FRAME_MANIFEST_VERSION,
+            "selected_hashes": [],
+        }
+        if reset
+        else load_core_frame_manifest(manifest_path)
+    )
+    retained_hashes = [
+        hash_value
+        for hash_value in manifest.get("selected_hashes", [])
+        if hash_value in eligible_by_hash
+    ]
+    retained_rows = [eligible_by_hash[hash_value] for hash_value in retained_hashes]
+
+    retained_hash_set = set(retained_hashes)
+    top_up_rows, top_up_summary = select_task_frame(
+        [
+            row
+            for hash_value, row in eligible_by_hash.items()
+            if hash_value not in retained_hash_set
+        ],
+        selection_target=max(int(selection_target) - len(retained_rows), 0),
+        hash_key=hash_key,
+        groups=groups,
+    )
+
+    selected_rows = retained_rows + top_up_rows
+    selected_hashes = [str(row["_selection_hash"]) for row in selected_rows]
+
+    summary = {
+        "selection_target": int(selection_target),
+        "candidate_count": int(len(eligible_by_hash)),
+        "selected_count": int(len(selected_rows)),
+        "retained_count": int(len(retained_rows)),
+        "top_up_count": int(len(top_up_rows)),
+        "unfilled_count": int(max(selection_target - len(selected_rows), 0)),
+        "reset": bool(reset),
+        "manifest_selected_count": int(len(manifest.get("selected_hashes", []))),
+        "manifest_retained_count": int(len(retained_rows)),
+        "manifest_path": str(manifest_path),
+        "selected_hashes": selected_hashes,
+        "top_up_summary": top_up_summary,
+    }
+    return selected_rows, summary
+
+
+def select_fresh_call_tasks(
+    unresolved_selected_rows: list[dict],
+    *,
+    llm_budget: int,
+    hash_key: str,
+    groups: tuple[str, ...] = BUDGET_CATEGORIES,
+) -> tuple[list[dict], dict[str, object]]:
+    """Allocate fresh-call budget over unresolved tasks using the same frame."""
+    return select_task_frame(
+        unresolved_selected_rows,
+        selection_target=llm_budget,
+        hash_key=hash_key,
+        groups=groups,
+    )
 
 
 # ---------------------------------------------------------------------------
