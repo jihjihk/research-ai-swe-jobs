@@ -8,7 +8,7 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 
 ## How to Use This Document
 
-**Primary analysis file:** `data/unified.parquet` (~90 columns, ~1.40M rows). This is the Stage 11 final output containing all rule-based columns plus LLM columns from Stages 9-10.
+**Primary analysis file:** `data/unified.parquet`. This is the final analysis output containing rule-based columns plus LLM columns from Stages 9-10. Query the current artifact for row and column counts instead of relying on documented totals.
 
 **LLM column usage (updated 2026-04-10):**
 - `description_core_llm`: **The only cleaned-text column** and the required input for every text-dependent analysis. Check `llm_extraction_coverage` for coverage by source. Raw `description` is the only acceptable fallback and only for analyses that are insensitive to boilerplate (e.g., binary keyword presence); text-sensitive work must filter to `llm_extraction_coverage = 'labeled'`.
@@ -43,12 +43,9 @@ This table shows when each column category first becomes available:
 | Pipeline metadata | Stage 8 | 2 | `preprocessing_version`, `dedup_method` |
 | LLM frame + cleaned text | Stage 9 | 5 | `description_core_llm`, `selected_for_llm_frame`, `selection_date_bin`, `selected_for_control_cohort`, `llm_extraction_sample_tier` |
 | LLM coverage tracking | Stage 9-10 | 4 | `llm_extraction_coverage`, `llm_extraction_resolution`, `llm_classification_coverage`, `llm_classification_resolution` |
-| LLM extraction diagnostics | Stage 9 | 9 | `llm_extraction_status`, `llm_extraction_drop_ratio`, etc. |
 | LLM classification | Stage 10 | 4 | `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`, `llm_classification_sample_tier` (LLM seniority writes back to `seniority_final`; there is no separate `seniority_llm` column) |
-| LLM provenance | Stage 9-10 | 4 | `llm_model_*`, `llm_prompt_version_*` |
 
-**Total at Stage 8:** ~70 columns, 1,395,790 rows.
-**Total at Stage 11 / unified.parquet:** ~90 columns, 1,395,790 rows (all Stage 8 columns preserved + LLM additions). The 2026-04-10 removal of the rule-based boilerplate stage dropped `description_core`, `core_length`, `boilerplate_flag`, and `boilerplate_removed`.
+Row and column counts change as scraped data grows. Query the current artifacts before analysis. The 2026-04-10 removal of the rule-based boilerplate stage dropped `description_core`, `core_length`, `boilerplate_flag`, and `boilerplate_removed`.
 
 ---
 
@@ -56,20 +53,20 @@ This table shows when each column category first becomes available:
 
 ### At Stage 8+ (rule-based baseline)
 
-Work from `data/unified.parquet` (Stage 11 output, includes all rule-based + available LLM columns).
+Work from `data/unified.parquet` (the final output with all rule-based and available LLM columns).
 
 | Analysis need | Primary column | Ablation / fallback | Notes |
 |---|---|---|---|
 | SWE sample | `is_swe` | `swe_classification_llm` where labeled | `is_swe_adjacent` for broader tech sample. |
 | Seniority | `seniority_final` | `seniority_native` (arshkon-only diagnostic), YOE-based proxy | `seniority_final` is the combined high-confidence rule + LLM column. Always validate entry-level findings with the YOE-based proxy. |
 | Seniority (coarse) | `seniority_3level` | — | junior/mid/senior/unknown |
-| Time period | `period` | `date_posted` | Three periods: 2024-01, 2024-04, 2026-03 |
+| Time period | `period` | `date_posted`, `scrape_date` | Query current `period` values and source date ranges before temporal analysis. |
 | Description text | `description_core_llm` | raw `description` (only when LLM cleaned text is unavailable and the analysis is boilerplate-insensitive) | No rule-based cleaned text exists. `description_core` was retired on 2026-04-10. |
 | Company | `company_name_effective` | `company_name` | Resolves aggregators |
 | Company (grouped) | `company_name_canonical` | `company_name_effective` | For grouping across spelling variants |
 | Geography | `metro_area` | `state_normalized` | 26-metro study frame |
 | Remote status | `is_remote_inferred` | `is_remote` | Combines source flag + text inference |
-| Ghost/inflation | `ghost_assessment_llm` | `ghost_job_risk` | Rule-based is very conservative (519 non-low / 1.4M). LLM is richer. |
+| Ghost/inflation | `ghost_assessment_llm` | `ghost_job_risk` | Rule-based is conservative. LLM is richer. |
 | Aggregator filter | `is_aggregator` | — | Aggregator rows |
 
 **Default filters for most analyses:**
@@ -107,15 +104,14 @@ LLM columns are null for rows the LLM did not process. **Seniority is the except
 
 ## Source Composition
 
-| Source | Platform | Rows | Period | SWE rows |
-|---|---|---|---|---|
-| kaggle_asaniczka | linkedin | ~1,012K | 2024-01 | 23,213 |
-| kaggle_arshkon | linkedin | ~118K | 2024-04 | 5,019 |
-| scraped | linkedin | ~146K | 2026-03 | 24,095 |
-| scraped | indeed | varies | 2026-03 | varies |
-| **Total** | | **~1,396K** | | **~59K** |
+| Source | Platform | Temporal role | Notes |
+|---|---|---|---|
+| kaggle_asaniczka | linkedin | Historical snapshot | Large volume; no native entry labels. |
+| kaggle_arshkon | linkedin | Historical snapshot | Has native entry-level labels. |
+| scraped | linkedin | Growing current window | Primary current comparison source. |
+| scraped | indeed | Growing current window | Sensitivity analyses only. |
 
-Note: Filtered counts (LinkedIn, English, date_flag=ok) shown for SWE. Total rows include all platforms and languages.
+Query `data/unified.parquet` for current row counts, date ranges, and SWE rows before analysis.
 
 ---
 
@@ -244,8 +240,6 @@ The LLM classifier looks for **explicit seniority signals only** — title keywo
 
 **Exclusion rules:** Sales engineer, field service engineer, civil/mechanical/hardware engineer are excluded from SWE.
 
-**Sample sizes (LinkedIn, English, date_flag=ok):** SWE: ~52K | SWE-adjacent: ~15K | Control: varies
-
 ---
 
 ### 6. Years of Experience (YOE)
@@ -296,7 +290,7 @@ The rule-based YOE extractor uses clause-aware section segmentation with multipl
 |---|---|---|---|
 | `date_posted` | VARCHAR | 1 | Date the posting was listed. Arshkon: epoch conversion. Asaniczka: `first_seen`. Scraped LinkedIn: 2.8% populated. Scraped Indeed: 100%. |
 | `scrape_date` | VARCHAR | 1 | Date the posting was observed by scraper. Null for Kaggle sources. |
-| `period` | VARCHAR | 7 | Coarse time period: `2024-01` (asaniczka), `2024-04` (arshkon), `2026-03` (scraped). **Primary temporal stratifier.** |
+| `period` | VARCHAR | 7 | Coarse source/window bucket derived in Stage 7. Query current distinct values before temporal analysis; scraped values evolve as new data is ingested. |
 | `posting_age_days` | DOUBLE | 7 | Days between `date_posted` and `scrape_date`. Mainly meaningful for scraped rows with both dates. |
 | `scrape_week` | DOUBLE | 7 | ISO week of `scrape_date`. Null for Kaggle. |
 
@@ -309,7 +303,7 @@ The rule-based YOE extractor uses clause-aware section segmentation with multipl
 | `date_flag` | VARCHAR | 8 | `ok`, `date_posted_out_of_range` | Date validation. Parseable dates with a 2020 floor, no future-date enforcement. |
 | `is_english` | BOOL | 8 | true/false | Language detection via langdetect. |
 | `description_hash` | VARCHAR | 8 | SHA-256 hex | Hash of raw `description`. Provenance/lineage field. LLM caching uses task-specific `input_hash` instead. |
-| `ghost_job_risk` | VARCHAR | 8 | `low`, `medium`, `high` | Rule-based ghost-job heuristic. Only entry-level rows can score above `low`. Medium: YOE >= 3 or contradiction. High: YOE >= 5. Very conservative (519 non-low out of 1.22M). |
+| `ghost_job_risk` | VARCHAR | 8 | `low`, `medium`, `high` | Rule-based ghost-job heuristic. Only entry-level rows can score above `low`. Medium: YOE >= 3 or contradiction. High: YOE >= 5. Conservative fallback for `ghost_assessment_llm`. |
 | `description_quality_flag` | VARCHAR | 8 | `ok`, `too_short`, `empty` | Based on the raw `description`. Empty if null/blank, too_short if < 50 chars. |
 | `preprocessing_version` | VARCHAR | 8 | Version string | Pipeline version marker. |
 | `dedup_method` | VARCHAR | 8 | — | How this row survived dedup. |
@@ -343,29 +337,6 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 | `llm_classification_coverage` | VARCHAR | 10 | `labeled`, `deferred`, `not_selected`, `skipped_short`, `rule_sufficient` | Stage 10 LLM coverage status. **Filter to `labeled` when using raw LLM columns; include `rule_sufficient` only if you explicitly report that best-available Stage 10 choice.** |
 | `llm_classification_resolution` | VARCHAR | 10 | `cached_llm`, `fresh_llm`, `rule_sufficient`, `deferred`, `not_selected`, `skipped_short` | Stage 10 resolution method. Keeps rule-based resolution separate from cached and fresh LLM calls. |
 
-#### LLM extraction diagnostics
-
-| Column | Type | Stage | Meaning |
-|---|---|---|---|
-| `llm_extraction_status` | VARCHAR | 9 | `ok` or `cannot_complete`. |
-| `llm_extraction_validated` | BOOL | 9 | True only if extraction passed all validation checks. |
-| `llm_extraction_unit_ids` | VARCHAR | 9 | JSON array of boilerplate unit IDs identified for removal. |
-| `llm_extraction_uncertain_unit_ids` | VARCHAR | 9 | JSON array of uncertain unit IDs. |
-| `llm_extraction_reason` | VARCHAR | 9 | Validation failure reason. |
-| `llm_extraction_model_reason` | VARCHAR | 9 | LLM's own short reason phrase. |
-| `llm_extraction_units_count` | INT64 | 9 | Total sentence-unit count for the description. |
-| `llm_extraction_single_unit` | BOOL | 9 | True if description had only one unit (cannot extract). |
-| `llm_extraction_drop_ratio` | DOUBLE | 9 | Fraction of characters dropped as boilerplate. |
-
-#### LLM provenance
-
-| Column | Type | Stage | Meaning |
-|---|---|---|---|
-| `llm_model_classification` | VARCHAR | 10 | Model used for classification (e.g., `gpt-5.4-mini`, `haiku`). |
-| `llm_model_extraction` | VARCHAR | 9 | Model used for extraction. |
-| `llm_prompt_version_classification` | VARCHAR | 10 | SHA-256 hash of classification prompt template. |
-| `llm_prompt_version_extraction` | VARCHAR | 9 | SHA-256 hash of extraction prompt template. |
-
 #### LLM routing rules
 
 **Extraction (Stage 9):** Routes rows that are LinkedIn, English, have a raw description, and are in the Stage 9 selected core frame. Hard-skips descriptions under 15 words.
@@ -392,16 +363,13 @@ Fresh-call budget is split across three categories via `--llm-budget-split swe,s
 
 If a category has fewer uncached rows than its share, the surplus cascades to the other categories proportionally to their shares.
 
-**Source balancing + scraped-day water-filling:**
-Within each category, the selected core frame is balanced across `source × analysis_group × date_bin`. Fresh-call budget is then allocated only across unresolved selected tasks, preserving the configured category split while keeping source/date selection deterministic.
+**Fresh-call selection:**
+Stage 9 first selects and persists the sticky core frame across `source × analysis_group × date_bin`. Stage 10 inherits that frame. For each task, cached selected rows are resolved without consuming budget; the fresh-call budget is split across unresolved selected rows by `analysis_group` via `split_budget_by_category`; each group then calls `select_fresh_call_tasks(...)`, which applies the same deterministic frame selector within that group. Supplemental cache rows can expand usable coverage, but they do not change the selected core frame or consume fresh-call budget.
 
 **Coverage tracking:**
 - `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track whether each row has LLM results.
 - Values: `labeled` (has results), `deferred` (eligible but budget-capped), `not_selected` (not in the Stage 9/10 frame), `skipped_short` (< 15 words), `rule_sufficient` (Stage 10 only, rules confident enough).
 - Raw LLM columns should be filtered to `*_coverage == 'labeled'`. If you include `rule_sufficient` in Stage 10 analysis, report that explicitly and keep it separate from `labeled`.
-
-**Source coverage behavior:**
-Incremental runs prioritize under-covered source × group cells until absolute fresh-call counts converge as much as source capacities allow. Once budget reaches `scraped`, coverage within that source is still date-balanced by `scrape_date`.
 
 **Incremental runs:**
 Each run adds to the cache. Re-running with a higher `selection_target` selects a deterministic superset core frame. Re-running with a higher `llm-budget` increases fresh-call usage within that same frame. Running with budget=0 is valid (uses only existing cache, no new calls). Stage 9 and Stage 10 caches are separate, so row-level coverage can differ across stages.
@@ -419,7 +387,7 @@ Not all columns are populated across all sources. Key gaps:
 | `date_posted` | 100% | 100% | 2.8% | 100% |
 | `company_industry` | 99.3% (join) | 0% | 100% | 0% |
 | `company_size` | via companion | 0% | 0% | 91% |
-| Entry-level labels | Yes (~385 SWE) | **None** | Yes | N/A (no seniority) |
+| Entry-level labels | Yes | **None** | Yes | N/A (no seniority) |
 | `search_query` | 0% | `search_position` | 100% | 100% |
 | `skills_raw` | available | 0% | available | available |
 | `asaniczka_skills` | 0% | from companion | 0% | 0% |
@@ -436,8 +404,8 @@ Not all columns are populated across all sources. Key gaps:
 
 4. **unified.parquet contains all columns.** As of the current pipeline run, `data/unified.parquet` includes all Stage 8 columns plus LLM additions. There is no need to work from intermediate stage files.
 
-5. **Ghost detection is conservative.** Only 519 non-low `ghost_job_risk` rows out of 1.22M. Use `ghost_assessment_llm` for a richer signal.
+5. **Ghost detection is conservative.** Use `ghost_assessment_llm` for a richer signal and `ghost_job_risk` as a fallback.
 
-6. **Row counts grow daily.** Each day of scraping adds ~34K rows before dedup. Re-run from Stage 1 after syncing new data.
+6. **Row counts grow over time.** Re-run from Stage 1 after syncing new scraped data.
 
 7. **`description_hash` is a lineage field.** It hashes the raw description for provenance. LLM caching uses task-specific `input_hash` values, not `description_hash`.

@@ -54,7 +54,7 @@ Raw Data (3 sources)
   data/preprocessing_log.txt
 ```
 
-Stage 3 is intentionally absent — The original stage 3 has been removed as it provedto be not useful.
+Stage 3 is intentionally absent — the original stage 3 has been removed because it did not add useful signal.
 
 ### Output artifacts
 
@@ -71,16 +71,15 @@ Stage 3 is intentionally absent — The original stage 3 has been removed as it 
 
 ### Quick reference
 
-| Stage | Script | Rows | Purpose |
+| Stage | Script | Cardinality | Purpose |
 |---|---|---|---|
-| 1 | `stage1_ingest.py` | ~1.2M in | Ingest three sources, unify to canonical schema |
+| 1 | `stage1_ingest.py` | Source-dependent | Ingest three sources, unify to canonical schema |
 | 2 | `stage2_aggregators.py` | Preserved | Flag staffing agencies, extract real employers |
-| 4 | `stage4_dedup.py` | ~1.0M out | Company canonicalization + posting dedup |
+| 4 | `stage4_dedup.py` | Row-reducing | Company canonicalization + posting dedup |
 | 5 | `stage5_classification.py` | Preserved | SWE/seniority classification, YOE extraction |
 | 6-8 | `stage678_normalize_temporal_flags.py` | Preserved | Location, temporal, quality flags |
 | 9 | `stage9_llm_prefilter.py` | Preserved | Core-frame selection, LLM boilerplate removal, cleaned text |
 | 10 | `stage10_llm_classify.py` | Preserved | LLM classification + posting-level integration |
-| 11 | `stage11_llm_integrate.py` | Preserved | Compatibility shim (copies Stage 10 output) |
 | final | `stage_final_output.py` | Preserved | Produces `data/unified*.parquet` + reports |
 
 "Preserved" means the stage does not change row count. Only Stage 4 (dedup) reduces rows.
@@ -104,23 +103,21 @@ Stage 3 is intentionally absent — The original stage 3 has been removed as it 
 **Stage 10 — LLM Classification + Final Integration.** Reuses the Stage 9 core frame and routes eligible rows to LLM classification: SWE type, seniority, ghost-job assessment, and YOE cross-check. Skips rows where rule-based confidence is already high (strong SWE tier + Stage 5 strong-rule seniority + low ghost risk). For routed rows the LLM seniority result overwrites `seniority_final` and `seniority_final_source = 'llm'`. Merges all LLM results back to the full posting table. The output `stage10_llm_integrated.parquet` is the canonical LLM-augmented artifact. Stage 10 uses its own cache, so row-level coverage can differ from Stage 9 even on the same posting.
 Inside the selected core frame, rows can resolve by rules, cache reuse, fresh LLM calls, or defer due to budget. Supplemental cache rows may be usable outside the core frame, but they are not part of the balanced frame.
 
-**Stage 11 — Compatibility Shim.** Simply copies Stage 10 output to legacy paths. Not architecturally significant.
-
-**Final Output.** Reads the latest integrated artifact (Stage 10 if available, Stage 8 otherwise), applies final column selection, and writes `data/unified.parquet`, `data/unified_observations.parquet`, `data/quality_report.json`, and `data/preprocessing_log.txt`.
+**Final Output.** Reads the Stage 10 integrated artifact, applies final column selection, and writes `data/unified.parquet`, `data/unified_observations.parquet`, `data/quality_report.json`, and `data/preprocessing_log.txt`.
 
 ---
 
 ## Data Sources
 
-| Source | Rows | Period | Platform | Key strength | Key gap |
-|---|---|---|---|---|---|
-| Kaggle arshkon | 124K | Apr 2024 | LinkedIn | Entry-level labels (~385 SWE) | Small SWE count (~3,466) |
-| Kaggle asaniczka | 1.35M | Jan 2024 | LinkedIn | Large volume (18K US SWE) | Zero entry-level labels |
-| Scraped current-format | ~3.7K SWE/day | Mar 2026+ | LinkedIn + Indeed | Fresh data, search metadata | Growing daily |
+| Source | Temporal role | Platform | Key strength | Key gap |
+|---|---|---|---|---|
+| Kaggle arshkon | Historical snapshot | LinkedIn | Entry-level labels | Small SWE count |
+| Kaggle asaniczka | Historical snapshot | LinkedIn | Large volume | Zero entry-level labels |
+| Scraped current-format | Growing current window | LinkedIn + Indeed | Fresh data, search metadata | Growing daily |
 
 **Platform policy:** LinkedIn is the primary analysis platform. Indeed is included for sensitivity analyses only. Both Kaggle sources are LinkedIn-only, making LinkedIn the cleanest cross-period comparison surface.
 
-**Excluded data:** YC postings, Apify data, and old scraped format (Mar 5-18, which used 25 results/query and lacked search metadata columns).
+**Excluded data:** YC postings, Apify data, and the old scraped format, which used 25 results/query and lacked search metadata columns.
 
 **Sync fresh scraped data:**
 
@@ -153,7 +150,7 @@ Run each stage individually and verify outputs between stages. `run_pipeline.py`
 ./.venv/bin/python preprocessing/scripts/stage678_normalize_temporal_flags.py
 ```
 
-Expected runtime: ~30 minutes total. Stage 1 is the longest (~24 min) due to asaniczka's 1.35M rows.
+Expected runtime: roughly 30 minutes total. Stage 1 is the longest because asaniczka is the largest source.
 
 Verify all outputs after completion:
 
@@ -436,8 +433,8 @@ The pipeline runs on a machine with 31 GB RAM. Every stage is designed to stay w
 ### Gotchas
 
 - Never load a full parquet file into pandas with `pd.read_parquet()` unless the data volume is known to be safe. Use PyArrow chunked iteration instead.
-- Stage 1 processing asaniczka (1.35M rows) is the peak memory point for deterministic stages.
-- Stage 4 uses a two-pass design specifically to keep memory under control during dedup of 1.2M rows.
+- Stage 1 processing asaniczka is the peak memory point for deterministic stages.
+- Stage 4 uses a two-pass design specifically to keep memory under control during dedup.
 - The LLM cache DB (`llm_responses.db`) grows to hundreds of MB during long runs. This is expected and necessary for resumability.
 
 ---
@@ -537,7 +534,7 @@ Each stage has a strict contract about what it owns and must not do. These rules
 - **Stage 4:** Posting-level deduplication. Reads directly from Stage 2 output. Canonicalizes `company_name_effective` into `company_name_canonical`, handles exact/near-duplicate removal and `is_multi_location` flagging. Dedup hashes are computed over the raw `description`, not a cleaned variant. May use normalized fields and description-derived support signals for dedup decisions, but must not redefine daily observations or analytical samples. Must not take over Stage 1, 2, or 5 responsibilities.
 - **Stage 5:** First occupation-classification boundary. `is_swe`, `is_swe_adjacent`, and `is_control` belong here. Analytical samples are defined after classification, in later stages.
 - **Stages 6-8:** Row-preserving enrichment only. Language detection and `description_quality_flag` operate on the raw `description`. May add normalization, temporal, quality, and provenance columns, but must not change row cardinality or define analytical samples.
-- **Stages 9-11:** LLM augmentation only. Stage 9 is the **only** place where boilerplate removal happens, and it produces `description_core_llm`. Stage 10 may deduplicate LLM *calls* by cache key to reduce API volume, but that is call deduplication, not posting deduplication. Stage 11 must preserve row count. If row counts change in LLM stages, treat it as a bug.
+- **Stages 9-10:** LLM augmentation only. Stage 9 is the **only** place where boilerplate removal happens, and it produces `description_core_llm`. Stage 10 may deduplicate LLM *calls* by cache key to reduce API volume, but that is call deduplication, not posting deduplication. If row counts change in LLM stages, treat it as a bug.
 
 ### Regenerating reference data
 

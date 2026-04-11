@@ -23,7 +23,7 @@ You are a sub-agent executing exploration tasks for a SWE labor market research 
 Read `docs/preprocessing-schema.md` for column definitions and recommended usage.
 
 **Critical facts:**
-- Three sources: kaggle_arshkon (April 2024), kaggle_asaniczka (Jan 2024), scraped (March 2026). The scraper runs daily, so row counts grow. Query the data to get current counts — do not rely on documented numbers.
+- Three sources: kaggle_arshkon, kaggle_asaniczka, and scraped. The scraped source keeps growing. Query the data to get current date ranges and counts — do not rely on documented numbers.
 - Asaniczka has ZERO native entry-level seniority labels. `seniority_native` cannot detect entry-level postings in asaniczka by construction — use arshkon-only for any sanity check that depends on `seniority_native`.
 - Remote work flags are 0% in 2024 sources (data artifact). Do not interpret as a real change.
 - LLM classification columns: `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`. Check `llm_classification_coverage` for coverage. Use `ghost_assessment_llm` as the primary ghost indicator with `ghost_job_risk` as fallback. (LLM seniority writes back to `seniority_final`; there is no separate `seniority_llm` column.)
@@ -118,7 +118,7 @@ Prepend this AFTER the core preamble for Wave 2+ agents.
    - `boilerplate`: Benefits/compensation/company-culture language (salary, benefits, compensation, pay, equity, bonus, dental, 401k, pto, culture, mission, values, diversity, inclusion, sponsorship, visa, employees, people)
    - `noise`: Residual after filtering (target <10%)
 
-5. **Within-2024 calibration.** When comparing 2024 vs 2026, also compare arshkon (2024-04) vs asaniczka (2024-01) on the same metric where possible. This establishes baseline cross-source variability. If a 2024-to-2026 change is smaller than within-2024 cross-source variation, flag it as potentially artifactual.
+5. **Within-historical calibration.** When comparing the historical baseline vs the current scraped window, also compare arshkon vs asaniczka on the same metric where possible. This establishes baseline cross-source variability. If the historical-to-current change is smaller than within-historical cross-source variation, flag it as potentially artifactual.
 
 6. **Keyword indicator validation.** For any keyword indicator you construct (management, AI, scope, etc.), sample 50 matches and assess whether they actually represent the intended concept. If a pattern matches generic language (e.g., `\bleading\b` matching "a leading company" instead of "leading a team"), flag it and report results with and without that pattern. Measurement artifacts in keyword indicators can inflate findings by 3-5x.
 
@@ -145,7 +145,7 @@ Eight dimensions (referenced by letter in each task spec):
 
 (d) **Description text source.** Primary: `description_core_llm` (filtered to `llm_extraction_coverage = 'labeled'`). Alt: raw `description`. No rule-based cleaned-text alternative exists — the former `description_core` was retired on 2026-04-10. Rationale: findings that only appear under raw `description` are boilerplate-driven and should be flagged as such.
 
-(e) **Source restriction.** Primary: arshkon (2024-04) vs scraped (2026-03). Alt: arshkon + asaniczka pooled as 2024 baseline. Rationale: asaniczka is a different instrument; pooling increases power but introduces noise.
+(e) **Source restriction.** Primary: arshkon vs scraped, with the current scraped window explicitly queried and reported. Alt: arshkon + asaniczka pooled as the historical baseline. Rationale: asaniczka is a different instrument; pooling increases power but introduces noise.
 
 (f) **Within-2024 calibration (signal-to-noise).** Mandatory diagnostic. For every metric compared 2024-to-2026, also compute the arshkon-vs-asaniczka difference on the same metric. Signal-to-noise ratio: (cross-period effect size) / (within-2024 effect size). If ratio < 2, flag as "not clearly above instrument noise."
 
@@ -407,7 +407,7 @@ This task focuses on seniority label quality and the asaniczka comparability que
 
 **Steps:**
 1. **Cleaned text column.** For all SWE LinkedIn rows (filtered by default SQL): use `description_core_llm` where `llm_extraction_coverage = 'labeled'`, otherwise fall back to raw `description` (the former rule-based `description_core` was retired on 2026-04-10 and must not be used). Strip company names using stoplist from all `company_name_canonical` values, remove standard English stopwords. Save as `exploration/artifacts/shared/swe_cleaned_text.parquet` with columns: `uid`, `description_cleaned`, `text_source` (which column was used: 'llm' or 'raw'), `source`, `period`, `seniority_final`, `seniority_3level`, `is_aggregator`, `company_name_canonical`, `metro_area`, `yoe_extracted`, `swe_classification_tier`, `seniority_final_source`. Downstream tasks that are sensitive to boilerplate must filter to `text_source = 'llm'`; tasks that only need recall (binary keyword presence) can use both.
-2. **Sentence-transformer embeddings.** Using `all-MiniLM-L6-v2`, compute embeddings on first 512 tokens of `description_cleaned` for all rows in the cleaned text artifact. Process in batches of 256 to respect RAM limits. Save as `exploration/artifacts/shared/swe_embeddings.npy` (float32) with a companion `exploration/artifacts/shared/swe_embedding_index.parquet` mapping row index to `uid`.
+2. **Sentence-transformer embeddings.** Using `all-MiniLM-L6-v2`, compute embeddings on first 512 tokens of `description_cleaned` for rows where `text_source = 'llm'`. Process in batches of 256 to respect RAM limits. Save as `exploration/artifacts/shared/swe_embeddings.npy` (float32) with a companion `exploration/artifacts/shared/swe_embedding_index.parquet` mapping row index to `uid`.
 3. **Technology mention binary matrix.** Using the ~100-120 technology taxonomy (define regex patterns for: Python, Java, JavaScript/TypeScript, Go, Rust, C/C++, C#, Ruby, Kotlin, Swift, Scala, PHP, React, Angular, Vue, Next.js, Node.js, Django, Flask, Spring, .NET, Rails, FastAPI, AWS, Azure, GCP, Kubernetes, Docker, Terraform, CI/CD, Jenkins, GitHub Actions, SQL, PostgreSQL, MongoDB, Redis, Kafka, Spark, Snowflake, Databricks, dbt, Elasticsearch, TensorFlow, PyTorch, scikit-learn, Pandas, NumPy, LangChain, RAG, vector databases, Pinecone, Hugging Face, OpenAI API, Claude API, prompt engineering, fine-tuning, MCP, LLM, Copilot, Cursor, ChatGPT, Claude, Gemini, Codex, Jest, Pytest, Selenium, Cypress, Agile, Scrum, TDD — expand to ~100+ with regex variations). Scan `description_cleaned` for each. Save as `exploration/artifacts/shared/swe_tech_matrix.parquet` (columns: `uid` + one boolean column per technology).
 4. **Company name stoplist.** Extract all unique tokens from `company_name_canonical` values (tokenize on whitespace and common punctuation, lowercase, deduplicate). Save as `exploration/artifacts/shared/company_stoplist.txt`, one token per line.
 5. **Structured skills extraction (asaniczka only).** Parse `skills_raw` from asaniczka SWE rows (comma-separated). Save parsed skills with uid as `exploration/artifacts/shared/asaniczka_structured_skills.parquet`.
@@ -775,9 +775,9 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 
 ### T19. Temporal patterns & rate-of-change estimation `[Agent K]`
 
-**Goal:** Characterize the temporal structure of our data and estimate rates of change in the SWE market. Our data consists of discrete snapshots (Jan 2024, Apr 2024, Mar 2026), not a continuous time series — this task works within that constraint honestly.
+**Goal:** Characterize the temporal structure of our data and estimate rates of change in the SWE market. Our data consists of discrete historical snapshots plus a growing scraped window, not a continuous time series — this task works within that constraint honestly.
 
-**Data context:** The scraped data covers approximately 8 days (March 20-27, 2026). Arshkon spans April 5-20, 2024 (~3 weekly bins). Asaniczka spans January 12-17, 2024 (6 days). We have discrete snapshots, not a continuous time series.
+**Data context:** Query the current `date_posted`, `scrape_date`, and `period` ranges for each source before estimating rates. Treat arshkon and asaniczka as historical snapshots and scraped as the current growing window. We have snapshots/windows, not a continuous time series.
 
 **Entry-level rates involving asaniczka depend on the operationalization.** Asaniczka has zero native entry labels, so `seniority_native` cannot detect asaniczka entry — only arshkon supports a `seniority_native`-based 2024 baseline. For rate-of-change estimation:
 - Under `seniority_final`: all three snapshots can be included. Asaniczka entry signal in `seniority_final` comes via the Stage 10 LLM (the rule half is unknown for asaniczka where titles lack strong keywords). Report the three-snapshot rate.
@@ -787,27 +787,27 @@ Report the rate-of-change under each operationalization and discuss any disagree
 
 **Steps:**
 1. **Rate-of-change estimation.** For key metrics (entry share of known seniority, AI keyword prevalence, median description length, median tech count, org scope density):
-   - Compute value at each snapshot: asaniczka (Jan 2024), arshkon (Apr 2024), scraped (Mar 2026)
-   - Within-2024 annualized rate: (arshkon value - asaniczka value) / 3 months * 12
-   - Cross-period annualized rate: (scraped value - arshkon value) / 23 months * 12
+   - Compute value at each source window: asaniczka, arshkon, scraped
+   - Historical-snapshot annualized rate: compute elapsed time from the observed source date ranges, not from hardcoded month gaps
+   - Cross-period annualized rate: compute elapsed time from the observed arshkon and scraped windows, not from hardcoded month gaps
    - Acceleration ratio: cross-period annualized rate / within-2024 annualized rate
    - If acceleration ratio >> 1 for a metric, something changed faster after 2024 than during 2024
    - Produce a rate-of-change comparison table
 
-2. **Within-arshkon stability.** Arshkon spans ~2 weeks with 3 weekly bins (April 1-7: ~397 SWE, April 8-14: ~912, April 15-20: ~3,715). Using `date_posted`, check whether key metrics (AI keyword prevalence, description length, tech count) vary significantly across weeks. If they do, our "April 2024" snapshot has internal heterogeneity.
+2. **Within-arshkon stability.** Using `date_posted`, bin arshkon by its observed internal date range and check whether key metrics (AI keyword prevalence, description length, tech count) vary significantly across bins. If they do, the arshkon snapshot has internal heterogeneity.
 
 3. **Scraper yield characterization.** Examine daily SWE posting counts across scrape dates. Is the first day an accumulated backlog while subsequent days capture new flow? Compare content, seniority distribution, and AI mention rates across scrape dates. This helps calibrate whether our scraped snapshot represents stock (accumulated postings) or flow (new postings).
 
-4. **Posting age analysis.** Examine `posting_age_days` for scraped rows where available (limited coverage — only ~49 SWE rows have this field). Characterize what we can. If posting ages cluster at specific values, this reveals the market's posting lifecycle.
+4. **Posting age analysis.** Examine `posting_age_days` for scraped rows where available. Characterize current coverage before interpreting the distribution. If posting ages cluster at specific values, this reveals the market's posting lifecycle.
 
-5. **Within-March stability and day-of-week analysis.** With ~8 days of scraped data, check: are key metrics (AI mention rate, seniority distribution, description length) stable across days? Are there day-of-week effects? This tells us whether our scraped snapshot is internally consistent.
+5. **Within-scraped-window stability and day-of-week analysis.** Across the currently observed scraped dates, check: are key metrics (AI mention rate, seniority distribution, description length) stable across days? Are there day-of-week effects? This tells us whether our scraped window is internally consistent.
 
 6. **Timeline contextualization.** Place our three snapshots on a timeline and annotate with major AI tool releases between them: GPT-4 (Mar 2023), Claude 3 (Mar 2024), GPT-4o (May 2024), Claude 3.5 Sonnet (Jun 2024), o1 (Sep 2024), DeepSeek V3 (Dec 2024), GPT-4.5 (Feb 2025), Claude 3.6 Sonnet (Apr 2025), Claude 4 Opus (Sep 2025), Gemini 2.5 Pro (Mar 2026). This provides qualitative temporal context even with only 3 data points.
 
 **Essential sensitivities:** (none strictly essential for temporal analysis)
 **Recommended sensitivities:** (e) source restriction, (f) within-2024 calibration (conceptually backbone of the rate-of-change estimation)
 
-**Output:** `exploration/reports/T19.md` + rate-of-change comparison table + within-arshkon stability check + within-March stability analysis
+**Output:** `exploration/reports/T19.md` + rate-of-change comparison table + within-arshkon stability check + within-scraped-window stability analysis
 
 ### T20. Seniority boundary clarity `[Agent L]`
 

@@ -40,7 +40,7 @@ Pipeline that transforms raw job-posting data into analysis-ready datasets.
 
 - **Guide:** [`docs/preprocessing-guide.md`](docs/preprocessing-guide.md) — architecture, operations, development, stage ownership rules
 - **Schema:** [`docs/preprocessing-schema.md`](docs/preprocessing-schema.md) — column definitions and stage availability
-- **Testing:** [`docs/testing/preprocessing-test-strategy.md`](docs/testing/preprocessing-test-strategy.md)
+- **Testing:** pytest suite in `tests/`
 - **Outputs:** `data/unified.parquet`, `data/unified_observations.parquet`
 - **LLM budget (REQUIRED):** Stages 9 and 10 require `--llm-budget N` (no default). The budget caps all new LLM calls across all data sources, split 40% SWE / 30% SWE-adjacent / 30% control by default. See the "Budget-Constrained LLM Processing" section in `docs/preprocessing-schema.md`.
 - **Backup:** After a full pipeline run, back up outputs + LLM cache to S3: `python preprocessing/scripts/backup_to_s3.py` (or `--backup` flag on `run_pipeline.py`)
@@ -52,14 +52,13 @@ Exploratory analysis on pipeline outputs to validate data quality and surface re
 
 - **Task reference:** [`docs/task-reference-exploration.md`](docs/task-reference-exploration.md) — shared preamble, 26 task specs + 2 verification agents
 - **Orchestrator:** [`docs/prompt-exploration-orchestrator.md`](docs/prompt-exploration-orchestrator.md) — dispatch, gate logic, wave guidance
-- **Synthesis:** `exploration/reports/SYNTHESIS.md` — consolidated findings from T01-T26 (THE handoff document for analysis phase)
-- **Retrospectives:** `exploration/memos/wave*_retrospective.md` — lessons learned per wave; `exploration/memos/post_exploration_action_plan.md` — improvements for next re-run
+- **Outputs:** generated under `exploration/` for each run; stale outputs should not be treated as canonical across reruns
 
 ### 3. Analysis
 
 Formal hypothesis testing and robustness checks for RQ1-RQ3.
 
-- **Plan:** [`docs/plan-analysis.md`](docs/plan-analysis.md) — Stages 15-16 spec
+- **Plan:** formal analysis plan is pending; use `docs/1-research-design.md` and the current exploration handoff until it is written
 
 ### 4. Scraper & infrastructure (`scraper/`)
 
@@ -89,12 +88,12 @@ Academic writing, research design, literature review, interview protocol, method
 
 | Source | Period | Platform | Key strength | Key gap |
 |---|---|---|---|---|
-| Kaggle arshkon | Apr 2024 | LinkedIn | Entry-level labels | Small SWE count |
-| Kaggle asaniczka | Jan 2024 | LinkedIn | Large volume | No entry-level labels |
-| Scraped | Mar 2026+ | LinkedIn + Indeed | Fresh data, search metadata | Growing daily |
+| Kaggle arshkon | Historical snapshot | LinkedIn | Entry-level labels | Small SWE count |
+| Kaggle asaniczka | Historical snapshot | LinkedIn | Large volume | No entry-level labels |
+| Scraped | Growing current window | LinkedIn + Indeed | Fresh data, search metadata | Growing daily |
 
 - Primary analysis platform: LinkedIn only. Indeed: sensitivity analyses only.
-- Do not use: YC data, Apify data, old scraped format (Mar 5-18).
+- Do not use: YC data, Apify data, old scraped format.
 - Sync fresh data: `aws s3 sync s3://swe-labor-research/scraped/ data/scraped/`
 
 See [`docs/preprocessing-guide.md`](docs/preprocessing-guide.md) for detailed source schemas and ingestion behavior.

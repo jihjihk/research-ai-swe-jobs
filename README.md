@@ -1,6 +1,6 @@
 # The AI Restructuring of the SWE Seniority Ladder
 
-Research project studying how AI coding agents are restructuring software engineer roles across the entire seniority ladder. Uses a historical LinkedIn benchmark dataset (Kaggle / Hugging Face, 2023–2024) plus daily LinkedIn / Indeed / YC scraping in 2026+.
+Research project studying how AI coding agents are restructuring software engineer roles across the entire seniority ladder. Uses historical LinkedIn benchmark data plus ongoing LinkedIn / Indeed scraping. YC scraper infrastructure exists, but YC data is excluded from the current analysis.
 
 ## Project Structure
 
@@ -91,8 +91,10 @@ chmod +x scraper/run_daily.sh
 |--------|---------|--------|-------|
 | **LinkedIn** | `scrape_linkedin_swe.py` | `*_swe_jobs.csv`, `*_non_swe_jobs.csv` | SWE + adjacent + control roles across 26 US metro areas |
 | **Indeed** | `scrape_linkedin_swe.py` | (same files) | Same queries / metros, primarily ablation + robustness |
-| **YC (Work at a Startup)** | `scrape_yc.py` | `*_yc_jobs.csv` | All roles at YC-funded startups |
-| **Kaggle** | (static download) | `kaggle-linkedin-jobs-2023-2024/` | Historical LinkedIn data (2023–2024) |
+| **YC (Work at a Startup)** | `scrape_yc.py` | `*_yc_jobs.csv` | Infrastructure output only; excluded from current analysis |
+| **Kaggle** | (static download) | `kaggle-linkedin-jobs-2023-2024/` | Historical LinkedIn data |
+
+Current analysis uses LinkedIn as the primary platform and Indeed for sensitivity checks. YC is not used.
 
 ## Scraper Usage
 
@@ -151,13 +153,13 @@ The YC scraper works by scanning sequential job IDs on workatastartup.com. Each 
 ### Via the cron wrapper
 
 ```bash
-./scraper/run_daily.sh              # Full run (LinkedIn + Indeed + YC)
-./scraper/run_daily.sh --quick      # Quick mode (YC runs in test mode)
+./scraper/run_daily.sh              # Full scraper run; YC output is excluded from analysis
+./scraper/run_daily.sh --quick      # Quick mode
 ./scraper/run_daily.sh --catchup    # 48-hour lookback
-./scraper/run_daily.sh --sites linkedin   # LinkedIn only (YC still runs)
+./scraper/run_daily.sh --sites linkedin   # LinkedIn only for the LinkedIn/Indeed scraper
 ```
 
-The wrapper runs LinkedIn/Indeed first, then YC as a separate step. If YC fails, it doesn't affect the main scrape.
+The wrapper runs LinkedIn/Indeed first, then YC as a separate infrastructure step. If YC fails, it doesn't affect the main scrape or current analysis dataset.
 
 The wrapper adds:
 - **Lock file** — prevents overlapping runs; auto-clears stale locks (> 6 hours)
@@ -397,7 +399,7 @@ aws sns subscribe \
 | Condition | Alert type |
 |-----------|-----------|
 | Scrape completes normally | `success` |
-| Full run collects < 10 SWE jobs | `warning` (suspiciously low) |
+| Full run is far below recent baseline | `warning` (suspiciously low) |
 | Scraper fails after 3 retries | `failure` |
 
 ### Test alerting
@@ -405,10 +407,10 @@ aws sns subscribe \
 ```bash
 # Send a test email for a specific date
 source .venv/bin/activate
-python scraper/send_alert.py --status success --swe-count 100 --total-count 150 --attempt 1 --date 2026-03-17
+python scraper/send_alert.py --status success --swe-count "$SWE_COUNT" --total-count "$TOTAL_COUNT" --attempt 1 --date "$(date +%F)"
 
 # Send a test for today
-python scraper/send_alert.py --status success --swe-count 0 --total-count 0 --attempt 1 --message "Test alert"
+python scraper/send_alert.py --status success --swe-count "$SWE_COUNT" --total-count "$TOTAL_COUNT" --attempt 1 --message "Test alert"
 ```
 
 ## Infrastructure
@@ -481,7 +483,8 @@ aws configure
 aws s3 sync s3://swe-labor-research/scraped/ data/scraped/
 
 # Download a specific day
-aws s3 cp s3://swe-labor-research/scraped/2026-03-17_swe_jobs.csv data/scraped/
+DAY=YYYY-MM-DD
+aws s3 cp s3://swe-labor-research/scraped/${DAY}_swe_jobs.csv data/scraped/
 
 # Just list what's available
 aws s3 ls s3://swe-labor-research/scraped/ | tail -20
@@ -541,7 +544,7 @@ echo "SWE files: $(ls data/scraped/*_swe_jobs.csv 2>/dev/null | wc -l)"
 echo "Latest SWE file: $(ls -t data/scraped/*_swe_jobs.csv 2>/dev/null | head -1)"
 echo "Disk usage: $(du -sh data/scraped/)"
 
-# Row counts for the last 7 days
+# Row counts for recent scraped files
 for f in $(ls -t data/scraped/*_swe_jobs.csv 2>/dev/null | head -7); do
   echo "$(basename $f): $(($(wc -l < $f) - 1)) rows"
 done
@@ -552,7 +555,7 @@ done
 | Signal | Healthy | Unhealthy |
 |--------|---------|-----------|
 | Latest file date | Today or yesterday | 2+ days old |
-| SWE CSV row count | 200–2000+ rows | < 50 rows (rate-limited) or 0 |
+| SWE CSV row count | In line with recent runs | Sharp unexplained drop or zero rows |
 | `scraper_status.json` status | `success` | `failure` or `warning` |
 | Log file | Ends with "Done (exit code 0)" | Retries, errors, or missing |
 | Lock file | Absent (not currently running) | Present for 6+ hours (stuck) |
