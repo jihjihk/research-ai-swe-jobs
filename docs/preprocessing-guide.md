@@ -1,6 +1,6 @@
 # Preprocessing Pipeline Guide
 
-Last updated: 2026-04-01
+Last updated: 2026-04-10
 
 This document is the primary reference for the preprocessing pipeline that transforms raw job-posting data into the analysis-ready `unified.parquet` and `unified_observations.parquet` datasets. It covers architecture, operations, and development practices.
 
@@ -14,10 +14,10 @@ For the detailed column-by-column schema, see [`preprocessing-schema.md`](prepro
 
 The pipeline has two layers:
 
-1. **Rule-based baseline (Stages 1-8):** Deterministic, fast (~30 min end-to-end), reproducible. Produces a usable corpus with rule-based classification labels. Every column from this layer is preserved even after LLM augmentation runs.
+1. **Rule-based baseline (Stages 1-8):** Deterministic, fast (~30 min end-to-end), reproducible. Produces a usable corpus with rule-based classification labels for occupation, seniority, YOE, location, temporal, and quality fields. Every column from this layer is preserved after LLM augmentation runs. Note: boilerplate removal is **not** part of the rule-based baseline — it is LLM-only (Stage 9). Text-dependent analyses should use `description_core_llm`; raw `description` is the only acceptable fallback when `description_core_llm` is unavailable.
 2. **LLM augmentation (Stages 9-10):** Adds higher-quality classification and cleaned text via Codex (GPT) calls by default; Claude and OpenAI API execution can be enabled via `--engines ...`. Takes hours to days depending on corpus size and API quotas. Stage 9 and Stage 10 use separate caches, so coverage can differ row-by-row. Results are cached in SQLite for resumability.
 
-The rule-based layer always runs first and its outputs serve as both the fallback labels and the cache keys for the LLM layer. The intended production dataset includes both layers, but the Stage 8 output is independently usable for exploration while LLM stages are in progress.
+The rule-based layer always runs first and its outputs serve as both the classification fallback labels and the cache keys for the LLM layer. The intended production dataset includes both layers, but the Stage 8 output is independently usable for non-text exploration while LLM stages are in progress.
 
 ### Data flow
 
@@ -30,7 +30,6 @@ Raw Data (3 sources)
   │     ├── 1c: Scraped ingest (current-format, LinkedIn + Indeed)
   │     └── 1d: Concatenation to canonical 39-column format
   ├── Stage 2: Aggregator / Staffing Handling
-  ├── Stage 3: Rule-Based Boilerplate Removal
   ├── Stage 4: Company Canonicalization + Dedup
   ├── Stage 5: Occupation + Seniority Classification
   ├── Stage 6: Location Normalization           ─┐
@@ -40,7 +39,7 @@ Raw Data (3 sources)
   ▼
   preprocessing/intermediate/stage8_final.parquet   ← rule-based baseline
   │
-  ├── Stage 9: LLM Extraction + Cleaned Text
+  ├── Stage 9: LLM Boilerplate Removal
   ├── Stage 10: LLM Classification + Final Integration
   │
   ▼
@@ -54,6 +53,8 @@ Raw Data (3 sources)
   data/quality_report.json
   data/preprocessing_log.txt
 ```
+
+Stage 3 is intentionally absent — The original stage 3 has been removed as it provedto be not useful.
 
 ### Output artifacts
 
@@ -74,11 +75,10 @@ Raw Data (3 sources)
 |---|---|---|---|
 | 1 | `stage1_ingest.py` | ~1.2M in | Ingest three sources, unify to canonical schema |
 | 2 | `stage2_aggregators.py` | Preserved | Flag staffing agencies, extract real employers |
-| 3 | `stage3_boilerplate.py` | Preserved | Rule-based boilerplate removal from descriptions |
 | 4 | `stage4_dedup.py` | ~1.0M out | Company canonicalization + posting dedup |
 | 5 | `stage5_classification.py` | Preserved | SWE/seniority classification, YOE extraction |
 | 6-8 | `stage678_normalize_temporal_flags.py` | Preserved | Location, temporal, quality flags |
-| 9 | `stage9_llm_prefilter.py` | Preserved | Core-frame selection, LLM extraction, cleaned text |
+| 9 | `stage9_llm_prefilter.py` | Preserved | Core-frame selection, LLM boilerplate removal, cleaned text |
 | 10 | `stage10_llm_classify.py` | Preserved | LLM classification + posting-level integration |
 | 11 | `stage11_llm_integrate.py` | Preserved | Compatibility shim (copies Stage 10 output) |
 | final | `stage_final_output.py` | Preserved | Produces `data/unified*.parquet` + reports |
@@ -91,17 +91,17 @@ Raw Data (3 sources)
 
 **Stage 2 — Aggregator Handling.** Identifies staffing agencies and job board aggregators (Dice, Lensa, Robert Half, etc.) via exact name matching and regex patterns. Extracts the real employer from description text when possible. Derives `company_name_effective` = real employer if aggregator, else original company name.
 
-**Stage 3 — Boilerplate Removal.** Applies regex-based section header detection to strip EEO statements, benefits sections, application instructions, and company "About Us" blocks from descriptions. Produces `description_core`. Current accuracy is ~44% — superseded by LLM extraction in Stage 9 when available.
+**Stage 3 — Not present.** Boilerplate removal lives exclusively in Stage 9 (`description_core_llm`). The stage number is kept free for continuity with older intermediate filenames.
 
-**Stage 4 — Company Canonicalization + Dedup.** The only row-reducing stage. Uses a memory-safe two-pass design: Pass 1 loads only dedup key columns to compute keep/drop decisions; Pass 2 streams full data and filters to kept rows. Dedup strategies: exact job_id duplicates, exact opening duplicates (company + title + location + description hash), and fuzzy near-duplicates (token_set_ratio >= 85%). Produces a `company_name_lookup` audit artifact.
+**Stage 4 — Company Canonicalization + Dedup.** The only row-reducing stage. Reads directly from Stage 2 output. Uses a memory-safe two-pass design: Pass 1 loads only dedup key columns to compute keep/drop decisions; Pass 2 streams full data and filters to kept rows. Dedup strategies: exact `job_id` duplicates, exact opening duplicates (company + title + location + hash of raw `description`), fuzzy near-duplicates (token_set_ratio >= 85%), and **multi-location collapse** — rows that share `(company_name_canonical, title, description_hash)` across 2+ normalized locations collapse to a single representative (lowest `uid`), with the representative's `location` overwritten to `"multi-location"` and `search_metro_*` fields cleared so Stage 6 cannot re-attribute the row to a single metro. The representative carries `is_multi_location = True`. Produces a `company_name_lookup` audit artifact.
 
-**Stage 5 — Occupation + Seniority Classification.** The first analytical classification boundary. Assigns `is_swe`, `is_swe_adjacent`, and `is_control` via a 3-tier system (regex, curated title lookup, embedding). Runs a multi-signal seniority resolver producing `seniority_final` from title keywords, native platform labels, and description patterns. Extracts years-of-experience (YOE) from descriptions with a clause-aware parser.
+**Stage 5 — Occupation + Seniority Classification.** The first analytical classification boundary. Assigns `is_swe`, `is_swe_adjacent`, and `is_control` via a 3-tier system (regex, curated title lookup, embedding). Sets `seniority_final` from high-confidence title keywords (`title_keyword`, `title_manager`); rows with no strong rule match are left as `unknown` for Stage 10 to fill in via LLM. Extracts years-of-experience (YOE) from descriptions with a clause-aware parser.
 
 **Stages 6-8 — Normalization, Temporal, Quality Flags.** A single script implementing three logical stages. Stage 6 parses locations into city/state/country, infers remote status, and assigns metro areas. Stage 7 derives `period`, `posting_age_days`, and `scrape_week`. Stage 8 adds language detection, date validation, ghost-job heuristics, and description quality flags. All three are row-preserving.
 
-**Stage 9 — LLM Extraction + Cleaned Text.** Defines the LLM analysis universe (LinkedIn, English, has description). Selects a deterministic sticky core over `source × analysis_group × date_bin` via `selection_target` (the minimum core size; defaults to `--llm-budget` when omitted). `selected_for_llm_frame` marks that core only. `selected_for_control_cohort` is kept only for compatibility. Segments descriptions into sentence units and asks LLMs to identify boilerplate units for removal. Produces `description_core_llm` — the LLM-cleaned description used by Stage 10. Hard-skips descriptions under 15 words. Cache-backed supplemental rows may expand the usable LLM set, but they do not change the selected core frame or balanced-sample claims.
+**Stage 9 — LLM Extraction + Cleaned Text.** Defines the LLM analysis universe (LinkedIn, English, has description). Selects a deterministic sticky core over `source × analysis_group × date_bin` via `selection_target` (the minimum core size; defaults to `--llm-budget` when omitted). `selected_for_llm_frame` marks that core only. `selected_for_control_cohort` is kept only for compatibility. Segments descriptions into sentence units and asks LLMs to identify boilerplate units for removal. Produces `description_core_llm` — the LLM-cleaned description, which is the **only** boilerplate-removed text in the pipeline and the canonical input for any text-sensitive analysis. Hard-skips descriptions under 15 words. Cache-backed supplemental rows may expand the usable LLM set, but they do not change the selected core frame or balanced-sample claims.
 
-**Stage 10 — LLM Classification + Final Integration.** Reuses the Stage 9 core frame and routes eligible rows to LLM classification: SWE type, seniority, ghost-job assessment, and YOE cross-check. Skips rows where rule-based confidence is already high. Merges LLM results back to the full posting table. The output `stage10_llm_integrated.parquet` is the canonical LLM-augmented artifact. Stage 10 uses its own cache, so row-level coverage can differ from Stage 9 even on the same posting.
+**Stage 10 — LLM Classification + Final Integration.** Reuses the Stage 9 core frame and routes eligible rows to LLM classification: SWE type, seniority, ghost-job assessment, and YOE cross-check. Skips rows where rule-based confidence is already high (strong SWE tier + Stage 5 strong-rule seniority + low ghost risk). For routed rows the LLM seniority result overwrites `seniority_final` and `seniority_final_source = 'llm'`. Merges all LLM results back to the full posting table. The output `stage10_llm_integrated.parquet` is the canonical LLM-augmented artifact. Stage 10 uses its own cache, so row-level coverage can differ from Stage 9 even on the same posting.
 Inside the selected core frame, rows can resolve by rules, cache reuse, fresh LLM calls, or defer due to budget. Supplemental cache rows may be usable outside the core frame, but they are not part of the balanced frame.
 
 **Stage 11 — Compatibility Shim.** Simply copies Stage 10 output to legacy paths. Not architecturally significant.
@@ -148,7 +148,6 @@ Run each stage individually and verify outputs between stages. `run_pipeline.py`
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage1_ingest.py
 ./.venv/bin/python preprocessing/scripts/stage2_aggregators.py
-./.venv/bin/python preprocessing/scripts/stage3_boilerplate.py
 ./.venv/bin/python preprocessing/scripts/stage4_dedup.py
 ./.venv/bin/python preprocessing/scripts/stage5_classification.py
 ./.venv/bin/python preprocessing/scripts/stage678_normalize_temporal_flags.py
@@ -165,7 +164,6 @@ for path in [
     "preprocessing/intermediate/stage1_unified.parquet",
     "preprocessing/intermediate/stage1_observations.parquet",
     "preprocessing/intermediate/stage2_aggregators.parquet",
-    "preprocessing/intermediate/stage3_boilerplate.parquet",
     "preprocessing/intermediate/stage4_dedup.parquet",
     "preprocessing/intermediate/stage5_classification.parquet",
     "preprocessing/intermediate/stage8_final.parquet",
@@ -297,7 +295,7 @@ For a full end-to-end run including LLM stages:
 ```bash
 ./.venv/bin/python preprocessing/run_pipeline.py                  # Full run (local LLM)
 ./.venv/bin/python preprocessing/run_pipeline.py --remote         # Full run (remote LLM on EC2)
-./.venv/bin/python preprocessing/run_pipeline.py --from-stage 3   # Resume from stage 3
+./.venv/bin/python preprocessing/run_pipeline.py --from-stage 4   # Resume from stage 4
 ./.venv/bin/python preprocessing/run_pipeline.py --dry-run        # Validate existing outputs
 ```
 
@@ -333,13 +331,11 @@ Each stage writes to `preprocessing/logs/`:
 |---|---|
 | `stage1_ingest.log` | Stage 1 |
 | `stage2_aggregators.log` | Stage 2 |
-| `stage3_boilerplate.log` | Stage 3 |
 | `stage4_dedup.log` | Stage 4 |
 | `stage5_classification.log` | Stage 5 |
 | `stage678.log` | Stages 6-8 |
 | `stage9_llm.log` | Stage 9 |
 | `stage10_llm.log` | Stage 10 |
-| `stage12_validation.log` | Stage 12 |
 | `pipeline_run.log` | Full pipeline runner |
 
 ---
@@ -427,7 +423,7 @@ The pipeline runs on a machine with 31 GB RAM. Every stage is designed to stay w
 |---|---|---|
 | Standard processing | 200,000 rows | Stages 1, 3, 4, 5, 6-8 |
 | LLM processing | 50,000 rows | Stages 9, 10 |
-| Lightweight dedup pass | Full dataset, key columns only (~0.3 GB) | Stage 4 Pass 1 |
+| Lightweight dedup pass | Key columns + raw description (hashed per chunk, then dropped) | Stage 4 Pass 1 |
 
 ### Key patterns
 
@@ -537,11 +533,11 @@ Each stage has a strict contract about what it owns and must not do. These rules
 **Stage-specific ownership rules:**
 - **Stage 1:** Ingest, schema unification, provenance, and date handling only. Must treat approved historical sources equivalently and remain extensible to future sources. Must not define analytical occupation samples or filter rows by SWE/non-SWE/control class.
 - **Stage 2:** Aggregator detection, `real_employer` extraction, and `company_name_effective` derivation. Must not own company canonicalization for dedup.
-- **Stage 3:** Rule-based boilerplate removal only. Reads working `description`, preserves it unchanged, writes `description_core` plus quality flags. Must not own company-name normalization, occupation classification, source-specific text rules, or row filtering.
-- **Stage 4:** Posting-level deduplication. Canonicalizes `company_name_effective` into `company_name_canonical`, handles exact/near-duplicate removal and `is_multi_location` flagging. May use normalized fields and description-derived support signals for dedup decisions, but must not redefine daily observations or analytical samples. Must not take over Stage 1, 2, or 5 responsibilities.
+- **Stage 3:** Not present. This stage is permanently retired.
+- **Stage 4:** Posting-level deduplication. Reads directly from Stage 2 output. Canonicalizes `company_name_effective` into `company_name_canonical`, handles exact/near-duplicate removal and `is_multi_location` flagging. Dedup hashes are computed over the raw `description`, not a cleaned variant. May use normalized fields and description-derived support signals for dedup decisions, but must not redefine daily observations or analytical samples. Must not take over Stage 1, 2, or 5 responsibilities.
 - **Stage 5:** First occupation-classification boundary. `is_swe`, `is_swe_adjacent`, and `is_control` belong here. Analytical samples are defined after classification, in later stages.
-- **Stages 6-8:** Row-preserving enrichment only. May add normalization, temporal, quality, and provenance columns, but must not change row cardinality or define analytical samples.
-- **Stages 9-12:** LLM augmentation only. Stage 10 may deduplicate LLM *calls* by cache key to reduce API volume, but that is call deduplication, not posting deduplication. Stage 11 must preserve row count. If row counts change in LLM stages, treat it as a bug.
+- **Stages 6-8:** Row-preserving enrichment only. Language detection and `description_quality_flag` operate on the raw `description`. May add normalization, temporal, quality, and provenance columns, but must not change row cardinality or define analytical samples.
+- **Stages 9-11:** LLM augmentation only. Stage 9 is the **only** place where boilerplate removal happens, and it produces `description_core_llm`. Stage 10 may deduplicate LLM *calls* by cache key to reduce API volume, but that is call deduplication, not posting deduplication. Stage 11 must preserve row count. If row counts change in LLM stages, treat it as a bug.
 
 ### Regenerating reference data
 
@@ -563,8 +559,7 @@ All intermediate outputs live in `preprocessing/intermediate/`. These are rebuil
 |---|---|---|
 | `stage1_unified.parquet` | 1 | Canonical postings from all three sources |
 | `stage1_observations.parquet` | 1 | Daily observations for scraped data |
-| `stage2_aggregators.parquet` | 2 | With aggregator flags and real employer |
-| `stage3_boilerplate.parquet` | 3 | With `description_core` |
+| `stage2_aggregators.parquet` | 2 | With aggregator flags and real employer (Stage 4 reads this directly) |
 | `stage4_dedup.parquet` | 4 | After deduplication |
 | `stage4_company_name_lookup.parquet` | 4 | Company canonicalization audit trail |
 | `stage5_classification.parquet` | 5 | With SWE/seniority/YOE columns |
@@ -576,13 +571,3 @@ All intermediate outputs live in `preprocessing/intermediate/`. These are rebuil
 | `stage10_llm_classification_results.parquet` | 10 | Raw LLM classification outputs |
 | `stage10_llm_integrated.parquet` | 10 | Full dataset with all LLM columns |
 
----
-
-## Known Limitations
-
-- **Seniority unknown rate:** 71.8% in Stage 8 before LLM augmentation. Improves substantially with `seniority_llm` from Stage 10.
-- **Entry-level historical data:** Only arshkon has native entry-level labels (~89 entry-level SWE postings). Asaniczka has zero.
-- **Boilerplate removal accuracy:** ~44% for rule-based (`description_core`). LLM-based `description_core_llm` is the intended upgrade.
-- **Ghost job detection:** Rule-based `ghost_job_risk` is very conservative (519 non-low out of 1.22M). LLM-based `ghost_assessment_llm` provides a richer signal.
-- **No stop-at-stage flag:** `run_pipeline.py` runs all stages. For partial runs, invoke stage scripts directly.
-- **Row count growth:** Each day of scraping adds ~34K rows before dedup. Re-run from Stage 1 after syncing new data.

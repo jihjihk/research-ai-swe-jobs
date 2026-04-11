@@ -244,16 +244,16 @@ def test_detect_language_handles_english_non_english_and_missing(text, expected)
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("description_core", "expected"),
+    ("description", "expected"),
     [
         (None, "empty"),
         ("", "empty"),
         ("short text", "too_short"),
-        ("This description core is long enough to pass the minimal quality screen.", "ok"),
+        ("This description is long enough to pass the minimal quality screen.", "ok"),
     ],
 )
-def test_assess_description_quality_thresholds(description_core, expected):
-    assert stage678.assess_description_quality(description_core) == expected
+def test_assess_description_quality_thresholds(description, expected):
+    assert stage678.assess_description_quality(description) == expected
 
 
 @pytest.mark.unit

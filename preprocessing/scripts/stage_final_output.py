@@ -42,7 +42,6 @@ STAGE_INPUTS = {
     "stage1_unified": INTERMEDIATE_DIR / "stage1_unified.parquet",
     "stage1_observations": INTERMEDIATE_DIR / "stage1_observations.parquet",
     "stage2": INTERMEDIATE_DIR / "stage2_aggregators.parquet",
-    "stage3": INTERMEDIATE_DIR / "stage3_boilerplate.parquet",
     "stage4": INTERMEDIATE_DIR / "stage4_dedup.parquet",
     "stage5": INTERMEDIATE_DIR / "stage5_classification.parquet",
     "stage8": INTERMEDIATE_DIR / "stage8_final.parquet",
@@ -89,9 +88,9 @@ def compute_quality_report(unified_path: Path, observations_path: Path) -> dict:
       sum(CASE WHEN is_swe THEN 1 ELSE 0 END) AS total_swe,
       sum(CASE WHEN is_control THEN 1 ELSE 0 END) AS total_control,
       sum(CASE WHEN is_swe_adjacent THEN 1 ELSE 0 END) AS total_adjacent,
-      sum(CASE WHEN seniority_imputed = 'unknown' THEN 1 ELSE 0 END) AS seniority_unknown,
-      sum(CASE WHEN seniority_llm = 'unknown' THEN 1 ELSE 0 END) AS seniority_unknown_llm,
-      sum(CASE WHEN seniority_llm IS NOT NULL THEN 1 ELSE 0 END) AS seniority_llm_non_null,
+      sum(CASE WHEN seniority_final = 'unknown' THEN 1 ELSE 0 END) AS seniority_unknown,
+      sum(CASE WHEN seniority_final_source = 'llm' THEN 1 ELSE 0 END) AS seniority_from_llm,
+      sum(CASE WHEN seniority_final_source IN ('title_keyword', 'title_manager') THEN 1 ELSE 0 END) AS seniority_from_rule,
       sum(CASE WHEN description_core_llm IS NOT NULL THEN 1 ELSE 0 END) AS extraction_non_null,
       sum(CASE WHEN is_aggregator THEN 1 ELSE 0 END) AS aggregators,
       sum(CASE WHEN date_flag != 'ok' THEN 1 ELSE 0 END) AS date_flagged,
@@ -122,11 +121,11 @@ def compute_quality_report(unified_path: Path, observations_path: Path) -> dict:
 
     seniority_swe = duckdb.execute(
         f"""
-        SELECT seniority_imputed, count(*) AS n
+        SELECT seniority_final, count(*) AS n
         FROM read_parquet('{unified_path}')
         WHERE is_swe
         GROUP BY 1
-        ORDER BY n DESC, seniority_imputed
+        ORDER BY n DESC, seniority_final
         """
     ).fetchall()
 
@@ -159,9 +158,9 @@ def compute_quality_report(unified_path: Path, observations_path: Path) -> dict:
             "final_adjacent": totals[3],
         },
         "classification_rates": {
-            "seniority_unknown_rate_rules": round(totals[4] / totals[0], 4) if totals[0] else None,
-            "seniority_unknown_rate_llm": round(totals[5] / totals[6], 4) if totals[6] else None,
-            "seniority_llm_coverage": round(totals[6] / totals[0], 4) if totals[0] else None,
+            "seniority_unknown_rate": round(totals[4] / totals[0], 4) if totals[0] else None,
+            "seniority_from_llm_rate": round(totals[5] / totals[0], 4) if totals[0] else None,
+            "seniority_from_rule_rate": round(totals[6] / totals[0], 4) if totals[0] else None,
             "description_core_llm_coverage": round(totals[7] / totals[0], 4) if totals[0] else None,
         },
         "quality_flags": {
@@ -187,7 +186,7 @@ def compute_quality_report(unified_path: Path, observations_path: Path) -> dict:
             for source, platform, n in swe_source_counts
         ],
         "seniority_distribution_swe": [
-            {"seniority_imputed": seniority, "rows": n}
+            {"seniority_final": seniority, "rows": n}
             for seniority, n in seniority_swe
         ],
         "date_flags": [
@@ -229,9 +228,9 @@ def build_log_text(report: dict) -> str:
             "",
             "QUALITY FLAGS",
             "-------------",
-            f"Seniority unknown rate (rules): {report['classification_rates']['seniority_unknown_rate_rules']}",
-            f"Seniority unknown rate (LLM):   {report['classification_rates']['seniority_unknown_rate_llm']}",
-            f"Seniority LLM coverage:         {report['classification_rates']['seniority_llm_coverage']}",
+            f"Seniority unknown rate:         {report['classification_rates']['seniority_unknown_rate']}",
+            f"Seniority from rule (Stage 5):  {report['classification_rates']['seniority_from_rule_rate']}",
+            f"Seniority from LLM (Stage 10):  {report['classification_rates']['seniority_from_llm_rate']}",
             f"Description-core LLM coverage:  {report['classification_rates']['description_core_llm_coverage']}",
             f"Aggregators:                   {report['quality_flags']['aggregators']:>10,}",
             f"Date flagged:                  {report['quality_flags']['date_flagged']:>10,}",
@@ -256,7 +255,7 @@ def build_log_text(report: dict) -> str:
 
     lines.extend(["", "SENIORITY (SWE ONLY)", "--------------------"])
     for row in report["seniority_distribution_swe"]:
-        lines.append(f"{row['seniority_imputed']:<12} {row['rows']:>10,}")
+        lines.append(f"{row['seniority_final']:<12} {row['rows']:>10,}")
 
     return "\n".join(lines) + "\n"
 

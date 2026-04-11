@@ -112,7 +112,11 @@ Stages 9 and 10 now require an explicit `--llm-budget` parameter — **there is 
 - Within each category, budget is first used to balance absolute labeled counts across sources. For `scraped`, the allocated share is then water-filled across `scrape_date` buckets so the least-covered days get priority.
 - Budget=0 is valid: the stage runs on cached results only with no new LLM calls.
 
-**What this means for agents:** Not every scraped row will have LLM-derived columns. The columns `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track which rows were labeled. Stage 9 and Stage 10 use separate caches, so coverage can differ row-by-row; a row may have Stage 9 text without Stage 10 classification, or vice versa. `selected_for_llm_frame` marks the sticky balanced core only; `selection_target` is the minimum core size. Supplemental cache rows can expand the usable LLM set, but they do not change the balanced core frame. **Instruct sub-agents to filter to `llm_*_coverage == 'labeled'` whenever they use raw LLM columns** (`seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `description_core_llm`, `yoe_min_years_llm`). For best-available Stage 10 analysis, `rule_sufficient` rows may also be treated as usable if the report explicitly says so and keeps them separate.
+**What this means for agents:** Not every scraped row will have LLM-derived columns. The columns `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track which rows were labeled. Stage 9 and Stage 10 use separate caches, so coverage can differ row-by-row; a row may have Stage 9 text without Stage 10 classification, or vice versa. `selected_for_llm_frame` marks the sticky balanced core only; `selection_target` is the minimum core size. Supplemental cache rows can expand the usable LLM set, but they do not change the balanced core frame.
+
+**Reading LLM columns correctly:**
+- For text and ghost columns (`description_core_llm`, `ghost_assessment_llm`, `swe_classification_llm`, `yoe_min_years_llm`), filter to `llm_*_coverage == 'labeled'` and report the labeled count alongside the eligible count.
+- For **seniority**, use `seniority_final` directly. Stage 5 fills it from high-confidence title keywords; Stage 10 overwrites it with the LLM result for rows the router sent to the LLM. `seniority_final_source` records which path produced each value (`title_keyword`, `title_manager`, `llm`, or `unknown`). There is no separate `seniority_llm` column. Sub-agents must still validate seniority-stratified findings against a label-independent YOE-based proxy (`yoe_extracted <= 2` share by period); material disagreement between `seniority_final` and the YOE-based proxy is itself a finding that needs investigation, not a problem to bury. See `docs/preprocessing-schema.md` Section 4 for the full seniority schema.
 
 **Statistical framing:** Findings from LLM columns are based on the sticky core frame (`selected_for_llm_frame = true`) plus any explicitly labeled supplemental cache rows you decide to include. Report `n` of labeled rows alongside total eligible in all analyses, and separate core from supplemental-cache counts. Flag thin cells. Balanced-sample claims apply only to the core frame.
 
@@ -136,15 +140,17 @@ Stages 9 and 10 now require an explicit `--llm-budget` parameter — **there is 
 This wave tells you what the data CAN and CANNOT support. The most important output is not "the data is clean" — it's "given these constraints, here's what analyses are actually feasible and where we need to be careful."
 
 Key evaluation questions:
-- What's the binding constraint for each type of analysis? (Likely: entry-level sample size for seniority trends, asaniczka's missing entry labels for historical baseline, seniority unknown rate, description_core_llm coverage)
+- What's the binding constraint for each type of analysis? (Likely: entry-level sample size for seniority trends, asaniczka's missing native entry labels for any `seniority_native`-based sanity check, `seniority_final` unknown rate outside the LLM frame, `description_core_llm` coverage)
 - Are there data characteristics that suggest analyses NOT in our plan? (e.g., if industry data is rich enough, industry-level analysis becomes feasible)
 - Is the SWE classification reliable enough that we can trust the sample, or do we need to hedge?
 - How large is the within-2024 cross-source variability? This sets the noise floor for all 2024-to-2026 comparisons.
 - What does the feasibility table from T07 say? Which analyses are well-powered and which are underpowered? Don't waste Wave 2 effort on analyses we can't statistically support.
 
-**Writing the memo:** Focus on what's feasible vs. infeasible. Be honest about thin samples. If entry-level analysis is underpowered, say so — the paper may need to emphasize a different dimension.
+**Seniority measurement is one of the highest-stakes dimensions of this exploration.** `seniority_final` is the production seniority column (high-confidence rule + LLM). Wave 1 must validate it against two label-independent checks: (a) the YOE-based proxy (`yoe_extracted <= 2` share by period) and (b) the YOE distribution of `seniority_native = 'entry'` rows in arshkon, to check whether native-label quality is stable across the 2024 → 2026 comparison. If `seniority_final` and the YOE-based proxy disagree on the direction of an entry-level trend, the Gate 1 memo must report the disagreement and investigate WHY before Wave 2 builds on it. Possible explanations include real market change, differential native-label quality across snapshots, shifts in employer labeling explicitness, or instrument noise — the goal at Gate 1 is to honestly characterize the measurement landscape, not to gloss over a discrepancy.
 
-**Pass to Wave 1.5:** After Wave 1 completes, dispatch Agent Prep for shared preprocessing. Update INDEX.md with seniority recommendation, column constraints, feasibility assessment. Wave 2 agents read INDEX.md and load shared artifacts.
+**Writing the memo:** Focus on what's feasible vs. infeasible. Be honest about thin samples. If entry-level analysis is underpowered, say so — the paper may need to emphasize a different dimension. If `seniority_final` and the YOE-based proxy disagree, document the disagreement and the most likely mechanism rather than burying one side.
+
+**Pass to Wave 1.5:** After Wave 1 completes, dispatch Agent Prep for shared preprocessing. Update INDEX.md with the seniority validation findings (does `seniority_final` agree with the YOE-based proxy?), column constraints, and feasibility assessment. Wave 2 agents read INDEX.md and load shared artifacts.
 
 ### Wave 1.5 — Shared Preprocessing (Agent Prep)
 
@@ -194,7 +200,7 @@ Write modified task specs into the agent prompts for Wave 3. You don't need to e
 1. **Re-derive the top 3-5 headline numbers from Wave 2 from scratch** — write independent SQL/Python, do NOT read prior agents' scripts. If a number matches within 5%, it's verified. If not, investigate.
 2. **Validate keyword patterns:** For any keyword indicator introduced in Wave 2 (management, AI, scope, etc.), sample 50 matches stratified by period and assess precision. Flag patterns with <80% precision.
 3. **Propose alternative explanations** for each headline finding. What else could explain this pattern?
-4. **Flag specification-dependent findings:** Which findings change direction under a different seniority column, text source, or sample definition?
+4. **Flag specification-dependent findings:** For seniority-stratified findings, do they hold under (a) `seniority_final` (the primary column), (b) `seniority_native` alone (arshkon-only diagnostic), and (c) the YOE-based label-independent proxy? Material disagreement across these is itself a finding to report. For other findings, which results change direction under alternative text sources, sample definitions, or sensitivity dimensions?
 
 This is a lightweight quality gate, not a full wave. If verification reveals a problem, correct it before Wave 3 dispatch.
 

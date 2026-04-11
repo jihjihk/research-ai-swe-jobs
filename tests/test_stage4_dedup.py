@@ -88,7 +88,10 @@ def test_pass1_build_index_handles_exact_and_near_duplicate_groups(tmp_path):
 
     assert len(rows) > len(keep_indices)
     assert any(f["after_near"] < f["raw"] for f in funnel.values())
-    assert len(multi_loc_indices) == 2
+    # Multi-location groups collapse: only the lowest-uid representative survives
+    # and carries the is_multi_location flag. ml-1 is the representative of the
+    # 3-row DNV group; ml-2 and ml-3 are dropped.
+    assert len(multi_loc_indices) == 1
 
     kept = pd.read_parquet(input_path).loc[sorted(keep_indices)]
     assert "dup-1" in kept["job_id"].tolist()
@@ -97,6 +100,9 @@ def test_pass1_build_index_handles_exact_and_near_duplicate_groups(tmp_path):
     assert "near-2" in kept["job_id"].tolist()
     assert "near-1" not in kept["job_id"].tolist()
     assert {"diff-1", "diff-2"} <= set(kept["job_id"].tolist())
+    assert "ml-1" in kept["job_id"].tolist()
+    assert "ml-2" not in kept["job_id"].tolist()
+    assert "ml-3" not in kept["job_id"].tolist()
 
 
 @pytest.mark.integration
@@ -117,7 +123,7 @@ def test_run_stage4_preserves_unique_uids_and_flags_multi_location(tmp_path, mon
     rows = []
     for row in SYNTHETIC["exact_job_id"] + SYNTHETIC["exact_opening"] + SYNTHETIC["near_duplicate"] + SYNTHETIC["meaningfully_different"] + SYNTHETIC["multi_location"]:
         rows.append(row)
-    write_parquet(intermediate_dir / "stage3_boilerplate.parquet", rows)
+    write_parquet(intermediate_dir / "stage2_aggregators.parquet", rows)
 
     stage4.run_stage4()
     output_path = intermediate_dir / "stage4_dedup.parquet"
@@ -127,3 +133,19 @@ def test_run_stage4_preserves_unique_uids_and_flags_multi_location(tmp_path, mon
     out = pd.read_parquet(output_path)
     assert len(out) < len(rows)
     assert out["is_multi_location"].any()
+
+    # Multi-location collapse: one representative row survives per group, with
+    # location overwritten to "multi-location" and search_metro_* fields cleared
+    # so Stage 6 cannot re-attribute the collapsed row to a specific metro.
+    survivors = out[out["is_multi_location"]]
+    assert len(survivors) == 1
+    survivor = survivors.iloc[0]
+    assert survivor["uid"] == "ml-1"
+    assert survivor["location"] == "multi-location"
+    assert pd.isna(survivor["search_metro_name"])
+    assert pd.isna(survivor["search_metro_id"])
+    assert pd.isna(survivor["search_metro_region"])
+    assert pd.isna(survivor["search_location"])
+    # Non-multi-location rows should retain their original location values.
+    non_ml = out[~out["is_multi_location"]]
+    assert "multi-location" not in non_ml["location"].tolist()

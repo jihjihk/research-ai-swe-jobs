@@ -32,7 +32,6 @@ def test_finalize_frame_writes_declared_output_columns_only():
                     "scrape_date": "2026-03-22",
                     "description": "Build systems",
                     "description_raw": "Build systems",
-                    "seniority_raw": "Entry level",
                     "seniority_native": "entry",
                     "company_industry": None,
                     "company_size": None,

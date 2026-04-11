@@ -529,12 +529,12 @@ def detect_ghost_job(seniority_final: str, yoe_extracted, yoe_contradiction: boo
 # ---------------------------------------------------------------------------
 # Stage 8: Description quality
 # ---------------------------------------------------------------------------
-def assess_description_quality(description_core) -> str:
-    """Return quality flag for description_core."""
-    if pd.isna(description_core) or not isinstance(description_core, str):
+def assess_description_quality(description) -> str:
+    """Return quality flag for the raw description."""
+    if pd.isna(description) or not isinstance(description, str):
         return "empty"
 
-    text = description_core.strip()
+    text = description.strip()
     if len(text) == 0:
         return "empty"
     if len(text) < 50:
@@ -621,7 +621,7 @@ def process_chunk(
         ),
         axis=1,
     )
-    df["is_english"] = df["description_core"].apply(detect_language).astype("boolean")
+    df["is_english"] = df["description"].apply(detect_language).astype("boolean")
     df["description_hash"] = df["description"].apply(build_description_hash)
     df["ghost_job_risk"] = df.apply(
         lambda row: detect_ghost_job(
@@ -630,14 +630,13 @@ def process_chunk(
         axis=1,
     )
 
-    df["description_quality_flag"] = df["description_core"].apply(
+    df["description_quality_flag"] = df["description"].apply(
         assess_description_quality
     )
 
     # Data provenance
     df["preprocessing_version"] = "3.0"
     df["dedup_method"] = "stage4_title_company_deduplicated"
-    df["boilerplate_removed"] = True
 
     return df
 

@@ -19,5 +19,13 @@ def patch_stage_dirs(monkeypatch, module, dirs: dict[str, Path]) -> None:
 
 def write_parquet(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pylist(rows)
+    all_keys: list = []
+    seen = set()
+    for row in rows:
+        for key in row:
+            if key not in seen:
+                seen.add(key)
+                all_keys.append(key)
+    normalized = [{key: row.get(key) for key in all_keys} for row in rows]
+    table = pa.Table.from_pylist(normalized)
     pq.write_table(table, path)

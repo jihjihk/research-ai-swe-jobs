@@ -60,7 +60,6 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "title": "Software Engineer",
                 "company_name": "Acme",
                 "description": "A long enough raw description that should not be excluded by the Stage 9 short-description rule.",
-                "description_core": "RULE CORE",
                 "description_core_llm": "LLM CORE",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -68,7 +67,8 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
             },
             {
@@ -77,7 +77,6 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "title": "QA Engineer",
                 "company_name": "Beta",
                 "description": "tiny text",
-                "description_core": "RULE CORE",
                 "description_core_llm": "",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -85,16 +84,16 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "is_swe_adjacent": True,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
             },
             {
                 "job_id": "c3",
                 "source_platform": "linkedin",
-                "title": "Backend Engineer",
+                "title": "Senior Backend Engineer",
                 "company_name": "Gamma",
                 "description": "A long enough raw description for routing that clearly exceeds the Stage 9 short-description threshold.",
-                "description_core": "RULE CORE",
                 "description_core_llm": "",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -102,7 +101,8 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "regex",
-                "seniority_source": "title_native",
+                "seniority_final": "mid-senior",
+                "seniority_final_source": "title_keyword",
                 "ghost_job_risk": "low",
             },
             {
@@ -111,7 +111,6 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "title": "Backend Engineer",
                 "company_name": "Delta",
                 "description": "A long enough raw description for a row that should stay outside the inherited frame.",
-                "description_core": "RULE CORE",
                 "description_core_llm": "",
                 "is_english": True,
                 "selected_for_llm_frame": False,
@@ -119,7 +118,8 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
             },
         ]
@@ -154,14 +154,14 @@ def test_prepare_classification_rows_requires_inherited_stage9_frame():
                 "title": "Software Engineer",
                 "company_name": "Acme",
                 "description": "A long enough raw description that would otherwise be eligible for Stage 10 classification.",
-                "description_core": "RULE CORE",
                 "description_core_llm": "LLM CORE",
                 "is_english": True,
                 "is_swe": True,
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
             }
         ]
@@ -305,7 +305,10 @@ def test_build_results_row_maps_classification_payload():
     assert out["classification_input_hash"] == "hash-a"
     assert out["classification_row_count"] == 2
     assert out["swe_classification_llm"] == "SWE"
-    assert out["seniority_llm"] == "entry"
+    # Seniority is no longer surfaced as a separate seniority_llm column;
+    # the LLM seniority value lives in the cached classification payload and
+    # is integrated into seniority_final by integrate_chunk.
+    assert "seniority_llm" not in out
     assert out["ghost_assessment_llm"] == "realistic"
 
 
@@ -316,10 +319,9 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
             {
                 "job_id": "rule-1",
                 "source_platform": "linkedin",
-                "title": "Backend Engineer",
+                "title": "Senior Backend Engineer",
                 "company_name": "Gamma",
                 "description": "A long enough raw description for routing that clearly exceeds the Stage 9 short-description threshold.",
-                "description_core": "RULE CORE",
                 "description_core_llm": "",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -327,7 +329,8 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "regex",
-                "seniority_source": "title_native",
+                "seniority_final": "mid-senior",
+                "seniority_final_source": "title_keyword",
                 "ghost_job_risk": "low",
             },
             {
@@ -336,7 +339,6 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
                 "title": "Software Engineer",
                 "company_name": "Acme",
                 "description": "A long enough raw description that should not be excluded by the Stage 9 short-description rule.",
-                "description_core": "RULE CORE",
                 "description_core_llm": "LLM CORE",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -344,7 +346,8 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
             },
             {
@@ -353,7 +356,6 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
                 "title": "Site Reliability Engineer",
                 "company_name": "Delta",
                 "description": "A long enough raw description for a row that should stay outside the inherited frame.",
-                "description_core": "RULE CORE",
                 "description_core_llm": "",
                 "is_english": True,
                 "selected_for_llm_frame": False,
@@ -361,7 +363,8 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
             },
         ]
@@ -384,16 +387,25 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
 
     out = stage10.integrate_chunk(chunk, cache, fresh_hashes=set()).set_index("job_id")
 
+    # rule-1: strong rule already set seniority_final, router skipped, value preserved
     assert out.loc["rule-1", "llm_classification_sample_tier"] == "core"
     assert out.loc["rule-1", "llm_classification_coverage"] == "rule_sufficient"
     assert out.loc["rule-1", "llm_classification_resolution"] == "rule_sufficient"
+    assert out.loc["rule-1", "seniority_final"] == "mid-senior"
+    assert out.loc["rule-1", "seniority_final_source"] == "title_keyword"
+    # llm-1: routed, LLM result overwrites seniority_final, source becomes "llm"
     assert out.loc["llm-1", "llm_classification_sample_tier"] == "core"
     assert out.loc["llm-1", "llm_classification_coverage"] == "labeled"
     assert out.loc["llm-1", "llm_classification_resolution"] == "cached_llm"
-    assert out.loc["llm-1", "seniority_llm"] == "entry"
+    assert out.loc["llm-1", "seniority_final"] == "entry"
+    assert out.loc["llm-1", "seniority_final_source"] == "llm"
+    # The legacy seniority_llm column no longer exists
+    assert "seniority_llm" not in out.columns
+    # out-1: outside the frame, seniority_final stays as Stage 5 wrote it
     assert out.loc["out-1", "llm_classification_sample_tier"] == "none"
     assert out.loc["out-1", "llm_classification_coverage"] == "not_selected"
     assert out.loc["out-1", "llm_classification_resolution"] == "not_selected"
+    assert out.loc["out-1", "seniority_final"] == "unknown"
 
 
 @pytest.mark.unit
@@ -406,7 +418,6 @@ def test_integrate_chunk_marks_fresh_hashes_as_fresh_llm():
                 "title": "Software Engineer",
                 "company_name": "Acme",
                 "description": "A long enough raw description that should not be excluded by the Stage 9 short-description rule.",
-                "description_core": "RULE CORE",
                 "description_core_llm": "LLM CORE",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -414,7 +425,8 @@ def test_integrate_chunk_marks_fresh_hashes_as_fresh_llm():
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
             },
         ]
@@ -443,7 +455,8 @@ def test_integrate_chunk_marks_fresh_hashes_as_fresh_llm():
 
 
 @pytest.mark.unit
-def test_integrate_chunk_uses_rule_cleaned_text_when_stage9_llm_text_missing():
+def test_integrate_chunk_falls_back_to_raw_description_when_stage9_llm_text_missing():
+    raw_description = "A long enough raw description that acts as the fallback when Stage 9 LLM cleaned text is missing."
     chunk = pd.DataFrame(
         [
             {
@@ -451,8 +464,7 @@ def test_integrate_chunk_uses_rule_cleaned_text_when_stage9_llm_text_missing():
                 "source_platform": "linkedin",
                 "title": "Software Engineer",
                 "company_name": "Acme",
-                "description": "A long enough raw description that should not be needed because the rule-cleaned core text is usable.",
-                "description_core": "RULE CORE ONLY",
+                "description": raw_description,
                 "description_core_llm": "",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -460,12 +472,13 @@ def test_integrate_chunk_uses_rule_cleaned_text_when_stage9_llm_text_missing():
                 "is_swe_adjacent": False,
                 "selected_for_control_cohort": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
             }
         ]
     )
-    cache_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", "RULE CORE ONLY")
+    cache_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", raw_description)
     cache = {
         cache_hash: {
             "response_json": json.dumps(classification_payload()),
@@ -480,7 +493,9 @@ def test_integrate_chunk_uses_rule_cleaned_text_when_stage9_llm_text_missing():
     assert out.loc["fallback-core-1", "llm_classification_sample_tier"] == "core"
     assert out.loc["fallback-core-1", "llm_classification_coverage"] == "labeled"
     assert out.loc["fallback-core-1", "llm_classification_resolution"] == "cached_llm"
-    assert out.loc["fallback-core-1", "seniority_llm"] == "entry"
+    # LLM result writes back to seniority_final with source='llm'
+    assert out.loc["fallback-core-1", "seniority_final"] == "entry"
+    assert out.loc["fallback-core-1", "seniority_final_source"] == "llm"
 
 
 @pytest.mark.unit
@@ -520,14 +535,14 @@ def test_summarize_stage10_routing_reports_volume_drivers():
 @pytest.mark.unit
 def test_run_stage10_reuses_current_prompt_cache_for_supplemental_rows_outside_core(tmp_path):
     input_path = tmp_path / "stage9_llm_cleaned.parquet"
+    raw_description = "A long enough raw description for a supplemental cached row that remains eligible for Stage 10 classification."
     row = {
         "job_id": "supp-1",
         "source": "scraped",
         "source_platform": "linkedin",
         "title": "Software Engineer",
         "company_name": "Acme",
-        "description": "A long enough raw description for a supplemental cached row that remains eligible for Stage 10 classification.",
-        "description_core": "RULE CORE ONLY",
+        "description": raw_description,
         "description_core_llm": "",
         "is_english": True,
         "selected_for_llm_frame": False,
@@ -536,14 +551,15 @@ def test_run_stage10_reuses_current_prompt_cache_for_supplemental_rows_outside_c
         "is_control": False,
         "selected_for_control_cohort": False,
         "swe_classification_tier": "weak",
-        "seniority_source": "content",
+        "seniority_final": "unknown",
+        "seniority_final_source": "unknown",
         "ghost_job_risk": "medium",
     }
     pd.DataFrame([row]).to_parquet(input_path, index=False)
 
     cache_db = tmp_path / "llm_responses.db"
     conn = stage10.open_cache(cache_db)
-    supplemental_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", "RULE CORE ONLY")
+    supplemental_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", raw_description)
     stage10.store_cached_row(
         conn,
         input_hash=supplemental_hash,
@@ -577,7 +593,8 @@ def test_run_stage10_reuses_current_prompt_cache_for_supplemental_rows_outside_c
     assert integrated.loc["supp-1", "llm_classification_sample_tier"] == "supplemental_cache"
     assert integrated.loc["supp-1", "llm_classification_coverage"] == "labeled"
     assert integrated.loc["supp-1", "llm_classification_resolution"] == "cached_llm"
-    assert integrated.loc["supp-1", "seniority_llm"] == "entry"
+    assert integrated.loc["supp-1", "seniority_final"] == "entry"
+    assert integrated.loc["supp-1", "seniority_final_source"] == "llm"
     assert results.loc["supp-1", "classification_input_hash"] == supplemental_hash
 
 
@@ -591,7 +608,6 @@ def test_run_stage10_gates_supplemental_cache_reuse_on_prompt_version(tmp_path):
         "title": "Software Engineer",
         "company_name": "Acme",
         "description": "A long enough raw description for a supplemental row whose cached classification uses an old prompt version.",
-        "description_core": "RULE CORE ONLY",
         "description_core_llm": "",
         "is_english": True,
         "selected_for_llm_frame": False,
@@ -600,7 +616,8 @@ def test_run_stage10_gates_supplemental_cache_reuse_on_prompt_version(tmp_path):
         "is_control": False,
         "selected_for_control_cohort": False,
         "swe_classification_tier": "weak",
-        "seniority_source": "content",
+        "seniority_final": "unknown",
+        "seniority_final_source": "unknown",
         "ghost_job_risk": "medium",
     }
     pd.DataFrame([row]).to_parquet(input_path, index=False)
@@ -640,7 +657,9 @@ def test_run_stage10_gates_supplemental_cache_reuse_on_prompt_version(tmp_path):
     assert integrated.loc["supp-old-prompt-1", "llm_classification_sample_tier"] == "none"
     assert integrated.loc["supp-old-prompt-1", "llm_classification_coverage"] == "not_selected"
     assert integrated.loc["supp-old-prompt-1", "llm_classification_resolution"] == "not_selected"
-    assert pd.isna(integrated.loc["supp-old-prompt-1", "seniority_llm"])
+    # Stale prompt → no LLM result, seniority_final stays as Stage 5 wrote it
+    assert integrated.loc["supp-old-prompt-1", "seniority_final"] == "unknown"
+    assert integrated.loc["supp-old-prompt-1", "seniority_final_source"] == "unknown"
     assert results.empty
 
 
@@ -657,7 +676,6 @@ def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, 
                 "title": f"Software Engineer {idx}",
                 "company_name": f"Acme {idx}",
                 "description": f"A long enough raw description for routed SWE row {idx} that exceeds the short-description threshold.",
-                "description_core": "RULE CORE",
                 "description_core_llm": f"LLM CORE {idx}",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -665,7 +683,8 @@ def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, 
                 "is_swe_adjacent": False,
                 "is_control": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
                 "date_posted": "2026-03-20",
                 "scrape_date": "2026-03-20",
@@ -681,7 +700,6 @@ def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, 
                 "title": f"QA Engineer {idx}",
                 "company_name": f"Beta {idx}",
                 "description": f"A long enough raw description for routed adjacent row {idx} that exceeds the short-description threshold.",
-                "description_core": "RULE CORE",
                 "description_core_llm": f"LLM CORE ADJ {idx}",
                 "is_english": True,
                 "selected_for_llm_frame": True,
@@ -689,7 +707,8 @@ def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, 
                 "is_swe_adjacent": True,
                 "is_control": False,
                 "swe_classification_tier": "weak",
-                "seniority_source": "content",
+                "seniority_final": "unknown",
+                "seniority_final_source": "unknown",
                 "ghost_job_risk": "medium",
                 "date_posted": "2026-03-20",
                 "scrape_date": "2026-03-20",
@@ -704,7 +723,6 @@ def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, 
             "title": "Financial Analyst",
             "company_name": "Gamma",
             "description": "A long enough raw description for a routed control row that exceeds the short-description threshold.",
-            "description_core": "RULE CORE",
             "description_core_llm": "LLM CORE",
             "is_english": True,
             "selected_for_llm_frame": True,
@@ -712,7 +730,8 @@ def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, 
             "is_swe_adjacent": False,
             "is_control": True,
             "swe_classification_tier": "weak",
-            "seniority_source": "content",
+            "seniority_final": "unknown",
+            "seniority_final_source": "unknown",
             "ghost_job_risk": "medium",
             "date_posted": "2026-03-20",
             "scrape_date": "2026-03-20",

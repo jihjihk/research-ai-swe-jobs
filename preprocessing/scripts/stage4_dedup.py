@@ -4,14 +4,16 @@ Stage 4: Company canonicalization + deduplication (memory-safe, two-pass)
 
 Prep   — Build a canonical company-name lookup from Stage 2's
          `company_name_effective` field and persist it as an audit artifact.
-Pass 1 — Load only dedup key columns (~0.3 GB) + description hashes.
+Pass 1 — Stream dedup key columns + raw description per chunk, hash the
+          description eagerly so only the hash survives into the concatenated
+          keep/drop index.
           Compute which rows to keep via exact dedup, near-dedup, and
           multi-location flagging.
 Pass 2 — Stream full data in chunks, filter to kept rows, write output.
 
 This stays well under 31 GB RAM.
 
-Input:  intermediate/stage3_boilerplate.parquet  (1.57M rows, ~6.4 GB)
+Input:  intermediate/stage2_aggregators.parquet  (1.57M rows, ~6.4 GB)
 Output: intermediate/stage4_dedup.parquet
         intermediate/stage4_company_name_lookup.parquet
 """
@@ -75,7 +77,12 @@ COMPANY_SUFFIXES = {
 # ---------------------------------------------------------------------------
 
 def _hash_text(text: str) -> str:
-    """MD5 hash of lightly normalized text for fast equality check."""
+    """MD5 hash of lightly normalized text for fast equality check.
+
+    Distinct from Stage 8's `description_hash` (SHA-256 over raw text): this
+    hash is for intra-Stage-4 dedup grouping, so it normalizes whitespace and
+    case to collapse trivially different copies of the same description.
+    """
     if not isinstance(text, str) or not text:
         return ""
     normalized = re.sub(r"\s+", " ", text).strip().lower()
@@ -214,17 +221,19 @@ def pass1_build_index(
 ) -> tuple[set, set, dict]:
     """
     Returns:
-        keep_indices : set of integer row indices to keep
-        multi_loc_indices : set of row indices flagged as multi-location
-        source_funnels : dict[source -> {raw, after_exact, after_near}]
+        keep_indices : set of integer row indices to keep.
+        multi_loc_indices : set of indices of the surviving representatives
+            of multi-location collapse groups. Pass 2 sets is_multi_location
+            to True on these rows and overwrites their location fields.
+        source_funnels : dict[source -> {raw, after_exact, after_near, after_multi_loc}]
     """
     log.info("--- Pass 1: Loading key columns ---")
     t0 = time.time()
 
     # Columns needed for dedup decisions (lightweight)
     key_cols = [
-        "job_id", "source", "title", company_source_col, "company_name",
-        "location", "description_length", "description_core",
+        "uid", "job_id", "source", "title", company_source_col, "company_name",
+        "location", "description_length", "description",
         "skills_raw", "seniority_native",
     ]
     key_cols = list(dict.fromkeys(key_cols))
@@ -233,23 +242,23 @@ def pass1_build_index(
     total_rows = pf.metadata.num_rows
 
     # Read in chunks, compute description hash per chunk to avoid holding
-    # full description_core strings in memory
+    # full description strings in memory
     frames = []
     offset = 0
     for batch in pf.iter_batches(batch_size=CHUNK_SIZE, columns=key_cols):
         chunk = batch.to_pandas()
         chunk.index = range(offset, offset + len(chunk))
 
-        # Compute hash of description_core, then drop the heavy column
+        # Compute hash of raw description, then drop the heavy column
         effective_company = _resolve_company_effective(chunk, company_source_col)
         chunk["company_name_canonical"] = effective_company.map(canonical_map)
         missing_canonical = chunk["company_name_canonical"].isna()
         chunk.loc[missing_canonical, "company_name_canonical"] = effective_company.loc[missing_canonical]
-        chunk["desc_hash"] = chunk["description_core"].apply(_hash_text)
+        chunk["desc_hash"] = chunk["description"].apply(_hash_text)
         chunk["title_key"] = chunk["title"].apply(_normalize_title_for_dedup)
         chunk["company_key"] = chunk["company_name_canonical"].apply(_normalize_company_for_dedup)
         chunk["location_key"] = chunk["location"].apply(_normalize_location_for_dedup)
-        chunk.drop(columns=["description_core"], inplace=True)
+        chunk.drop(columns=["description"], inplace=True)
 
         frames.append(chunk)
         offset += len(chunk)
@@ -267,7 +276,10 @@ def pass1_build_index(
 
     # Track source funnel
     sources = df["source"].unique().tolist()
-    funnel = {src: {"raw": 0, "after_exact": 0, "after_near": 0} for src in sources}
+    funnel = {
+        src: {"raw": 0, "after_exact": 0, "after_near": 0, "after_multi_loc": 0}
+        for src in sources
+    }
     for src in sources:
         funnel[src]["raw"] = int((df["source"] == src).sum())
 
@@ -403,19 +415,40 @@ def pass1_build_index(
              f"(removed {len(near_dup_drops):,} near-dups)")
 
     # -------------------------------------------------------------------
-    # 4c. Multi-location flagging
+    # 4c. Multi-location collapse
     # -------------------------------------------------------------------
-    log.info("--- 4c. Multi-location flagging ---")
+    # One canonical opening (same company, title, raw-description hash) that
+    # appears at 2+ distinct normalized locations is almost always LinkedIn
+    # metro syndication — a single remote role fanned out to per-metro pages,
+    # each getting its own job_id. We keep the lowest-uid row as the
+    # representative and drop the others. Pass 2 overwrites the representative's
+    # location to "multi-location" and clears search_metro_* so Stage 6 cannot
+    # re-attribute it to a single metro.
+    log.info("--- 4c. Multi-location collapse ---")
     df_kept = df.loc[sorted(keep_indices)]
+    ml_groups = df_kept[df_kept["desc_hash"] != ""].groupby(
+        ["company_key", "title_key", "desc_hash"], sort=False
+    )
 
-    # Multi-location: same canonical opening at 2+ distinct normalized locations.
-    ml_key = df_kept.groupby(
-        ["company_key", "title_key", "desc_hash"]
-    )["location_key"].transform("nunique")
-    multi_loc_mask = (df_kept["desc_hash"] != "") & (ml_key >= 2)
-    multi_loc_indices = set(df_kept.index[multi_loc_mask])
+    multi_loc_indices = set()
+    multi_loc_drops = set()
+    for _, group in ml_groups:
+        if group["location_key"].nunique() < 2:
+            continue
+        representative_idx = group["uid"].idxmin()
+        multi_loc_indices.add(representative_idx)
+        multi_loc_drops.update(set(group.index) - {representative_idx})
 
-    log.info(f"  Multi-location postings flagged: {len(multi_loc_indices):,}")
+    keep_indices -= multi_loc_drops
+    for src in sources:
+        mask = (df["source"] == src) & df.index.isin(keep_indices)
+        funnel[src]["after_multi_loc"] = int(mask.sum())
+
+    log.info(
+        f"  Multi-location groups collapsed: {len(multi_loc_indices):,} "
+        f"representatives, {len(multi_loc_drops):,} rows dropped"
+    )
+    log.info(f"  After multi-loc collapse: {len(keep_indices):,} rows")
 
     del df, df_remaining, df_fuzzy, df_kept
     gc.collect()
@@ -483,6 +516,15 @@ def pass2_write_output(
         chunk.loc[missing_method, "company_name_canonical_method"] = "passthrough"
         chunk["is_multi_location"] = chunk.index.isin(multi_loc_indices)
 
+        # Overwrite location and search_metro_* on collapsed representatives
+        # so Stage 6 cannot re-attribute the row to a single metro.
+        ml_mask = chunk["is_multi_location"]
+        if ml_mask.any():
+            chunk.loc[ml_mask, "location"] = "multi-location"
+            for col in ("search_metro_name", "search_metro_id", "search_metro_region", "search_location"):
+                if col in chunk.columns:
+                    chunk.loc[ml_mask, col] = None
+
         # Force consistent dtypes for new columns
         chunk["company_name_effective"] = chunk["company_name_effective"].astype("string")
         chunk["company_name_canonical"] = chunk["company_name_canonical"].astype("string")
@@ -519,7 +561,7 @@ def run_stage4():
     log.info("STAGE 4: Company canonicalization + deduplication")
     log.info("=" * 60)
 
-    input_path = INTERMEDIATE_DIR / "stage3_boilerplate.parquet"
+    input_path = INTERMEDIATE_DIR / "stage2_aggregators.parquet"
     output_path = INTERMEDIATE_DIR / "stage4_dedup.parquet"
     tmp_output_path = prepare_temp_output(output_path)
     tmp_lookup_output_path = prepare_temp_output(LOOKUP_OUTPUT_PATH)
@@ -562,29 +604,39 @@ def run_stage4():
     # -------------------------------------------------------------------
     # 4d. Dedup funnel report
     # -------------------------------------------------------------------
-    log.info("\n" + "=" * 60)
+    log.info("\n" + "=" * 72)
     log.info("DEDUP FUNNEL")
-    log.info("=" * 60)
-    log.info(f"  {'Source':<30} {'Raw':>10} {'Exact':>10} {'Near':>10} {'Pct kept':>10}")
-    log.info(f"  {'-'*30} {'-'*10} {'-'*10} {'-'*10} {'-'*10}")
+    log.info("=" * 72)
+    header = f"  {'Source':<30} {'Raw':>10} {'Exact':>10} {'Near':>10} {'Multi-loc':>10} {'Pct kept':>10}"
+    divider = f"  {'-'*30} {'-'*10} {'-'*10} {'-'*10} {'-'*10} {'-'*10}"
+    log.info(header)
+    log.info(divider)
 
     total_raw = 0
     total_exact = 0
     total_near = 0
+    total_multi_loc = 0
 
     for src in sorted(funnel.keys()):
         f = funnel[src]
-        pct = f["after_near"] / f["raw"] * 100 if f["raw"] > 0 else 0
-        log.info(f"  {src:<30} {f['raw']:>10,} {f['after_exact']:>10,} {f['after_near']:>10,} {pct:>9.1f}%")
+        pct = f["after_multi_loc"] / f["raw"] * 100 if f["raw"] > 0 else 0
+        log.info(
+            f"  {src:<30} {f['raw']:>10,} {f['after_exact']:>10,} "
+            f"{f['after_near']:>10,} {f['after_multi_loc']:>10,} {pct:>9.1f}%"
+        )
         total_raw += f["raw"]
         total_exact += f["after_exact"]
         total_near += f["after_near"]
+        total_multi_loc += f["after_multi_loc"]
 
-    pct_total = total_near / total_raw * 100 if total_raw > 0 else 0
-    log.info(f"  {'-'*30} {'-'*10} {'-'*10} {'-'*10} {'-'*10}")
-    log.info(f"  {'TOTAL':<30} {total_raw:>10,} {total_exact:>10,} {total_near:>10,} {pct_total:>9.1f}%")
+    pct_total = total_multi_loc / total_raw * 100 if total_raw > 0 else 0
+    log.info(divider)
+    log.info(
+        f"  {'TOTAL':<30} {total_raw:>10,} {total_exact:>10,} "
+        f"{total_near:>10,} {total_multi_loc:>10,} {pct_total:>9.1f}%"
+    )
 
-    log.info(f"\n  Multi-location flagged: {len(multi_loc_indices):,}")
+    log.info(f"\n  Multi-location representatives: {len(multi_loc_indices):,}")
     log.info(f"  Output: {output_path}")
     log.info(f"  Rows written: {written:,}")
 

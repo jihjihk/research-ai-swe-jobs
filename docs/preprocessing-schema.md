@@ -1,6 +1,6 @@
 # Preprocessing Schema Reference
 
-Last updated: 2026-03-31
+Last updated: 2026-04-10
 
 Complete column reference for the preprocessing pipeline. For architecture, operations, and development practices, see [`preprocessing-guide.md`](preprocessing-guide.md).
 
@@ -8,15 +8,15 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 
 ## How to Use This Document
 
-**Primary analysis file:** `data/unified.parquet` (~101 columns, ~1.40M rows). This is the Stage 11 final output containing all rule-based columns plus LLM columns from Stages 9-10.
+**Primary analysis file:** `data/unified.parquet` (~90 columns, ~1.40M rows). This is the Stage 11 final output containing all rule-based columns plus LLM columns from Stages 9-10.
 
-**LLM column usage (updated 2026-04-06):**
-- `description_core_llm`: Primary text column for all text-dependent analyses. Check `llm_extraction_coverage` for coverage by source. `description_core` (rule-based) is a sensitivity check only — it retains substantial boilerplate.
-- `seniority_llm`: Primary seniority variable. Applies uniform explicit-signal-only classification across all sources. Check `llm_classification_coverage`. Use `seniority_native`/`seniority_final`/`seniority_imputed` as ablation variants.
+**LLM column usage (updated 2026-04-10):**
+- `description_core_llm`: **The only cleaned-text column** and the required input for every text-dependent analysis. Check `llm_extraction_coverage` for coverage by source. Raw `description` is the only acceptable fallback and only for analyses that are insensitive to boilerplate (e.g., binary keyword presence); text-sensitive work must filter to `llm_extraction_coverage = 'labeled'`.
+- **Seniority — use `seniority_final`.** This is the single primary seniority column. Stage 5 fills it from high-confidence title keywords; Stage 10 overwrites it with the LLM result for rows the router sent to the LLM. `seniority_final_source` records which path produced the value (`title_keyword`, `title_manager`, `llm`, or `unknown`). See Section 4 for details.
 - `ghost_assessment_llm`: Primary ghost indicator (`realistic`/`inflated`/`ghost_likely`). Richer than rule-based `ghost_job_risk`. Use `ghost_job_risk` as fallback.
 - `swe_classification_llm`, `yoe_min_years_llm`: Cross-check columns.
 
-Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. Filter to `labeled` when using raw Stage 9/Stage 10 LLM columns. For best-available Stage 10 analysis, `rule_sufficient` rows may also be treated as usable if you explicitly report that choice and keep the counts separate.
+Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. For raw Stage 9/Stage 10 LLM columns (including `description_core_llm`), filter to `labeled`. Seniority is the exception: `seniority_final` is already the combined best-available column and should be used directly without filtering by coverage.
 
 Balanced-sample claims apply only to `selected_for_llm_frame = true`. Supplemental cache rows can extend the usable LLM set, but they are not part of the balanced core frame.
 
@@ -32,24 +32,23 @@ This table shows when each column category first becomes available:
 | Raw job content | Stage 1 | 6 | `title`, `description`, `description_raw` |
 | Company (basic) | Stage 1 | 5 | `company_name`, `company_industry`, `company_size` |
 | Aggregator handling | Stage 2 | 3 | `is_aggregator`, `real_employer`, `company_name_effective` |
-| Boilerplate removal | Stage 3 | 3 | `description_core`, `core_length`, `boilerplate_flag` |
 | Company canonicalization | Stage 4 | 2 | `company_name_canonical`, `company_name_canonical_method` |
 | Multi-location flag | Stage 4 | 1 | `is_multi_location` |
 | SWE classification | Stage 5 | 5 | `is_swe`, `is_swe_adjacent`, `is_control`, `swe_confidence`, `swe_classification_tier` |
-| Seniority (rule-based) | Stage 5 | 10 | `seniority_final`, `seniority_3level`, etc. |
+| Seniority | Stage 1 + 5 + 10 | 4 | `seniority_native` (Stage 1), `seniority_final`, `seniority_final_source`, `seniority_3level` |
 | YOE extraction | Stage 5 | 7 | `yoe_extracted`, `yoe_min_extracted`, `yoe_seniority_contradiction`, etc. |
 | Location parsing | Stage 6 | 6 | `city_extracted`, `state_normalized`, `metro_area`, `is_remote_inferred` |
 | Temporal derivations | Stage 7 | 3 | `period`, `posting_age_days`, `scrape_week` |
 | Quality flags | Stage 8 | 5 | `date_flag`, `is_english`, `ghost_job_risk`, `description_quality_flag` |
-| Pipeline metadata | Stage 8 | 3 | `preprocessing_version`, `dedup_method`, `boilerplate_removed` |
+| Pipeline metadata | Stage 8 | 2 | `preprocessing_version`, `dedup_method` |
 | LLM frame + cleaned text | Stage 9 | 5 | `description_core_llm`, `selected_for_llm_frame`, `selection_date_bin`, `selected_for_control_cohort`, `llm_extraction_sample_tier` |
 | LLM coverage tracking | Stage 9-10 | 4 | `llm_extraction_coverage`, `llm_extraction_resolution`, `llm_classification_coverage`, `llm_classification_resolution` |
 | LLM extraction diagnostics | Stage 9 | 9 | `llm_extraction_status`, `llm_extraction_drop_ratio`, etc. |
-| LLM classification | Stage 10 | 5 | `seniority_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`, `llm_classification_sample_tier` |
+| LLM classification | Stage 10 | 4 | `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`, `llm_classification_sample_tier` (LLM seniority writes back to `seniority_final`; there is no separate `seniority_llm` column) |
 | LLM provenance | Stage 9-10 | 4 | `llm_model_*`, `llm_prompt_version_*` |
 
-**Total at Stage 8:** ~80 columns, 1,395,790 rows.
-**Total at Stage 11 / unified.parquet:** 101 columns, 1,395,790 rows (all Stage 8 columns preserved + LLM additions).
+**Total at Stage 8:** ~70 columns, 1,395,790 rows.
+**Total at Stage 11 / unified.parquet:** ~90 columns, 1,395,790 rows (all Stage 8 columns preserved + LLM additions). The 2026-04-10 removal of the rule-based boilerplate stage dropped `description_core`, `core_length`, `boilerplate_flag`, and `boilerplate_removed`.
 
 ---
 
@@ -62,10 +61,10 @@ Work from `data/unified.parquet` (Stage 11 output, includes all rule-based + ava
 | Analysis need | Primary column | Ablation / fallback | Notes |
 |---|---|---|---|
 | SWE sample | `is_swe` | `swe_classification_llm` where labeled | `is_swe_adjacent` for broader tech sample. |
-| Seniority | `seniority_llm` | `seniority_native`, `seniority_final`, `seniority_imputed` | Report all 4 for entry-level metrics (ablation framework). |
+| Seniority | `seniority_final` | `seniority_native` (arshkon-only diagnostic), YOE-based proxy | `seniority_final` is the combined high-confidence rule + LLM column. Always validate entry-level findings with the YOE-based proxy. |
 | Seniority (coarse) | `seniority_3level` | — | junior/mid/senior/unknown |
 | Time period | `period` | `date_posted` | Three periods: 2024-01, 2024-04, 2026-03 |
-| Description text | `description_core_llm` | `description_core`, `description` | `description_core` retains boilerplate — sensitivity check only. |
+| Description text | `description_core_llm` | raw `description` (only when LLM cleaned text is unavailable and the analysis is boilerplate-insensitive) | No rule-based cleaned text exists. `description_core` was retired on 2026-04-10. |
 | Company | `company_name_effective` | `company_name` | Resolves aggregators |
 | Company (grouped) | `company_name_canonical` | `company_name_effective` | For grouping across spelling variants |
 | Geography | `metro_area` | `state_normalized` | 26-metro study frame |
@@ -86,7 +85,7 @@ WHERE source_platform = 'linkedin'
 Work from `preprocessing/intermediate/stage9_llm_cleaned.parquet`. Same row count as Stage 8.
 
 New columns available:
-- `description_core_llm`: LLM-cleaned description. Use as primary text for analysis. Falls back to `description_core` when null/empty.
+- `description_core_llm`: LLM-cleaned description. Use as primary text for analysis. When null/empty, raw `description` is the only fallback — and only when the analysis is not boilerplate-sensitive.
 - `selected_for_llm_frame`: Whether this row is in the deterministic Stage 9 selected core frame.
 - `selection_date_bin`: Source-specific balancing date for the selected core frame.
 - `selected_for_control_cohort`: Compatibility-only mirror for legacy consumers; equivalent to `selected_for_llm_frame & is_control`.
@@ -98,11 +97,11 @@ Work from `preprocessing/intermediate/stage10_llm_integrated.parquet` or `data/u
 | Analysis need | Primary column | Fallback / ablation |
 |---|---|---|
 | SWE sample | `swe_classification_llm` (for routed rows) | `is_swe` |
-| Seniority | `seniority_llm` | `seniority_final`, `seniority_native` |
-| Clean text | `description_core_llm` | `description_core`, `description` |
+| Seniority | `seniority_final` | `seniority_native` (arshkon-only), YOE-based proxy |
+| Clean text | `description_core_llm` | raw `description` (boilerplate-insensitive analyses only) |
 | Ghost / inflation | `ghost_assessment_llm` | `ghost_job_risk` |
 
-LLM columns are null for rows not resolved by cached/fresh LLM classification. For `llm_classification_coverage = 'rule_sufficient'`, use the rule-based columns as the analysis values inside the selected core frame.
+LLM columns are null for rows the LLM did not process. **Seniority is the exception:** `seniority_final` is always populated (from a strong rule, from the LLM, or `'unknown'`) and should be used directly without coverage filtering. For `swe_classification_llm` and `ghost_assessment_llm`, filter on `llm_classification_coverage = 'labeled'` and fall back to the corresponding rule-based columns (`is_swe`, `ghost_job_risk`) where the LLM was not called. For `description_core_llm`, filter on `llm_extraction_coverage = 'labeled'`; there is no rule-based cleaned-text fallback — analyses that need cleaned text for unlabeled rows must either restrict the sample or accept raw `description`.
 
 ---
 
@@ -143,17 +142,15 @@ Note: Filtered counts (LinkedIn, English, date_flag=ok) shown for SWE. Total row
 | `description_raw` | VARCHAR | 1 | Original description text, never modified after ingest. Immutable provenance copy. |
 | `description` | VARCHAR | 1 | Working copy: whitespace-normalized, Unicode-cleaned. Used by most downstream stages. |
 | `description_length` | BIGINT | 1 | Character count of `description`. |
-| `description_core` | VARCHAR | 3 | Rule-based boilerplate removal via section header detection. ~44% accuracy. |
-| `core_length` | DOUBLE | 3 | Character count of `description_core`. |
-| `boilerplate_flag` | VARCHAR | 3 | Boilerplate detection result. |
-| `description_core_llm` | VARCHAR | 9 | LLM-based boilerplate removal. Reconstructed from validated extraction output. Empty string for short-description hard skips (< 15 words). Use `description_core` as fallback when null/empty. **Primary text column after Stage 9.** |
+| `description_core_llm` | VARCHAR | 9 | LLM-based boilerplate removal. Reconstructed from validated extraction output. Empty string for short-description hard skips (< 15 words). **The only cleaned-text column in the pipeline.** Filter on `llm_extraction_coverage = 'labeled'` to identify rows where it is populated. |
 
 **Recommended text column priority:**
-1. `description_core_llm` (after Stage 9) — highest quality boilerplate removal
-2. `description_core` (Stage 3+) — rule-based, ~44% accuracy, retains substantial boilerplate
-3. `description` (Stage 1+) — full text including boilerplate
+1. `description_core_llm` (where `llm_extraction_coverage = 'labeled'`) — the only boilerplate-removed text column.
+2. `description` (raw) — full text including boilerplate. Acceptable only for analyses that are insensitive to boilerplate (e.g., binary keyword presence) or when falling back because LLM coverage is absent.
 
-**Usage guidance:** For binary keyword presence (does the posting mention X?), raw `description` is acceptable and may improve recall. For density/frequency metrics (mentions per 1K chars), use the best available cleaned text (`description_core_llm` > `description_core`) to avoid denominator inflation from boilerplate. For embeddings, topic modeling, and corpus comparison, use `description_core_llm` where available.
+The rule-based `description_core` column (and its `core_length` / `boilerplate_flag` siblings) was retired on 2026-04-10 because the regex-based extractor performed at ~44% accuracy and was causing downstream agents to mix rule-based and LLM text.
+
+**Usage guidance:** For binary keyword presence (does the posting mention X?), raw `description` is acceptable and may improve recall. For density/frequency metrics (mentions per 1K chars), embeddings, topic modeling, and corpus comparison, use `description_core_llm` — restrict the sample to rows where it is labeled rather than backfilling with raw text.
 
 ---
 
@@ -178,7 +175,7 @@ Note: Filtered counts (LinkedIn, English, date_flag=ok) shown for SWE. Total row
 
 ### 4. Seniority
 
-There are **10 seniority-related columns** at Stage 8, reflecting multiple classification attempts and resolution strategies.
+There are **4 seniority columns**. The schema was simplified on 2026-04-10 — `seniority_final` is now the single primary column, combining high-confidence rule-based labels with LLM-classified labels into one materialized value. Previous columns `seniority_raw`, `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_final_confidence`, `seniority_cross_check`, and `seniority_llm` were removed; their roles are now either subsumed by `seniority_final` or no longer needed.
 
 #### Seniority enum values
 
@@ -190,65 +187,42 @@ The coarse 3-level mapping (`seniority_3level`): entry → junior, associate →
 
 | Column | Type | Stage | Values | Meaning |
 |---|---|---|---|---|
-| `seniority_raw` | VARCHAR | 1 | Verbatim source strings | Original label before mapping. For auditing. |
-| `seniority_native` | VARCHAR | 1 | 5-level enum or null | Platform-provided label mapped to canonical enum. High quality where available. |
-| `seniority_imputed` | VARCHAR | 5 | 5-level enum | Rule-based classifier from title keywords + description patterns. 80% unknown. |
-| `seniority_source` | VARCHAR | 5 | `unknown`, `title_keyword`, `weak_title_associate`, `title_manager`, `description_explicit`, `weak_title_level` | Signal that drove `seniority_imputed`. |
-| `seniority_confidence` | DOUBLE | 5 | 0.0-1.0 | Confidence of `seniority_imputed`. |
-| `seniority_final` | VARCHAR | 5 | 5-level enum | **Best available rule-based label.** Merges imputed + native backfill. |
-| `seniority_final_source` | VARCHAR | 5 | `title_keyword`, `native_backfill`, `weak_title_associate`, `title_manager`, `description_explicit`, `weak_title_level`, `title_prior`, `unknown` | How `seniority_final` was resolved. |
-| `seniority_final_confidence` | DOUBLE | 5 | 0.0-1.0 | Confidence of `seniority_final`. |
-| `seniority_3level` | VARCHAR | 5 | `junior`, `mid`, `senior`, `unknown` | Coarse 3-level collapse. |
-| `seniority_cross_check` | VARCHAR | 5 | — | Cross-validation diagnostic between imputed and native. |
-| `seniority_llm` | VARCHAR | 10 | 5-level enum | **LLM-classified seniority from explicit signals only.** Primary analysis variable after Stage 10. |
+| `seniority_native` | VARCHAR | 1 | 5-level enum or null | Platform-provided label mapped to canonical enum. **Diagnostic only** — used as a label-independence check and as the arshkon-only baseline for entry-level analyses. Not the primary analysis column. Asaniczka: only `mid-senior`/`associate`; Indeed: null. |
+| `seniority_final` | VARCHAR | 5/10 | 5-level enum | **Primary seniority column.** Stage 5 sets it from high-confidence title keywords; Stage 10 overwrites it with the LLM result for rows the router sent to the LLM. `'unknown'` for rows where neither signal fired. |
+| `seniority_final_source` | VARCHAR | 5/10 | `title_keyword`, `title_manager`, `llm`, `unknown` | How `seniority_final` was resolved. Use this to filter for rule-only or LLM-only subsets when needed. |
+| `seniority_3level` | VARCHAR | 5/10 | `junior`, `mid`, `senior`, `unknown` | Coarse 3-level collapse of `seniority_final`. Convenience column for stratification. |
 
-#### How `seniority_final` is resolved (Stage 5)
+#### How `seniority_final` is resolved
 
-```
-1. Start with seniority_imputed (rule-based from title/description)
-2. If imputed != 'unknown': use it (source = title_keyword, etc.)
-3. If imputed == 'unknown' AND seniority_native is available:
-   backfill from native (source = 'native_backfill')
-4. Apply title_prior heuristic for remaining edge cases
-5. Result: seniority_final with seniority_final_source
-```
+**Stage 5 — rule-based pass.** Stage 5 inspects the title for explicit strong-seniority keywords (junior, senior, lead, principal, staff, director, vp, etc.) and explicit manager indicators. If a strong rule fires, `seniority_final` is set to that level and `seniority_final_source` is set to `title_keyword` or `title_manager`. Otherwise `seniority_final = 'unknown'` and `seniority_final_source = 'unknown'`. Stage 5 deliberately does not consult `seniority_native`, weak title patterns, or description text — those signals were judged unreliable for the primary analysis variable and were removed during the 2026-04-10 simplification.
 
-This reduces the unknown rate from 80.4% (imputed alone) to 71.8%.
+**Stage 10 — LLM pass.** The Stage 10 router sends a row to the LLM when ALL hold:
+- `swe_classification_tier ∈ {regex, embedding_high, title_lookup_llm}` (strong SWE classification)
+- `seniority_final = 'unknown'` (Stage 5 found no strong rule)
+- `ghost_job_risk = 'low'`
 
-#### Coverage by source (SWE rows)
+For routed rows (`llm_classification_coverage = 'labeled'`), the LLM result overwrites `seniority_final` and `seniority_final_source` is set to `'llm'`. For rows the router skipped because Stage 5 already produced a strong-rule label (`llm_classification_coverage = 'rule_sufficient'`), `seniority_final` keeps its Stage 5 value. For rows outside the LLM frame, `seniority_final` stays as Stage 5 wrote it (often `'unknown'`).
 
-| Source | seniority_native coverage | seniority_final != unknown |
-|---|---|---|
-| kaggle_arshkon | 68.9% | 81.6% |
-| kaggle_asaniczka | 100% (only mid-senior/associate) | 100% |
-| scraped | 67.2% | 87.8% |
-
-**Critical gap:** Asaniczka has zero entry-level labels. All entry-level historical baseline comes from arshkon (~89 entry-level SWE postings).
-
-#### Seniority distribution (Stage 8, all rows)
-
-| seniority_final | Count | % |
-|---|---|---|
-| unknown | 873,804 | 71.8% |
-| mid-senior | 260,021 | 21.4% |
-| associate | 51,363 | 4.2% |
-| director | 18,956 | 1.6% |
-| entry | 13,155 | 1.1% |
+**Implication for `seniority_final_source = 'llm'`:** the LLM may return any of the 5 enum values, including `'unknown'` when no explicit signal is present in the description. A row with `seniority_final_source = 'llm'` AND `seniority_final = 'unknown'` means the LLM was called and could not determine seniority — this is correct, expected behavior, not a defect. See "LLM seniority design rationale" below.
 
 #### Recommended seniority usage
 
-**Seniority ablation framework (report all for entry-level metrics):**
-1. `seniority_llm` — **primary variable**, uniform explicit-signal-only classification across all sources. Resolves the asaniczka entry-level gap.
-2. `seniority_native` — platform-provided labels, highest quality where available. Asaniczka has only mid-senior/associate.
-3. `seniority_final` — combined rule + native, best coverage but mixes methods across sources
-4. `seniority_imputed` (where != unknown) — rule-based only, thin coverage, low entry recall
+Use `seniority_final` as the primary seniority column for any seniority-stratified analysis. Do not filter by `llm_classification_coverage` first — `seniority_final` already incorporates both the LLM and rule-based halves.
 
-**Critical:** Asaniczka has zero native entry-level labels. For entry-level metrics, use arshkon as the sole 2024 baseline unless `seniority_llm` provides genuine asaniczka entry labels. Pooling asaniczka with columns that lack entry coverage can flip the direction of the entry-level trend.
-3. `seniority_native` — cross-validation anchor
+For label-independence validation (required for any entry-level finding), use:
+
+1. **YOE-based proxy:** share of postings with `yoe_extracted ≤ 2` by period, plus the YOE distribution by period. This is the strongest fully label-independent check, since it does not depend on any seniority labeler.
+2. **`seniority_native` (arshkon-only):** the platform's own label, available as a sanity check for entry-level baselines on arshkon. **Do not pool asaniczka into a `seniority_native`-based comparison** — asaniczka has zero native entry-level labels and would dilute the entry rate to near-zero.
+
+If `seniority_final` and the YOE-based proxy disagree on the direction of an entry-level trend, do not pick a side without investigating. Possible explanations include: real market change, differential native-label quality across snapshots, shifts in employer labeling explicitness, compositional change in the unknown pool, or instrument noise. Report disagreement honestly — material disagreement is itself a finding, not a problem to hide.
+
+#### Asaniczka caveat
+
+Asaniczka has zero native entry-level labels — its `seniority_native` distribution contains only `mid-senior` and `associate`. Under the new schema, asaniczka rows can still receive entry-level labels in `seniority_final` via the LLM (for rows that route to Stage 10). However, `seniority_native` cannot detect entry-level postings in asaniczka by construction. For any sanity check that uses `seniority_native`, use arshkon only.
 
 #### LLM seniority design rationale
 
-The LLM classifier looks for **explicit seniority signals only** — title keywords, level codes, and role-label language. It does NOT infer seniority from responsibilities, tech stack complexity, team size, or YOE requirements. This is by design: the research analyzes how requirements differ by seniority level, so labels must not be derived from the signals being analyzed.
+The LLM classifier looks for **explicit seniority signals only** — title keywords, level codes, and role-label language. It does NOT infer seniority from responsibilities, tech stack complexity, team size, or YOE requirements. This is by design: the research analyzes how requirements differ by seniority level, so labels must not be derived from the signals being analyzed. A consequence is that the LLM classifies many routed rows as `'unknown'` when explicit signals are absent — this is correct behavior, not a defect.
 
 ---
 
@@ -336,11 +310,10 @@ The rule-based YOE extractor uses clause-aware section segmentation with multipl
 | `is_english` | BOOL | 8 | true/false | Language detection via langdetect. |
 | `description_hash` | VARCHAR | 8 | SHA-256 hex | Hash of raw `description`. Provenance/lineage field. LLM caching uses task-specific `input_hash` instead. |
 | `ghost_job_risk` | VARCHAR | 8 | `low`, `medium`, `high` | Rule-based ghost-job heuristic. Only entry-level rows can score above `low`. Medium: YOE >= 3 or contradiction. High: YOE >= 5. Very conservative (519 non-low out of 1.22M). |
-| `description_quality_flag` | VARCHAR | 8 | `ok`, `too_short`, `empty` | Based on `description_core`. Empty if null/blank, too_short if < 50 chars. |
+| `description_quality_flag` | VARCHAR | 8 | `ok`, `too_short`, `empty` | Based on the raw `description`. Empty if null/blank, too_short if < 50 chars. |
 | `preprocessing_version` | VARCHAR | 8 | Version string | Pipeline version marker. |
 | `dedup_method` | VARCHAR | 8 | — | How this row survived dedup. |
-| `boilerplate_removed` | BOOL | 8 | true/false | Whether boilerplate removal was applied. |
-| `is_multi_location` | BOOL | 4 | true/false | True if this posting shares a canonical opening across multiple locations. |
+| `is_multi_location` | BOOL | 4 | true/false | True on the surviving representative of a collapsed multi-location group (rows sharing `company_name_canonical + title + description_hash` across 2+ distinct locations). Stage 4 keeps the lowest-`uid` row as the representative and drops the others. The representative's `location` is overwritten to `"multi-location"` and `search_metro_name`/`search_metro_id`/`search_metro_region`/`search_location` are cleared to null so Stage 6 cannot re-attribute the row to a single metro. Representatives end up with `metro_area = NULL` after Stage 6 and are naturally excluded from per-metro rollups — this is correct behavior because the posting does not belong to any single metro. |
 | `work_type` | VARCHAR | 1 | — | Job type field from source. |
 | `job_url` | VARCHAR | 1 | — | Posting URL where available. |
 | `skills_raw` | VARCHAR | 1 | — | Skills field from source. |
@@ -351,14 +324,13 @@ The rule-based YOE extractor uses clause-aware section segmentation with multipl
 
 ### 10. LLM Columns (Stages 9-10)
 
-These columns are null for rows not routed to LLM processing. Rule-based columns serve as fallback.
+These columns are null for rows not routed to LLM processing. Rule-based columns serve as fallback. **Seniority is the exception:** LLM seniority writes back to `seniority_final` (see Section 4) — there is no separate `seniority_llm` column.
 
-#### Primary LLM analysis columns
+#### LLM analysis columns
 
 | Column | Type | Stage | Values | Meaning |
 |---|---|---|---|---|
 | `swe_classification_llm` | VARCHAR | 10 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM occupation classification. Null for rows where rule-based confidence was high. |
-| `seniority_llm` | VARCHAR | 10 | 5-level enum | LLM seniority from explicit signals only. **Primary seniority variable post-LLM.** |
 | `ghost_assessment_llm` | VARCHAR | 10 | `realistic`, `inflated`, `ghost_likely` | LLM ghost-job assessment. |
 | `yoe_min_years_llm` | INT64 | 10 | Numeric or null | LLM-extracted YOE floor. Cross-check only. |
 | `description_core_llm` | VARCHAR | 9 | Text | LLM-cleaned description. Empty string for short-description skips. |
@@ -400,10 +372,10 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 
 **Classification (Stage 10):** Skips LLM classification when all hold:
 - `swe_classification_tier` in {`regex`, `embedding_high`, `title_lookup_llm`}
-- `seniority_source` starts with `title_`
+- `seniority_final != 'unknown'` (Stage 5 already set a strong rule-based seniority)
 - `ghost_job_risk == "low"`
 
-For skipped rows, LLM columns remain null and rule-based columns serve as the analysis values. Rows outside the inherited Stage 9 core frame are `not_selected`. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
+For skipped rows (`llm_classification_coverage = 'rule_sufficient'`), `seniority_final` keeps its Stage 5 value, and the other LLM columns (`swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`) remain null with rule-based columns serving as the analysis values. For routed rows, the LLM seniority result overwrites `seniority_final` and `seniority_final_source = 'llm'` (see Section 4). Rows outside the inherited Stage 9 core frame are `not_selected`. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
 
 #### Budget-Constrained LLM Processing
 
@@ -456,11 +428,11 @@ Not all columns are populated across all sources. Key gaps:
 
 ## Important Caveats
 
-1. **Seniority is the weakest Stage 8 link.** 71.8% unknown rate means seniority-stratified analyses use < 29% of rows. This improves with `seniority_llm`.
+1. **Seniority requires label-independent validation.** Use `seniority_final` as the primary seniority column — Stage 5 fills it from high-confidence title keywords and Stage 10 overwrites it with the LLM result for routed rows. The Stage 8 unknown rate is high because Stage 5 only fires on strong title keywords; the LLM closes most of the gap within the selected core frame. Always cross-check seniority-stratified findings against the label-independent YOE-based proxy. Differential native-label quality across data snapshots is a known risk; if any seniority-stratified finding disagrees with the YOE-based proxy on the direction of an entry-level trend, report the disagreement.
 
-2. **Entry-level historical baseline is thin.** Only arshkon has entry-level labels, yielding ~89 entry-level SWE postings. This is the binding constraint for RQ1 junior-share analysis.
+2. **Entry-level baselines are limited and source-dependent.** arshkon is the only 2024 source with native entry labels in `seniority_native`. Asaniczka has none. Use arshkon as the 2024 baseline for any sanity check that uses `seniority_native`. `seniority_final` and the YOE-based proxy can include asaniczka, since they do not depend on native labels — but asaniczka entry counts in `seniority_final` come entirely from the LLM (where it routed asaniczka rows) and may be small.
 
-3. **Boilerplate removal is noisy.** `description_core` has ~44% accuracy. For keyword/pattern analyses, raw `description` may be preferable. `description_core_llm` is the intended upgrade.
+3. **Boilerplate removal is LLM-only.** `description_core_llm` is the sole cleaned-text column; there is no rule-based equivalent (the former `description_core` was retired on 2026-04-10). For text-sensitive analysis, filter to `llm_extraction_coverage = 'labeled'`. For binary keyword presence where boilerplate is irrelevant, raw `description` is acceptable.
 
 4. **unified.parquet contains all columns.** As of the current pipeline run, `data/unified.parquet` includes all Stage 8 columns plus LLM additions. There is no need to work from intermediate stage files.
 

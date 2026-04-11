@@ -14,13 +14,18 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 @pytest.mark.unit
+def test_runner_rejects_retired_stage_3_resume(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["run_pipeline.py", "--from-stage", "3"])
+    assert run_pipeline.main() == 1
+
+
+@pytest.mark.unit
 def test_runner_declares_expected_stage_contracts():
     stage_numbers = [stage["num"] for stage in run_pipeline.STAGES]
-    assert stage_numbers == [1, 2, 3, 4, 5, "6-8", 9, 10, "final"]
+    assert stage_numbers == [1, 2, 4, 5, "6-8", 9, 10, "final"]
 
     expected_checks = {
         2: "company_name_effective",
-        3: "description_core",
         4: "company_name_canonical",
         5: "seniority_final",
         "6-8": "period",
@@ -51,14 +56,12 @@ def test_final_helpers_join_observations_and_report_counts(tmp_path, monkeypatch
                 "title": row["title"],
                 "company_name": row["company_name"],
                 "description": row["description"],
-                "description_core": row["description_core_llm"],
                 "description_core_llm": row["description_core_llm"],
-                "description_core_full": row["description_core_llm"],
                 "is_swe": idx == 1,
                 "is_control": False,
                 "is_swe_adjacent": idx == 2,
-                "seniority_imputed": "entry" if idx == 1 else "unknown",
-                "seniority_llm": row["seniority_llm"],
+                "seniority_final": row["seniority_final"],
+                "seniority_final_source": row["seniority_final_source"],
                 "is_aggregator": False,
                 "date_flag": "ok",
                 "is_english": True,

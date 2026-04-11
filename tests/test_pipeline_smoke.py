@@ -75,7 +75,6 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
                 "title": "Software Engineer",
                 "company_name": "Acme",
                 "description": "Build APIs and maintain services.",
-                "description_core": "Build APIs and maintain services.",
                 "description_core_llm": "Build APIs and maintain services.",
                 "selected_for_control_cohort": False,
                 "llm_text_skip_reason": None,
@@ -137,7 +136,6 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
                 ),
                 "classification_tokens_used": 42.0,
                 "swe_classification_llm": "SWE",
-                "seniority_llm": "entry",
                 "ghost_assessment_llm": "realistic",
                 "yoe_min_years_llm": 1,
             }
@@ -148,12 +146,11 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
     unified_rows = pd.read_parquet(FIXTURES / "sampled/stage11/integration_sample.parquet").head(1)
     unified_rows = unified_rows.assign(
         uid=["uid-1"],
-        description_core=unified_rows["description_core_llm"],
-        description_core_full=unified_rows["description_core_llm"],
         is_swe=True,
         is_control=False,
         is_swe_adjacent=False,
-        seniority_imputed="entry",
+        seniority_final="entry",
+        seniority_final_source="llm",
         is_aggregator=False,
         date_flag="ok",
         is_english=True,

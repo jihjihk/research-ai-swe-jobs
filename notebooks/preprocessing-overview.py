@@ -352,72 +352,55 @@ gc.collect()
 # ---
 # ## 5. Seniority distribution
 #
-# The pipeline creates `seniority_final` by preferring the native LinkedIn label
-# (where available) and falling back to title/description imputation. This reduced
-# the SWE unknown rate from 55.1% to 7.3%.
+# `seniority_final` is the combined Stage 5 (strong rules) + Stage 10 (LLM) column.
+# `seniority_final_source` records which path produced each value.
 
 # %%
 # Read seniority columns for SWE postings
 sen_df = read_columns(
     PARQUET,
-    columns=["source", "is_swe", "seniority_native", "seniority_imputed",
-             "seniority_final", "seniority_source"],
+    columns=["source", "is_swe", "seniority_native", "seniority_final", "seniority_final_source"],
     filter_col="is_swe",
     filter_val=True,
 )
 
-# --- 5a. Before/after comparison: imputed-only vs seniority_final ---
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
+# --- 5a. seniority_final composition by source path ---
+fig, ax = plt.subplots(figsize=(10, 5))
 
-seniority_order = ["entry level", "internship", "associate", "mid-senior level", "director", "executive", "unknown"]
-seniority_labels = ["Entry level", "Internship", "Associate", "Mid-senior", "Director", "Executive", "Unknown"]
+seniority_order = ["entry", "associate", "mid-senior", "director", "unknown"]
+source_order = ["title_keyword", "title_manager", "llm", "unknown"]
 
-# Before: seniority_imputed only
-imputed_counts = sen_df["seniority_imputed"].value_counts()
-imputed_vals = [imputed_counts.get(s, 0) for s in seniority_order]
+source_label = {
+    "title_keyword": "Strong title rule",
+    "title_manager": "Title-manager rule",
+    "llm": "Stage 10 LLM",
+    "unknown": "No signal",
+}
 
-# After: seniority_final (native preferred, imputed fallback)
-final_counts = sen_df["seniority_final"].value_counts()
-final_vals = [final_counts.get(s, 0) for s in seniority_order]
+cross = pd.crosstab(sen_df["seniority_final_source"], sen_df["seniority_final"])
+plot_cols = [c for c in seniority_order if c in cross.columns]
+cross = cross.reindex(index=[s for s in source_order if s in cross.index], columns=plot_cols, fill_value=0)
+cross.index = [source_label.get(s, s) for s in cross.index]
 
-y = np.arange(len(seniority_order))
-height = 0.35
+cross.plot(kind="bar", stacked=True, ax=ax,
+           color=sns.color_palette("Set2", len(plot_cols)),
+           edgecolor="white", width=0.7)
+ax.set_xticklabels(cross.index, rotation=0, fontsize=9)
+ax.set_ylabel("SWE postings")
+ax.set_title("SWE seniority_final by resolution path")
+ax.legend(title="Seniority", fontsize=8, title_fontsize=9, bbox_to_anchor=(1.02, 1), loc="upper left")
+ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda y, _: f"{y/1e3:.0f}K" if y >= 1000 else str(int(y))))
 
-ax1.barh(y, imputed_vals, height, color="#DD8452", edgecolor="white")
-for i, v in enumerate(imputed_vals):
-    pct = v / len(sen_df) * 100
-    ax1.text(v + len(sen_df) * 0.01, i, f"{v:,} ({pct:.1f}%)", va="center", fontsize=8)
-ax1.set_yticks(y)
-ax1.set_yticklabels(seniority_labels, fontsize=9)
-ax1.set_title("Imputed seniority only (SWE)")
-ax1.set_xlabel("Postings")
-
-ax2.barh(y, final_vals, height, color="#4C72B0", edgecolor="white")
-for i, v in enumerate(final_vals):
-    pct = v / len(sen_df) * 100
-    ax2.text(v + len(sen_df) * 0.01, i, f"{v:,} ({pct:.1f}%)", va="center", fontsize=8)
-ax2.set_title("Final seniority (native + imputed fallback)")
-ax2.set_xlabel("Postings")
-
-max_x = max(max(imputed_vals), max(final_vals)) * 1.3
-ax1.set_xlim(0, max_x)
-ax2.set_xlim(0, max_x)
-ax1.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x/1e3:.0f}K"))
-ax2.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x/1e3:.0f}K"))
-
-fig.suptitle("SWE seniority: imputed-only vs final (unknown rate: 55.1% -> 7.3%)",
-             fontsize=12, fontweight="bold", y=1.02)
 plt.tight_layout()
-fig.savefig(FIG_DIR / "fig04_seniority_before_after.png")
+fig.savefig(FIG_DIR / "fig04_seniority_by_source_path.png")
 plt.show()
-print("Saved: preprocessing/fig04_seniority_before_after.png")
+print("Saved: preprocessing/fig04_seniority_by_source_path.png")
 
 # %%
-# --- 5b. Seniority by source ---
+# --- 5b. Seniority by source dataset ---
 fig, ax = plt.subplots(figsize=(12, 5))
 
 cross = pd.crosstab(sen_df["source"], sen_df["seniority_final"])
-# Reorder columns
 plot_cols = [c for c in seniority_order if c in cross.columns]
 cross = cross[plot_cols]
 cross = cross.loc[[s for s in SOURCE_ORDER if s in cross.index]]

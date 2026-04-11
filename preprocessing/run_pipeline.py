@@ -7,7 +7,7 @@ and produces the final data/unified.parquet.
 
 Usage:
     python preprocessing/run_pipeline.py                  # Full run
-    python preprocessing/run_pipeline.py --from-stage 3   # Resume from stage 3
+    python preprocessing/run_pipeline.py --from-stage 4   # Resume from stage 4
 
 Each stage reads the previous stage's output and writes its own.
 All stages use chunked pyarrow I/O (200K rows/batch) to stay under 31GB RAM.
@@ -75,20 +75,6 @@ STAGES = [
                 "kind": "parquet",
                 "min_rows": 1_200_000,
                 "check_col": "company_name_effective",
-            }
-        ],
-        "timeout_seconds": 2 * 3600,
-    },
-    {
-        "num": 3,
-        "name": "Boilerplate Removal",
-        "script": "stage3_boilerplate.py",
-        "outputs": [
-            {
-                "path": INTERMEDIATE_DIR / "stage3_boilerplate.parquet",
-                "kind": "parquet",
-                "min_rows": 1_200_000,
-                "check_col": "description_core",
             }
         ],
         "timeout_seconds": 2 * 3600,
@@ -318,6 +304,14 @@ def main():
     enabled_engines = parse_engine_list(args.engines)
     if args.remote and "openai" in enabled_engines:
         log.error("--remote is not supported when using the openai engine")
+        return 1
+
+    valid_stage_nums = {str(stage["num"]) for stage in STAGES}
+    if args.from_stage not in valid_stage_nums:
+        log.error(
+            f"--from-stage={args.from_stage!r} is not a valid stage. "
+            f"Valid values: {sorted(valid_stage_nums)}"
+        )
         return 1
 
     log.info("=" * 60)

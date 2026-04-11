@@ -88,7 +88,6 @@ OUTPUT_COLUMNS = [
     "description",
     "description_raw",
     "description_length",
-    "seniority_raw",
     "seniority_native",
     "company_industry",
     "company_size",
@@ -203,7 +202,6 @@ def finalize_frame(df: pd.DataFrame) -> pd.DataFrame:
     out["company_industry"] = out["company_industry"].apply(normalize_text)
     out["company_size_raw"] = out["company_size_raw"].apply(normalize_text)
     out["company_size_category"] = out["company_size_category"].apply(normalize_text)
-    out["seniority_raw"] = out["seniority_raw"].apply(preserve_raw_text)
     out["seniority_native"] = out["seniority_native"].apply(normalize_text)
     out["source_platform"] = out["source_platform"].astype("string")
     out["site"] = out["site"].astype("string")
@@ -286,7 +284,6 @@ def load_kaggle_arshkon(summary: dict) -> pd.DataFrame:
             "scrape_date": pd.Series([pd.NaT] * len(df)),
             "description": df["description"],
             "description_raw": df["description"],
-            "seniority_raw": df["formatted_experience_level"],
             "seniority_native": df["formatted_experience_level"].apply(map_seniority),
             "company_industry": df["industry_name"],
             "company_size": df["employee_count"],
@@ -306,10 +303,11 @@ def load_kaggle_arshkon(summary: dict) -> pd.DataFrame:
             "company_id_kaggle": df["company_id"],
         }
     )
+    raw_seniority = df["formatted_experience_level"]
     out = finalize_frame(out)
     summary["arshkon_description_missing_rate"] = round(out["description"].isna().mean(), 4)
     summary["arshkon_seniority_unmapped_rate"] = round(
-        (out["seniority_raw"].notna() & out["seniority_native"].isna()).mean(), 4
+        (raw_seniority.notna() & out["seniority_native"].isna()).mean(), 4
     )
     log.info(
         "  arshkon rows loaded: %s, median description length: %s",
@@ -403,7 +401,6 @@ def load_kaggle_asaniczka(summary: dict) -> pd.DataFrame:
             "scrape_date": pd.Series([pd.NaT] * len(postings)),
             "description": postings["job_summary"],
             "description_raw": postings["job_summary"],
-            "seniority_raw": postings["job_level"],
             "seniority_native": postings["job_level"].apply(map_seniority),
             "company_industry": pd.NA,
             "company_size": np.nan,
@@ -423,10 +420,11 @@ def load_kaggle_asaniczka(summary: dict) -> pd.DataFrame:
             "company_id_kaggle": pd.NA,
         }
     )
+    raw_seniority = postings["job_level"]
     out = finalize_frame(out)
     summary["asaniczka_description_missing_rate"] = round(out["description"].isna().mean(), 4)
     summary["asaniczka_seniority_unmapped_rate"] = round(
-        (out["seniority_raw"].notna() & out["seniority_native"].isna()).mean(), 4
+        (raw_seniority.notna() & out["seniority_native"].isna()).mean(), 4
     )
     log.info(
         "  asaniczka US rows loaded: %s, description join rate: %.1f%%",
@@ -512,7 +510,6 @@ def load_scraped(summary: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
             "scrape_date": pd.to_datetime(raw["scrape_date"], errors="coerce"),
             "description": raw["description"],
             "description_raw": raw["description"],
-            "seniority_raw": raw["job_level"],
             "seniority_native": raw["job_level"].apply(map_seniority),
             "company_industry": raw["company_industry"],
             "company_size": raw["company_num_employees"].apply(parse_company_size),
@@ -532,10 +529,11 @@ def load_scraped(summary: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
             "company_id_kaggle": pd.NA,
         }
     )
+    raw_seniority = raw["job_level"]
     observations = finalize_frame(out)
     summary["scraped_description_missing_rate"] = round(observations["description"].isna().mean(), 4)
     summary["scraped_seniority_unmapped_rate"] = round(
-        (observations["seniority_raw"].notna() & observations["seniority_native"].isna()).mean(), 4
+        (raw_seniority.notna() & observations["seniority_native"].isna()).mean(), 4
     )
     summary["scraped_unique_ids"] = int(observations["uid"].nunique())
 
@@ -560,7 +558,6 @@ NULL_RATE_COLUMNS = [
     "company_name",
     "location",
     "date_posted",
-    "seniority_raw",
     "seniority_native",
     "company_industry",
     "company_size",

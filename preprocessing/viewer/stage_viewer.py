@@ -19,7 +19,6 @@ MAX_FILTERS = 4
 TEXT_DETAIL_COLUMNS = [
     "description_raw",
     "description",
-    "description_core",
     "description_core_llm",
 ]
 DEFAULT_VISIBLE_COLUMNS = [
@@ -32,7 +31,7 @@ DEFAULT_VISIBLE_COLUMNS = [
     "location",
     "metro_area",
     "seniority_final",
-    "seniority_llm",
+    "seniority_final_source",
     "is_swe",
     "swe_classification_llm",
 ]
@@ -43,7 +42,6 @@ DEFAULT_SEARCH_COLUMNS = [
     "company_name",
     "location",
     "description",
-    "description_core",
     "description_core_llm",
 ]
 

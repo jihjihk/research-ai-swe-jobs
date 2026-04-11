@@ -203,6 +203,13 @@ CLASSIFICATION_KEYS = {"swe_classification", "seniority", "ghost_assessment", "y
 EXTRACTION_KEYS = {"task_status", "boilerplate_unit_ids", "uncertain_unit_ids", "reason"}
 SWE_ENUM = {"SWE", "SWE_ADJACENT", "NOT_SWE"}
 SENIORITY_ENUM = {"entry", "associate", "mid-senior", "director", "unknown"}
+SENIORITY_3LEVEL = {
+    "entry": "junior",
+    "associate": "mid",
+    "mid-senior": "senior",
+    "director": "senior",
+    "unknown": "unknown",
+}
 GHOST_ENUM = {"realistic", "inflated", "ghost_likely"}
 SUPPORTED_PROVIDERS = ("codex", "claude", "openai")
 ENGINE_TIER_FULL = "full"
@@ -747,8 +754,8 @@ def compute_extraction_input_hash(title, company_name, raw_description) -> str:
     return compute_input_hash(title, company_name, raw_description)
 
 
-def derive_classification_input(description_core_llm, description_core, description) -> str:
-    for candidate in (description_core_llm, description_core, description):
+def derive_classification_input(description_core_llm, description) -> str:
+    for candidate in (description_core_llm, description):
         if candidate is None or pd.isna(candidate):
             continue
         text = str(candidate).strip()

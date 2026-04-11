@@ -40,6 +40,7 @@ from llm_shared import (
     DEFAULT_OPENAI_MODEL,
     DEFAULT_QUOTA_WAIT_HOURS,
     LLMEngineRuntime,
+    SENIORITY_3LEVEL,
     SUPPORTED_PROVIDERS,
     build_engine_configs,
     build_progress_checkpoints,
@@ -109,9 +110,17 @@ def configure_logging() -> logging.Logger:
 
 
 def classification_skip_mask(df: pd.DataFrame) -> pd.Series:
-    title_seniority = df["seniority_source"].fillna("").astype(str).str.startswith("title_")
+    """Rows where Stage 5 already produced a high-confidence answer.
+
+    Skips the LLM when ALL of:
+      - SWE classification tier is one of the strong tiers
+      - seniority_final was set by a strong rule (i.e. != 'unknown')
+      - ghost_job_risk is 'low'
+    """
     strong_occupation_signal = df["swe_classification_tier"].fillna("").isin(CLASSIFICATION_STRONG_TIERS)
-    return strong_occupation_signal & title_seniority & df["ghost_job_risk"].fillna("").eq("low")
+    has_strong_seniority = df["seniority_final"].fillna("unknown").astype(str).ne("unknown")
+    low_ghost_risk = df["ghost_job_risk"].fillna("").eq("low")
+    return strong_occupation_signal & has_strong_seniority & low_ghost_risk
 
 
 def prepare_classification_rows(df: pd.DataFrame) -> pd.DataFrame:
@@ -130,10 +139,9 @@ def prepare_classification_rows(df: pd.DataFrame) -> pd.DataFrame:
     classification_eligible = is_linkedin & is_english & ~short_skip & ~skip_mask
 
     classification_input = [
-        derive_classification_input(core_llm, core_rules, desc)
-        for core_llm, core_rules, desc in zip(
+        derive_classification_input(core_llm, desc)
+        for core_llm, desc in zip(
             out.get("description_core_llm", pd.Series(index=out.index, dtype="object")),
-            out.get("description_core", pd.Series(index=out.index, dtype="object")),
             out.get("description", pd.Series(index=out.index, dtype="object")),
         )
     ]
@@ -266,7 +274,6 @@ def build_results_row(row_meta: dict, classification_input_hash: str, classifica
             else float(classification_cached["tokens_used"])
         ),
         "swe_classification_llm": payload.get("swe_classification"),
-        "seniority_llm": payload.get("seniority"),
         "ghost_assessment_llm": payload.get("ghost_assessment"),
         "yoe_min_years_llm": payload.get("yoe_min_years"),
     }
@@ -285,8 +292,9 @@ def integrate_chunk(
     )
     supplemental_cached_mask = ~in_scope & has_cached_result
     out.loc[supplemental_cached_mask, "llm_classification_sample_tier"] = "supplemental_cache"
+
     swe_values = []
-    seniority_values = []
+    llm_seniority_values = []
     ghost_values = []
     yoe_values = []
     model_values = []
@@ -297,14 +305,13 @@ def integrate_chunk(
         cached = classification_cache.get(str(input_hash)) if input_hash is not None else None
         payload = json.loads(cached["response_json"]) if cached is not None else {}
         swe_values.append(payload.get("swe_classification"))
-        seniority_values.append(payload.get("seniority"))
+        llm_seniority_values.append(payload.get("seniority"))
         ghost_values.append(payload.get("ghost_assessment"))
         yoe_values.append(payload.get("yoe_min_years"))
         model_values.append(None if cached is None else cached["model"])
         prompt_values.append(None if cached is None else cached["prompt_version"])
 
     out["swe_classification_llm"] = swe_values
-    out["seniority_llm"] = seniority_values
     out["ghost_assessment_llm"] = ghost_values
     out["yoe_min_years_llm"] = pd.Series(yoe_values, dtype="Int64")
     out["llm_model_classification"] = model_values
@@ -331,6 +338,18 @@ def integrate_chunk(
         resolution.loc[fresh_mask] = "fresh_llm"
         resolution.loc[cached_mask] = "cached_llm"
     out["llm_classification_resolution"] = resolution
+
+    # Overwrite seniority_final with the LLM result for labeled rows. Stage 5
+    # left these rows as 'unknown'; the LLM supplies the value here. For
+    # rule_sufficient and other coverage values, seniority_final keeps whatever
+    # Stage 5 wrote (a strong-rule label or 'unknown').
+    llm_seniority_series = pd.Series(llm_seniority_values, index=out.index, dtype="object")
+    labeled_mask = coverage.eq("labeled") & llm_seniority_series.notna()
+    out.loc[labeled_mask, "seniority_final"] = llm_seniority_series[labeled_mask]
+    out.loc[labeled_mask, "seniority_final_source"] = "llm"
+    # Recompute seniority_3level since seniority_final may have changed.
+    out["seniority_3level"] = out["seniority_final"].map(SENIORITY_3LEVEL).fillna("unknown")
+
     return out.drop(columns=["classification_input"], errors="ignore")
 
 

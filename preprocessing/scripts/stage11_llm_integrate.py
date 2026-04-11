@@ -39,16 +39,6 @@ def configure_logging() -> logging.Logger:
     return logging.getLogger(__name__)
 
 
-def yoe_contradiction(yoe_extracted: float | None, seniority_llm, seniority_imputed) -> bool:
-    if yoe_extracted is None or yoe_extracted < 5:
-        return False
-    if seniority_llm == "entry":
-        return True
-    if seniority_llm is None and seniority_imputed == "entry":
-        return True
-    return False
-
-
 def run_stage11(input_path: Path = DEFAULT_INPUT_PATH, output_path: Path = DEFAULT_OUTPUT_PATH) -> None:
     log = configure_logging()
     t0 = time.time()

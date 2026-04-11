@@ -24,37 +24,37 @@ Read `docs/preprocessing-schema.md` for column definitions and recommended usage
 
 **Critical facts:**
 - Three sources: kaggle_arshkon (April 2024), kaggle_asaniczka (Jan 2024), scraped (March 2026). The scraper runs daily, so row counts grow. Query the data to get current counts — do not rely on documented numbers.
-- Asaniczka has ZERO native entry-level seniority labels. Its `seniority_final` entry rate (~0.6%) is an imputation artifact.
+- Asaniczka has ZERO native entry-level seniority labels. `seniority_native` cannot detect entry-level postings in asaniczka by construction — use arshkon-only for any sanity check that depends on `seniority_native`.
 - Remote work flags are 0% in 2024 sources (data artifact). Do not interpret as a real change.
-- LLM classification columns: `seniority_llm` (uniform explicit-signal-only seniority), `ghost_assessment_llm` (richer ghost detection than rule-based), `swe_classification_llm`, `yoe_min_years_llm`. Check `llm_classification_coverage` for coverage. Use `seniority_llm` as the primary seniority variable with `seniority_native`/`seniority_final`/`seniority_imputed` as ablation variants. Use `ghost_assessment_llm` as primary ghost indicator with `ghost_job_risk` as fallback.
+- LLM classification columns: `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`. Check `llm_classification_coverage` for coverage. Use `ghost_assessment_llm` as the primary ghost indicator with `ghost_job_risk` as fallback. (LLM seniority writes back to `seniority_final`; there is no separate `seniority_llm` column.)
+- **Seniority — use `seniority_final`.** It is the combined column. Stage 5 fills it from high-confidence title keywords (`title_keyword`, `title_manager`); Stage 10 overwrites it with the LLM result for rows the router sent to the LLM. `seniority_final_source` records which path produced each value (`title_keyword`, `title_manager`, `llm`, or `unknown`). `seniority_final` is `'unknown'` only when no signal fired. See `docs/preprocessing-schema.md` Section 4 for the full schema.
 - `selected_for_llm_frame` marks the sticky balanced core only. `selection_target` is the minimum core size, not the full usable LLM set.
 - Stage 9 and Stage 10 use separate caches, so row coverage can differ between them. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
 - `llm_extraction_sample_tier` and `llm_classification_sample_tier` take `core`, `supplemental_cache`, or `none`. Balanced-sample claims apply only to `selected_for_llm_frame = true`.
-- For raw LLM columns, filter to `llm_*_coverage == 'labeled'`. For best-available Stage 10 analysis, `rule_sufficient` rows may also be treated as usable if you explicitly report that choice and keep it separate from `labeled`.
+- For raw Stage 9/Stage 10 LLM columns (text-based: `description_core_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`), filter to `llm_*_coverage == 'labeled'`. **Seniority is the exception:** `seniority_final` is the combined column and should be used directly without coverage filtering.
 - 31GB RAM limit — use DuckDB or pyarrow for queries, never load full parquet into pandas.
 
-**Entry-level metric rule (CRITICAL — the direction of the entry-share trend depends on this):**
-For ANY analysis involving entry-level share, counts, or entry-level-specific comparisons: pooling asaniczka into "2024" with columns that lack entry-level labels (like `seniority_final` or `seniority_3level`) makes the 2024 entry rate artificially near-zero and CAN FLIP the direction of the entry-share trend. You MUST:
-1. Report arshkon-only as the primary 2024 baseline for entry-level metrics.
-2. If you pool asaniczka, report the arshkon-only result alongside and flag any directional discrepancy.
-3. If `seniority_llm` is available, it resolves this problem by applying consistent labels across all sources — use it.
+**Seniority validation discipline (CRITICAL — the direction of any entry-level finding depends on this):**
 
-**Seniority ablation framework:** When reporting entry-level trends, present results under multiple seniority operationalizations:
-- `seniority_llm` — uniform LLM method, **primary**. Applies the same explicit-signal-only classification across all sources including asaniczka.
-- `seniority_native` — platform-provided labels, high quality where available, but excludes asaniczka entry
-- `seniority_final` — combined rule + native, best coverage but mixes methods across sources
-- `seniority_imputed` (where != unknown) — rule-based only, uniform method but thin coverage and low entry recall
-Agreement across operationalizations strengthens findings; disagreement is a critical flag.
+`seniority_final` is the production seniority column. For any seniority-stratified finding — especially entry-level shares, counts, or trends — validate it against the following label-independent and arshkon-only checks:
+
+1. **YOE-based proxy (label-independent, primary validator).** Compute the share of postings with `yoe_extracted <= 2` (and `<= 3`) by period. This proxy does not depend on any seniority classifier. If `seniority_final` and the YOE-based proxy disagree on direction or magnitude, do NOT pick a side without investigating WHY. Differential native-label quality across data snapshots is one possible explanation; real market change is another; shifts in employer labeling explicitness are a third. Report the disagreement honestly and investigate the mechanism.
+
+2. **`seniority_native` arshkon-only baseline (diagnostic).** For any sanity check that uses `seniority_native`, restrict to arshkon. Asaniczka has zero native entry-level labels, so pooling it under `seniority_native` would dilute the 2024 entry rate to near-zero and can flip trend direction. `seniority_final` and the YOE-based proxy CAN include asaniczka because they do not depend on native labels (asaniczka entry signal in `seniority_final` comes via the Stage 10 LLM).
+
+3. **Profile native-label quality before trusting it.** For `seniority_native = 'entry'` rows in each source, compute the YOE distribution. If entry-labeled rows have systematically different YOE across snapshots, the native classifier has differential accuracy across snapshots and any cross-period comparison using `seniority_native` inherits that bias. This diagnostic is most valuable for arshkon (the only 2024 source with native entry labels).
+
+**Reporting:** When you report a seniority-stratified result, present `seniority_final` as the primary, then list the YOE-based proxy and (where applicable) the arshkon-only `seniority_native` baseline as label-independence checks. Agreement across the three strengthens the finding; disagreement is itself an important finding to investigate.
 
 **Description text quality — critical for text-based analyses:**
-`description_core_llm` (LLM-based boilerplate removal) is the primary text column. `description_core` (rule-based, ~44% accuracy) retains substantial boilerplate garbage and should only be used as a sensitivity check. Check `llm_extraction_coverage` to confirm coverage by source — it should be available for all sources after LLM budget allocation.
+`description_core_llm` (LLM-based boilerplate removal) is the **only** cleaned-text column. The former rule-based `description_core` was retired on 2026-04-10 because ~44% accuracy was misleading downstream analysis. Check `llm_extraction_coverage` to confirm coverage by source; filter to `labeled` whenever you use `description_core_llm`.
 
 Text column rules:
-- **Text-dependent analysis** (embeddings, topic models, requirement extraction, corpus comparison, density metrics): Use `description_core_llm`. Do NOT use `description_core` as primary for any boilerplate-sensitive analysis. Report `text_source` distribution.
-- **Binary keyword presence** (does the posting mention X anywhere?): Raw `description` is acceptable for recall. But density metrics (mentions per 1K chars) must use cleaned text.
+- **Text-dependent analysis** (embeddings, topic models, requirement extraction, corpus comparison, density metrics): Use `description_core_llm` with `llm_extraction_coverage = 'labeled'`. Do not backfill missing rows with raw `description` for boilerplate-sensitive work — restrict the sample instead and report coverage.
+- **Binary keyword presence** (does the posting mention X anywhere?): Raw `description` is acceptable for recall when the presence signal is insensitive to boilerplate phrasing. Density metrics (mentions per 1K chars) must still use `description_core_llm`.
 - **Non-text analyses** (seniority counts, company analysis, geographic patterns): Use all rows regardless of text column.
-- **Sensitivity check:** Run text-dependent findings on both `description_core_llm` and `description_core` to quantify the boilerplate effect.
-- For Stage 10 analyses, `rule_sufficient` rows may be included if explicitly reported; do not silently mix them into the `labeled` count.
+- **Sensitivity check:** When a finding depends on text, the meaningful sensitivity is `description_core_llm` vs raw `description` (no rule-based alternative exists). If the direction flips under raw text, the finding is boilerplate-driven and must be flagged.
+- For Stage 10 LLM-only diagnostics on `swe_classification_llm` or `ghost_assessment_llm` in isolation, filter to `labeled` and treat `rule_sufficient` separately (since for those columns the LLM was deliberately skipped). This is distinct from seniority, where `seniority_final` is the combined column and should be used directly.
 
 **Default SQL filters (apply unless task says otherwise):**
 ```sql
@@ -72,6 +72,8 @@ WHERE source_platform = 'linkedin'
 - **Core:** sklearn, scipy, numpy, pandas (small subsets only), matplotlib, seaborn
 - **Graph:** networkx
 - **Data:** duckdb, pyarrow
+
+**Test-driven development for non-trivial logic.** Before relying on a regex, parser, or custom extractor, write a handful of `assert` statements covering edge cases (special characters, word boundaries, escape sequences, empty/short/long inputs). A few asserts inline at the top of your script is enough — do not build a test framework or create separate test files. Patterns with `\b` near non-word characters (`\bc\+\+\b`, `\b\.net\b`) and patterns over text containing markdown escapes (`C\+\+`, `C\#`) fail silently and are particularly worth testing. Validate your output against an independent reference (direct LIKE query, structured field, manual sample) when one exists.
 
 **Output conventions:**
 - Figures -> `exploration/figures/TASK_ID/` (PNG, 150dpi, max 4 per task)
@@ -127,6 +129,8 @@ Prepend this AFTER the core preamble for Wave 2+ agents.
    - For keyword pattern validation, stratify samples by period — pattern behavior may differ between 2024 and 2026
    - If a finding could change with a different sample, test with at least one alternative sample
 
+8. **Source composition profiling.** Before using a single source as a baseline for cross-period comparisons (e.g., arshkon as the 2024 baseline), profile its top-20 employers and any obvious composition skews (industry where available, company size, geographic concentration). Differential composition across sources can produce false "temporal" signals — what looks like change between periods may just be different employer mixes. The Wave 1 company-concentration task surfaces this for the standard sources; check its findings before drawing cross-period conclusions.
+
 ## Sensitivity framework — apply to all analytical tasks
 
 Every analytical task must report results under its primary specification AND under essential sensitivity checks. A finding is only robust if it survives its essential sensitivities.
@@ -135,11 +139,11 @@ Eight dimensions (referenced by letter in each task spec):
 
 (a) **Aggregator exclusion.** Primary: include all rows. Alt: exclude `is_aggregator = true`. Rationale: aggregators have systematically different descriptions, seniority patterns, and template-driven requirements.
 
-(b) **Company capping.** Primary: uncapped. Alt: max 20 postings per `company_name_canonical`. Rationale: a few prolific posters could dominate uncapped results.
+(b) **Company capping.** A few prolific employers dominate any analysis that aggregates over a corpus (term frequencies, topic models, co-occurrence networks, embedding centroids). For these, cap at 20-50 postings per `company_name_canonical` as the primary specification. For per-row metrics (rates, distributions) or company-level analyses, capping is not appropriate — it's a sensitivity check or N/A. Choose based on your unit of analysis.
 
-(c) **Seniority operationalization.** Present results under the seniority ablation framework defined in the core preamble: `seniority_llm` (if available), `seniority_native`, `seniority_final`, `seniority_imputed` (where != unknown). For entry-level analyses, arshkon-only is the primary 2024 baseline unless `seniority_llm` is available.
+(c) **Seniority operationalization.** Present results under `seniority_final` as the primary, plus the YOE-based proxy (`yoe_extracted <= 2` share by period) as the label-independent validator. Where the finding depends on `seniority_native` (e.g., as a sanity check), use arshkon-only — asaniczka has zero native entry labels. Material disagreement between `seniority_final` and the YOE-based proxy is itself a finding to report and investigate.
 
-(d) **Description text source.** Primary: `description_core_llm` (where available). Alt: `description_core` (rule-based, all sources). Further alt: raw `description`. Rationale: `description_core` retains substantial boilerplate; findings may differ with cleaner text.
+(d) **Description text source.** Primary: `description_core_llm` (filtered to `llm_extraction_coverage = 'labeled'`). Alt: raw `description`. No rule-based cleaned-text alternative exists — the former `description_core` was retired on 2026-04-10. Rationale: findings that only appear under raw `description` are boilerplate-driven and should be flagged as such.
 
 (e) **Source restriction.** Primary: arshkon (2024-04) vs scraped (2026-03). Alt: arshkon + asaniczka pooled as 2024 baseline. Rationale: asaniczka is a different instrument; pooling increases power but introduces noise.
 
@@ -147,13 +151,15 @@ Eight dimensions (referenced by letter in each task spec):
 
 (g) **SWE classification tier.** Primary: all `is_swe = true`. Alt: exclude `swe_classification_tier = 'title_lookup_llm'` (retaining regex + embedding_high only). Rationale: title_lookup_llm has elevated false-positive rate.
 
-(h) **LLM text coverage.** For text analyses: primary uses `description_core_llm`. Alt: uses `description_core` (lower text quality). Report both and note differences.
+(h) **LLM text coverage.** For text analyses: primary restricts to rows with `llm_extraction_coverage = 'labeled'` and uses `description_core_llm`. Report labeled-row coverage by period and source; thin cells must be flagged. This dimension is about sample restriction, not an alternative text column.
 
-(i) **Indeed cross-platform validation.** For key findings (entry share, AI prevalence, description length), compute the same metric on Indeed scraped data. Indeed has no native seniority but has `seniority_imputed`. If Indeed patterns match LinkedIn, findings are more robust. If they diverge, the finding may be LinkedIn-specific.
+(i) **Indeed cross-platform validation.** For key findings (entry share, AI prevalence, description length), compute the same metric on Indeed scraped data. Indeed has no native seniority and is excluded from the Stage 9 LLM frame, so its `seniority_final` only carries Stage 5 strong-rule labels — the unknown rate will be high. Where Indeed coverage is too thin to support a seniority-stratified comparison, fall back to non-seniority-stratified metrics. If Indeed patterns match LinkedIn, findings are more robust. If they diverge, the finding may be LinkedIn-specific.
 
-**Materiality threshold:** A finding is **materially sensitive** to a dimension if the alternative specification changes the main effect size by >30% or flips the direction. **When a finding IS materially sensitive, investigate WHY.** Report what the alternative specification reveals about the mechanism. A sensitivity that flips a finding is itself an important discovery.
+**Materiality threshold:** A finding is **materially sensitive** to a dimension if the alternative specification changes the main effect size by >30% or flips the direction.
 
-**Text source discipline (CRITICAL):** Use `description_core_llm` as the primary text column for all text-dependent analyses. Use `description_core` only as a sensitivity check. NEVER mix text sources (some rows LLM, some rule-based) without explicitly reporting the `text_source` distribution and testing whether findings differ between the LLM-cleaned and rule-based subsets. When loading shared cleaned text artifacts, report the `text_source` distribution for your analysis sample.
+**Sensitivity disagreement is itself a finding to investigate, not just to flag.** When a finding is materially sensitive, drill in: identify the rows/companies/terms driving the difference, characterize what they have in common, state the most likely mechanism, and recommend a follow-up that would resolve the question. A bare "this finding is materially sensitive to dimension X" without drilling in is insufficient — the mechanism behind the disagreement is often more interesting than either of the two estimates.
+
+**Text source discipline (CRITICAL):** Use `description_core_llm` as the primary text column for all text-dependent analyses. The only alternative is raw `description`, and only for analyses that are demonstrably insensitive to boilerplate phrasing (binary keyword presence, rough length checks). NEVER mix rows that used cleaned text with rows that fell back to raw text without explicitly reporting the split and testing whether findings differ between the two subsets. The former rule-based `description_core` column is no longer available; any legacy shared artifact that still mixes rule-based text with LLM text is stale and should be rebuilt from the current pipeline before use.
 
 **Instrument comparison is a first-class concern.** The 2024 Kaggle sources and the 2026 scraped source are different instruments: Kaggle text is unformatted (HTML-stripped), scraped text preserves markdown formatting (including **bold** headers and bullet points). Section classifiers must handle both formats. The within-2024 calibration (dimension f) is the primary mitigation.
 ```
@@ -228,13 +234,17 @@ Measure how sharp the seniority boundaries are and whether they blurred or shift
 
 Identify ghost-like and aspirational requirement patterns, with emphasis on whether AI requirements are more aspirational than traditional ones. Save validated management/scope patterns as a shared artifact for downstream use. Then compute the employer-requirement vs worker-usage divergence. Execute tasks T22 and T23.
 
+### Agent O — Wave 3: Domain-stratified scope changes & LLM authorship detection (T28 + T29)
+
+Two complementary analyses that depend on T09's archetype labels and the cleaned text artifact. T28 (priority): re-decompose scope and content changes by domain archetype now that T09's clusters are available — does scope inflation differ across Frontend, Embedded, Data, ML/AI? T29 (lower priority, exploratory): test the hypothesis that part of the apparent content change is downstream of recruiters using LLMs to draft job descriptions. Execute tasks T28 and T29.
+
 ### Agent N — Wave 4: Hypothesis generation, artifacts & synthesis (T24 + T25 + T26)
 
 Read ALL reports. First, generate new hypotheses from the findings. Then produce interview elicitation artifacts. Finally, write the synthesis document. Execute tasks T24, T25, and T26.
 
 ### Agent P — Wave 5: Presentation (T27)
 
-Read `exploration/reports/SYNTHESIS.md`, gate memos, and INDEX.md. Produce a ~20-25 slide MARP presentation for the research advisor and stakeholders. Follow the presentation principles in the orchestrator prompt (complete-sentence slide titles, one idea per slide, tell what you learned not what you did, frame corrections as rigor). Reference existing figures from `exploration/figures/`. Export to HTML and PDF via `npx @marp-team/marp-cli`. Execute task T27.
+Read `exploration/reports/SYNTHESIS.md`, gate memos, and INDEX.md. Also read `docs/preprocessing-guide.md` and extract a minimal description of the preprocessing pipeline (stages, rationale, data structure, LLM prompts) to integrate into the site's methodology layer. Produce a ~20-25 slide MARP presentation for the research advisor and stakeholders. Follow the presentation principles in the orchestrator prompt (complete-sentence slide titles, one idea per slide, tell what you learned not what you did, frame corrections as rigor). Reference existing figures from `exploration/figures/`. Export to HTML and PDF via `npx @marp-team/marp-cli`. Execute task T27.
 
 ---
 
@@ -261,39 +271,37 @@ Read `exploration/reports/SYNTHESIS.md`, gate memos, and INDEX.md. Produce a ~20
 
 ### T02. Seniority comparability & label quality `[Agent A]`
 
-**Goal:** Test whether asaniczka `associate` can serve as a junior proxy, and document which seniority labels each source provides.
+**Goal:** Test whether asaniczka `associate` can serve as a junior proxy, and characterize how `seniority_final` compares against `seniority_native` on the source where both are available (arshkon).
 
 This task focuses on seniority label quality and the asaniczka comparability question. Coverage and missingness are handled by T01.
 
 **Steps:**
-1. Document which seniority labels each source provides natively. Note the critical gap: asaniczka has zero native entry-level labels.
+1. Document which seniority labels each source provides. Note the critical gap: asaniczka has zero native entry-level labels (so `seniority_native` cannot detect entry in asaniczka). All asaniczka entry signal in `seniority_final` comes from the Stage 10 LLM.
 2. SWE-only native-label comparability audit:
-   - Compare asaniczka `associate` against arshkon `entry`, `associate`, and `mid-senior`
-   - Use exact `title_normalized` overlap, explicit junior/senior title-cue rates, `yoe_extracted`, and downstream `seniority_final` distributions conditional on native label
+   - Compare asaniczka `associate` (`seniority_native`) against arshkon `entry`, `associate`, and `mid-senior` (`seniority_native`)
+   - Use exact `title_normalized` overlap, explicit junior/senior title-cue rates, `yoe_extracted`, and `seniority_final` distributions conditional on native label
    - State whether asaniczka `associate` behaves more like junior, lower-mid, mixed, or indeterminate
-3. Decision rule: `usable as junior proxy` only if evidence is directionally close to arshkon `entry` on multiple signals
-4. Entry-level effective sample sizes per source: how many entry-level rows have YOE, metro_area, description_core_llm, etc.?
+3. Decision rule: `usable as junior proxy` only if evidence is directionally close to arshkon `entry` on multiple signals.
+4. Entry-level effective sample sizes per source under `seniority_final`: how many entry-level rows have YOE, metro_area, description_core_llm, etc.? Break down the entry rows by `seniority_final_source` so the reader sees which fraction came from strong rule vs the LLM.
 
 **Output:** `exploration/reports/T02.md` with comparability audit tables and a clear verdict
 
-### T03. Seniority label comparison `[Agent B]`
+### T03. Seniority label audit `[Agent B]`
 
-**Goal:** Compare all seniority variants — where do they agree, and does the choice change RQ1 results?
+**Goal:** Audit `seniority_final` against the available diagnostics. This is the one task in the exploration that interrogates the seniority labels themselves; everything downstream uses `seniority_final` directly without re-running the comparison.
 
 **Steps:**
-1. SWE rows: cross-tabulate `seniority_native` vs `seniority_final`, `seniority_imputed` vs `seniority_final`, `seniority_native` vs `seniority_imputed` (where both non-null)
-2. Compute agreement rate and Cohen's kappa for each pair
-3. Arshkon SWE (native exists): per-class accuracy of rule-based classifier using native as ground truth
-4. Scraped LinkedIn SWE (native exists): same. If accuracy differs, this means classifier temporal instability.
-5. Compute RQ1 junior share using 4 variants:
-   a. `seniority_final` (all non-unknown)
-   b. `seniority_native` only
-   c. High-confidence: `seniority_final_source IN ('title_keyword', 'native_backfill')`
-   d. Including weak signals
-6. Do variants agree on direction and magnitude of change?
-7. **Which seniority operationalization is most defensible for each type of analysis?** (e.g., trend estimation vs cross-sectional comparison vs classification training)
+1. **`seniority_final_source` profile.** For SWE rows, report the distribution of `seniority_final_source` (`title_keyword`, `title_manager`, `llm`, `unknown`) by source and by period. This shows how the rule and LLM halves of `seniority_final` are composed.
+2. **Rule-vs-LLM internal agreement (where both could fire).** Restrict to rows where `seniority_final_source = 'llm'` and inspect whether the LLM's answer is consistent with what a strong title rule WOULD have produced if one existed (e.g., spot-check by sampling 100 LLM-labeled rows whose titles contain weak seniority markers like "I/II/III"). Estimate routing-error rate qualitatively.
+3. **`seniority_final` vs `seniority_native` (arshkon SWE only).** Cross-tabulate. Compute Cohen's kappa and per-class accuracy using native as the comparison reference. Repeat on scraped LinkedIn SWE. If accuracy differs between arshkon and scraped, that suggests temporal instability of the native classifier (the same LinkedIn label may mean different things across the 2024→2026 window).
+4. **Junior share under three operationalizations.** Compute RQ1 junior share by period under:
+   a. `seniority_final` (the production column)
+   b. `seniority_native` arshkon-only (sanity check)
+   c. The label-independent YOE-based proxy (`yoe_extracted <= 2` share)
+   Do all three agree on direction? Magnitude? If they disagree, drill into the mechanism — is it differential native quality across snapshots, real market change, or LLM bias?
+5. **Recommendation.** State plainly whether `seniority_final` looks defensible as the primary seniority column for the rest of the exploration. If it is, the rest of Wave 2/3 uses it without re-litigating. If it isn't (e.g., the rule and LLM halves disagree systematically with each other and with the YOE proxy), document the failure mode and propose a remediation.
 
-**Output:** `exploration/reports/T03.md` with cross-tabs, kappa, per-class accuracy, junior-share comparison, recommendation
+**Output:** `exploration/reports/T03.md` with the source profile, the cross-tab + kappa table, the three-way junior-share comparison, and the recommendation. This report is the canonical seniority-quality reference for downstream agents.
 
 ### T04. SWE classification audit `[Agent B]`
 
@@ -315,37 +323,56 @@ This task focuses on seniority label quality and the asaniczka comparability que
 **Goal:** Test whether dataset differences reflect real labor market changes vs artifacts.
 
 **Steps (SWE, LinkedIn-only):**
-1. Description length: KS test + overlapping histograms for `description_length` and `core_length` across 3 sources
+1. Description length: KS test + overlapping histograms for `description_length` across 3 sources (the legacy `core_length` column no longer exists)
 2. Company overlap: Jaccard similarity of `company_name_canonical` pairwise. Top-50 overlap.
-3. Geographic: state-level SWE counts, chi-squared on state shares
+3. Geographic: state-level SWE counts, chi-squared on state shares (multi-location postings — `is_multi_location = true` — have `location = "multi-location"` and no state; they are naturally excluded from state rollups)
 4. Seniority: `seniority_final` distributions (exclude unknown), chi-squared pairwise
 5. Title vocabulary: Jaccard of `title_normalized` sets. Titles unique to one period.
 6. Industry: `company_industry` for arshkon vs scraped (asaniczka has no industry data)
 7. **Artifact diagnostic:** For each metric with significant cross-dataset difference, can the difference be attributed to data collection method vs real change? Which comparisons are most trustworthy?
 8. **Within-2024 calibration:** Run same comparisons between arshkon and asaniczka (both 2024) to establish baseline cross-source variability
 9. **Platform labeling stability test.** For the top 20 SWE titles appearing in both arshkon and scraped:
-   - Compare native seniority label distributions per title. If the same title has systematically different native labels across periods, that suggests platform relabeling rather than market change.
+   - Compare `seniority_native` distributions per title. If the same title has systematically different native labels across periods, that suggests platform relabeling rather than market change.
    - For title×seniority cells existing in both periods, compare YOE distributions. If YOE didn't change but frequency shifted, that's composition. If YOE changed too, it's content change.
-   - Cross-validate with Indeed data: compute entry-level share using `seniority_imputed` on Indeed scraped rows. If Indeed shows similar patterns to LinkedIn, the LinkedIn platform artifact hypothesis weakens.
+   - Cross-validate with Indeed data: compute entry-level share on Indeed scraped rows using `seniority_final` (Stage 5 strong-rule labels only — Indeed is excluded from the LLM frame, so coverage is narrow). Where coverage is too thin, fall back to the YOE-based proxy. If Indeed shows similar patterns to LinkedIn, the LinkedIn platform artifact hypothesis weakens.
 
 **Output:** `exploration/reports/T05.md` with test results, artifact assessment, calibration table, and platform stability assessment
 
-### T06. Company concentration & within-company decomposition `[Agent C]`
+### T06. Company concentration deep investigation `[Agent C]`
 
-**Goal:** Check if a few employers dominate and bias findings, and decompose aggregate seniority changes into within-company vs between-company components.
+**Goal:** Understand the company-level shape of each source. The downstream wave 2/3 tasks aggregate over postings constantly — corpus-level term frequencies, entry-share computations, length distributions, AI-mention rates — and a few prolific employers can drive almost any of those aggregates. This task surfaces concentration patterns *before* substantive analysis runs, so downstream tasks know what to expect and which findings are concentration-driven.
 
-**Steps (SWE):**
-1. Per dataset: HHI, top-1/5/10/20 share, Gini of posting counts
-2. Companies with >3% SWE postings in any dataset
-3. **Within-company vs aggregate decomposition (core analytical output).** Identify companies with >=5 SWE postings in BOTH arshkon and scraped. For this overlap set:
-   - Compute aggregate entry share in each period (within overlap companies only)
-   - Compare to the full-sample aggregate entry share
-   - If the within-company decline exceeds the aggregate decline, composition effects are dampening the signal (new entrants are more junior-friendly). If it's smaller, composition effects are inflating the signal. State this clearly.
-4. Company-capped sensitivity: junior share after capping at 10 postings/company
-5. **Aggregator analysis:** What fraction of SWE postings are from aggregators per source? Do aggregator postings differ systematically in seniority/length/requirements?
-6. **New entrants:** How many companies in 2026 scraped have NO match in 2024 arshkon? What is their seniority profile vs returning companies?
+**Why this matters (read first):** Prior runs of this exploration discovered, only after Wave 2 had been written and partially verified, that ~23% of the 2026 entry-labeled pool came from six companies posting the *same exact description* between 4 and 25 times each, that the entry-share rise survives or reverses depending on which de-concentration variant you apply, and that 91% of companies with substantial scraped presence have zero entry-labeled postings at all. None of these were surfaced by the original (lighter) version of this task. Treat the company axis as a first-class feature of the data, not an afterthought.
 
-**Output:** `exploration/reports/T06.md` with concentration table, **within-company decomposition** (most important output), aggregator profile
+**Steps (SWE, all sources):**
+
+1. **Concentration metrics per source.** HHI, Gini, top-1/5/10/20/50 share of `company_name_canonical` posting volume. Same metrics excluding aggregators (`is_aggregator = true`). Report as a single comparison table across sources.
+
+2. **Top-20 employer profile per source.** For each source separately, list the top 20 companies by SWE posting volume. For each: posting count, share of source, industry where available, mean YOE, mean description length, and the within-company entry share (under `seniority_final` AND the YOE-based proxy). This is the foundational profiling that downstream tasks will reference when they need to know "is this finding driven by Amazon" or similar.
+
+3. **Duplicate-template audit.** For each source, identify companies whose SWE postings collapse onto a small number of distinct `description_hash` values. Report the top-10 "duplicate-template" employers per source with: posting count, distinct description count, max-dup-ratio (postings / distinct descriptions). A company posting the same description 25 times is structurally different from a company posting 25 distinct descriptions, even if both contribute "25 rows" to corpus-level aggregates. **Stage 4 now collapses multi-location groups (same company + title + description across 2+ locations) into a single representative row flagged with `is_multi_location = True`; see the `is_multi_location` entry in `docs/preprocessing-schema.md`. Expect this audit to find ~0 duplicate-template groups within a single source after the fix — its role is now a verification, not a discovery. Surface any residual dup-templates (cross-company collisions, near-duplicate descriptions that differ only in boilerplate, etc.) as anomalies worth investigating.**
+
+4. **Entry-level posting concentration (CRITICAL).** Entry-level posting is a specialized activity, not a market-wide one. For each source, compute:
+   - How many companies post any entry-labeled SWE roles at all? (Under both `seniority_final` and the YOE-based proxy.)
+   - What share of companies with >=5 SWE postings have ZERO entry-labeled rows?
+   - For the companies that DO post entry roles, what is their distribution of entry-share-of-own-postings?
+   - Which companies are entry-poster specialists (>50% of own SWE postings are entry)? Profile them.
+   - Any cross-source comparisons of entry posting volume must be read against this concentration backdrop — entry-share trends are about a small subset of employers, not a market-wide shift.
+
+5. **Within-company vs between-company decomposition.** Identify companies with >=5 SWE postings in BOTH arshkon and scraped. For this overlap panel, decompose the aggregate 2024-to-2026 change in entry share, AI mention prevalence, mean description length, and mean tech count into:
+   - **Within-company component:** change holding company composition constant
+   - **Between-company component:** change driven by different companies entering/exiting the panel
+   - Run the entry-share decomposition under both `seniority_final` and the YOE-based proxy. If they disagree on direction, report both — the disagreement is itself a finding (see sensitivity-disagreement principle in the analytical preamble).
+
+6. **Aggregator profile.** What fraction of SWE postings are from aggregators per source? Do aggregator postings differ systematically in seniority/length/requirements? Aggregator share shifts across sources are themselves a confound for any seniority-stratified comparison.
+
+7. **New entrants.** How many 2026 companies have no 2024 match? What is their seniority and content profile vs returning companies?
+
+8. **Per-finding concentration prediction.** For each major analysis category planned in Wave 2/3 (entry share, AI mention rate, description length, term frequencies, topic models, co-occurrence networks), predict whether it would be concentration-driven if computed naively over the full corpus. Recommend a default: cap, dedup, weight, or use as-is. This prediction table is the most important output of the task — it tells downstream agents what to do before they hit the same surprises.
+
+**Essential sensitivities:** (a) aggregator exclusion. (b) Capping is the analysis subject of this task, so do not also apply it as a sensitivity.
+
+**Output:** `exploration/reports/T06.md` with the concentration table, top-20 employer profile per source, duplicate-template audit, entry-poster concentration finding, decomposition table under multiple operationalizations, and the per-finding concentration prediction table. The prediction table is the deliverable that downstream wave 2/3 tasks should consult first.
 
 ### T07. External benchmarks & power analysis `[Agent D]`
 
@@ -356,7 +383,7 @@ This task focuses on seniority label quality and the asaniczka comparability que
 *Part A — Feasibility table (primary output, drives all downstream decisions):*
 1. Query the data for actual group sizes: entry-level, mid-senior, all SWE by source. Use these for power calculations.
 2. Power analysis for cross-period comparisons: compute minimum detectable effect sizes (MDE) for binary and continuous outcomes at 80% power, alpha=0.05, for each key comparison (entry arshkon vs scraped, senior arshkon vs scraped, all SWE, pooled 2024 vs scraped).
-3. Metro-level feasibility: How many metros have >=50 SWE per period? >=100? Which qualify for metro-level analysis?
+3. Metro-level feasibility: How many metros have >=50 SWE per period? >=100? Which qualify for metro-level analysis? (Multi-location postings — `is_multi_location = true` — have `metro_area = NULL` and are excluded from per-metro counts; report the excluded count separately.)
 4. Company overlap panel feasibility: How many companies have >=3 SWE postings in both arshkon and scraped? This determines T16's panel size.
 5. Produce a feasibility summary table: `analysis_type | comparison | n_group1 | n_group2 | MDE_binary | MDE_continuous | verdict (well-powered / marginal / underpowered)`.
 
@@ -379,13 +406,13 @@ This task focuses on seniority label quality and the asaniczka comparability que
 **Goal:** Build shared analytical artifacts that multiple Wave 2+ agents need, preventing duplicate computation and ensuring consistency across agents.
 
 **Steps:**
-1. **Cleaned text column.** For all SWE LinkedIn rows (filtered by default SQL): use `description_core_llm` where `llm_extraction_coverage = 'labeled'`, otherwise fall back to `description_core`, otherwise `description`. Strip company names using stoplist from all `company_name_canonical` values, remove standard English stopwords. Save as `exploration/artifacts/shared/swe_cleaned_text.parquet` with columns: `uid`, `description_cleaned`, `text_source` (which column was used: 'llm', 'rule', 'raw'), `source`, `period`, `seniority_final`, `seniority_3level`, `is_aggregator`, `company_name_canonical`, `metro_area`, `yoe_extracted`, `swe_classification_tier`, `seniority_final_source`.
+1. **Cleaned text column.** For all SWE LinkedIn rows (filtered by default SQL): use `description_core_llm` where `llm_extraction_coverage = 'labeled'`, otherwise fall back to raw `description` (the former rule-based `description_core` was retired on 2026-04-10 and must not be used). Strip company names using stoplist from all `company_name_canonical` values, remove standard English stopwords. Save as `exploration/artifacts/shared/swe_cleaned_text.parquet` with columns: `uid`, `description_cleaned`, `text_source` (which column was used: 'llm' or 'raw'), `source`, `period`, `seniority_final`, `seniority_3level`, `is_aggregator`, `company_name_canonical`, `metro_area`, `yoe_extracted`, `swe_classification_tier`, `seniority_final_source`. Downstream tasks that are sensitive to boilerplate must filter to `text_source = 'llm'`; tasks that only need recall (binary keyword presence) can use both.
 2. **Sentence-transformer embeddings.** Using `all-MiniLM-L6-v2`, compute embeddings on first 512 tokens of `description_cleaned` for all rows in the cleaned text artifact. Process in batches of 256 to respect RAM limits. Save as `exploration/artifacts/shared/swe_embeddings.npy` (float32) with a companion `exploration/artifacts/shared/swe_embedding_index.parquet` mapping row index to `uid`.
 3. **Technology mention binary matrix.** Using the ~100-120 technology taxonomy (define regex patterns for: Python, Java, JavaScript/TypeScript, Go, Rust, C/C++, C#, Ruby, Kotlin, Swift, Scala, PHP, React, Angular, Vue, Next.js, Node.js, Django, Flask, Spring, .NET, Rails, FastAPI, AWS, Azure, GCP, Kubernetes, Docker, Terraform, CI/CD, Jenkins, GitHub Actions, SQL, PostgreSQL, MongoDB, Redis, Kafka, Spark, Snowflake, Databricks, dbt, Elasticsearch, TensorFlow, PyTorch, scikit-learn, Pandas, NumPy, LangChain, RAG, vector databases, Pinecone, Hugging Face, OpenAI API, Claude API, prompt engineering, fine-tuning, MCP, LLM, Copilot, Cursor, ChatGPT, Claude, Gemini, Codex, Jest, Pytest, Selenium, Cypress, Agile, Scrum, TDD — expand to ~100+ with regex variations). Scan `description_cleaned` for each. Save as `exploration/artifacts/shared/swe_tech_matrix.parquet` (columns: `uid` + one boolean column per technology).
 4. **Company name stoplist.** Extract all unique tokens from `company_name_canonical` values (tokenize on whitespace and common punctuation, lowercase, deduplicate). Save as `exploration/artifacts/shared/company_stoplist.txt`, one token per line.
 5. **Structured skills extraction (asaniczka only).** Parse `skills_raw` from asaniczka SWE rows (comma-separated). Save parsed skills with uid as `exploration/artifacts/shared/asaniczka_structured_skills.parquet`.
 
-6. **Within-2024 calibration table.** For ~30 common metrics (description_length, core_length, yoe_extracted median, tech_count mean, AI keyword prevalence, management indicator rate, scope term rate, soft skill rate, etc.), compute:
+6. **Within-2024 calibration table.** For ~30 common metrics (description_length, yoe_extracted median, tech_count mean, AI keyword prevalence, management indicator rate, scope term rate, soft skill rate, etc.), compute:
    - Arshkon value, asaniczka value, within-2024 effect size (Cohen's d or proportion difference)
    - Arshkon value, scraped value, cross-period effect size
    - Calibration ratio: cross-period / within-2024
@@ -409,15 +436,15 @@ The goal of Wave 2 is to DISCOVER patterns in the data without imposing the RQ1-
 
 **Goal:** Establish comprehensive baseline distributions and identify anomalies, surprises, and unexpected patterns across ALL available variables.
 
-**Steps (SWE, LinkedIn-only, seniority_final != unknown where applicable):**
-1. **Univariate profiling:** For every meaningful numeric and categorical column, compute distributions by period and by seniority. Produce side-by-side histograms/bar charts for at minimum: `description_length`, `core_length`, `yoe_extracted`, `seniority_final`, `seniority_3level`, `is_aggregator`, `metro_area` (top 15), `company_industry` (top 15 where available).
+**Steps (SWE, LinkedIn-only):**
+1. **Univariate profiling:** For every meaningful numeric and categorical column, compute distributions by period and by seniority (use `seniority_final` as primary). Produce side-by-side histograms/bar charts for at minimum: `description_length`, `yoe_extracted`, `seniority_final`, `seniority_3level`, `is_aggregator`, `metro_area` (top 15), `company_industry` (top 15 where available).
 2. **Anomaly detection:** Flag any distribution that is bimodal, heavily skewed, or shows an unexpected pattern. Are there subpopulations hiding in the data?
-3. **The YOE paradox:** Entry-level YOE appears to DECREASE from 2024 to 2026 (arshkon entry median 3.0, scraped entry median 2.0). Investigate this thoroughly: is it real, or an artifact of different entry-level composition? Break down by title, company type, source.
+3. **Native-label quality diagnostic (arshkon-only).** For `seniority_native = 'entry'` rows in arshkon, compute the YOE distribution (mean, median, share with YOE>=5, share with YOE<=2). If arshkon entry-labeled rows have an unexpected YOE profile, the native classifier may have temporal stability issues that affect any `seniority_native`-based sanity check on later snapshots. Asaniczka has zero native entry labels so cannot be profiled here. This is an important data-quality check; the answer determines whether `seniority_native` can be used as a sanity-check baseline at all.
 4. **Within-2024 baseline calibration (arshkon vs asaniczka, mid-senior SWE only):**
    - Compare description length, AI keyword prevalence, organizational language, and top-20 tech stack
    - Compute Cohen's d or equivalent effect sizes
    - Produce calibration table: metric, within-2024 difference, 2024-to-2026 difference, ratio
-5. **Junior share trends:** Entry share by period using the seniority ablation framework (seniority_llm primary, then native, final, imputed). Also compute as share of known-seniority rows only.
+5. **Junior share trends:** Entry share by period using `seniority_final` as the primary measure, validated against the label-independent YOE proxy (share with `yoe_extracted <= 2`). Where comparing against `seniority_native` would be informative, restrict to arshkon. Compute share both of all rows and of known-seniority rows only. If `seniority_final` and the YOE proxy disagree on direction, investigate WHY rather than picking one.
 6. **What variables show the LARGEST changes between periods?** Rank all available metrics by effect size. This identifies where to look deeper.
 7. **Domain × seniority decomposition (tests H1).** If T09 archetype labels are available (from `exploration/artifacts/shared/swe_archetype_labels.parquet`), compute entry share by domain archetype by period. Decompose the aggregate entry share change into:
    - **Within-domain component:** entry share change holding archetype composition constant
@@ -425,7 +452,7 @@ The goal of Wave 2 is to DISCOVER patterns in the data without imposing the RQ1-
    If the between-domain component accounts for a substantial portion of the aggregate decline, the junior decline is partly a domain recomposition effect, not purely within-domain elimination.
 8. **Company size stratification (where data allows).** `company_size` is available for arshkon (99%). Within arshkon, stratify entry share, AI prevalence, and tech count by company size quartile. Do large companies show different patterns? For cross-period analysis where `company_size` is unavailable, use posting volume per company as a rough proxy.
 
-**Essential sensitivities:** (a) aggregator exclusion, (b) company capping, (c) seniority operationalization (full ablation), (e) source restriction, (f) within-2024 calibration
+**Essential sensitivities:** (a) aggregator exclusion, (b) company capping, (c) seniority operationalization (`seniority_final` + YOE proxy), (e) source restriction, (f) within-2024 calibration
 **Recommended sensitivities:** (g) SWE classification tier, (i) Indeed cross-platform
 
 **Output:** `exploration/reports/T08.md` with plots, summary stats, anomaly flags, calibration table, ranked change list, and domain decomposition
@@ -682,18 +709,18 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 **Steps (SWE, LinkedIn-only):**
 1. **Overlap panel:** Identify companies with >=3 SWE postings in BOTH arshkon and scraped.
 2. **Per-company change metrics:** For each overlap company, compute 2024-to-2026 change in:
-   - Entry share (of known seniority) — apply the seniority ablation framework
+   - Entry share — compute under `seniority_final` AND under the YOE-based proxy (`yoe_extracted <= 2` share). If the two disagree at the company level, treat it as a per-company measurement signal worth examining.
    - AI keyword prevalence (binary per posting)
    - Mean description length
    - Mean tech count
    - Mean org_scope term count
 3. **Cluster companies by their change profile.** k-means on the change vectors. Are there distinct strategies? Name them (e.g., "AI-forward", "traditional hold", "scope inflator", "downsizer").
-4. **Within-company vs between-company decomposition:** For entry share, AI prevalence, and description length: how much of the aggregate 2024-to-2026 change is driven by within-company change vs different companies entering/exiting the sample? **Run the decomposition under two specifications: (1) pooled 2024 (arshkon + asaniczka) and (2) arshkon-only as 2024 baseline. If entry-share results disagree in direction, report and discuss both — this is a critical methodological finding.** If T09 archetype labels are available, add a domain dimension: decompose the entry share change into within-domain, between-domain, and between-company components.
+4. **Within-company vs between-company decomposition:** For entry share, AI prevalence, and description length, how much of the aggregate 2024-to-2026 change is driven by within-company change vs different companies entering/exiting the sample? Run the entry-share decomposition under both `seniority_final` (the primary) and the YOE-based proxy (label-independent validator). If results disagree in direction, report both and discuss the mechanism — this is a critical methodological finding, not a problem to bury. If T09 archetype labels are available, add a domain dimension: decompose the entry share change into within-domain, between-domain, and between-company components.
 5. **Within-company scope inflation (if validated patterns available).** If T22's validated management/scope patterns are available (from shared artifacts), compute within-company change in entry-level scope indicators for the overlap panel. This is the cleanest test of scope inflation: same companies across periods.
 6. **New market entrants:** Profile companies in 2026 with no 2024 match. What industries? How do their postings compare?
 7. **Aggregator vs direct employer:** Compare change patterns. Are aggregators showing different trends?
 
-**Essential sensitivities:** (a) aggregator exclusion, (c) seniority operationalization (full ablation for entry metrics)
+**Essential sensitivities:** (a) aggregator exclusion, (c) seniority operationalization (`seniority_final` + YOE proxy for entry metrics)
 **Recommended sensitivities:** (b) company capping
 
 **Output:** `exploration/reports/T16.md` + company cluster characterization + decomposition results (both pooled and arshkon-only)
@@ -702,9 +729,11 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 
 **Goal:** Map geographic heterogeneity in SWE market changes.
 
+**Note on multi-location postings:** Stage 4 collapses multi-location posting groups (one role syndicated to multiple metros, e.g., a remote LinkedIn listing fanned out across 27 metro pages) into a single representative row with `is_multi_location = True`, `location = "multi-location"`, and `metro_area = NULL`. These rows are naturally excluded from any `metro_area`-keyed rollup below — this is correct because the posting does not belong to a single metro. Report the count of `is_multi_location = True` SWE postings alongside your metro-level analysis so readers understand the pool that was excluded from metro rollups. Do **not** attempt to expand multi-location rows back out to individual metros.
+
 **Steps (SWE, LinkedIn-only, using `metro_area`):**
 1. **Metro-level metrics** for each metro with >=50 SWE postings per period:
-   - Entry share (seniority_final)
+   - Entry share (`seniority_final`)
    - AI keyword prevalence (broad + AI-tool-specific)
    - Org scope language composite (ownership + cross-functional + end-to-end)
    - Median description length
@@ -750,7 +779,11 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 
 **Data context:** The scraped data covers approximately 8 days (March 20-27, 2026). Arshkon spans April 5-20, 2024 (~3 weekly bins). Asaniczka spans January 12-17, 2024 (6 days). We have discrete snapshots, not a continuous time series.
 
-**Entry-level rates involving asaniczka are unreliable** due to its zero native entry labels. For entry-level rate-of-change, use arshkon (Apr 2024) vs scraped (Mar 2026) only. Do not compute within-2024 entry-level rates unless `seniority_llm` is available (which resolves the asaniczka gap). If `seniority_llm` is available, include asaniczka as a genuine 2024-01 data point and re-compute the rate-of-change with all three snapshots.
+**Entry-level rates involving asaniczka depend on the operationalization.** Asaniczka has zero native entry labels, so `seniority_native` cannot detect asaniczka entry — only arshkon supports a `seniority_native`-based 2024 baseline. For rate-of-change estimation:
+- Under `seniority_final`: all three snapshots can be included. Asaniczka entry signal in `seniority_final` comes via the Stage 10 LLM (the rule half is unknown for asaniczka where titles lack strong keywords). Report the three-snapshot rate.
+- Under `seniority_native`: arshkon-only sanity check. Report the arshkon vs scraped rate.
+- Under the YOE-based proxy (label-independent): all three snapshots can be included.
+Report the rate-of-change under each operationalization and discuss any disagreement.
 
 **Steps:**
 1. **Rate-of-change estimation.** For key metrics (entry share of known seniority, AI keyword prevalence, median description length, median tech count, org scope density):
@@ -800,7 +833,7 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 6. **Domain-stratified boundary analysis.** If T09 archetype labels are available (from `exploration/artifacts/shared/swe_archetype_labels.parquet`), run the boundary analysis within each domain archetype separately. Does boundary blur/sharpening differ across ML/AI vs Frontend vs Embedded vs Data domains?
 7. **Full similarity matrix** using the structured features (not text): compute average feature profiles per seniority x period and present as a heatmap.
 
-**Essential sensitivities:** (a) aggregator exclusion, (c) seniority operationalization (full ablation)
+**Essential sensitivities:** (a) aggregator exclusion, (c) seniority operationalization (`seniority_final` + YOE proxy)
 **Recommended sensitivities:** (g) SWE classification tier
 
 **Output:** `exploration/reports/T20.md` + AUC comparison + feature importance analysis + boundary heatmap + domain-stratified results
@@ -876,6 +909,70 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 
 ---
 
+### T28. Domain-stratified scope changes by archetype `[Agent O]`
+
+**Goal:** T09 found that the SWE posting market is organized primarily by tech domain (NMI of cluster × language is 5-7x larger than cluster × seniority or × period), and that AI/ML is the only large-growing archetype while being structurally less junior-heavy than other domains. This suggests that aggregate scope-and-content changes may be partly within-domain and partly between-domain composition shifts. T08 step 7 and T11 step 7 were both spec'd to do this decomposition but were deferred because T09 had not yet produced the archetype labels. This task picks them up and extends them.
+
+**Dependency:** Requires `exploration/artifacts/shared/swe_archetype_labels.parquet` from T09.
+
+**Steps:**
+
+1. **Load T09 archetype labels** and join to the SWE corpus. Report archetype distribution by period.
+
+2. **Domain × seniority decomposition for the entry-share trend.** Using `seniority_final` AND the YOE-based proxy, compute entry share by archetype × period. Decompose the aggregate change into:
+   - Within-domain component (entry share change holding archetype composition constant)
+   - Between-domain component (change driven by the market shifting between archetypes)
+   - Interaction
+   - Report under both seniority operationalizations. If they disagree at the archetype level, drill in.
+
+3. **Domain-stratified scope inflation.** Within each archetype, compute the change in `requirement_breadth`, `tech_count`, `scope_count`, AI mention rate, and credential stack depth (as defined in T11) between periods. Is scope inflation a within-domain phenomenon, a between-domain composition effect, or both? Which archetypes are growing the most in scope?
+
+4. **Junior vs senior content within each archetype.** For each archetype, compare entry vs mid-senior postings on requirement breadth, AI mention rate, scope language, and management/mentorship language. Is the junior/senior gap closing within some archetypes and not others? This is the more nuanced version of the convergence question that T15 ran at the corpus level (and rejected). The corpus-level null may hide within-domain convergence in some archetypes.
+
+5. **Senior archetype shift by domain.** T11 found the senior tier is shifting toward IC+mentoring rather than people-management. Does this hold across all domains, or is it concentrated in some (e.g., AI/ML, where the work itself is changing)? Use the strict mentoring detector from T11.
+
+6. **Cross-validate the AI/ML expansion.** T09 reported AI/ML +11pp. Within the AI/ML archetype, profile: who are the top employers, what is the entry vs senior mix, what tech stack dominates, what is the description length and credential stack profile. Is the AI/ML growth coming from new entrants or from existing employers shifting their mix?
+
+**Essential sensitivities:** (a) aggregator exclusion, (b) company capping per the unit-of-analysis rule (capping is appropriate for the within-archetype term/scope analyses, not appropriate for the entry-share decomposition), (c) seniority operationalization (`seniority_final` primary, YOE proxy as co-equal validator)
+
+**Output:** `exploration/reports/T28.md` with the domain × seniority decomposition table, per-archetype scope changes table, per-archetype junior/senior comparison, and the AI/ML deep dive.
+
+---
+
+### T29. LLM-authored description detection `[Agent O]`
+
+**Goal:** Test the hypothesis that part of what we measure as "employer requirements changing" between 2024 and 2026 is actually downstream of recruiters adopting LLMs to draft job descriptions during the same window. This is exploratory and may yield no signal — which is itself informative. If the hypothesis is supported, it would unify several Wave 2 findings (length growth, tech-density decrease, AI mention explosion, credential vocabulary stripping, mid-senior tone shift) into a single mechanism, AND it would be a methodological warning of broad applicability for any longitudinal posting study.
+
+**Steps:**
+
+1. **Define LLM-authorship signals.** Build a per-posting authorship score from observable text features. Candidate features (you should add or remove based on your judgment and any quick research on current LLM stylistic tells):
+   - **Signature vocabulary density:** classic LLM tells like `delve`, `tapestry`, `leverage`, `robust`, `unleash`, `embark on`, `navigate`, `cutting-edge`, `in the realm of`, `comprehensive`, `seamless`, `furthermore`, `moreover`, `it's worth noting`, `notably`, `align with`, `at the forefront`, `pivotal`, `harness`, `dynamic`, `vibrant`. Compute density per 1K chars.
+   - **Em-dash density:** LLMs use em-dashes (`—` and `--`) noticeably more than human writers. Per 1K chars.
+   - **Sentence length distribution:** mean and standard deviation. LLMs produce longer, more uniform sentences than humans.
+   - **Vocabulary diversity:** type-token ratio, both within-posting and across-posting. If LLMs are writing the descriptions, postings may become more uniform in vocabulary across the corpus.
+   - **Bullet structure:** number and depth of bulleted lists per 1K chars.
+   - **Paragraph structure:** average paragraph length and uniformity.
+
+2. **Validate the signals on a known reference if possible.** If you can find a public sample of pre-2023 (clearly human-written) job descriptions and post-2024 (likely-LLM-authored) ones, check whether your signals discriminate. If no reference is available, document the limitation and proceed with the corpus-internal analysis only.
+
+3. **Compute the authorship score for the SWE LinkedIn corpus.** Per posting. Save as `exploration/tables/T29/authorship_scores.csv` with `uid` and the per-feature columns.
+
+4. **Distribution by period.** What is the distribution of the authorship score by period? Does the median shift between 2024 and 2026? Does the variance change? Are 2026 postings more uniform (low cross-posting variance) than 2024 postings?
+
+5. **Distribution by company.** Are some companies using LLM-style writing in 2024 already? Are some companies still writing human-style in 2026? Identify the companies most/least likely to be LLM-authoring.
+
+6. **Correlation with Wave 2 findings.** At the per-posting level, correlate the authorship score with: description length, tech density, AI mention rate, credential stack depth, and the change in any of these metrics by company (if the company appears in both periods).
+
+7. **The unifying-mechanism test.** Subset the corpus to "low-LLM-score" postings only. Re-compute the headline Wave 2 findings (length growth, AI mention growth, credential stack jump, mid-senior credential vocabulary stripping) on the low-LLM-score subset. If the findings substantially weaken when LLM-style postings are excluded, much of the apparent change is mediated by recruiter tooling. If the findings persist, the changes are real labor-market signal independent of authorship style.
+
+8. **Verdict.** Report whether the hypothesis is supported, partially supported, or rejected. Be explicit about the uncertainty — this is a noisy test and individual signal features can be confounded (e.g., AI-domain postings genuinely use AI-related vocabulary; that's not LLM authorship).
+
+**Essential sensitivities:** (a) aggregator exclusion, (d) description text source (text-source composition is itself a major confound for several of these features — control by reading raw `description` only or restricting to LLM-cleaned text only)
+
+**Output:** `exploration/reports/T29.md` with the authorship score distribution, per-company profile, correlation table, the low-LLM-subset re-test of headline findings, and a verdict on the hypothesis.
+
+---
+
 ### Wave 4 — Integration & Hypothesis Generation
 
 ---
@@ -922,7 +1019,7 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 2. Write `exploration/reports/SYNTHESIS.md` covering:
    - **Data quality verdict per RQ** — what analyses are safe, what need caveats?
    - **Recommended analytical samples** (rows, columns, filters) for each type of analysis
-   - **Seniority column recommendation** for different analytical purposes
+   - **Seniority validation summary** — does `seniority_final` agree with the YOE-based proxy on the directional findings? Where does it diverge, and why?
    - **Known confounders** with severity assessment (description length growth, asaniczka label gap, aggregator contamination, company composition shift, field-wide vs SWE-specific trends)
    - **Discovery findings** organized by:
      - Confirmed hypotheses (with confidence level)
@@ -951,7 +1048,7 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 
 **Goal:** Package the exploration's findings into a navigable, presentable artifact that works at multiple levels of depth — from a 10-minute slide presentation down to the raw task reports and gate memos. Host it and share the link.
 
-**Inputs:** Read `exploration/reports/SYNTHESIS.md` (primary — the consolidated findings), gate memos (`exploration/memos/gate_*.md`), and `exploration/reports/INDEX.md` for the full task inventory. Reference existing figures from `exploration/figures/` and reports from `exploration/reports/`. Do not regenerate analysis — package what exists.
+**Inputs:** Read `exploration/reports/SYNTHESIS.md` (primary — the consolidated findings), gate memos (`exploration/memos/gate_*.md`), and `exploration/reports/INDEX.md` for the full task inventory. Reference existing figures from `exploration/figures/` and reports from `exploration/reports/`. Also read `docs/preprocessing-guide.md` (and skim `docs/preprocessing-schema.md` for the output schema) to extract a concise description of the preprocessing pipeline for the methodology layer — see "Preprocessing description" below. Do not regenerate analysis — package what exists.
 
 ---
 
@@ -982,8 +1079,23 @@ Each finding slide should link to a deeper page where the reader can explore the
 **Layer 2 — Findings, methodology, and claims (the evidence).**
 Curated pages that let a reader dig into any specific claim. This is where the site goes beyond a slide deck and functions more like a research paper's results and methods sections, but with more detail since the exploration was broad. Include:
 - **Thematic findings pages** — one per major finding, synthesizing evidence from multiple task reports. Each should state the claim, present the supporting evidence with specific citations (e.g., "T18, Section 2"), show key figures, summarize sensitivity checks, and link to the raw reports.
-- **Methodology and data** — data sources, the sensitivity framework, limitations and open questions. A skeptical reader should be able to assess whether to trust the findings.
+- **Methodology and data** — data sources, the preprocessing pipeline (see below), the sensitivity framework, limitations and open questions. A skeptical reader should be able to assess whether to trust the findings.
 - **Narrative pages** — what the paper can and cannot claim, how the story evolved across gates, and the full synthesis.
+
+#### Preprocessing description (required, integrated into Layer 2)
+
+The Layer 2 methodology section MUST include a concise description of the preprocessing pipeline. Do not invent or re-derive this content — extract and condense it from `docs/preprocessing-guide.md` (and `docs/preprocessing-schema.md` for the output schema). The goal is for a reader to understand, without leaving the site, how raw scraped/Kaggle postings become the analysis-ready dataset the findings are built on.
+
+Cover, at minimum:
+- **Why preprocessing exists.** A short framing paragraph: the raw inputs are heterogeneous (two Kaggle snapshots + a daily scrape), and the pipeline normalizes, deduplicates, classifies, and enriches them into a single comparable corpus.
+- **Stage-by-stage summary.** A compact table or list walking through each pipeline stage in order (ingest, dedup, classification, normalization/temporal/flags, LLM extraction, LLM classification, integration, final output). For each stage: one sentence on *what* it does and one sentence on *why* it matters for the analysis. Pull this directly from the "Stage Reference" section of the preprocessing guide — keep it minimal, do not copy the whole guide.
+- **Output data structure.** A short description of the unified row schema that downstream analysis consumes — what one row represents, the key column families (identity, text, seniority, classification, temporal, LLM-derived), and the coverage columns (`llm_extraction_coverage`, `llm_classification_coverage`, `selected_for_llm_frame`) that gate which rows are usable for which analyses.
+- **LLM stages and prompts.** For the LLM stages (extraction, classification, integration), summarize what each LLM call is asked to do and include the actual prompt text or a faithful condensed version of it, as documented in the preprocessing guide. A reader should be able to see, for each LLM-derived column, the prompt that produced it. If full prompts are long, put a short summary inline and link to or embed the full prompt in a collapsible block.
+- **Budgeting and coverage caveats.** A brief note that LLM stages run under an explicit budget, so not every row has LLM-derived columns, and that findings built on LLM columns are reported against the labeled subset (the sticky core frame).
+
+Integrate this naturally into the methodology pages — it should not feel like a bolted-on appendix. A reader arriving from a finding that depends on, e.g., `description_core_llm` or `seniority_final` should be able to click through to the relevant preprocessing stage and see how that column was produced. Cross-link from findings pages to the preprocessing section where appropriate.
+
+Keep the total preprocessing section tight — aim for a single navigable page (or a small cluster of pages) rather than reproducing the full guide. The principle is "minimal description that lets a skeptical reader trust the upstream pipeline," not "complete reference documentation."
 
 **Layer 3 — Raw evidence (the trail).**
 All 26 task reports organized by wave, all gate memos, and retrospectives. This is the audit trail — a reader who wants to see exactly what analysis was done can find it here.
@@ -1044,7 +1156,7 @@ These items require formal statistical framework, LLM-stage outputs, or analysis
 | Temporal selection (volatility) | Oversamples long-lived postings | T19 | Moderate |
 | Kaggle provenance unknown | Unknown | T05 | High (irreducible) |
 | asaniczka missing entry-level | Thin baseline | T02, T03 | Moderate |
-| Boilerplate removal noise | Noisy text analysis | Use `description_core` + `description` | Low-Moderate |
+| Boilerplate in raw text | Noisy text analysis | Use `description_core_llm` (LLM-cleaned); raw `description` only for boilerplate-insensitive checks | Low after LLM coverage |
 | Company-name contamination | Pollutes corpus comparisons | Company-name stripping in preamble | Low after stripping |
 | Remote flag incomparability | 0% in 2024 (data gap, not real) | Do not interpret as real change | Low if noted |
 | SWE classification temporal instability | Could change SWE sample composition | T04 | Moderate |

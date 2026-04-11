@@ -169,60 +169,37 @@ def test_title_lookup_conflicting_keys_are_dropped(tmp_path, monkeypatch):
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "title, description, family, expected",
+    "title, family, expected",
     [
-        ("Senior Software Engineer", "", "swe", ("mid-senior", "title_keyword", 0.95)),
-        ("Director of Platform Engineering", "", "swe", ("director", "title_keyword", 0.95)),
-        ("Data Engineer Manager", "", "adjacent", ("mid-senior", "title_manager", 0.92)),
-        ("Software Engineer I", "", "swe", ("entry", "weak_title_level", 0.80)),
-        ("Software Engineer 1", "", "swe", ("entry", "weak_title_level", 0.80)),
-        ("Software Engineer II", "", "swe", ("associate", "weak_title_level", 0.80)),
-        ("Software Developer - Intermediate", "", "swe", ("associate", "weak_title_associate", 0.70)),
-        ("Accountant Manager", "", "control", ("mid-senior", "title_manager", 0.92)),
-        ("Systems Engineer II", "", "adjacent", ("mid-senior", "weak_title_level", 0.80)),
-        ("Accountant I", "", "control", ("associate", "weak_title_level", 0.70)),
-        ("Accountant", "This role is an associate accountant.", "control", ("associate", "description_explicit", 0.70)),
-        ("Accountant", "We are hiring a director of accounting.", "control", ("director", "description_explicit", 0.70)),
-        ("Software Engineer", "Fresh graduates are encouraged to apply.", "swe", ("entry", "description_explicit", 0.70)),
-        ("Software Engineer", "This role is ideal for a recent graduate.", "swe", ("entry", "description_explicit", 0.70)),
-        ("Software Engineer", "We are hiring an intermediate software engineer.", "swe", ("associate", "description_explicit", 0.70)),
-        ("Software Engineer", "This role is a mid-level software engineer position.", "swe", ("associate", "description_explicit", 0.70)),
+        # Strong title-keyword rules → seniority_final populated
+        ("Senior Software Engineer", "swe", ("mid-senior", "title_keyword")),
+        ("Sr Backend Engineer", "swe", ("mid-senior", "title_keyword")),
+        ("Staff Engineer", "swe", ("mid-senior", "title_keyword")),
+        ("Principal Software Engineer", "swe", ("mid-senior", "title_keyword")),
+        ("Lead Software Engineer", "swe", ("mid-senior", "title_keyword")),
+        ("Junior Backend Developer", "swe", ("entry", "title_keyword")),
+        ("Software Engineering Intern", "swe", ("entry", "title_keyword")),
+        ("New Grad Software Engineer", "swe", ("entry", "title_keyword")),
+        ("Director of Platform Engineering", "swe", ("director", "title_keyword")),
+        ("VP of Engineering", "swe", ("director", "title_keyword")),
+        # Title-manager rule (requires family role hint)
+        ("Data Engineer Manager", "adjacent", ("mid-senior", "title_manager")),
+        ("Accountant Manager", "control", ("mid-senior", "title_manager")),
+        # Weak signals that USED to fire are now unknown
+        ("Software Engineer I", "swe", ("unknown", "unknown")),
+        ("Software Engineer II", "swe", ("unknown", "unknown")),
+        ("Software Developer - Intermediate", "swe", ("unknown", "unknown")),
+        ("Systems Engineer II", "adjacent", ("unknown", "unknown")),
+        ("Accountant I", "control", ("unknown", "unknown")),
+        # Plain titles with no seniority signal stay unknown
+        ("Software Engineer", "swe", ("unknown", "unknown")),
+        ("Backend Developer", "swe", ("unknown", "unknown")),
     ],
 )
-def test_classify_seniority_precedence(title, description, family, expected):
-    assert stage5.classify_seniority(title, description, family=family) == expected
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    "family, imputed_level, imputed_source, native_raw, title_prior, expected",
-    [
-        ("swe", "entry", "title_keyword", "associate", ("associate", 0.9, 21), ("entry", "title_keyword", 0.95)),
-        ("swe", "mid-senior", "description_explicit", "associate", None, ("associate", "native_backfill", 0.85)),
-        ("control", "unknown", "unknown", None, ("associate", 0.88, 25), ("associate", "title_prior", 0.88)),
-        ("other", "unknown", "unknown", "associate", ("associate", 0.88, 25), ("unknown", "unknown", 0.0)),
-    ],
-)
-def test_resolve_seniority_final_precedence(family, imputed_level, imputed_source, native_raw, title_prior, expected):
-    if family == "swe" and imputed_source == "title_keyword":
-        result = stage5.resolve_seniority_final(
-            family=family,
-            imputed_level=imputed_level,
-            imputed_source=imputed_source,
-            imputed_confidence=0.95,
-            native_raw=native_raw,
-            title_prior=title_prior,
-        )
-    else:
-        result = stage5.resolve_seniority_final(
-            family=family,
-            imputed_level=imputed_level,
-            imputed_source=imputed_source,
-            imputed_confidence=0.70 if imputed_source == "description_explicit" else 0.0,
-            native_raw=native_raw,
-            title_prior=title_prior,
-        )
-    assert result == expected
+def test_classify_seniority_strong_rules_only(title, family, expected):
+    """After 2026-04-10 simplification, classify_seniority returns only strong rules or unknown."""
+    level, source = stage5.classify_seniority(title, family=family)
+    assert (level, source) == expected
 
 
 @pytest.mark.unit
@@ -379,13 +356,11 @@ def test_tiny_stage5_parquet_integration_with_stubbed_embeddings(tmp_path, monke
 
     swe_lookup, control_lookup = stage5.build_swe_lookup(input_path)
     seniority_title_lookup = stage5.build_seniority_title_lookup(input_path, swe_lookup, control_lookup)
-    title_prior_lookup = stage5.build_group_title_prior_lookup(input_path, swe_lookup, control_lookup)
     stats = stage5.streaming_write(
         input_path,
         output_path,
         swe_lookup,
         seniority_title_lookup,
-        title_prior_lookup,
         control_lookup,
     )
 
@@ -421,13 +396,11 @@ def test_reviewed_stage5_rows_cover_contract_paths(tmp_path, monkeypatch):
 
     swe_lookup, control_lookup = stage5.build_swe_lookup(input_path)
     seniority_title_lookup = stage5.build_seniority_title_lookup(input_path, swe_lookup, control_lookup)
-    title_prior_lookup = stage5.build_group_title_prior_lookup(input_path, swe_lookup, control_lookup)
     stats = stage5.streaming_write(
         input_path,
         output_path,
         swe_lookup,
         seniority_title_lookup,
-        title_prior_lookup,
         control_lookup,
     )
 
@@ -442,7 +415,6 @@ def test_reviewed_stage5_rows_cover_contract_paths(tmp_path, monkeypatch):
         assert bool(out["is_swe_adjacent"]) == row["expect_is_swe_adjacent"]
         assert bool(out["is_control"]) == row["expect_is_control"]
         assert out["swe_classification_tier"] == row["expect_swe_tier"]
-        assert out["seniority_imputed"] == row["expect_seniority_imputed"]
         assert out["seniority_final"] == row["expect_seniority_final"]
         assert out["seniority_final_source"] == row["expect_seniority_final_source"]
         if row.get("expect_yoe") is not None:
