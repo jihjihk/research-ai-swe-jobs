@@ -27,6 +27,7 @@ You dispatch sub-agents who execute the analytical tasks defined in `docs/task-r
 - Read the task reference for the shared preamble, agent dispatch blocks, and task specs
 - For each agent, construct its prompt: preamble + dispatch block + task specs
 - Launch all agents in a wave simultaneously using parallel Agent tool calls (`subagent_type: "general-purpose"`)
+- **Dispatch every sub-agent with the most capable model and the maximum effort / reasoning setting your runtime exposes.** Exploration quality is bounded by sub-agent thinking depth, not by wall-clock. On Claude Code, that is currently Claude Opus with max effort; on Codex, that is currently GPT-5.4 with extra-high effort. If a newer model or higher effort tier exists at dispatch time, use it. Do not downgrade to save cost or latency — the wave's findings are the input to every downstream gate.
 - Each agent writes reports to disk; you read them after they finish
 
 This is the LEAST important part of your job.
@@ -78,6 +79,9 @@ After each wave, write a research memo at `exploration/memos/gate_N.md`. This is
 ## Evidence assessment
 [For each major finding: evidence strength (strong/moderate/weak), sample size, potential confounds, whether it survives calibration and sensitivity checks.]
 
+## Seniority panel
+[For every wave-N headline finding that depends on seniority stratification, report a 4-row ablation table: rows = J1/J2/J3/J4 (junior claims) or S1/S2/S3/S4 (senior claims), columns = effect + direction + n. Conclude each row with an "agreement" verdict: unanimous / 3-of-4 / split / contradictory. Only unanimous or 3-of-4 findings may be cited as lead claims. Split or contradictory results must be investigated mechanistically in "What surprised us" — the disagreement is usually more informative than either estimate alone.]
+
 ## Narrative evaluation
 [Does the initial RQ1-RQ4 framing still hold? State explicitly for each: confirmed / weakened / contradicted / needs reframing. If reframing is needed, propose the strongest alternative narrative with evidence citations. This is the most important section — be honest.]
 
@@ -116,39 +120,39 @@ Stages 9 and 10 now require an explicit `--llm-budget` parameter — **there is 
 
 **Reading LLM columns correctly:**
 - For text and ghost columns (`description_core_llm`, `ghost_assessment_llm`, `swe_classification_llm`, `yoe_min_years_llm`), filter to `llm_*_coverage == 'labeled'` and report the labeled count alongside the eligible count.
-- For **seniority**, use `seniority_final` directly. Stage 5 fills it from high-confidence title keywords; Stage 10 overwrites it with the LLM result for rows the router sent to the LLM. `seniority_final_source` records which path produced each value (`title_keyword`, `title_manager`, `llm`, or `unknown`). There is no separate `seniority_llm` column. Sub-agents must still validate seniority-stratified findings against a label-independent YOE-based proxy (`yoe_extracted <= 2` share by period); material disagreement between `seniority_final` and the YOE-based proxy is itself a finding that needs investigation, not a problem to bury. See `docs/preprocessing-schema.md` Section 4 for the full seniority schema.
+- For **seniority**, `seniority_final` is the combined rule+LLM column and there is no separate `seniority_llm`. It is the label-based primary, but every seniority-stratified finding must be reported under the T30 ablation panel (J1–J4 for junior claims, S1–S4 for senior claims), loaded from `exploration/artifacts/shared/seniority_definition_panel.csv`. Directional disagreement across panel variants is itself a finding to investigate, not a problem to bury. See `docs/task-reference-exploration.md` Section 1a for the panel definition and `docs/preprocessing-schema.md` Section 4 for the seniority schema.
 
 **Statistical framing:** Findings from LLM columns are based on the sticky core frame (`selected_for_llm_frame = true`) plus any explicitly labeled supplemental cache rows you decide to include. Report `n` of labeled rows alongside total eligible in all analyses, and separate core from supplemental-cache counts. Flag thin cells. Balanced-sample claims apply only to the core frame.
 
 ## Setup
 
-1. Read `docs/task-reference-exploration.md` — the shared preamble, agent assignments, and all 26 task specs.
+1. Read `docs/task-reference-exploration.md` — the shared preamble, agent assignments, and all task specs.
 2. Read `docs/preprocessing-schema.md` — the data schema.
 3. Read `docs/1-research-design.md` — the initial research design. Understand it, but don't be bound by it.
 4. Read `AGENTS.md` — project context and rules.
 5. Create directories: `exploration/reports/`, `exploration/figures/`, `exploration/tables/`, `exploration/artifacts/`, `exploration/artifacts/shared/`, `exploration/memos/`
 6. Create `exploration/reports/INDEX.md` with an empty tracking table.
+7. Write `exploration/memos/gate_0_pre_exploration.md` before dispatching Wave 1. It must include a short **"Pre-committed ablation dimensions"** section listing the sensitivity dimensions that will be non-negotiable for every Wave 2+ agent — at minimum the T30 seniority panel (J1–J4 for junior claims, S1–S4 for senior claims), aggregator exclusion, company capping for corpus aggregates, within-2024 calibration, semantic keyword precision, and composite-score correlation checks for any matched-delta analysis. This pre-commitment prevents ablation discipline from drifting under time pressure.
 
 ## Wave-by-wave guidance
 
-### Wave 1 — Data Foundation (Agents A-D, Tasks T01-T07)
+### Wave 1 — Data Foundation (Agents A-D)
 
-**Dispatch:** Launch all 4 agents in parallel. T07 now includes power/feasibility analysis.
+**Dispatch:** Launch all 4 agents in parallel. Agent B now runs T03 → **T30** → T04: T30 builds the canonical seniority ablation panel (J1–J6 junior side, S1–S5 senior side) that every downstream seniority-stratified task consumes. Agent C's T06 includes the entry-specialist employer identification step. Agent D's T07 reports MDE per (comparison × seniority definition) pair.
 
 **What to think about at Gate 1:**
 
 This wave tells you what the data CAN and CANNOT support. The most important output is not "the data is clean" — it's "given these constraints, here's what analyses are actually feasible and where we need to be careful."
 
 Key evaluation questions:
-- What's the binding constraint for each type of analysis? (Likely: entry-level sample size for seniority trends, asaniczka's missing native entry labels for any `seniority_native`-based sanity check, `seniority_final` unknown rate outside the LLM frame, `description_core_llm` coverage)
-- Are there data characteristics that suggest analyses NOT in our plan? (e.g., if industry data is rich enough, industry-level analysis becomes feasible)
+- What's the binding constraint for each type of analysis? (Likely: entry-level sample size for seniority trends, asaniczka's missing native entry labels, `seniority_final` unknown rate outside the LLM frame, `description_core_llm` coverage.)
+- Are there data characteristics that suggest analyses NOT in our plan? (e.g., if industry data is rich enough, industry-level analysis becomes feasible.)
 - Is the SWE classification reliable enough that we can trust the sample, or do we need to hedge?
 - How large is the within-2024 cross-source variability? This sets the noise floor for all 2024-to-2026 comparisons.
+- **Which seniority definition is primary for Wave 2?** Read T30's panel recommendation against T07's per-definition MDE cross-tab. If J1 (`seniority_final = 'entry'`) is underpowered but J2 (entry+associate) is well-powered, make J2 the Wave 2 primary and J1 a sensitivity. Write that decision into the Wave 2 agent prompts — do not let it get re-litigated downstream.
 - What does the feasibility table from T07 say? Which analyses are well-powered and which are underpowered? Don't waste Wave 2 effort on analyses we can't statistically support.
 
-**Seniority measurement is one of the highest-stakes dimensions of this exploration.** `seniority_final` is the production seniority column (high-confidence rule + LLM). Wave 1 must validate it against two label-independent checks: (a) the YOE-based proxy (`yoe_extracted <= 2` share by period) and (b) the YOE distribution of `seniority_native = 'entry'` rows in arshkon, to check whether native-label quality is stable across the 2024 → 2026 comparison. If `seniority_final` and the YOE-based proxy disagree on the direction of an entry-level trend, the Gate 1 memo must report the disagreement and investigate WHY before Wave 2 builds on it. Possible explanations include real market change, differential native-label quality across snapshots, shifts in employer labeling explicitness, or instrument noise — the goal at Gate 1 is to honestly characterize the measurement landscape, not to gloss over a discrepancy.
-
-**Writing the memo:** Focus on what's feasible vs. infeasible. Be honest about thin samples. If entry-level analysis is underpowered, say so — the paper may need to emphasize a different dimension. If `seniority_final` and the YOE-based proxy disagree, document the disagreement and the most likely mechanism rather than burying one side.
+**Writing the memo:** Focus on what's feasible vs. infeasible. Be honest about thin samples. If entry-level analysis is underpowered under every T30 junior variant, say so — the paper may need to emphasize a different dimension. If the T30 panel shows directional disagreement across variants, document the disagreement and the most likely mechanism rather than burying one side. The Gate 1 memo's seniority panel table is the primary artifact Wave 2 agents will reference.
 
 **Pass to Wave 1.5:** After Wave 1 completes, dispatch Agent Prep for shared preprocessing. Update INDEX.md with the seniority validation findings (does `seniority_final` agree with the YOE-based proxy?), column constraints, and feasibility assessment. Wave 2 agents read INDEX.md and load shared artifacts.
 
@@ -198,9 +202,11 @@ Write modified task specs into the agent prompts for Wave 3. You don't need to e
 **After writing the Gate 2 memo and before dispatching Wave 3,** launch a verification agent. Its job is adversarial quality assurance:
 
 1. **Re-derive the top 3-5 headline numbers from Wave 2 from scratch** — write independent SQL/Python, do NOT read prior agents' scripts. If a number matches within 5%, it's verified. If not, investigate.
-2. **Validate keyword patterns:** For any keyword indicator introduced in Wave 2 (management, AI, scope, etc.), sample 50 matches stratified by period and assess precision. Flag patterns with <80% precision.
-3. **Propose alternative explanations** for each headline finding. What else could explain this pattern?
-4. **Flag specification-dependent findings:** For seniority-stratified findings, do they hold under (a) `seniority_final` (the primary column), (b) `seniority_native` alone (arshkon-only diagnostic), and (c) the YOE-based label-independent proxy? Material disagreement across these is itself a finding to report. For other findings, which results change direction under alternative text sources, sample definitions, or sensitivity dimensions?
+2. **Validate keyword patterns semantically.** For any keyword indicator introduced in Wave 2, sample 50 matches stratified by period and read the surrounding sentence to judge precision. Flag patterns with <80% semantic precision. **Any cited precision ≥80% must have been measured on a stratified semantic sample, not tautologically on regex self-matches** — if the upstream task's precision check was tautological, re-run it and report the true number.
+3. **Audit prevalence citation transparency.** For every cited prevalence / SNR / effect size, verify the pattern definition and subset match the cited source. Flag any cross-task citation that combines numbers from different patterns or subsets into one cell (e.g., broad-union rates cited with narrow-pattern SNR).
+4. **Audit composite-score matching.** For any matched-delta finding, verify that per-component × outcome correlations were reported. If any component correlates r > 0.3 with the outcome, the matching is confounded — flag and re-interpret.
+5. **Propose alternative explanations** for each headline finding. What else could explain this pattern?
+6. **Flag specification-dependent findings.** For seniority-stratified findings, do they survive the T30 panel (J1–J4 or S1–S4) with unanimous or 3-of-4 agreement? Material disagreement is itself a finding. For other findings, which results change direction under alternative text sources, sample definitions, or sensitivity dimensions?
 
 This is a lightweight quality gate, not a full wave. If verification reveals a problem, correct it before Wave 3 dispatch.
 
@@ -228,12 +234,13 @@ Key evaluation questions:
 
 ### Gate 3 Verification (Agent V2)
 
-**After writing the Gate 3 memo and before dispatching Wave 4,** launch a second verification agent. Same adversarial role as Agent V1:
+**After writing the Gate 3 memo and before dispatching Wave 4,** launch a second verification agent. Same adversarial role as Agent V1, applied to Wave 3:
 
-1. Re-derive top 3-5 headline numbers from Wave 3 independently
-2. Validate any new keyword patterns (especially management indicator corrections from T22)
-3. Check whether the cross-occupation DiD findings (T18) are robust to alternative control group definitions
-4. Verify the decomposition results (T16): does the 57% compositional finding hold under arshkon-only vs pooled 2024?
+1. Re-derive the top 3-5 headline numbers from Wave 3 independently.
+2. Validate new or rebuilt keyword patterns semantically on 50-row stratified samples; flag any tautological precision claim and re-run it.
+3. Audit prevalence citation transparency — flag any cross-task citation that combines different patterns or subsets.
+4. Audit composite-score matching — flag any matched-delta finding whose composite has a component correlating r > 0.3 with the outcome.
+5. Test whether cross-occupation DiD findings are robust to alternative control group definitions and whether decomposition results hold across T30 panel variants.
 
 ### Wave 4 — Integration & Hypothesis Generation (Agent N, Tasks T24-T26)
 
@@ -263,10 +270,10 @@ See `docs/task-reference-exploration.md` T27 spec for full details.
 When you read a finding, run it through this filter:
 
 ### Evidence strength
-- **Strong:** Large sample (n > 500 per group), survives within-2024 calibration, multiple methods agree, holds within strata (not just aggregate)
-- **Moderate:** Adequate sample (n > 100), plausible but not calibrated, single method, some confound risk
-- **Weak:** Small sample (n < 100), doesn't survive calibration, single method, high confound risk
-- **Artifact likely:** Effect smaller than within-2024 baseline variability, OR driven by a single known data issue (description length, company composition, classification noise)
+- **Strong:** Large sample (n > 500 per group), survives within-2024 calibration, survives the T30 seniority panel with unanimous or 3-of-4 directional agreement (where applicable), multiple methods agree, holds within strata (not just aggregate).
+- **Moderate:** Adequate sample (n > 100), plausible but not calibrated, 2-of-4 panel agreement acceptable only if the disagreeing variants are explained mechanistically, single method, some confound risk.
+- **Weak:** Small sample (n < 100), doesn't survive calibration, unexplained panel split, single method, high confound risk.
+- **Artifact likely:** Effect smaller than within-2024 baseline variability, OR direction contradicts across panel variants without mechanism, OR driven by a single known data issue (description length, company composition, classification noise).
 
 ### Novelty
 - **High:** Would surprise a researcher in this area. Not predicted by existing theory or prior work.

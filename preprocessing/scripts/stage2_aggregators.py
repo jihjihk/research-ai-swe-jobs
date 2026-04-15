@@ -11,6 +11,7 @@ Output: intermediate/stage2_aggregators.parquet
         (adds is_aggregator, real_employer, company_name_effective columns)
 """
 
+import gc
 import re
 import logging
 from pathlib import Path
@@ -198,7 +199,7 @@ def extract_real_employer(description: str, company_name: str) -> str | None:
 # ---------------------------------------------------------------------------
 # Main (chunked, memory-safe)
 # ---------------------------------------------------------------------------
-CHUNK_SIZE = 200_000
+CHUNK_SIZE = 50_000
 
 
 def _process_chunk(chunk: pd.DataFrame) -> pd.DataFrame:
@@ -299,7 +300,8 @@ def run_stage2():
             writer.write_table(table)
 
             processed += len(chunk)
-            del chunk, table
+            del chunk, table, batch
+            gc.collect()
             log.info(f"  Processed {processed:,} / {total_rows:,} rows")
 
         if writer is not None:

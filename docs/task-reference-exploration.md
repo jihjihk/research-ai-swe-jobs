@@ -34,17 +34,17 @@ Read `docs/preprocessing-schema.md` for column definitions and recommended usage
 - For raw Stage 9/Stage 10 LLM columns (text-based: `description_core_llm`, `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`), filter to `llm_*_coverage == 'labeled'`. **Seniority is the exception:** `seniority_final` is the combined column and should be used directly without coverage filtering.
 - 31GB RAM limit — use DuckDB or pyarrow for queries, never load full parquet into pandas.
 
-**Seniority validation discipline (CRITICAL — the direction of any entry-level finding depends on this):**
+**Seniority — use the T30 ablation panel, not a single operationalization.**
 
-`seniority_final` is the production seniority column. For any seniority-stratified finding — especially entry-level shares, counts, or trends — validate it against the following label-independent and arshkon-only checks:
+`seniority_final` is the combined rule+LLM column and the label-based primary, but entry-only and director-only cells are power-bound in this dataset. Every seniority-stratified finding must be reported under the canonical panel built by T30 and saved at `exploration/artifacts/shared/seniority_definition_panel.csv`:
 
-1. **YOE-based proxy (label-independent, primary validator).** Compute the share of postings with `yoe_extracted <= 2` (and `<= 3`) by period. This proxy does not depend on any seniority classifier. If `seniority_final` and the YOE-based proxy disagree on direction or magnitude, do NOT pick a side without investigating WHY. Differential native-label quality across data snapshots is one possible explanation; real market change is another; shifts in employer labeling explicitness are a third. Report the disagreement honestly and investigate the mechanism.
+- **Junior side:** J1 = `seniority_final = 'entry'`, J2 = `seniority_final IN ('entry','associate')`, J3 = `yoe_extracted <= 2`, J4 = `yoe_extracted <= 3`.
+- **Senior side:** S1 = `seniority_final IN ('mid-senior','director')`, S2 = `seniority_final = 'director'`, S3 = title-keyword senior (`\b(senior|sr\.?|staff|principal|lead|architect|distinguished)\b`), S4 = `yoe_extracted >= 5`.
+- T30 additionally reports J5 title-keyword junior, J6 = J1 ∪ J5, S5 = `yoe_extracted >= 8`, and row-overlap matrices.
 
-2. **`seniority_native` arshkon-only baseline (diagnostic).** For any sanity check that uses `seniority_native`, restrict to arshkon. Asaniczka has zero native entry-level labels, so pooling it under `seniority_native` would dilute the 2024 entry rate to near-zero and can flip trend direction. `seniority_final` and the YOE-based proxy CAN include asaniczka because they do not depend on native labels (asaniczka entry signal in `seniority_final` comes via the Stage 10 LLM).
+**Reporting rule.** For a junior claim, report J1 and J2 and J3 and J4 as a 4-row table. For a senior claim, report S1–S4 the same way. Directional agreement across all four = robust. Disagreement — especially J1↔J2 (do `associate` rows behave like junior or mid in your metric?) or S1↔S2 (do director-level effects differ from mid-senior?) — is itself a finding to investigate, not a problem to bury. Load the panel CSV; do not re-derive.
 
-3. **Profile native-label quality before trusting it.** For `seniority_native = 'entry'` rows in each source, compute the YOE distribution. If entry-labeled rows have systematically different YOE across snapshots, the native classifier has differential accuracy across snapshots and any cross-period comparison using `seniority_native` inherits that bias. This diagnostic is most valuable for arshkon (the only 2024 source with native entry labels).
-
-**Reporting:** When you report a seniority-stratified result, present `seniority_final` as the primary, then list the YOE-based proxy and (where applicable) the arshkon-only `seniority_native` baseline as label-independence checks. Agreement across the three strengthens the finding; disagreement is itself an important finding to investigate.
+**Practical caveats.** (i) `seniority_native = 'entry'` is arshkon-only as a diagnostic; asaniczka has no native entry labels. (ii) YOE-based variants exclude rows without extracted YOE from the denominator — report the YOE-known share alongside.
 
 **Description text quality — critical for text-based analyses:**
 `description_core_llm` (LLM-based boilerplate removal) is the **only** cleaned-text column. The former rule-based `description_core` was retired on 2026-04-10 because ~44% accuracy was misleading downstream analysis. Check `llm_extraction_coverage` to confirm coverage by source; filter to `labeled` whenever you use `description_core_llm`.
@@ -80,6 +80,8 @@ WHERE source_platform = 'linkedin'
 - Tables -> `exploration/tables/TASK_ID/` (CSV)
 - Scripts -> `exploration/scripts/TASK_ID_descriptive_name.py` (reusable analysis scripts)
 - Report -> `exploration/reports/TASK_ID.md`. Use a structure appropriate to the task. Include at minimum: headline finding, methodology, surprises/unexpected patterns, data quality caveats, and action items for downstream tasks. Wave 2+ tasks should also include a sensitivity checks section.
+
+**Prevalence citation transparency.** Every prevalence, density, share, or effect-size number must be cited with (a) the exact pattern or column definition, (b) the subset filter (sample, cap, aggregator exclusion, LLM-coverage restriction), and (c) the denominator ("of all" vs "of known-seniority" vs "of LLM-labeled"). Cross-task citations that combine numbers from different patterns or subsets into one cell are prohibited — if task X cites task Y, use Y's exact pattern and subset or explicitly re-derive. This prevents the "broad-union rate cited with narrow-pattern SNR" class of error.
 
 Create exploration/ directories if they don't exist.
 Use DuckDB CLI or pyarrow for all data queries. Do NOT load the full parquet into pandas.
@@ -120,7 +122,7 @@ Prepend this AFTER the core preamble for Wave 2+ agents.
 
 5. **Within-historical calibration.** When comparing the historical baseline vs the current scraped window, also compare arshkon vs asaniczka on the same metric where possible. This establishes baseline cross-source variability. If the historical-to-current change is smaller than within-historical cross-source variation, flag it as potentially artifactual.
 
-6. **Keyword indicator validation.** For any keyword indicator you construct (management, AI, scope, etc.), sample 50 matches and assess whether they actually represent the intended concept. If a pattern matches generic language (e.g., `\bleading\b` matching "a leading company" instead of "leading a team"), flag it and report results with and without that pattern. Measurement artifacts in keyword indicators can inflate findings by 3-5x.
+6. **Semantic precision before density reporting.** For any keyword pattern used in a prevalence, density, or rate metric, sample 50 matches stratified by period (25/25) **before** reporting the metric. Judge each match *semantically* — read the surrounding sentence and decide whether it represents the intended concept. `\bleading\b` matching "a leading company" does not count toward "leading a team." Report precision per sub-pattern (not per compound) and drop any sub-pattern below 80%. Rebuild the compound and re-run. **A precision check that only verifies "the regex matches its own regex" is tautological and not valid** — T11's earlier strict-management set failed this rule and inflated findings until V1 rebuilt it. A finding may not cite ≥80% precision unless the precision was measured semantically on a stratified sample.
 
 7. **Sampling protocol.** For any analysis based on a sample rather than the full dataset:
    - Document sample size, stratification method, and what was excluded
@@ -135,13 +137,13 @@ Prepend this AFTER the core preamble for Wave 2+ agents.
 
 Every analytical task must report results under its primary specification AND under essential sensitivity checks. A finding is only robust if it survives its essential sensitivities.
 
-Eight dimensions (referenced by letter in each task spec):
+Nine dimensions (referenced by letter in each task spec):
 
 (a) **Aggregator exclusion.** Primary: include all rows. Alt: exclude `is_aggregator = true`. Rationale: aggregators have systematically different descriptions, seniority patterns, and template-driven requirements.
 
 (b) **Company capping.** A few prolific employers dominate any analysis that aggregates over a corpus (term frequencies, topic models, co-occurrence networks, embedding centroids). For these, cap at 20-50 postings per `company_name_canonical` as the primary specification. For per-row metrics (rates, distributions) or company-level analyses, capping is not appropriate — it's a sensitivity check or N/A. Choose based on your unit of analysis.
 
-(c) **Seniority operationalization.** Present results under `seniority_final` as the primary, plus the YOE-based proxy (`yoe_extracted <= 2` share by period) as the label-independent validator. Where the finding depends on `seniority_native` (e.g., as a sanity check), use arshkon-only — asaniczka has zero native entry labels. Material disagreement between `seniority_final` and the YOE-based proxy is itself a finding to report and investigate.
+(c) **Seniority operationalization — T30 panel required.** Every seniority-stratified result must be reported under all four applicable panel variants (J1–J4 for a junior claim; S1–S4 for a senior claim). Panel defined in Section 1a; canonical data in `exploration/artifacts/shared/seniority_definition_panel.csv` — load it, don't re-derive. Robust iff 3 of 4 agree on direction AND the effect-size spread across the four is within 30%. Directional disagreement (especially J1↔J2 when `associate` rows behave distinctly, or S1↔S2 when director-level effects differ from mid-senior) is itself a finding — investigate and report the mechanism.
 
 (d) **Description text source.** Primary: `description_core_llm` (filtered to `llm_extraction_coverage = 'labeled'`). Alt: raw `description`. No rule-based cleaned-text alternative exists — the former `description_core` was retired on 2026-04-10. Rationale: findings that only appear under raw `description` are boilerplate-driven and should be flagged as such.
 
@@ -161,6 +163,8 @@ Eight dimensions (referenced by letter in each task spec):
 
 **Text source discipline (CRITICAL):** Use `description_core_llm` as the primary text column for all text-dependent analyses. The only alternative is raw `description`, and only for analyses that are demonstrably insensitive to boilerplate phrasing (binary keyword presence, rough length checks). NEVER mix rows that used cleaned text with rows that fell back to raw text without explicitly reporting the split and testing whether findings differ between the two subsets. The former rule-based `description_core` column is no longer available; any legacy shared artifact that still mixes rule-based text with LLM text is stale and should be rebuilt from the current pipeline before use.
 
+**Composite-score correlation check (required for matched deltas).** When a composite score (authorship-drift, ghost-index, length-composite, etc.) is used to match or control for a confound, report the pairwise correlation between each score component and the outcome metric *before* interpreting any matched delta. If any component correlates r > 0.3 with the outcome, the matching is confounded on that dimension — either drop the component or report the matched result under ablated score versions. Matching on a length-correlated score to assess length change is tautological and not an attribution; T29's earlier length sign-flip failed this check (composite score × char_len r = 0.59) and was V2-overturned. "X attenuates under matching" is not a defensible control claim without this check.
+
 **Instrument comparison is a first-class concern.** The 2024 Kaggle sources and the 2026 scraped source are different instruments: Kaggle text is unformatted (HTML-stripped), scraped text preserves markdown formatting (including **bold** headers and bullet points). Section classifiers must handle both formats. The within-2024 calibration (dimension f) is the primary mitigation.
 ```
 
@@ -174,9 +178,9 @@ These are prepended (after the preamble) to each agent's prompt, before the task
 
 Profile the dataset (actual row counts, column coverage, semantic differences across sources) and produce the coverage heatmap that downstream tasks depend on. Then run the seniority comparability audit: can asaniczka `associate` serve as a junior proxy? Execute tasks T01 and T02.
 
-### Agent B — Wave 1: Classifier quality (T03 + T04)
+### Agent B — Wave 1: Seniority audit + panel + SWE classification (T03 + T30 + T04)
 
-Evaluate seniority label quality and SWE classification accuracy. Cross-tabulate all seniority variants, compute agreement metrics, and test whether the RQ1 junior-share metric changes depending on which seniority column is used. Assess SWE classification via manual sampling of borderline cases. Execute tasks T03 and T04.
+Audit `seniority_final` label quality (T03), build the canonical seniority definition ablation panel that every downstream task consumes (T30), and assess SWE classification accuracy (T04). Execute in that order: T03 establishes whether the production seniority column is trustworthy; T30 builds the multi-operationalization panel and recommends which slice to use primary; T04 audits the SWE sample independently.
 
 ### Agent C — Wave 1: Dataset comparability & concentration (T05 + T06)
 
@@ -269,22 +273,16 @@ Read `exploration/reports/SYNTHESIS.md`, gate memos, and INDEX.md. Also read `do
 
 **Output:** `exploration/reports/T01.md` + coverage heatmap PNG + CSV
 
-### T02. Seniority comparability & label quality `[Agent A]`
+### T02. Asaniczka `associate` as a junior proxy `[Agent A]`
 
-**Goal:** Test whether asaniczka `associate` can serve as a junior proxy, and characterize how `seniority_final` compares against `seniority_native` on the source where both are available (arshkon).
-
-This task focuses on seniority label quality and the asaniczka comparability question. Coverage and missingness are handled by T01.
+**Goal:** Answer the narrow substitution question: given that asaniczka has zero native entry-level labels, can its `associate`-labeled rows serve as a junior proxy in analyses that need a 2024 baseline? The broader operationalization panel is built by T30.
 
 **Steps:**
-1. Document which seniority labels each source provides. Note the critical gap: asaniczka has zero native entry-level labels (so `seniority_native` cannot detect entry in asaniczka). All asaniczka entry signal in `seniority_final` comes from the Stage 10 LLM.
-2. SWE-only native-label comparability audit:
-   - Compare asaniczka `associate` (`seniority_native`) against arshkon `entry`, `associate`, and `mid-senior` (`seniority_native`)
-   - Use exact `title_normalized` overlap, explicit junior/senior title-cue rates, `yoe_extracted`, and `seniority_final` distributions conditional on native label
-   - State whether asaniczka `associate` behaves more like junior, lower-mid, mixed, or indeterminate
-3. Decision rule: `usable as junior proxy` only if evidence is directionally close to arshkon `entry` on multiple signals.
-4. Entry-level effective sample sizes per source under `seniority_final`: how many entry-level rows have YOE, metro_area, description_core_llm, etc.? Break down the entry rows by `seniority_final_source` so the reader sees which fraction came from strong rule vs the LLM.
+1. Compare asaniczka `associate` (`seniority_native`) against arshkon `entry`, `associate`, and `mid-senior` on: top-title Jaccard, explicit junior/senior title-cue rates, `yoe_extracted` distribution, and `seniority_final` distribution conditional on native label.
+2. State whether asaniczka `associate` behaves directionally like arshkon `entry` on at least three of those signals. This is the decision rule.
+3. Entry-level effective sample sizes per source under `seniority_final`, broken down by `seniority_final_source` (so the reader sees which fraction came from a strong rule vs the LLM).
 
-**Output:** `exploration/reports/T02.md` with comparability audit tables and a clear verdict
+**Output:** `exploration/reports/T02.md` with the comparability table and a plain verdict. If the verdict is "not usable," downstream tasks must use T30's J2 (combined `entry`+`associate` under `seniority_final`) or one of the YOE variants instead of pooling asaniczka `associate` rows.
 
 ### T03. Seniority label audit `[Agent B]`
 
@@ -294,14 +292,46 @@ This task focuses on seniority label quality and the asaniczka comparability que
 1. **`seniority_final_source` profile.** For SWE rows, report the distribution of `seniority_final_source` (`title_keyword`, `title_manager`, `llm`, `unknown`) by source and by period. This shows how the rule and LLM halves of `seniority_final` are composed.
 2. **Rule-vs-LLM internal agreement (where both could fire).** Restrict to rows where `seniority_final_source = 'llm'` and inspect whether the LLM's answer is consistent with what a strong title rule WOULD have produced if one existed (e.g., spot-check by sampling 100 LLM-labeled rows whose titles contain weak seniority markers like "I/II/III"). Estimate routing-error rate qualitatively.
 3. **`seniority_final` vs `seniority_native` (arshkon SWE only).** Cross-tabulate. Compute Cohen's kappa and per-class accuracy using native as the comparison reference. Repeat on scraped LinkedIn SWE. If accuracy differs between arshkon and scraped, that suggests temporal instability of the native classifier (the same LinkedIn label may mean different things across the 2024→2026 window).
-4. **Junior share under three operationalizations.** Compute RQ1 junior share by period under:
-   a. `seniority_final` (the production column)
-   b. `seniority_native` arshkon-only (sanity check)
-   c. The label-independent YOE-based proxy (`yoe_extracted <= 2` share)
-   Do all three agree on direction? Magnitude? If they disagree, drill into the mechanism — is it differential native quality across snapshots, real market change, or LLM bias?
-5. **Recommendation.** State plainly whether `seniority_final` looks defensible as the primary seniority column for the rest of the exploration. If it is, the rest of Wave 2/3 uses it without re-litigating. If it isn't (e.g., the rule and LLM halves disagree systematically with each other and with the YOE proxy), document the failure mode and propose a remediation.
+4. **Defensibility recommendation.** State plainly whether `seniority_final` looks defensible as the production seniority column, citing the kappa + routing-error + native-label-YOE evidence. T03 answers "is the column trustworthy?"; T30 answers "which slice of it should we use?" — do not re-derive the multi-operationalization junior-share comparison here. If `seniority_final` is not defensible (e.g., the rule and LLM halves disagree systematically), document the failure mode and propose a remediation; otherwise T30 proceeds on top of it.
 
-**Output:** `exploration/reports/T03.md` with the source profile, the cross-tab + kappa table, the three-way junior-share comparison, and the recommendation. This report is the canonical seniority-quality reference for downstream agents.
+**Output:** `exploration/reports/T03.md` with the source profile, the kappa table, the native-label YOE diagnostic, and the defensibility recommendation. This is the canonical seniority-quality reference for downstream agents.
+
+### T30. Seniority definition ablation panel `[Agent B]`
+
+**Goal:** Build the canonical junior- and senior-side operationalization panel that every downstream seniority-stratified task consumes. The entry-only (`seniority_final = 'entry'`) and director-only cells are power-bound in this dataset; the panel tests whether richer definitions raise power and whether the 2024→2026 direction is stable across operationalizations. The panel is a single artifact covering both sides of the seniority ladder.
+
+**Definitions to compute:**
+
+Junior side:
+- **J1** `seniority_final = 'entry'` (label-based primary)
+- **J2** `seniority_final IN ('entry','associate')` (combined bucket — materially larger n)
+- **J3** `yoe_extracted <= 2` (label-independent proxy)
+- **J4** `yoe_extracted <= 3` (loosened label-independent proxy)
+- **J5** title-keyword junior — `title_normalized` matches `\b(junior|jr|entry[- ]level|graduate|new[- ]grad|intern)\b`
+- **J6** J1 ∪ J5 (any junior signal)
+
+Senior side:
+- **S1** `seniority_final IN ('mid-senior','director')` (combined senior bucket)
+- **S2** `seniority_final = 'director'` (top of ladder only)
+- **S3** title-keyword senior — `title_normalized` matches `\b(senior|sr\.?|staff|principal|lead|architect|distinguished)\b`
+- **S4** `yoe_extracted >= 5` (label-independent proxy)
+- **S5** `yoe_extracted >= 8` (stricter label-independent proxy)
+
+Build every regex with inline `assert` edge-case tests before applying (see TDD rule in Section 1a).
+
+**Steps:**
+1. For each definition, compute `n` in arshkon, asaniczka, pooled 2024, and scraped 2026. Report both "of all SWE rows" and "of known-seniority rows" counts.
+2. For each definition, compute the share 2024 → 2026 under both denominators, the within-2024 (arshkon vs asaniczka) calibration, and the cross-period effect size.
+3. **Pairwise row-overlap matrices** — one 6×6 for junior (J1–J6), one 5×5 for senior (S1–S5). Entries = |X ∩ Y| / |X|. Shows which definitions largely agree and which are disjoint.
+4. **Per-definition MDE** (binary, 80% power, α = 0.05) for both arshkon-only-vs-scraped and pooled-2024-vs-scraped. This tells Wave 2/3 which variant is well-powered.
+5. **Direction consistency.** For the share-by-period headline, report whether J1–J4 agree on direction; same for S1–S4. Flag any disagreement and propose the most likely mechanism.
+6. **Title-keyword content spot-check.** For 50 rows matched only by J5 (not J1) and 50 rows matched only by S3 (not S1), read title + first 200 chars of description and assess precision. Report per-side precision.
+7. **Primary recommendation.** State plainly which single junior definition and which single senior definition should be used as Wave 2/3 primary, with a 2-sentence justification trading off power × label quality × convergence. If the answer differs by metric type (e.g., content analyses benefit from J2's power while structural analyses want J1's label quality), say so.
+8. **Save the panel** as `exploration/artifacts/shared/seniority_definition_panel.csv` with one row per definition × period × source, columns: `definition | side | n_of_all | n_of_known | share_of_all | share_of_known | mde_arshkon_vs_scraped | mde_pooled_vs_scraped | within_2024_effect | cross_period_effect | direction`. Every Wave 2+ agent loads this artifact rather than recomputing.
+
+**Essential sensitivities:** (a) aggregator exclusion; (f) within-2024 calibration per definition. Dimension (c) is not applicable — T30 *is* dimension (c).
+
+**Output:** `exploration/reports/T30.md` with the definition panel, overlap heatmap PNG, per-definition MDE, direction consistency verdict, and the primary recommendation + `exploration/artifacts/shared/seniority_definition_panel.csv`.
 
 ### T04. SWE classification audit `[Agent B]`
 
@@ -356,23 +386,25 @@ This task focuses on seniority label quality and the asaniczka comparability que
    - How many companies post any entry-labeled SWE roles at all? (Under both `seniority_final` and the YOE-based proxy.)
    - What share of companies with >=5 SWE postings have ZERO entry-labeled rows?
    - For the companies that DO post entry roles, what is their distribution of entry-share-of-own-postings?
-   - Which companies are entry-poster specialists (>50% of own SWE postings are entry)? Profile them.
+   - Step 6 follows up with per-company specialist identification and categorization; this step measures the shape of the concentration.
    - Any cross-source comparisons of entry posting volume must be read against this concentration backdrop — entry-share trends are about a small subset of employers, not a market-wide shift.
 
 5. **Within-company vs between-company decomposition.** Identify companies with >=5 SWE postings in BOTH arshkon and scraped. For this overlap panel, decompose the aggregate 2024-to-2026 change in entry share, AI mention prevalence, mean description length, and mean tech count into:
    - **Within-company component:** change holding company composition constant
    - **Between-company component:** change driven by different companies entering/exiting the panel
-   - Run the entry-share decomposition under both `seniority_final` and the YOE-based proxy. If they disagree on direction, report both — the disagreement is itself a finding (see sensitivity-disagreement principle in the analytical preamble).
+   - Run the entry-share decomposition under each junior variant in the T30 panel (J1–J4). Direction flips between variants are themselves findings (see sensitivity-disagreement principle in the analytical preamble).
 
-6. **Aggregator profile.** What fraction of SWE postings are from aggregators per source? Do aggregator postings differ systematically in seniority/length/requirements? Aggregator share shifts across sources are themselves a confound for any seniority-stratified comparison.
+6. **Entry-specialist employer identification.** Load the T30 panel. For every company with >=5 SWE postings, compute junior share under J1, J2, J3, and J4. Flag companies where ANY variant gives a junior share >60%. Manually categorize the top 20 flagged companies by employer type: (a) staffing firm, (b) college-jobsite intermediary, (c) tech-giant intern pipeline, (d) bulk-posting consulting, (e) direct employer. Cross-tab against `is_aggregator` — the flagged companies NOT in `is_aggregator` are the invisible intermediary class. Save as `exploration/artifacts/shared/entry_specialist_employers.csv`. Downstream aggregate entry findings must report with and without excluding this set.
 
-7. **New entrants.** How many 2026 companies have no 2024 match? What is their seniority and content profile vs returning companies?
+7. **Aggregator profile.** What fraction of SWE postings are from aggregators per source? Do aggregator postings differ systematically in seniority/length/requirements? Aggregator share shifts across sources are themselves a confound for any seniority-stratified comparison.
 
-8. **Per-finding concentration prediction.** For each major analysis category planned in Wave 2/3 (entry share, AI mention rate, description length, term frequencies, topic models, co-occurrence networks), predict whether it would be concentration-driven if computed naively over the full corpus. Recommend a default: cap, dedup, weight, or use as-is. This prediction table is the most important output of the task — it tells downstream agents what to do before they hit the same surprises.
+8. **New entrants.** How many 2026 companies have no 2024 match? What is their seniority and content profile vs returning companies?
+
+9. **Per-finding concentration prediction.** For each major analysis category planned in Wave 2/3 (entry share, AI mention rate, description length, term frequencies, topic models, co-occurrence networks), predict whether it would be concentration-driven if computed naively over the full corpus. Recommend a default: cap, dedup, weight, or use as-is. This prediction table is the most important output of the task — it tells downstream agents what to do before they hit the same surprises.
 
 **Essential sensitivities:** (a) aggregator exclusion. (b) Capping is the analysis subject of this task, so do not also apply it as a sensitivity.
 
-**Output:** `exploration/reports/T06.md` with the concentration table, top-20 employer profile per source, duplicate-template audit, entry-poster concentration finding, decomposition table under multiple operationalizations, and the per-finding concentration prediction table. The prediction table is the deliverable that downstream wave 2/3 tasks should consult first.
+**Output:** `exploration/reports/T06.md` with the concentration table, top-20 employer profile per source, duplicate-template audit, entry-poster concentration, within-vs-between decomposition under the T30 panel, `exploration/artifacts/shared/entry_specialist_employers.csv`, aggregator profile, new-entrants profile, and the per-finding concentration prediction table. The prediction table is the deliverable that downstream wave 2/3 tasks should consult first.
 
 ### T07. External benchmarks & power analysis `[Agent D]`
 
@@ -381,11 +413,11 @@ This task focuses on seniority label quality and the asaniczka comparability que
 **Steps:**
 
 *Part A — Feasibility table (primary output, drives all downstream decisions):*
-1. Query the data for actual group sizes: entry-level, mid-senior, all SWE by source. Use these for power calculations.
-2. Power analysis for cross-period comparisons: compute minimum detectable effect sizes (MDE) for binary and continuous outcomes at 80% power, alpha=0.05, for each key comparison (entry arshkon vs scraped, senior arshkon vs scraped, all SWE, pooled 2024 vs scraped).
-3. Metro-level feasibility: How many metros have >=50 SWE per period? >=100? Which qualify for metro-level analysis? (Multi-location postings — `is_multi_location = true` — have `metro_area = NULL` and are excluded from per-metro counts; report the excluded count separately.)
-4. Company overlap panel feasibility: How many companies have >=3 SWE postings in both arshkon and scraped? This determines T16's panel size.
-5. Produce a feasibility summary table: `analysis_type | comparison | n_group1 | n_group2 | MDE_binary | MDE_continuous | verdict (well-powered / marginal / underpowered)`.
+1. Query the data for actual group sizes by source under every T30 panel variant (J1–J4 on the junior side, S1–S4 on the senior side, plus all-SWE). If T30 has not yet published the panel CSV when you run, compute the definitions locally from the same specs in Section 1a.
+2. Power analysis for cross-period comparisons: compute minimum detectable effect sizes (MDE) for binary and continuous outcomes at 80% power, α = 0.05, for each key comparison × each applicable seniority definition. Key comparisons: arshkon vs scraped, pooled 2024 vs scraped, arshkon-only senior vs scraped senior, all SWE.
+3. Metro-level feasibility: How many metros have ≥50 SWE per period? ≥100? Which qualify for metro-level analysis? (Multi-location postings — `is_multi_location = true` — have `metro_area = NULL` and are excluded from per-metro counts; report the excluded count separately.)
+4. Company overlap panel feasibility: How many companies have ≥3 SWE postings in both arshkon and scraped? This determines T16's panel size.
+5. Produce a feasibility summary table with columns `analysis_type | comparison | seniority_def | n_group1 | n_group2 | MDE_binary | MDE_continuous | verdict`. For junior-specific rows, `seniority_def` ∈ {J1, J2, J3, J4}; for senior-specific rows, {S1, S2, S3, S4}; for all-SWE rows, `N/A`. The **cross-tab of (comparison × definition)** is the primary deliverable — if J1 is underpowered but J2 is well-powered, Wave 2 should center J2 with J1 as a sensitivity. The orchestrator uses this table at Gate 1 to pick the Wave 2 primary definition.
 
 *Part B — External benchmarks (useful context, not blocking):*
 6. Download BLS OES for SOC 15-1252 and 15-1256: state-level employment. Pearson r vs our state-level SWE counts.
@@ -418,7 +450,9 @@ This task focuses on seniority label quality and the asaniczka comparability que
    - Calibration ratio: cross-period / within-2024
    Save as `exploration/artifacts/shared/calibration_table.csv`. Wave 2+ agents load this instead of recomputing calibration independently.
 
-**Output:** `exploration/artifacts/shared/` directory with all artifacts + a `README.md` documenting contents, row counts, `text_source` distribution, and build time.
+7. **Tech-matrix sanity check (mandatory before Wave 2 dispatch).** After building the tech matrix in step 3, compute per-technology mention rate in arshkon SWE, asaniczka SWE, and scraped SWE separately. Flag any technology where the arshkon-to-scraped ratio is >3× or <0.33× as a likely tokenization / text-format issue. Known prior failure: `c\+\+`, `c\#`, `\.net` were backslash-escaped in scraped markdown and under-detected by naive regex (fix: `re.sub(r"\\([+\-#.&_()\[\]\{\}!*])", r"\1", text)` before tokenization). Investigate each flag — either patch the preprocessing and rebuild, or document the residual in the README. Save the sanity table as `exploration/artifacts/shared/tech_matrix_sanity.csv`.
+
+**Output:** `exploration/artifacts/shared/` directory with all artifacts + a `README.md` documenting contents, row counts, `text_source` distribution, sanity-check results, and build time.
 
 **Fallback:** If embedding computation fails (OOM), save partial results and document which rows are covered. Wave 2 agents should check coverage and compute missing embeddings locally if needed.
 
@@ -452,7 +486,7 @@ The goal of Wave 2 is to DISCOVER patterns in the data without imposing the RQ1-
    If the between-domain component accounts for a substantial portion of the aggregate decline, the junior decline is partly a domain recomposition effect, not purely within-domain elimination.
 8. **Company size stratification (where data allows).** `company_size` is available for arshkon (99%). Within arshkon, stratify entry share, AI prevalence, and tech count by company size quartile. Do large companies show different patterns? For cross-period analysis where `company_size` is unavailable, use posting volume per company as a rough proxy.
 
-**Essential sensitivities:** (a) aggregator exclusion, (b) company capping, (c) seniority operationalization (`seniority_final` + YOE proxy), (e) source restriction, (f) within-2024 calibration
+**Essential sensitivities:** (a) aggregator exclusion, (b) company capping, (c) seniority operationalization (T30 panel), (e) source restriction, (f) within-2024 calibration
 **Recommended sensitivities:** (g) SWE classification tier, (i) Indeed cross-platform
 
 **Output:** `exploration/reports/T08.md` with plots, summary stats, anomaly flags, calibration table, ranked change list, and domain decomposition
@@ -720,7 +754,7 @@ Wave 3 builds on Wave 2's discoveries to examine market structure, actors, and b
 6. **New market entrants:** Profile companies in 2026 with no 2024 match. What industries? How do their postings compare?
 7. **Aggregator vs direct employer:** Compare change patterns. Are aggregators showing different trends?
 
-**Essential sensitivities:** (a) aggregator exclusion, (c) seniority operationalization (`seniority_final` + YOE proxy for entry metrics)
+**Essential sensitivities:** (a) aggregator exclusion, (c) seniority operationalization (T30 panel)
 **Recommended sensitivities:** (b) company capping
 
 **Output:** `exploration/reports/T16.md` + company cluster characterization + decomposition results (both pooled and arshkon-only)
@@ -833,7 +867,7 @@ Report the rate-of-change under each operationalization and discuss any disagree
 6. **Domain-stratified boundary analysis.** If T09 archetype labels are available (from `exploration/artifacts/shared/swe_archetype_labels.parquet`), run the boundary analysis within each domain archetype separately. Does boundary blur/sharpening differ across ML/AI vs Frontend vs Embedded vs Data domains?
 7. **Full similarity matrix** using the structured features (not text): compute average feature profiles per seniority x period and present as a heatmap.
 
-**Essential sensitivities:** (a) aggregator exclusion, (c) seniority operationalization (`seniority_final` + YOE proxy)
+**Essential sensitivities:** (a) aggregator exclusion, (c) seniority operationalization (T30 panel)
 **Recommended sensitivities:** (g) SWE classification tier
 
 **Output:** `exploration/reports/T20.md` + AUC comparison + feature importance analysis + boundary heatmap + domain-stratified results
@@ -933,7 +967,7 @@ Report the rate-of-change under each operationalization and discuss any disagree
 
 6. **Cross-validate the AI/ML expansion.** T09 reported AI/ML +11pp. Within the AI/ML archetype, profile: who are the top employers, what is the entry vs senior mix, what tech stack dominates, what is the description length and credential stack profile. Is the AI/ML growth coming from new entrants or from existing employers shifting their mix?
 
-**Essential sensitivities:** (a) aggregator exclusion, (b) company capping per the unit-of-analysis rule (capping is appropriate for the within-archetype term/scope analyses, not appropriate for the entry-share decomposition), (c) seniority operationalization (`seniority_final` primary, YOE proxy as co-equal validator)
+**Essential sensitivities:** (a) aggregator exclusion, (b) company capping per the unit-of-analysis rule (capping is appropriate for the within-archetype term/scope analyses, not appropriate for the entry-share decomposition), (c) seniority operationalization (T30 panel)
 
 **Output:** `exploration/reports/T28.md` with the domain × seniority decomposition table, per-archetype scope changes table, per-archetype junior/senior comparison, and the AI/ML deep dive.
 
@@ -1098,7 +1132,7 @@ Integrate this naturally into the methodology pages — it should not feel like 
 Keep the total preprocessing section tight — aim for a single navigable page (or a small cluster of pages) rather than reproducing the full guide. The principle is "minimal description that lets a skeptical reader trust the upstream pipeline," not "complete reference documentation."
 
 **Layer 3 — Raw evidence (the trail).**
-All 26 task reports organized by wave, all gate memos, and retrospectives. This is the audit trail — a reader who wants to see exactly what analysis was done can find it here.
+All task reports organized by wave, all gate memos, and retrospectives. This is the audit trail — a reader who wants to see exactly what analysis was done can find it here.
 
 ---
 
