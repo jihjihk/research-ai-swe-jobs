@@ -27,10 +27,9 @@ You dispatch sub-agents who execute the analytical tasks defined in `docs/task-r
 - Read the task reference for the shared preamble, agent dispatch blocks, and task specs
 - For each agent, construct its prompt: preamble + dispatch block + task specs
 - Launch all agents in a wave simultaneously using parallel Agent tool calls (`subagent_type: "general-purpose"`)
-- **Dispatch every sub-agent with the most capable model and the maximum effort / reasoning setting your runtime exposes.** Exploration quality is bounded by sub-agent thinking depth, not by wall-clock. On Claude Code, that is currently Claude Opus with max effort; on Codex, that is currently GPT-5.4 with extra-high effort. If a newer model or higher effort tier exists at dispatch time, use it. Do not downgrade to save cost or latency — the wave's findings are the input to every downstream gate.
+- **Dispatch every sub-agent with the most capable model and the maximum effort / reasoning setting your runtime exposes.** On Claude Code, that is currently Claude Opus with max or xhigh effort; on Codex, that is currently GPT-5.4 with extra-high effort. Do not downgrade to save cost or latency — the wave's findings are the input to every downstream gate.
 - Each agent writes reports to disk; you read them after they finish
-
-This is the LEAST important part of your job.
+- Make sure all the agents know about the 31GB RAM limit on the current machine!!! Our data files are large so if multiple agent want to work on them, we can't open them in memory all at once otherwise we'll OOM very quickly.
 
 ### 2. Evaluate findings (the analytical part)
 
@@ -65,7 +64,16 @@ Between waves, you make strategic decisions:
 
 ### 4. Write research memos (the communication part)
 
-After each wave, write a research memo at `exploration/memos/gate_N.md`. This is NOT a status update — it's an analytical document. Structure:
+Write a research memo at each gate: `gate_0_pre_exploration.md` before dispatch, then `gate_N.md` after each wave or wave-group. The gate-to-wave mapping:
+
+- **Gate 0** — pre-dispatch. Priors, pre-committed ablation dimensions. Written before Wave 1.
+- **Gate 1** — after Wave 1 completes. Feasibility, T30 panel, which seniority definitions are primary. Written before Wave 1.5 / Wave 2.
+- **Gate 2** — after Wave 2 AND V1 verification. Structural discoveries, V1 corrections. Written before Wave 3. (V1 addendum is folded in.)
+- **Gate 3** — after Wave 3 AND Wave 3.5 AND V2 verification. Unified post-synthesis-input memo covering both phases. Written before Wave 4. (V2 addendum is folded in.)
+
+Gate 3 is the most important memo: it consolidates the full pre-synthesis evidence body (Wave 2 + Wave 3 + Wave 3.5 + V1/V2 corrections) into a single analytical document that Agent N reads as the primary input to SYNTHESIS.md.
+
+Memos are NOT status updates — they are analytical documents. Structure:
 
 ```markdown
 # Gate N Research Memo
@@ -107,15 +115,6 @@ Also update `exploration/reports/INDEX.md` with the task-level tracking table af
 
 Stages 9 and 10 now require an explicit `--llm-budget` parameter — **there is no default**. The budget caps how many new LLM calls are made per run. Scraping produces more data than LLM quota can process, so a budget is required to avoid exhausting API credits mid-run.
 
-**Before dispatching any agent that runs or re-runs stages 9 or 10, you MUST ask the user for a processing budget.** Do not assume a value. Do not carry over a budget from a previous session. Every run is an explicit decision about how much quota to spend.
-
-**How the budget works:**
-- The budget applies to **all data sources** (Kaggle and scraped alike).
-- The budget is split 40% SWE / 30% SWE-adjacent / 30% control (configurable via `--llm-budget-split`). SWE gets the most because it's the primary study target.
-- Surplus cascades: if one category has fewer uncached rows than its share, the excess budget redistributes to the other categories.
-- Within each category, budget is first used to balance absolute labeled counts across sources. For `scraped`, the allocated share is then water-filled across `scrape_date` buckets so the least-covered days get priority.
-- Budget=0 is valid: the stage runs on cached results only with no new LLM calls.
-
 **What this means for agents:** Not every scraped row will have LLM-derived columns. The columns `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track which rows were labeled. Stage 9 and Stage 10 use separate caches, so coverage can differ row-by-row; a row may have Stage 9 text without Stage 10 classification, or vice versa. `selected_for_llm_frame` marks the sticky balanced core only; `selection_target` is the minimum core size. Supplemental cache rows can expand the usable LLM set, but they do not change the balanced core frame.
 
 **Reading LLM columns correctly:**
@@ -135,6 +134,22 @@ Stages 9 and 10 now require an explicit `--llm-budget` parameter — **there is 
 7. Write `exploration/memos/gate_0_pre_exploration.md` before dispatching Wave 1. It must include a short **"Pre-committed ablation dimensions"** section listing the sensitivity dimensions that will be non-negotiable for every Wave 2+ agent — at minimum the T30 seniority panel (J1–J4 for junior claims, S1–S4 for senior claims), aggregator exclusion, company capping for corpus aggregates, within-2024 calibration, semantic keyword precision, and composite-score correlation checks for any matched-delta analysis. This pre-commitment prevents ablation discipline from drifting under time pressure.
 
 ## Wave-by-wave guidance
+
+The full pipeline runs in eight phases:
+
+```
+Wave 1 (data foundation, T01-T07 + T30)
+  → Wave 1.5 (shared preprocessing)
+  → Wave 2 (structural discovery, T08-T15)
+  → V1 (Gate 2 verification) → Gate 2 memo
+  → Wave 3 (market dynamics, T16-T23 + T28-T29)
+  → Wave 3.5 (induced hypothesis tests, T31-T38)
+  → V2 (Gate 3 verification) → Gate 3 memo
+  → Wave 4 (synthesis, T24-T26)
+  → Wave 5 (presentation, T27)
+```
+
+Wave 3.5 is a dependent computational phase between Wave 3 and V2 that tests 8 high-value induced hypotheses (H_A, H_B, H_C, H_H from the original T24 planning list, plus H_K, H_L, H_M, H_N introduced by Wave 3.5 itself). Its outputs flow directly into SYNTHESIS.md as paper claims, not as optional appendix material. The Gate 3 memo covers Wave 3 + Wave 3.5 unified; no separate Gate 3.5 memo is written.
 
 ### Wave 1 — Data Foundation (Agents A-D)
 
@@ -210,48 +225,110 @@ Write modified task specs into the agent prompts for Wave 3. You don't need to e
 
 This is a lightweight quality gate, not a full wave. If verification reveals a problem, correct it before Wave 3 dispatch.
 
-### Wave 3 — Market Dynamics & Cross-cutting Patterns (Agents J-M, Tasks T16-T23)
+### Wave 3 — Market Dynamics & Cross-cutting Patterns (Agents J-M, O; Tasks T16-T23 + T28, T29)
 
-**Dispatch:** Launch all 4 agents in parallel, with any modifications from your Gate 2 assessment. T19 focuses on rate-of-change estimation, within-period stability, and data representativeness.
+**Dispatch:** Launch all 5 agents in parallel, with any modifications from your Gate 2 assessment. T19 focuses on rate-of-change estimation, within-period stability, and data representativeness. T28 uses T09's archetype labels; T29 tests the recruiter-LLM authorship mediation hypothesis.
 
-**What to think about at Gate 3:**
+**What Wave 3 must produce for Wave 3.5.** Wave 3.5 consumes Wave 3 artifacts directly, so the orchestrator must verify these are persisted before dispatching Wave 3.5:
+- T16 persists the 240-co arshkon∩scraped overlap panel with per-company change vectors in `exploration/tables/T16/` (consumed by Wave 3.5 T31, T37, T38).
+- T21 persists k-means senior cluster assignments in `exploration/tables/T21/` (consumed by T34).
+- T22 persists `exploration/artifacts/shared/validated_mgmt_patterns.json` with measured precision (consumed by all Wave 3.5 agents).
+- T13's section classifier at `exploration/scripts/T13_section_classifier.py` (from Wave 2) is re-used by Wave 3.5 T33.
+- T06's returning-companies cohort list (consumed by T37).
 
-By now you have a large body of evidence. Gate 3 is about composition — what's the full picture?
+If Wave 3 agents are failing to persist an artifact cleanly, fix it before dispatching Wave 3.5 rather than letting Wave 3.5 agents re-derive.
+
+**What to think about at Gate 3 (the orchestrator writes the Gate 3 memo AFTER Wave 3.5 and V2 complete — this list frames what you watch for as Wave 3 and Wave 3.5 unfold):**
+
+By Gate 3 you have the full evidence body. Gate 3 is about composition — what's the full picture once both Wave 3 and Wave 3.5 land?
 
 Key evaluation questions:
-- **What's SWE-specific vs. field-wide?** T18 is critical. If control occupations show the same patterns, our "SWE restructuring" story weakens. If they don't, it strengthens. This finding should reshape the paper framing.
-- **Within-company vs. composition:** T16 decomposes aggregate changes. If the entry-share decline is entirely driven by different companies posting (composition), that's a fundamentally different story than if individual companies are reducing their own junior postings.
-- **Ghost requirements:** T22 assesses how much of the "scope inflation" is aspirational copy-paste vs. real hiring bar changes. This is potentially the most important validity check. If ghost patterns are prevalent, the paper needs to frame findings as "what employers SAY they want" not "what they actually require."
-- **The divergence story:** T23 is RQ3. Is the employer-requirement/worker-usage gap a strong finding or a weak one? It depends heavily on benchmark data quality.
-- **Narrative coherence:** Do the Wave 3 findings strengthen or weaken the narrative from Wave 2? Which threads held up under deeper scrutiny? Which fell apart?
+- **What's SWE-specific vs. field-wide?** T18 is critical. Wave 3.5 T32 extends T18 to a cross-occupation benchmark-informed divergence test. If control occupations show the same patterns, the "SWE restructuring" story weakens. If they don't, it strengthens. This reshapes the paper framing.
+- **Within-company vs. composition:** T16 decomposes aggregate changes. Wave 3.5 T31 (same-co × same-title) tightens this to the finest possible unit and T37 (returning-cohort sensitivity) quantifies how much of each headline is sampling-frame artifact vs real change. If T31 pair-level drift matches T16 company-level drift, rewriting is within-company-per-role real; if T37 retention ratios are below 80% on key headlines, the paper needs a sampling-frame caveat.
+- **Ghost requirements:** T22 + Wave 3.5 T33 (hidden hiring-bar) assess whether scope-inflation is aspirational copy-paste vs real hiring-bar changes. T33 tests specifically whether requirements-section contraction correlates with lowered YOE / credential asks (the implicit hiring-bar lowering hypothesis).
+- **The divergence story:** T23 is RQ3. Wave 3.5 T32 generalizes to cross-occupation. If the inversion holds universally across AI-exposed occupations, RQ3 becomes a general labor-market finding — potentially paper-lead-material rather than a second-section story.
+- **Ecosystem and legacy dynamics:** Wave 3.5 T35 (ecosystem crystallization) and T36 (legacy substitution) are descriptive enrichments. Read them to see whether the technology-evolution narrative has a clean structure or is noise-dominated.
+- **Senior role content:** T21 + Wave 3.5 T34 (AI-enabled tech lead profiling). If T34 validates the mgmt+orch+strat+AI sub-archetype as a distinct role with specific titles/companies/content, the senior-shift finding becomes a concrete publishable claim.
+- **Narrative coherence:** Do Wave 3 + Wave 3.5 findings strengthen or weaken the narrative from Wave 2? Which threads held up under deeper scrutiny? Which fell apart?
 
-**Preparing for synthesis:** Before dispatching Wave 4, do substantial work yourself:
-1. Rank all findings by (evidence strength) x (novelty) x (narrative value)
-2. Draft the paper's core argument in 2-3 sentences
-3. Identify the 5 most important figures/tables for the paper
-4. List which findings need robustness checks in the analysis phase
-5. Decide which RQ framing to recommend to the synthesis agent
+**Preparing for Wave 3.5 dispatch:** After all Wave 3 agents return, before dispatching Wave 3.5:
+1. Verify Wave 3 artifact handoffs (see list above) are in place.
+2. Read Wave 3 reports once through; do NOT yet write the Gate 3 memo (that comes after Wave 3.5 and V2).
+3. Note any Wave 3 finding that materially changes the Wave 3.5 dispatch — e.g., if T22 validated a different strict-management pattern than V1 expected, Wave 3.5 agents should load the T22-validated version; if T21 clusters turn out degenerate, T34 may need adjustment.
+4. Dispatch Wave 3.5's four agents (Q, R, S, T) in parallel with any adjustments.
+
+### Wave 3.5 — Induced Hypothesis Tests (Agents Q-T, Tasks T31-T38)
+
+**Dispatch:** Launch all 4 Wave 3.5 agents in parallel after Wave 3 completes and artifacts are persisted. Wave 3.5 tests 8 hypotheses (H_A, H_B, H_C, H_H from T24's planned list + H_K, H_L, H_M, H_N introduced by this phase) that are high-value for the paper's lead narrative and robustness story — it is part of the main pipeline, not an optional extension. Each agent's dispatch block in the task reference's §2 describes the specific dependency artifacts to load.
+
+Wave 3.5 is dependency-ordered after Wave 3 (see "What Wave 3 must produce for Wave 3.5" above) because tasks like T31 (needs T16's overlap panel) and T34 (needs T21's clusters) cannot run in parallel with Wave 3. Collapsing Wave 3.5 into Wave 3 would create circular artifact dependencies.
+
+**What to check between Wave 3.5 dispatch and V2:**
+
+Wave 3.5 is more mechanical than Wave 2/3 because each task is narrowly hypothesis-driven. Orchestrator's job during this phase is shorter than Gate 2/3:
+- **Did each task produce its headline?** Wave 3.5 tasks are contract-style — each report closes with "Headline claims for SYNTHESIS" stating the 1-3 specific claims. Check every task's closing section produced these.
+- **Do the verdicts cohere with Wave 3?** Major incoherences (e.g., T31 pair-level drift going opposite direction from T16 company-level drift; T32 cross-occupation divergence direction flipping vs T23 SWE-only) are red flags. Either investigate immediately or flag for V2's adversarial re-derivation.
+- **Any Wave 3.5 finding strong enough to promote a claim to the paper's lead?** T32 cross-occupation inversion, T31 pair-level within-company drift, and T33 hidden-hiring-bar mechanism are the three Wave 3.5 claims most likely to reshape the paper. If any of them delivers a clear, strong, surprising result, the Gate 3 memo should surface it prominently.
+- **Any finding that materially changes sampling-frame interpretation?** T37's retention ratios tell you whether Gate 3 headlines survive sampling restriction. If a headline drops below 50% retention, it needs a sampling caveat or demotion.
+- **Composite-score correlation checks still apply.** T31 (pair-level drift composites), T33 (hiring-bar regression with covariates), T37 (length-residualized headline re-runs), and T38 (content-Δ composites) all produce composites or matched deltas — V2 audits these for component-length correlation per the Gate 0 pre-commit. T34 (cluster-2 profiling) and T35/T36 (descriptive network/substitution analyses) do not produce matched deltas and are exempt.
+
+**Preparing for Gate 3 memo:** After Wave 3.5 completes and BEFORE dispatching V2, do substantial work yourself:
+1. Read all Wave 3.5 reports alongside Wave 3 reports as a unified body.
+2. Rank all findings (Wave 2 + Wave 3 + Wave 3.5) by (evidence strength) × (novelty) × (narrative value).
+3. Draft the paper's core argument in 2-3 sentences incorporating Wave 3.5 results.
+4. Identify the 5-7 most important figures/tables spanning all three computational waves.
+5. List findings that need analysis-phase robustness checks (Wave 3.5 T37 already pre-computed sampling-frame sensitivity; other findings may need additional tests).
+6. Draft the RQ-evolution recommendation for SYNTHESIS.md.
+
+Do NOT write the Gate 3 memo yet — V2 runs next and may correct magnitudes. Gate 3 memo is written after V2.
 
 ### Gate 3 Verification (Agent V2)
 
-**After writing the Gate 3 memo and before dispatching Wave 4,** launch a second verification agent. Same adversarial role as Agent V1, applied to Wave 3:
+**After Wave 3 and Wave 3.5 complete, and before writing the Gate 3 memo,** launch V2. V2's adversarial role is identical to V1's but covers a larger surface: Wave 3 headlines AND Wave 3.5 headlines.
 
-1. Re-derive the top 3-5 headline numbers from Wave 3 independently.
-2. Validate new or rebuilt keyword patterns semantically on 50-row stratified samples; flag any tautological precision claim and re-run it.
-3. Audit prevalence citation transparency — flag any cross-task citation that combines different patterns or subsets.
-4. Audit composite-score matching — flag any matched-delta finding whose composite has a component correlating r > 0.3 with the outcome.
-5. Test whether cross-occupation DiD findings are robust to alternative control group definitions and whether decomposition results hold across T30 panel variants.
+V2's protocol:
 
-### Wave 4 — Integration & Hypothesis Generation (Agent N, Tasks T24-T26)
+1. **Re-derive the top 3-5 headline numbers from Wave 3 independently** (T18 DiD, T16 within-company decomposition, T23 SWE divergence, T20 boundary AUC, T21 senior-specific mentor rise).
+2. **Re-derive one headline from each Wave 3.5 task:**
+   - T31 pair-level within-company drift (matches/exceeds T16's company-level 102% within?)
+   - T32 cross-occupation divergence (direction matches T23? magnitude?)
+   - T33 hidden-hiring-bar regression (period coefficient on requirements-share + correlation with YOE / credential)
+   - T34 AI-enabled-tech-lead profile (cluster-2 title distribution, company concentration)
+   - T35 ecosystem crystallization (modularity Δ; LLM-vendor community verification)
+   - T36 legacy substitution (top-5 neighbors per disappearing title; AI-vocabulary comparison)
+   - T37 sampling-frame retention ratios on top-5 headlines
+   - T38 hiring-selectivity correlation direction + robustness
+3. **Validate new or rebuilt keyword patterns semantically** on 50-row stratified samples; flag any tautological precision claim and re-run it. Wave 3.5 agents are required to load V1-refined + T22-validated patterns rather than re-derive, but V2 confirms they did.
+4. **Audit prevalence citation transparency across Wave 3 AND Wave 3.5 reports.** Flag any cross-task citation that combines different patterns or subsets.
+5. **Audit composite-score matching** for any matched-delta finding (T31 pair drift, T33 hidden-bar regression, T37 residualized headlines).
+6. **Test cross-occupation DiD robustness (T18, T32)** under alternative control group definitions. Check whether decomposition results hold across T30 panel variants.
+7. **Propose alternative explanations** for each Wave 3 and Wave 3.5 lead finding.
 
-**Dispatch:** Launch Agent N. Include your Gate 3 research memo and your ranked findings as additional context in the agent's prompt. The synthesis agent should amplify your strategic assessment, not start from scratch.
+Write `exploration/reports/V2_verification.md`. If verification reveals a material correction, fix/annotate before writing the Gate 3 memo.
+
+**Writing the Gate 3 memo (after V2 completes):** Cover Wave 3 + Wave 3.5 as a unified body of evidence with V2 corrections integrated. Use the memo template from §4 of this prompt. The memo's "Ranked findings" section should span Wave 2 + Wave 3 + Wave 3.5; do not split Wave 3.5 into a separate subsection. The "Narrative evaluation" and "Emerging narrative" sections should present the post-Wave-3.5 story.
+
+### Wave 4 — Integration & Synthesis (Agent N, Tasks T24-T26)
+
+**Dispatch:** Launch Agent N after the Gate 3 memo (integrating Wave 3, Wave 3.5, and V2 corrections) is written. Include the Gate 3 memo and your ranked findings as additional context in N's prompt. The synthesis agent should amplify your strategic assessment, not start from scratch.
+
+Agent N reads:
+- All reports from Waves 1 through 3.5 (T01-T38).
+- Both verification reports (V1, V2).
+- All gate memos (gate_0, gate_1, gate_2, gate_3).
+- The orchestrator's ranked findings list from Gate 3 memo.
+
+**Inside T24 (hypothesis consolidation):** Wave 3.5 pre-tested 8 of T24's would-have-been-planned hypotheses. T24's job now is consolidation + deferred-inventory, not from-scratch generation. For hypotheses directly tested by Wave 3.5 (H_A, H_B, H_C, H_H + new H_K, H_L, H_M, H_N), T24 reports the Wave 3.5 verdict. For hypotheses deferred to analysis-phase (H_D, H_E, H_F, H_G, H_I, H_J from T24's original H_A-H_J list), T24 lists with priority. For new post-Wave-3.5 hypotheses (fewer expected), T24 specifies them normally.
+
+**Inside T26 (SYNTHESIS.md):** Wave 3.5 findings appear in the ranked findings list ALONGSIDE Wave 2-3 findings, not in a separate wave-6 section. The robustness appendix includes T37's sampling-frame sensitivity table as a primary deliverable.
 
 **After Wave 4:** Report to the user with:
-1. The emerging paper narrative (2-3 sentences)
-2. Top 3-5 findings ranked by strength and novelty
-3. Recommended RQ evolution (what changed from the original design and why)
-4. Method recommendations (what worked, what didn't)
-5. Pointer to `exploration/reports/SYNTHESIS.md` and `exploration/memos/`
+1. The emerging paper narrative (2-3 sentences) — incorporating Wave 3.5 results.
+2. Top 3-5 findings ranked by strength × novelty × narrative value (post-Wave-3.5).
+3. Recommended RQ evolution (what changed from the original design and why, including which Wave 3.5 verdicts drove changes).
+4. Method recommendations (what worked, what didn't).
+5. Hypothesis status — which T24 H_A-H_J hypotheses are confirmed/contradicted/ambiguous based on Wave 3.5 tests, and which are deferred.
+6. Pointer to `exploration/reports/SYNTHESIS.md` and `exploration/memos/`.
 
 ### Wave 5 — Presentation & Evidence Package (Agent P, Task T27)
 

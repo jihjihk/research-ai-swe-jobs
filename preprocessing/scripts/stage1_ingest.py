@@ -26,7 +26,19 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from io_utils import write_parquet_atomic, write_text_atomic
+import os
+import resource
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+from io_utils import (
+    cleanup_temp_file,
+    prepare_temp_output,
+    promote_null_schema,
+    promote_temp_file,
+    write_parquet_atomic,
+    write_text_atomic,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -582,6 +594,170 @@ def log_null_rates(df: pd.DataFrame, label: str) -> None:
             log.info("    %-20s %.1f%%", col, 100 * rates[col])
 
 
+def _mem_gb() -> tuple[float, float, float]:
+    """(current_rss_gb, peak_rss_gb, system_available_gb)."""
+    peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    peak_gb = peak_kb / (1024 * 1024)
+    try:
+        with open(f"/proc/{os.getpid()}/statm") as fh:
+            # statm: size resident shared text lib data dt (in pages)
+            resident_pages = int(fh.read().split()[1])
+        page_size = resource.getpagesize()
+        current_gb = (resident_pages * page_size) / (1024 ** 3)
+    except Exception:
+        current_gb = -1.0
+    try:
+        with open("/proc/meminfo") as fh:
+            meminfo = {
+                line.split(":")[0]: int(line.split()[1])
+                for line in fh
+                if line.split()[0].rstrip(":") in ("MemAvailable", "MemFree")
+            }
+        avail_gb = meminfo.get("MemAvailable", 0) / (1024 * 1024)
+    except Exception:
+        avail_gb = -1.0
+    return current_gb, peak_gb, avail_gb
+
+
+def _log_mem(tag: str) -> None:
+    cur, peak, avail = _mem_gb()
+    log.info(
+        "[mem] %-50s rss=%5.2fGB peak=%5.2fGB sys_avail=%5.2fGB",
+        tag,
+        cur,
+        peak,
+        avail,
+    )
+
+
+class _StreamingParquet:
+    """Append DataFrames to a single parquet file without ever concatenating
+    them in memory. The first part defines the schema; subsequent parts are
+    aligned to it (missing columns filled with nulls, extras dropped).
+    """
+
+    def __init__(self, final_path: Path, compression: str | None) -> None:
+        self.final_path = final_path
+        self.tmp_path = prepare_temp_output(final_path)
+        self.compression = compression
+        self.writer: pq.ParquetWriter | None = None
+        self.schema: pa.Schema | None = None
+        self.rows = 0
+
+    def append(self, df: pd.DataFrame, chunk_size: int = 200_000) -> None:
+        if df is None or len(df) == 0:
+            return
+        total = len(df)
+        tag = self.final_path.name
+        _log_mem(f"{tag} append start rows={total:,}")
+        for start in range(0, total, chunk_size):
+            sub = df.iloc[start : start + chunk_size]
+            table = pa.Table.from_pandas(sub, preserve_index=False)
+            if self.writer is None:
+                self.schema = promote_null_schema(table.schema)
+                self.writer = pq.ParquetWriter(
+                    self.tmp_path, self.schema, compression=self.compression
+                )
+            else:
+                # Add missing columns as null arrays, drop extras, reorder.
+                have = set(table.schema.names)
+                need = list(self.schema.names)
+                for col in need:
+                    if col not in have:
+                        field = self.schema.field(col)
+                        null_arr = pa.nulls(len(table), type=field.type)
+                        table = table.append_column(field, null_arr)
+                table = table.select(need)
+            self.writer.write_table(table.cast(self.schema))
+            self.rows += len(sub)
+            del table
+            del sub
+            gc.collect()
+            if ((start // chunk_size) % 5) == 0:
+                _log_mem(f"{tag} wrote {min(start + chunk_size, total):,}/{total:,}")
+
+    def close(self) -> None:
+        if self.writer is not None:
+            self.writer.close()
+            self.writer = None
+            promote_temp_file(self.tmp_path, self.final_path)
+
+    def abort(self) -> None:
+        if self.writer is not None:
+            try:
+                self.writer.close()
+            finally:
+                self.writer = None
+        cleanup_temp_file(self.tmp_path)
+
+
+def _per_source_stats(df: pd.DataFrame) -> dict[str, dict]:
+    """Return stats keyed by source value. Each source entry contains row
+    counts, platform breakdown, null rates, and required-field null counts.
+    """
+    out: dict[str, dict] = {}
+    if len(df) == 0:
+        return out
+    for source, subset in df.groupby("source", dropna=False):
+        key = str(source)
+        out[key] = {
+            "rows": int(len(subset)),
+            "platform_counts": {
+                str(k): int(v)
+                for k, v in subset["source_platform"].value_counts(dropna=False).items()
+            },
+            "null_rates": {
+                col: round(float(subset[col].isna().mean()), 4)
+                for col in NULL_RATE_COLUMNS
+            },
+            "required_nulls": {
+                col: int(subset[col].isna().sum())
+                for col in ["uid", "source", "title"]
+            },
+        }
+    return out
+
+
+def _merge_stats(acc: dict[str, dict], new: dict[str, dict]) -> None:
+    """Merge per-source stats dicts. Null rates are remixed by row-weighted
+    averaging; all other integer counts sum.
+    """
+    for source, s in new.items():
+        if source not in acc:
+            acc[source] = {
+                "rows": 0,
+                "platform_counts": {},
+                "null_rates": {col: 0.0 for col in NULL_RATE_COLUMNS},
+                "null_counts": {col: 0 for col in NULL_RATE_COLUMNS},
+                "required_nulls": {col: 0 for col in ["uid", "source", "title"]},
+            }
+        bucket = acc[source]
+        bucket["rows"] += s["rows"]
+        for plat, n in s["platform_counts"].items():
+            bucket["platform_counts"][plat] = bucket["platform_counts"].get(plat, 0) + n
+        for col, rate in s["null_rates"].items():
+            bucket["null_counts"][col] += int(round(rate * s["rows"]))
+        for col, n in s["required_nulls"].items():
+            bucket["required_nulls"][col] = bucket["required_nulls"].get(col, 0) + n
+
+
+def _finalize_stats(acc: dict[str, dict]) -> dict[str, dict]:
+    """Convert accumulated null counts back to rates."""
+    out: dict[str, dict] = {}
+    for source, bucket in acc.items():
+        n = max(bucket["rows"], 1)
+        out[source] = {
+            "rows": bucket["rows"],
+            "platform_counts": bucket["platform_counts"],
+            "null_rates": {
+                col: round(bucket["null_counts"][col] / n, 4)
+                for col in NULL_RATE_COLUMNS
+            },
+            "required_nulls": bucket["required_nulls"],
+        }
+    return out
+
+
 def run_stage1() -> tuple[int, int]:
     log.info("=" * 60)
     log.info("STAGE 1: INGEST AND SCHEMA UNIFICATION")
@@ -591,56 +767,110 @@ def run_stage1() -> tuple[int, int]:
         "scraped_file_policy": "load all YYYY-MM-DD_{swe,non_swe}_jobs.csv files; skip YC and non-41-column legacy files"
     }
 
-    arshkon = load_kaggle_arshkon(summary)
-    asaniczka = load_kaggle_asaniczka(summary)
-    scraped_canonical, scraped_observations = load_scraped(summary)
-
-    canonical = pd.concat([arshkon, asaniczka, scraped_canonical], ignore_index=True)
-    observations = pd.concat([arshkon, asaniczka, scraped_observations], ignore_index=True)
-
-    # Free source DataFrames — they are fully copied into canonical/observations
-    del arshkon, asaniczka, scraped_canonical, scraped_observations
-    gc.collect()
-
-    summary["stage1_unified_rows"] = int(len(canonical))
-    summary["stage1_observation_rows"] = int(len(observations))
-    summary["source_breakdown_unified"] = {
-        str(k): int(v) for k, v in canonical["source"].value_counts(dropna=False).items()
-    }
-    summary["source_platform_breakdown_unified"] = {
-        str(k): int(v) for k, v in canonical["source_platform"].value_counts(dropna=False).items()
-    }
-    summary["canonical_null_rates_by_source"] = build_null_rate_summary(canonical)
-    summary["observation_null_rates_by_source"] = build_null_rate_summary(observations)
-    summary["required_field_nulls"] = {
-        col: int(canonical[col].isna().sum()) for col in ["uid", "source", "title"]
-    }
-
-    log.info("Unified rows: %s", f"{len(canonical):,}")
-    for source, count in canonical["source"].value_counts().items():
-        log.info("  %s: %s", source, f"{count:,}")
-    for platform, count in canonical["source_platform"].value_counts().items():
-        log.info("  platform=%s: %s", platform, f"{count:,}")
-
-    log_null_rates(canonical, "canonical output")
-
     unified_path = INTERMEDIATE_DIR / "stage1_unified.parquet"
     observations_path = INTERMEDIATE_DIR / "stage1_observations.parquet"
     summary_path = LOG_DIR / "stage1_ingest_summary.json"
 
-    # Write one DataFrame at a time to avoid OOM from simultaneous Arrow
-    # conversion.  Delete each DataFrame after writing to reclaim memory.
-    canonical_rows = len(canonical)
-    write_parquet_atomic(canonical, unified_path, compression=PARQUET_COMPRESSION)
-    log.info("Saved %s", unified_path)
-    del canonical
-    gc.collect()
+    unified_writer = _StreamingParquet(unified_path, compression=PARQUET_COMPRESSION)
+    obs_writer = _StreamingParquet(observations_path, compression=PARQUET_COMPRESSION)
 
-    observations_rows = len(observations)
-    write_parquet_atomic(observations, observations_path, compression=PARQUET_COMPRESSION)
-    log.info("Saved %s", observations_path)
-    del observations
-    gc.collect()
+    canonical_stats: dict[str, dict] = {}
+    observation_stats: dict[str, dict] = {}
+
+    def _process(df: pd.DataFrame, *, target: str) -> None:
+        if df is None or len(df) == 0:
+            return
+        stats = _per_source_stats(df)
+        if target == "unified":
+            _merge_stats(canonical_stats, stats)
+            unified_writer.append(df)
+        else:
+            _merge_stats(observation_stats, stats)
+            obs_writer.append(df)
+
+    try:
+        _log_mem("before load_kaggle_arshkon")
+        arshkon = load_kaggle_arshkon(summary)
+        _log_mem(f"after load_kaggle_arshkon rows={len(arshkon):,}")
+        _process(arshkon, target="unified")
+        _process(arshkon, target="observations")
+        del arshkon
+        gc.collect()
+        _log_mem("after del arshkon")
+
+        _log_mem("before load_kaggle_asaniczka")
+        asaniczka = load_kaggle_asaniczka(summary)
+        _log_mem(f"after load_kaggle_asaniczka rows={len(asaniczka):,}")
+        _process(asaniczka, target="unified")
+        _process(asaniczka, target="observations")
+        del asaniczka
+        gc.collect()
+        _log_mem("after del asaniczka")
+
+        _log_mem("before load_scraped")
+        scraped_canonical, scraped_observations = load_scraped(summary)
+        _log_mem(
+            f"after load_scraped canonical={len(scraped_canonical):,} "
+            f"observations={len(scraped_observations):,}"
+        )
+        _process(scraped_canonical, target="unified")
+        del scraped_canonical
+        gc.collect()
+        _log_mem("after del scraped_canonical")
+        _process(scraped_observations, target="observations")
+        del scraped_observations
+        gc.collect()
+        _log_mem("after del scraped_observations")
+
+        unified_writer.close()
+        log.info("Saved %s", unified_path)
+        _log_mem("after close unified writer")
+        obs_writer.close()
+        log.info("Saved %s", observations_path)
+        _log_mem("after close obs writer")
+    except Exception:
+        unified_writer.abort()
+        obs_writer.abort()
+        raise
+
+    canonical_final = _finalize_stats(canonical_stats)
+    observation_final = _finalize_stats(observation_stats)
+
+    canonical_rows = unified_writer.rows
+    observations_rows = obs_writer.rows
+
+    summary["stage1_unified_rows"] = canonical_rows
+    summary["stage1_observation_rows"] = observations_rows
+    summary["source_breakdown_unified"] = {
+        src: info["rows"] for src, info in canonical_final.items()
+    }
+    platform_breakdown: dict[str, int] = {}
+    for info in canonical_final.values():
+        for plat, n in info["platform_counts"].items():
+            platform_breakdown[plat] = platform_breakdown.get(plat, 0) + n
+    summary["source_platform_breakdown_unified"] = platform_breakdown
+    summary["canonical_null_rates_by_source"] = {
+        src: info["null_rates"] for src, info in canonical_final.items()
+    }
+    summary["observation_null_rates_by_source"] = {
+        src: info["null_rates"] for src, info in observation_final.items()
+    }
+    summary["required_field_nulls"] = {
+        col: sum(info["required_nulls"].get(col, 0) for info in canonical_final.values())
+        for col in ["uid", "source", "title"]
+    }
+
+    log.info("Unified rows: %s", f"{canonical_rows:,}")
+    for src, n in summary["source_breakdown_unified"].items():
+        log.info("  %s: %s", src, f"{n:,}")
+    for plat, n in platform_breakdown.items():
+        log.info("  platform=%s: %s", plat, f"{n:,}")
+
+    log.info("Null rates for canonical output by source:")
+    for src, info in canonical_final.items():
+        log.info("  source=%s", src)
+        for col in NULL_RATE_COLUMNS:
+            log.info("    %-20s %.1f%%", col, 100 * info["null_rates"][col])
 
     write_text_atomic(json.dumps(summary, indent=2), summary_path)
     log.info("Saved %s", summary_path)

@@ -1,6 +1,11 @@
 # SWE Labor Market Research — Project Instructions
 
-Last updated: 2026-04-10
+Last updated: 2026-04-18
+
+## Recent changes
+
+- **Stage 10 skip-logic removed 2026-04-18:** Every in-frame eligible row (LinkedIn, English, ≥15 words, `selected_for_llm_frame = True`) now routes to the LLM. Schema: `llm_classification_coverage` enum dropped `rule_sufficient` (4 values remain: `labeled`, `deferred`, `not_selected`, `skipped_short`); Stage 5 now writes `seniority_rule` + `seniority_rule_source` columns (immutable rule-based snapshots preserved through Stage 10 overrides of `seniority_final`).
+- **Wave 4 exploration complete 2026-04-17:** SYNTHESIS.md ready for analysis phase.
 
 ## Purpose
 
@@ -53,6 +58,8 @@ Exploratory analysis on pipeline outputs to validate data quality and surface re
 - **Task reference:** [`docs/task-reference-exploration.md`](docs/task-reference-exploration.md) — shared preamble, 26 task specs + 2 verification agents
 - **Orchestrator:** [`docs/prompt-exploration-orchestrator.md`](docs/prompt-exploration-orchestrator.md) — dispatch, gate logic, wave guidance
 - **Outputs:** generated under `exploration/` for each run; stale outputs should not be treated as canonical across reruns
+- **Current status (Wave 4 complete, 2026-04-17):** Waves 1-4 + V1/V2 verification done. Read `exploration/reports/SYNTHESIS.md` first — it contains the paper's lead sentence, three supporting claims, RQ evolution (RQ1a lead, RQ3 inverted), recommended analytical samples, confounder assessments, 10 new hypotheses (T24), and 6 interview elicitation artifacts (T25). Wave 5 (P — presentation) is pending.
+- **Key exploration-phase verdicts (pre-analysis):** SWE-specific AI-vocabulary rewriting is the lead finding (T18 DiD 99% SWE-specific strict; T16 102% within-company). RQ3 direction inverted: employers UNDER-specify AI by 15-30pp vs worker usage (T23). Junior scope-inflation REJECTED as junior-specific; seniority boundaries SHARPENED (T20); seniors changed more than juniors (T12, T21).
 
 ### 3. Analysis
 

@@ -1451,6 +1451,8 @@ def streaming_write(
         chunk["seniority_final"] = seniority_final_levels
         chunk["seniority_final_source"] = seniority_final_sources
         chunk["seniority_3level"] = chunk["seniority_final"].apply(map_3level)
+        chunk["seniority_rule"] = chunk["seniority_final"]
+        chunk["seniority_rule_source"] = chunk["seniority_final_source"]
         chunk["yoe_extracted"] = np.array(yoe_values, dtype=np.float64)
         chunk["yoe_min_extracted"] = np.array(yoe_min_values, dtype=np.float64)
         chunk["yoe_max_extracted"] = np.array(yoe_max_values, dtype=np.float64)

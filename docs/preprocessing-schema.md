@@ -1,6 +1,8 @@
 # Preprocessing Schema Reference
 
-Last updated: 2026-04-10
+Last updated: 2026-04-18
+
+**Changelog — 2026-04-18:** Stage 10 skip-logic removed. Every in-frame eligible row (LinkedIn, English, ≥15 words, `selected_for_llm_frame = True`) now routes to the LLM; there is no rule-based shortcut. `llm_classification_coverage` enum simplified from 5 values to 4: `rule_sufficient` dropped. Stage 5 now writes two new append-only columns: `seniority_rule` (immutable rule-based seniority output) and `seniority_rule_source` (provenance of that label), preserved through Stage 10 overrides of `seniority_final`.
 
 Complete column reference for the preprocessing pipeline. For architecture, operations, and development practices, see [`preprocessing-guide.md`](preprocessing-guide.md).
 
@@ -35,7 +37,7 @@ This table shows when each column category first becomes available:
 | Company canonicalization | Stage 4 | 2 | `company_name_canonical`, `company_name_canonical_method` |
 | Multi-location flag | Stage 4 | 1 | `is_multi_location` |
 | SWE classification | Stage 5 | 5 | `is_swe`, `is_swe_adjacent`, `is_control`, `swe_confidence`, `swe_classification_tier` |
-| Seniority | Stage 1 + 5 + 10 | 4 | `seniority_native` (Stage 1), `seniority_final`, `seniority_final_source`, `seniority_3level` |
+| Seniority | Stage 1 + 5 + 10 | 6 | `seniority_native` (Stage 1), `seniority_rule`, `seniority_rule_source` (Stage 5, immutable), `seniority_final`, `seniority_final_source`, `seniority_3level` |
 | YOE extraction | Stage 5 | 7 | `yoe_extracted`, `yoe_min_extracted`, `yoe_seniority_contradiction`, etc. |
 | Location parsing | Stage 6 | 6 | `city_extracted`, `state_normalized`, `metro_area`, `is_remote_inferred` |
 | Temporal derivations | Stage 7 | 3 | `period`, `posting_age_days`, `scrape_week` |
@@ -171,7 +173,7 @@ The rule-based `description_core` column (and its `core_length` / `boilerplate_f
 
 ### 4. Seniority
 
-There are **4 seniority columns**. The schema was simplified on 2026-04-10 — `seniority_final` is now the single primary column, combining high-confidence rule-based labels with LLM-classified labels into one materialized value. Previous columns `seniority_raw`, `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_final_confidence`, `seniority_cross_check`, and `seniority_llm` were removed; their roles are now either subsumed by `seniority_final` or no longer needed.
+There are **6 seniority columns**. The schema was simplified on 2026-04-10 — `seniority_final` is now the single primary column, combining high-confidence rule-based labels with LLM-classified labels into one materialized value. Previous columns `seniority_raw`, `seniority_imputed`, `seniority_source`, `seniority_confidence`, `seniority_final_confidence`, `seniority_cross_check`, and `seniority_llm` were removed; their roles are now either subsumed by `seniority_final` or no longer needed. As of 2026-04-18, Stage 5 also writes `seniority_rule` and `seniority_rule_source` — append-only snapshots of the rule-based output, preserved for rule-vs-LLM auditing.
 
 #### Seniority enum values
 
@@ -184,20 +186,19 @@ The coarse 3-level mapping (`seniority_3level`): entry → junior, associate →
 | Column | Type | Stage | Values | Meaning |
 |---|---|---|---|---|
 | `seniority_native` | VARCHAR | 1 | 5-level enum or null | Platform-provided label mapped to canonical enum. **Diagnostic only** — used as a label-independence check and as the arshkon-only baseline for entry-level analyses. Not the primary analysis column. Asaniczka: only `mid-senior`/`associate`; Indeed: null. |
-| `seniority_final` | VARCHAR | 5/10 | 5-level enum | **Primary seniority column.** Stage 5 sets it from high-confidence title keywords; Stage 10 overwrites it with the LLM result for rows the router sent to the LLM. `'unknown'` for rows where neither signal fired. |
+| `seniority_rule` | VARCHAR | 5 | 5-level enum | **Immutable rule-based snapshot.** Stage 5 writes the seniority its keyword rules produced and never modifies this column again. Null if no strong rule fired (`unknown` is written explicitly when the rule ran but found no signal). Use for rule-vs-LLM agreement auditing. |
+| `seniority_rule_source` | VARCHAR | 5 | `title_keyword`, `title_manager`, `unknown` | Provenance of `seniority_rule`. Same enum as `seniority_final_source` minus `llm`. Preserved through Stage 10 overrides. |
+| `seniority_final` | VARCHAR | 5/10 | 5-level enum | **Primary seniority column.** Stage 5 sets it from high-confidence title keywords; Stage 10 overwrites it with the LLM result for every routed row where the LLM returned a non-null seniority. `'unknown'` for rows where neither signal fired. |
 | `seniority_final_source` | VARCHAR | 5/10 | `title_keyword`, `title_manager`, `llm`, `unknown` | How `seniority_final` was resolved. Use this to filter for rule-only or LLM-only subsets when needed. |
 | `seniority_3level` | VARCHAR | 5/10 | `junior`, `mid`, `senior`, `unknown` | Coarse 3-level collapse of `seniority_final`. Convenience column for stratification. |
 
 #### How `seniority_final` is resolved
 
-**Stage 5 — rule-based pass.** Stage 5 inspects the title for explicit strong-seniority keywords (junior, senior, lead, principal, staff, director, vp, etc.) and explicit manager indicators. If a strong rule fires, `seniority_final` is set to that level and `seniority_final_source` is set to `title_keyword` or `title_manager`. Otherwise `seniority_final = 'unknown'` and `seniority_final_source = 'unknown'`. Stage 5 deliberately does not consult `seniority_native`, weak title patterns, or description text — those signals were judged unreliable for the primary analysis variable and were removed during the 2026-04-10 simplification.
+**Stage 5 — rule-based pass.** Stage 5 inspects the title for explicit strong-seniority keywords (junior, senior, lead, principal, staff, director, vp, etc.) and explicit manager indicators. The result is written to both `seniority_rule` / `seniority_rule_source` (immutable snapshots, never modified after Stage 5) and to `seniority_final` / `seniority_final_source` (the current best-available value, subject to Stage 10 override). If a strong rule fires, `seniority_final` is set to that level and `seniority_final_source` is set to `title_keyword` or `title_manager`. Otherwise both `seniority_final` and `seniority_rule` are set to `'unknown'`. Stage 5 deliberately does not consult `seniority_native`, weak title patterns, or description text — those signals were judged unreliable for the primary analysis variable and were removed during the 2026-04-10 simplification.
 
-**Stage 10 — LLM pass.** The Stage 10 router sends a row to the LLM when ALL hold:
-- `swe_classification_tier ∈ {regex, embedding_high, title_lookup_llm}` (strong SWE classification)
-- `seniority_final = 'unknown'` (Stage 5 found no strong rule)
-- `ghost_job_risk = 'low'`
+**Stage 10 — LLM pass.** Stage 10 routes every row where `selected_for_llm_frame == True`, `source_platform == 'linkedin'`, `is_english == True`, and the raw description has ≥15 words. There is no rule-based shortcut.
 
-For routed rows (`llm_classification_coverage = 'labeled'`), the LLM result overwrites `seniority_final` and `seniority_final_source` is set to `'llm'`. For rows the router skipped because Stage 5 already produced a strong-rule label (`llm_classification_coverage = 'rule_sufficient'`), `seniority_final` keeps its Stage 5 value. For rows outside the LLM frame, `seniority_final` stays as Stage 5 wrote it (often `'unknown'`).
+For routed rows (`llm_classification_coverage = 'labeled'`), the LLM result overwrites `seniority_final` and `seniority_final_source` is set to `'llm'` whenever the LLM returned a non-null seniority. `seniority_rule` and `seniority_rule_source` are not modified. For rows outside the LLM frame (`not_selected`), `seniority_final` stays as Stage 5 wrote it.
 
 **Implication for `seniority_final_source = 'llm'`:** the LLM may return any of the 5 enum values, including `'unknown'` when no explicit signal is present in the description. A row with `seniority_final_source = 'llm'` AND `seniority_final = 'unknown'` means the LLM was called and could not determine seniority — this is correct, expected behavior, not a defect. See "LLM seniority design rationale" below.
 
@@ -334,19 +335,14 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 | `llm_classification_sample_tier` | VARCHAR | 10 | `core`, `supplemental_cache`, `none` | Stage 10 classification sample tier. May differ row-by-row from Stage 9. |
 | `llm_extraction_coverage` | VARCHAR | 9 | `labeled`, `deferred`, `not_selected`, `skipped_short` | Stage 9 LLM coverage status. **Filter to `labeled` when using `description_core_llm`.** |
 | `llm_extraction_resolution` | VARCHAR | 9 | `cached_llm`, `fresh_llm`, `deferred`, `not_selected`, `skipped_short` | Stage 9 resolution method. Separates cache hits from fresh calls. |
-| `llm_classification_coverage` | VARCHAR | 10 | `labeled`, `deferred`, `not_selected`, `skipped_short`, `rule_sufficient` | Stage 10 LLM coverage status. **Filter to `labeled` when using raw LLM columns; include `rule_sufficient` only if you explicitly report that best-available Stage 10 choice.** |
-| `llm_classification_resolution` | VARCHAR | 10 | `cached_llm`, `fresh_llm`, `rule_sufficient`, `deferred`, `not_selected`, `skipped_short` | Stage 10 resolution method. Keeps rule-based resolution separate from cached and fresh LLM calls. |
+| `llm_classification_coverage` | VARCHAR | 10 | `labeled`, `deferred`, `not_selected`, `skipped_short` | Stage 10 LLM coverage status. **Filter to `labeled` when reading LLM columns. `deferred` rows have no LLM labels yet (budget-limited). `skipped_short` rows are below the minimum word threshold and never get LLM labels.** |
+| `llm_classification_resolution` | VARCHAR | 10 | `cached_llm`, `fresh_llm`, `deferred`, `not_selected`, `skipped_short` | Stage 10 resolution method. Separates cache hits from fresh LLM calls. |
 
 #### LLM routing rules
 
 **Extraction (Stage 9):** Routes rows that are LinkedIn, English, have a raw description, and are in the Stage 9 selected core frame. Hard-skips descriptions under 15 words.
 
-**Classification (Stage 10):** Skips LLM classification when all hold:
-- `swe_classification_tier` in {`regex`, `embedding_high`, `title_lookup_llm`}
-- `seniority_final != 'unknown'` (Stage 5 already set a strong rule-based seniority)
-- `ghost_job_risk == "low"`
-
-For skipped rows (`llm_classification_coverage = 'rule_sufficient'`), `seniority_final` keeps its Stage 5 value, and the other LLM columns (`swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`) remain null with rule-based columns serving as the analysis values. For routed rows, the LLM seniority result overwrites `seniority_final` and `seniority_final_source = 'llm'` (see Section 4). Rows outside the inherited Stage 9 core frame are `not_selected`. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
+**Classification (Stage 10):** Routes every row where `selected_for_llm_frame == True`, `source_platform == 'linkedin'`, `is_english == True`, and the raw description has ≥15 words. There is no rule-based shortcut. For routed rows, the LLM seniority result overwrites `seniority_final` and `seniority_final_source = 'llm'` (see Section 4). Rows outside the inherited Stage 9 core frame are `not_selected`. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
 
 #### Budget-Constrained LLM Processing
 
@@ -368,8 +364,8 @@ Stage 9 first selects and persists the sticky core frame across `source × analy
 
 **Coverage tracking:**
 - `llm_extraction_coverage` (Stage 9) and `llm_classification_coverage` (Stage 10) track whether each row has LLM results.
-- Values: `labeled` (has results), `deferred` (eligible but budget-capped), `not_selected` (not in the Stage 9/10 frame), `skipped_short` (< 15 words), `rule_sufficient` (Stage 10 only, rules confident enough).
-- Raw LLM columns should be filtered to `*_coverage == 'labeled'`. If you include `rule_sufficient` in Stage 10 analysis, report that explicitly and keep it separate from `labeled`.
+- Values: `labeled` (has results), `deferred` (eligible but budget-capped this run), `not_selected` (not in the Stage 9/10 frame), `skipped_short` (< 15 words, never gets LLM labels).
+- Raw LLM columns should be filtered to `*_coverage == 'labeled'`.
 
 **Incremental runs:**
 Each run adds to the cache. Re-running with a higher `selection_target` selects a deterministic superset core frame. Re-running with a higher `llm-budget` increases fresh-call usage within that same frame. Running with budget=0 is valid (uses only existing cache, no new calls). Stage 9 and Stage 10 caches are separate, so row-level coverage can differ across stages.

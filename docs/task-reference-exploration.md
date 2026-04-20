@@ -54,7 +54,7 @@ Text column rules:
 - **Binary keyword presence** (does the posting mention X anywhere?): Raw `description` is acceptable for recall when the presence signal is insensitive to boilerplate phrasing. Density metrics (mentions per 1K chars) must still use `description_core_llm`.
 - **Non-text analyses** (seniority counts, company analysis, geographic patterns): Use all rows regardless of text column.
 - **Sensitivity check:** When a finding depends on text, the meaningful sensitivity is `description_core_llm` vs raw `description` (no rule-based alternative exists). If the direction flips under raw text, the finding is boilerplate-driven and must be flagged.
-- For Stage 10 LLM-only diagnostics on `swe_classification_llm` or `ghost_assessment_llm` in isolation, filter to `labeled` and treat `rule_sufficient` separately (since for those columns the LLM was deliberately skipped). This is distinct from seniority, where `seniority_final` is the combined column and should be used directly.
+- For Stage 10 LLM-only diagnostics on `swe_classification_llm` or `ghost_assessment_llm` in isolation, filter to `labeled` (the only coverage value where those columns are populated). For rule-vs-LLM seniority audits, compare `seniority_rule` (Stage 5 rule-based snapshot, always populated) against `seniority_final` (LLM-overridden where available).
 
 **Default SQL filters (apply unless task says otherwise):**
 ```sql
@@ -172,7 +172,7 @@ Nine dimensions (referenced by letter in each task spec):
 
 ## 2. Agent dispatch blocks
 
-These are prepended (after the preamble) to each agent's prompt, before the task specs.
+These are prepended (after the preamble) to each agent's prompt, before the task specs. Dispatch order follows pipeline chronology: Wave 1 → Wave 1.5 → Wave 2 → V1 → Wave 3 → Wave 3.5 → V2 → Wave 4 → Wave 5. Each agent's block is written for the prompt that will dispatch them, so forward-references to later waves (e.g., "your output feeds Wave 3.5 T31") help the agent understand what artifacts must be persisted cleanly.
 
 ### Agent A — Wave 1: Data profile & seniority comparability (T01 + T02)
 
@@ -180,11 +180,11 @@ Profile the dataset (actual row counts, column coverage, semantic differences ac
 
 ### Agent B — Wave 1: Seniority audit + panel + SWE classification (T03 + T30 + T04)
 
-Audit `seniority_final` label quality (T03), build the canonical seniority definition ablation panel that every downstream task consumes (T30), and assess SWE classification accuracy (T04). Execute in that order: T03 establishes whether the production seniority column is trustworthy; T30 builds the multi-operationalization panel and recommends which slice to use primary; T04 audits the SWE sample independently.
+Audit `seniority_final` label quality (T03), build the canonical seniority definition ablation panel that every downstream task consumes (T30), and assess SWE classification accuracy (T04). Execute in that order: T03 establishes whether the production seniority column is trustworthy; T30 builds the multi-operationalization panel and recommends which slice to use primary; T04 audits the SWE sample independently. T30's panel is consumed by every Wave 2, Wave 3, and Wave 3.5 seniority-stratified task — save it at the exact path `exploration/artifacts/shared/seniority_definition_panel.csv` with the schema documented in the T30 spec.
 
 ### Agent C — Wave 1: Dataset comparability & concentration (T05 + T06)
 
-Test whether the three datasets are measuring the same thing by running pairwise comparisons (description length, company overlap, geographic/seniority/title distributions). Also assess company concentration and whether a few employers dominate findings. Execute tasks T05 and T06.
+Test whether the three datasets are measuring the same thing by running pairwise comparisons (description length, company overlap, geographic/seniority/title distributions). Also assess company concentration and whether a few employers dominate findings. T06's entry-specialist list (`entry_specialist_employers.csv`) and the returning-companies cohort are consumed by Wave 3 T16 and by Wave 3.5 T37. Execute tasks T05 and T06.
 
 ### Agent D — Wave 1: External benchmarks & power analysis (T07)
 
@@ -192,7 +192,7 @@ Compare our data against BLS OES occupation/state data and JOLTS information sec
 
 ### Agent Prep — Wave 1.5: Shared preprocessing
 
-Build shared analytical artifacts that Wave 2+ agents will load instead of recomputing independently. Compute cleaned text, sentence-transformer embeddings, technology mention matrix, and company name stoplist. Save all to `exploration/artifacts/shared/`. Execute the shared preprocessing spec.
+Build shared analytical artifacts that Wave 2+ agents will load instead of recomputing independently. Compute cleaned text, sentence-transformer embeddings, technology mention matrix, company name stoplist, and the within-2024-vs-cross-period calibration table. Save all to `exploration/artifacts/shared/`. These artifacts are consumed throughout Waves 2, 3, and 3.5 — stable paths and schemas matter. Execute the shared preprocessing spec.
 
 ### Agent E — Wave 2: Distribution profiling (T08)
 
@@ -200,55 +200,71 @@ Compute baseline distributions for ALL available variables by period and seniori
 
 ### Agent F — Wave 2: Posting archetype discovery (T09)
 
-Discover natural posting archetypes through unsupervised methods. This is the primary methods comparison task — run BERTopic (primary) and NMF (comparison) on the same data and compare what each surfaces. Load shared embeddings and cleaned text from `exploration/artifacts/shared/`. Execute task T09.
+Discover natural posting archetypes through unsupervised methods. This is the primary methods comparison task — run BERTopic (primary) and NMF (comparison) on the same data and compare what each surfaces. Load shared embeddings and cleaned text from `exploration/artifacts/shared/`. Save archetype labels at `exploration/artifacts/shared/swe_archetype_labels.parquet` — consumed by Wave 2 T11/T15, Wave 3 T17/T20/T21/T28, and Wave 3.5 T31/T34/T35. Execute task T09.
 
 ### Agent G — Wave 2: Title evolution & requirements complexity (T10 + T11)
 
-Map how the SWE title taxonomy has evolved between 2024 and 2026 — what titles emerged, disappeared, or changed meaning. Then quantify the structural complexity of job requirements (credential stacking, technology density, scope breadth). Load shared technology matrix from `exploration/artifacts/shared/` for T11 tech counting. Execute tasks T10 and T11.
+Map how the SWE title taxonomy has evolved between 2024 and 2026 — what titles emerged, disappeared, or changed meaning. Then quantify the structural complexity of job requirements (credential stacking, technology density, scope breadth). Load shared technology matrix from `exploration/artifacts/shared/` for T11 tech counting. T10's disappearing-title list and T11's per-posting feature parquet (`T11_posting_features.parquet`) are direct Wave 3.5 inputs (T36 and T33 respectively). Execute tasks T10 and T11.
 
 ### Agent H — Wave 2: Linguistic evolution & text discovery (T13 then T12)
 
-**Run T13 first** (section anatomy, readability, tone), **then T12** (corpus comparison using T13's section classifier to strip boilerplate). T12 depends on T13's section classifier output to isolate genuine content changes from boilerplate expansion. Load shared artifacts from `exploration/artifacts/shared/`. Execute tasks T13 and T12 in that order.
-
-### Agent V1 — Gate 2 Verification
-
-Adversarial quality assurance after Wave 2. Re-derive the top 3-5 headline numbers from Wave 2 from scratch (independent code). Validate keyword patterns by sampling 50 matches stratified by period. Propose alternative explanations for each headline finding. Flag specification-dependent findings. Write `exploration/reports/V1_verification.md`.
+**Run T13 first** (section anatomy, readability, tone), **then T12** (corpus comparison using T13's section classifier to strip boilerplate). T12 depends on T13's section classifier output to isolate genuine content changes from boilerplate expansion. Save T13's section classifier as a reusable module at `exploration/scripts/T13_section_classifier.py` — Wave 3 T18 and Wave 3.5 T33 both import it. Load shared artifacts from `exploration/artifacts/shared/`. Execute tasks T13 and T12 in that order.
 
 ### Agent I — Wave 2: Technology ecosystems & semantic landscape (T14 + T15)
 
-Map the technology ecosystem — not just individual mentions but co-occurrence networks and natural skill bundles. Also validate using asaniczka's structured skills field. Then compute the full semantic similarity landscape across all period x seniority groups. Load shared technology matrix and embeddings from `exploration/artifacts/shared/`. Execute tasks T14 and T15.
+Map the technology ecosystem — not just individual mentions but co-occurrence networks and natural skill bundles. Also validate using asaniczka's structured skills field. Then compute the full semantic similarity landscape across all period x seniority groups. Load shared technology matrix and embeddings from `exploration/artifacts/shared/`. T14's co-occurrence analysis is extended by Wave 3.5 T35 into a period-split crystallization test — structure T14 so its phi matrices can be re-computed per period cleanly. Execute tasks T14 and T15.
+
+### Agent V1 — Gate 2 Verification
+
+Adversarial quality assurance after Wave 2. Re-derive the top 3-5 headline numbers from Wave 2 from scratch (independent code). Validate keyword patterns by sampling 50 matches stratified by period. Propose alternative explanations for each headline finding. Flag specification-dependent findings. The refined keyword patterns V1 produces (AI-mention strict/broad, management strict, etc.) are consumed by Wave 3 AND Wave 3.5 — V1's precision findings are pipeline-global, not Wave-2-local, so write them precisely. Write `exploration/reports/V1_verification.md`.
 
 ### Agent J — Wave 3: Company strategies & geographic structure (T16 + T17)
 
-Among companies appearing in both periods, cluster them by HOW their postings changed. Then analyze geographic market segmentation. Execute tasks T16 and T17.
-
-### Agent V2 — Gate 3 Verification
-
-Adversarial quality assurance after Wave 3. Re-derive top 3-5 Wave 3 headline numbers independently. Verify the cross-occupation DiD (T18) under alternative control definitions. Verify the decomposition (T16) under arshkon-only vs pooled 2024. Validate T22's corrected management patterns. Write `exploration/reports/V2_verification.md`.
+Among companies appearing in both periods, cluster them by HOW their postings changed. Then analyze geographic market segmentation. T16's 240-company arshkon∩scraped overlap panel (≥3 SWE postings in both periods) is consumed by Wave 3.5 T31 (same-company × same-title drift), T37 (sampling-frame robustness), and T38 (hiring-selectivity correlation). Persist the overlap-panel company list and the per-company change vectors to `exploration/tables/T16/` so downstream tasks can reload without re-deriving. Execute tasks T16 and T17.
 
 ### Agent K — Wave 3: Cross-occupation boundaries & temporal patterns (T18 + T19)
 
-Compare SWE, SWE-adjacent, and control occupations to determine which changes are SWE-specific vs field-wide. Then estimate rates of change and characterize the temporal structure of our data. Execute tasks T18 and T19.
+Compare SWE, SWE-adjacent, and control occupations to determine which changes are SWE-specific vs field-wide. Then estimate rates of change and characterize the temporal structure of our data. T18's DiD findings anchor the paper's lead SWE-specificity claim; Wave 3.5 T32 extends T18's framework to a cross-occupation benchmark-informed divergence test. Execute tasks T18 and T19.
 
 ### Agent L — Wave 3: Seniority boundaries & senior role evolution (T20 + T21)
 
-Measure how sharp the seniority boundaries are and whether they blurred or shifted between periods. Then conduct a deep dive into how senior SWE roles evolved. For T21's management language analysis, validate your keyword patterns by sampling matches — prior waves found that broad patterns can inflate management indicators by 3-5x. If T09 archetype labels exist in shared artifacts, use them for domain stratification. Execute tasks T20 and T21.
+Measure how sharp the seniority boundaries are and whether they blurred or shifted between periods. Then conduct a deep dive into how senior SWE roles evolved. For T21's management language analysis, validate your keyword patterns by sampling matches — prior waves found that broad patterns can inflate management indicators by 3-5x. If T09 archetype labels exist in shared artifacts, use them for domain stratification. Save T21's k-means cluster assignments to `exploration/tables/T21/` — Wave 3.5 T34 profiles the mgmt+orch+strat+AI sub-archetype by reloading those cluster memberships. Execute tasks T20 and T21.
 
 ### Agent M — Wave 3: Ghost forensics & employer-usage divergence (T22 + T23)
 
-Identify ghost-like and aspirational requirement patterns, with emphasis on whether AI requirements are more aspirational than traditional ones. Save validated management/scope patterns as a shared artifact for downstream use. Then compute the employer-requirement vs worker-usage divergence. Execute tasks T22 and T23.
+Identify ghost-like and aspirational requirement patterns, with emphasis on whether AI requirements are more aspirational than traditional ones. Save validated management/scope/AI patterns at `exploration/artifacts/shared/validated_mgmt_patterns.json` with measured precision per sub-pattern — Wave 3.5 agents MUST consume these V1-refined + T22-validated patterns rather than re-deriving their own. Then compute the employer-requirement vs worker-usage divergence. T23's SWE-only divergence is generalized by Wave 3.5 T32 to SWE-adjacent and control occupations. Execute tasks T22 and T23.
 
 ### Agent O — Wave 3: Domain-stratified scope changes & LLM authorship detection (T28 + T29)
 
 Two complementary analyses that depend on T09's archetype labels and the cleaned text artifact. T28 (priority): re-decompose scope and content changes by domain archetype now that T09's clusters are available — does scope inflation differ across Frontend, Embedded, Data, ML/AI? T29 (lower priority, exploratory): test the hypothesis that part of the apparent content change is downstream of recruiters using LLMs to draft job descriptions. Execute tasks T28 and T29.
 
-### Agent N — Wave 4: Hypothesis generation, artifacts & synthesis (T24 + T25 + T26)
+### Agent Q — Wave 3.5: Same-company longitudinal drift + cross-occupation inversion (T31 + T32)
 
-Read ALL reports. First, generate new hypotheses from the findings. Then produce interview elicitation artifacts. Finally, write the synthesis document. Execute tasks T24, T25, and T26.
+T31 tightens the paper's within-company rewriting claim to the finest possible unit — same company × same title × different period — by building on T16's 240-company overlap panel. T32 generalizes T23's RQ3 inversion to SWE-adjacent and control occupations by extending T18's DiD framework with benchmark-informed divergence tests. Both tasks require Wave 3 outputs; dispatch only after Agent J (T16), Agent K (T18 DiD framework), and Agent M (T22, T23) have persisted their shared artifacts. Load `seniority_definition_panel.csv`, `entry_specialist_employers.csv`, `validated_mgmt_patterns.json`, archetype labels, and T16's overlap panel from `exploration/artifacts/shared/` and `exploration/tables/T16/`.
+
+### Agent R — Wave 3.5: Hidden hiring-bar + AI-enabled tech lead profiling (T33 + T34)
+
+T33 tests whether the SWE-specific requirements-section contraction (T13, T18) reflects a hidden hiring-bar lowering. T34 profiles the emergent mgmt+orch+strat+AI sub-archetype (T21 cluster 2) as a distinct senior role type. Both tasks connect substantive Wave 2-3 findings to paper-relevant interpretations that SYNTHESIS.md needs. Load T13's section classifier (`exploration/scripts/T13_section_classifier.py`), T21's cluster assignments (`exploration/tables/T21/`), T11's per-posting feature parquet, and T09's archetype labels.
+
+### Agent S — Wave 3.5: Technology ecosystem crystallization + legacy substitution (T35 + T36)
+
+T35 extends T14's co-occurrence analysis to detect technology ecosystems that crystallized between 2024 and 2026 (applying Louvain community detection at each period separately and comparing modularity). T36 builds the legacy-stack substitution map for the disappearing 2024 titles surfaced in T10. Both are descriptive extensions that strengthen the paper's technology-evolution section and provide concrete before/after examples the presentation (Agent P) can cite. Load `swe_tech_matrix.parquet`, `swe_cleaned_text.parquet`, and T10's disappearing-title list.
+
+### Agent T — Wave 3.5: Sampling-frame and hiring-selectivity robustness (T37 + T38)
+
+Two paper-defensibility tasks. T37 re-runs the anticipated Gate-3 headlines from Waves 2–3 (the headline set enumerated in the T37 spec) on the returning-companies-only subset (n=2,024 returning firms with presence in both the 2024 sources and scraped 2026) to quantify the sampling-frame artifact (T06 found 74.5% of scraped companies are new entrants) — results feed directly into SYNTHESIS.md's robustness appendix. T38 tests whether scope-broadening correlates with posting-volume contraction at the company level (JOLTS 2026 hiring-low interaction). Requires the 240-company arshkon∩scraped overlap panel (from T16) and the returning-companies cohort (from T06).
+
+### Agent V2 — Gate 3 Verification
+
+Adversarial quality assurance after Wave 3 AND Wave 3.5. Re-derive the top 3-5 headline numbers from Wave 3 independently. Also re-derive a headline from each Wave 3.5 task — particularly T31's pair-level within-company drift, T32's cross-occupation divergence direction, T33's hiring-bar mechanism regression coefficients, and T37's sampling-frame retention ratios. Validate new or rebuilt keyword patterns semantically on 50-row stratified samples; flag any tautological precision claim and re-run it. Audit prevalence citation transparency across both Wave 3 and Wave 3.5 reports — flag any cross-task citation that combines different patterns or subsets. Audit composite-score matching for any matched-delta finding. Test whether cross-occupation DiD findings are robust to alternative control group definitions and whether decomposition results hold across T30 panel variants. Write `exploration/reports/V2_verification.md`.
+
+### Agent N — Wave 4: Hypothesis consolidation, artifacts & synthesis (T24 + T25 + T26)
+
+Read ALL reports from Waves 1 through 3.5, plus both verification reports (V1, V2) and all gate memos (0-3). T24 consolidates Wave 3.5 test verdicts (directly tested hypotheses H_A/H_B/H_C/H_H/H_M and new-in-Wave-3.5 H_K/H_L/H_N) alongside any additional hypotheses emerging from the full body of evidence and the deferred inventory (H_D/H_E/H_F/H_G/H_I/H_J). T25 produces interview elicitation artifacts drawing on Wave 3.5 strongest cases where relevant (T31 pair-level exemplars, T34 AI-enabled-tech-lead profiles, T22 ghost examples). T26 writes SYNTHESIS.md with Wave 3.5 findings integrated into the ranked findings list and robustness appendix — NOT as a separate wave-6 section. Execute tasks T24, T25, and T26.
 
 ### Agent P — Wave 5: Presentation (T27)
 
-Read `exploration/reports/SYNTHESIS.md`, gate memos, and INDEX.md. Also read `docs/preprocessing-guide.md` and extract a minimal description of the preprocessing pipeline (stages, rationale, data structure, LLM prompts) to integrate into the site's methodology layer. Produce a ~20-25 slide MARP presentation for the research advisor and stakeholders. Follow the presentation principles in the orchestrator prompt (complete-sentence slide titles, one idea per slide, tell what you learned not what you did, frame corrections as rigor). Reference existing figures from `exploration/figures/`. Export to HTML and PDF via `npx @marp-team/marp-cli`. Execute task T27.
+Read `exploration/reports/SYNTHESIS.md`, gate memos, and INDEX.md. Also read `docs/preprocessing-guide.md` and extract a minimal description of the preprocessing pipeline (stages, rationale, data structure, LLM prompts) to integrate into the site's methodology layer. Produce a ~20-25 slide MARP presentation for the research advisor and stakeholders. Follow the presentation principles in the orchestrator prompt (complete-sentence slide titles, one idea per slide, tell what you learned not what you did, frame corrections as rigor). Reference existing figures from `exploration/figures/`, including Wave 3.5 figures where they support lead claims. Export to HTML and PDF via `npx @marp-team/marp-cli`. Execute task T27.
 
 ---
 
@@ -1007,70 +1023,352 @@ Report the rate-of-change under each operationalization and discuss any disagree
 
 ---
 
+### Wave 3.5 — Induced Hypothesis Tests
+
+Wave 3.5 is a dependent computational phase between Wave 3 and V2 Gate 3 verification. Each task operationalizes a high-value hypothesis that Wave 1-3 findings induced — the tasks are designed so their outputs flow directly into T26 SYNTHESIS.md's ranked findings and robustness appendix, not as an optional appendix or a post-synthesis extension. Wave 3.5 is part of the main flow of the pipeline.
+
+**Why Wave 3.5 exists as a separate phase (and not as Wave 3 extensions).** Every Wave 3.5 task depends on specific artifacts that only exist after Wave 3 completes: T16's 240-co overlap panel, T21's senior cluster assignments, T09's archetype labels, T13's section classifier, T22's validated management/AI patterns, T10's disappearing-title list, T06's returning-companies cohort. Folding these tasks into Wave 3 would create circular dependencies. Separating them into Wave 3.5 keeps each wave coherent and lets V2 Gate 3 verification cover both phases in one adversarial pass.
+
+**Dependency chain (dispatch only after Wave 3 completes and its artifacts are persisted):**
+- T31 (same-co × same-title drift) requires T16's overlap panel persisted to `exploration/tables/T16/`.
+- T32 (cross-occupation RQ3 inversion) requires T18's DiD framework and T23's SWE divergence number.
+- T33 (hidden hiring-bar) requires T13's section classifier module (`exploration/scripts/T13_section_classifier.py`) and T11's per-posting feature parquet.
+- T34 (AI-enabled tech lead profiling) requires T21's k-means cluster assignments and T09's archetype labels.
+- T35 (ecosystem crystallization) requires T14's co-occurrence tooling and the full tech matrix.
+- T36 (legacy substitution map) requires T10's disappearing-title list and the cleaned text artifact.
+- T37 (sampling-frame robustness) requires T06's returning-companies cohort and T16's overlap panel.
+- T38 (hiring-selectivity × scope correlation) requires T16's per-company change vectors.
+
+**Hypothesis coverage.** Wave 3.5 directly tests 8 hypotheses:
+- Four from T24's planned H_A-H_J list: **H_A** cross-occupation RQ3 (T32), **H_B** hidden hiring-bar (T33), **H_C** AI-enabled tech lead (T34), **H_H** sampling-frame artifact (T37).
+- Four introduced by Wave 3.5 itself: **H_K** ecosystem crystallization (T35), **H_L** legacy substitution (T36), **H_M** same-co × same-title drift (T31), **H_N** hiring-selectivity × scope (T38).
+
+The remaining T24 hypotheses (H_D, H_E, H_F, H_G, H_I, H_J) are deferred to the analysis phase — T24 inventories them with explicit priority.
+
+**Agents.** Q (T31, T32), R (T33, T34), S (T35, T36), T (T37, T38). All four dispatch in parallel once Wave 3 outputs are in place.
+
+**Integration with Gate 3 and synthesis.** V2 verification runs AFTER Wave 3.5 completes and covers BOTH Wave 3 and Wave 3.5 headline numbers. One unified Gate 3 memo documents the full pre-synthesis state. Agent N (Wave 4) reads Wave 3 + Wave 3.5 reports together; T24 consolidates hypothesis verdicts and T26 integrates Wave 3.5 findings into the ranked findings list of SYNTHESIS.md as first-class paper claims. Agent P (Wave 5) consumes the unified SYNTHESIS.md, so Wave 3.5 findings naturally surface in the presentation without special handling.
+
+**All Wave 3.5 agents MUST:**
+
+- Use V1-refined AI-mention patterns (strict primary: `\b(copilot|cursor|claude|chatgpt|openai api|gpt-?\d+|gemini|codex|llamaindex|langchain|prompt engineering|fine[- ]tuning|rag|vector database|pinecone|huggingface|hugging face)\b`; broad drops `agent_bare` and `mcp`) and the V1-refined strict management pattern (`mentor|coach|hire|headcount|performance_review`). Load `exploration/artifacts/shared/validated_mgmt_patterns.json` rather than re-deriving.
+- Respect the Gate 0 pre-committed ablation dimensions (T30 panel for every seniority-stratified headline, aggregator exclusion, length residualization for composites, semantic precision ≥80% for any new pattern introduced).
+- Flag the LLM-frame J2 selection artifact when restricting text-sensitive analyses to labeled rows.
+- Report findings under arshkon-only AND pooled-2024 baselines on the junior side; arshkon-only primary on the senior side.
+- **Close each report with a "Headline claims for SYNTHESIS" section** listing the 1-3 specific claims the task contributes to the paper, in the form "[claim sentence] — evidence: [specific table/figure], sensitivity verdict: [robust / partial / flagged]." This is the contract Agent N (T26) relies on when integrating Wave 3.5 into SYNTHESIS.md.
+
+---
+
+### T31. Same-company × same-title longitudinal drift `[Agent Q]`
+
+**Goal:** Quantify the tightest-possible within-employer rewriting signal by comparing same-company × same-title pairs across 2024 and 2026. Produces the per-pair drift distribution that the paper's "employer-side rewriting" claim can cite at the pair level — cleaner than T16's company-level decomposition because it holds title composition constant.
+
+**Hypothesis under test:** H_M — introduced by Wave 3.5. The within-company AI rewriting finding (T16 102% within) should hold or strengthen when we restrict to same-title pairs, because title composition within a company can shift between periods and inject noise.
+
+**Steps:**
+1. **Overlap panel.** Start from the 240 arshkon∩scraped companies with ≥3 SWE postings in both periods (from T16). Optionally extend to the 589-company pooled-2024∩scraped panel for a secondary analysis.
+2. **Pair identification.** Within each company, identify title pairs present in both periods. Use the raw `title` field lowercased (not `title_normalized` — that strips level indicators; see T30 fix). Primary threshold: require ≥3 postings per (company × title × period) cell to reduce per-pair drift noise. Also produce a ≥2-postings sensitivity cut (looser, higher n pairs) and compare the two drift distributions — if the ≥2 cut's mean / median drift differs materially from the ≥3 cut, small-cell noise is driving the looser estimate. Expect ~300-700 qualifying pairs at ≥3 and ~500-1000 at ≥2 on the primary panel.
+3. **Per-pair feature drift.** For each pair compute the 2024 → 2026 delta on:
+   - AI-mention strict binary share (V1-refined pattern)
+   - AI-mention broad binary share
+   - `requirement_breadth` residualized on description cleaned length (per V1 rule)
+   - Mentor-binary rate (V1-refined strict)
+   - Requirements-section character share (T13 classifier)
+   - Mean `yoe_extracted` (within the pair)
+   - Median description cleaned length
+4. **Drift distribution.** Mean, median, p10, p90 per metric. Produce 2D scatter (AI-mention Δ × breadth-resid Δ) at the pair level. Identify outlier pairs.
+5. **Archetype stratification.** Project each pair's representative posting onto T09 archetype labels via nearest-centroid from `swe_embeddings.npy`. Is drift uniform across archetypes, or concentrated in ML/AI / cloud_devops / frontend?
+6. **Top-20 drift pair inspection.** Manual read of the 20 pairs with the largest AI-mention Δ and the 20 with the largest breadth-resid Δ. What changed in the content? Is there a common narrative (e.g., "Senior Backend Engineer at Bank X" gained LangChain/RAG in 2026 while keeping the same title)?
+7. **Consistency check vs T16.** Pair-level drift should be ≤ company-level drift (less noise from within-company title composition shifts). If pair-level drift EXCEEDS company-level drift, investigate — may indicate that within-company, same-title postings change MORE than the company-level aggregate (because composition shifts partially mask within-pair change).
+
+**Essential sensitivities:** (a) aggregator exclusion, (b) cap at 10 postings per (company × title × period) cell.
+
+**Output:** `exploration/reports/T31.md` + pair-level drift distribution CSV + top-20 pair examples + per-archetype drift table + scatter plots (AI × breadth).
+
+---
+
+### T32. Cross-occupation employer/worker AI divergence `[Agent Q]`
+
+**Goal:** Test whether the RQ3 inversion (employer AI-requirement rate < worker AI-usage rate, found in T23 for SWE) is a general feature of AI-exposed occupations or a SWE-specific phenomenon. Extends T23 to SWE-adjacent and control occupation groups, producing a cross-occupation divergence figure.
+
+**Hypothesis under test:** H_A (T24, priority 1). If the gap holds across high-AI-exposure occupations, RQ3's inversion becomes a cross-occupation labor-market finding, not a SWE specialization.
+
+**Steps:**
+1. **Occupation group definition.** Use the existing flags in `data/unified.parquet`: `is_swe`, `is_swe_adjacent`, `is_control`. Within adjacent, sub-stratify by title regex into: data_scientist, ml_engineer, data_engineer, security_engineer, devops_engineer (if distinguishable from SWE). Within control, sub-stratify by title regex into: accountant, nurse, civil_engineer, mechanical_engineer, electrical_engineer, financial_analyst.
+2. **Employer AI-requirement rate.** For each subgroup × period, compute ai_strict and ai_broad binary share using V1-refined patterns. Report n_group × period. Flag subgroups where n < 500 per period as thin (report but do not cite as lead).
+3. **External worker-AI-usage benchmarks.** Fetch where accessible:
+   - SWE / data / ML: Stack Overflow Developer Survey 2024 (62% currently using; data professionals ~68%).
+   - General professional: Anthropic 2025 Economic Index (occupation-level task-coverage percentages).
+   - Accountants: Deloitte/PwC/KPMG 2024 finance surveys (~22-30% using AI at work).
+   - Nurses: AMA or Kaiser 2024 surveys (~8-15%).
+   - Civil/mechanical/electrical engineers: Engineering.com or ASME 2024 surveys (~15-25%).
+   - Financial analysts: CFA Institute or Bloomberg 2024 surveys.
+   Document each benchmark source + date + methodology. If a benchmark is unavailable, report the subgroup as "employer-only" and exclude from the cross-occupation comparison.
+4. **Per-subgroup divergence.** Compute employer_rate − worker_benchmark_midpoint for each subgroup with a benchmark. Report under 50% / 65% / 75% / 85% worker-usage assumption bands (the T23 sensitivity protocol).
+5. **Direction universality test.** Is the gap direction (employer < worker) universal across subgroups? Does gap magnitude correlate with occupation AI-exposure score? If exposure scores from Anthropic's Economic Index are accessible, compute Spearman correlation(AI-exposure-score, gap-magnitude).
+6. **Alternative framing check.** T23 noted that benchmarks like "tried AI ever" vs "daily workflow use" may be definitionally different from "employer requires AI in JD." Re-run with "daily use" benchmarks where available. Report direction under both framings.
+7. **Cross-occupation divergence chart.** Single-page figure: x-axis subgroup, y-axis rate, two series (employer requirement, worker benchmark), error bars for benchmark uncertainty. This is a potential paper figure.
+
+**Essential sensitivities:** (a) aggregator exclusion, (g) SWE classification tier.
+
+**Output:** `exploration/reports/T32.md` + cross-occupation divergence chart + per-subgroup gap table + benchmark-source table + direction-universality verdict.
+
+---
+
+### T33. Requirement-section contraction as hidden hiring-bar signal `[Agent R]`
+
+**Goal:** Test whether the SWE-specific requirements-section shrinkage (T13 −19% chars pooled→scraped; T18 −10.7pp share vs control +0.9pp) reflects a hidden hiring-bar lowering — employers removing hard requirements while expanding narrative/culture sections.
+
+**Hypothesis under test:** H_B (T24, priority 2). Connects a substantive finding (section restructuring) to a policy-relevant interpretation (hiring-bar softening). Counter-interpretation: the shrinkage is proportional not absolute and just reflects narrative expansion.
+
+**Steps:**
+1. **Full-corpus section classification.** Load T13's section classifier (`exploration/scripts/T13_section_classifier.py`) and apply to the full 63,701 SWE corpus (not the Wave 2 T13 sample). For each posting, record `req_section_chars`, `req_section_share`, and chars per other section (responsibilities, role_summary, preferred, benefits, about_company, legal, unclassified).
+2. **Period-effect regression.** Fit: `req_section_share ~ period + seniority_final + archetype + is_aggregator + log(desc_length) + period × seniority_final + period × archetype`. Report period-effect coefficient, confidence interval, and marginal effect at mean of covariates. Compare to T13's raw pooled→scraped Δ (should attenuate if composition-driven; persist if real content change).
+3. **Hiring-bar proxy correlations (the key test).** Within the 2026 scraped SWE corpus, compute correlation of `req_section_share` with:
+   - `yoe_extracted` (within J2 and within S1 separately) — does shrinkage correlate with lower YOE asks?
+   - `credential_stack_depth` (T11) — fewer credential types?
+   - `tech_count` — fewer technologies listed?
+   - `education_level` (ordinal) — fewer degree asks?
+   
+   If req_section shrinkage correlates with lower YOE, lower stack depth, lower tech count, AND lower education level, the hiring-bar-lowering hypothesis is strongly supported. If the correlations are near zero, the shrinkage is purely narrative reallocation.
+4. **Within-company cross-metric test.** On the 240-co overlap panel: do companies with the largest req-section contraction also have the largest J3 (yoe≤2) rise within their own postings? Compute per-company correlation of Δ(req_section_share) with Δ(J3_share). Negative correlation supports hiring-bar lowering at the company level.
+5. **Narrative-content semantic test.** Sample 50 postings from the 2026 scraped SWE pool with the LARGEST req-section contraction (relative to the company-title's 2024 mean). Read the narrative sections (responsibilities + role_summary + about_company). Classify each sampled posting into: (a) genuine technical-requirement migration into responsibilities, (b) pure culture/benefits expansion with no added requirements, (c) substantive requirement loosening ("no degree required," "self-taught OK"), (d) something else. Report fractions.
+5a. **Alternative-explanation check.** Compute correlation of Δ(req_section_share) with Δ(desc_cleaned_length) at the posting level. If strongly positive, the shrinkage is proportional/relative, not absolute, and the "hiring bar lowering" framing weakens to "narrative expansion dominating."
+6. **Verdict.** Hypothesis supported / partially supported / rejected. Be explicit about uncertainty.
+
+**Essential sensitivities:** (a) aggregator exclusion, (c) T30 panel, (d) description text source — run the regression on both `text_source='llm'` subset and the full corpus with raw `description`.
+
+**Output:** `exploration/reports/T33.md` + regression output + hiring-bar correlation table + within-company scatter + narrative-content classification of 50 samples + verdict.
+
+---
+
+### T34. AI-enabled tech lead archetype profiling `[Agent R]`
+
+**Goal:** Profile the mgmt+orch+strat+AI sub-archetype discovered in T21 cluster 2 (97%-2026, n=860) as a distinct senior role type. Test whether this is a genuine emergent role ("AI-enabled tech lead") or a clustering artifact of the mgmt/orch/strat density-space projection.
+
+**Hypothesis under test:** H_C (T24, priority 3). If this is a real emergent role, its title distribution, company concentration, and content profile should differ meaningfully from other senior clusters.
+
+**Steps:**
+1. **Load T21 cluster assignments.** From `exploration/tables/T21/`. Confirm cluster-2 composition: n_2024, n_2026, per-cluster feature means (mgmt_density, orch_density, strat_density, mentor_binary, AI_binary).
+2. **Title distribution within cluster 2.** Tokenize titles via regex. Compute share of cluster 2 that is: `staff engineer`, `tech lead`, `principal engineer`, `senior engineer`, `ML lead`, `AI engineer`, `engineering manager`, `engineering director`, `architect`, other. Rank titles by frequency.
+3. **Company concentration within cluster 2.** Gini coefficient, HHI, top-20 share of `company_name_canonical` in cluster 2. Compare to company concentration in cluster 0 (traditional people-manager) and cluster 1 (IC staff) if T21 preserved those labels.
+4. **Archetype cross-tab.** For each cluster-2 posting, look up its T09 archetype label (project via nearest-centroid from `swe_embeddings.npy` where not in the T09 sample). Which archetypes disproportionately contribute to cluster 2? Is cluster 2 an ML/AI archetype phenomenon, or does it span domains (cloud_devops, backend_platform, etc.)?
+5. **Company-trajectory test.** Cross-reference with T16 company clusters:
+   - Of the 62 "consolidating giants" in T16 (Google, Microsoft, AWS, Wells Fargo, etc.), what fraction of their 2026 senior postings fall in T21 cluster 2?
+   - Of the 84 "mass-hiring mainstream" companies (JPMorgan, Amazon, Capital One), what fraction fall in cluster 2?
+   - Is cluster 2 concentrated in one or two T16 company clusters (diagnostic for whether the role is organic to a subset of employers)?
+6. **Profile attributes.** Within cluster 2, median `yoe_extracted`, `company_industry` distribution (top 10 where available), metro distribution (top 10 from `metro_area`), `seniority_final` distribution.
+7. **Comparative profile.** Side-by-side table: cluster 2 vs cluster 0 ("people manager") vs cluster 1 ("IC staff"). Which features most distinguish cluster 2?
+8. **Content exemplars.** Sample 20 cluster-2 postings. Read titles + first 400 chars of cleaned description. Identify 2-3 recurring phrases / asks that define the role. Based on the content, validate or refine the name "AI-enabled tech lead." Propose alternatives if warranted.
+
+**Essential sensitivities:** (a) aggregator exclusion.
+
+**Output:** `exploration/reports/T34.md` + title distribution + company concentration + archetype cross-tab + cluster comparison table + 20 content exemplars + recommended role name.
+
+---
+
+### T35. Technology ecosystem crystallization `[Agent S]`
+
+**Goal:** Test whether technology co-occurrence networks crystallized between 2024 and 2026. Extends T14's LLM-vendor-cluster finding (13-node phi>0.15 cluster by 2026) by measuring ecosystem formation across the full 107-tech taxonomy.
+
+**Hypothesis under test:** H_K. The LLM-vendor cluster may be one example of a broader "AI-era ecosystem crystallization" pattern; other stacks (observability, data engineering, DevOps) may also be forming more coherent co-occurrence neighborhoods.
+
+**Steps:**
+1. **Period-split tech matrix.** Load `swe_tech_matrix.parquet` (63,701 × 107). Split into pooled-2024 and scraped-2026 panels.
+2. **Per-period co-occurrence networks.** Compute phi coefficient for all tech pairs separately in 2024 and 2026. Threshold at phi > 0.15 (matching T14). Build two networkx graphs.
+3. **Louvain community detection.** Apply `python-louvain` or `networkx.algorithms.community.louvain_communities` separately to each graph. **Louvain is randomized — fix `random_state=42` as the primary run AND report modularity stability across 10 re-runs with different seeds (mean, SD, range).** If modularity SD exceeds 0.05 or community-count range exceeds 2, the assignment is unstable and conclusions about "coalesced / new / fragmented" must be downweighted. Record per period: community count, modularity score (primary seed + 10-run mean/SD), mean community size, max community size, isolate count (nodes in own community).
+4. **Backward-stability classification.** For each 2026 community: compute Jaccard of membership with each 2024 community. Classify:
+   - **Stable** (Jaccard ≥ 0.70 with a 2024 counterpart) — community persisted.
+   - **Coalesced** (2026 members were scattered across 2+ 2024 communities, each contributing <30% of 2026 members) — ecosystem formed.
+   - **New** (≥50% of 2026 members didn't exceed the phi threshold in 2024) — new tech arrivals clustered.
+   - **Fragmented** (a 2024 community split into 2+ 2026 communities) — ecosystem broke apart.
+5. **LLM-vendor cluster verification.** Confirm T14's 13-node cluster (should include claude, copilot, cursor, chatgpt, gpt, langchain, rag, openai, llm, vector_database, huggingface, fine_tuning, prompt_engineering). Is it "coalesced" or "new"? Which technologies were NOT in a community at phi>0.15 in 2024 but ARE in this community in 2026?
+6. **Other crystallizations.** Identify all "coalesced" and "new" communities. Name each by inspecting its member technologies:
+   - Expected candidates: observability stack (Datadog + New Relic + PagerDuty + Grafana); data-engineering stack (Snowflake + dbt + Airflow + Kafka); DevOps/platform (Terraform + Kubernetes + Helm + ArgoCD + CircleCI).
+   - For each, report member techs, community size, modularity contribution, and Jaccard with nearest 2024 counterpart.
+7. **Modularity Δ.** Compare 2024 modularity to 2026 modularity. If modularity ROSE, the network is more cleanly clustered in 2026 (ecosystem crystallization). If FELL, more blurred.
+8. **Visualization.** Two-panel graph layout: 2024 on left, 2026 on right, same layout algorithm (spring layout or Fruchterman-Reingold), nodes colored by 2026 community (same colors across panels so the reader can see which 2024 nodes ended up in which 2026 community).
+9. **Domain cross-check.** Project each 2026 community onto T09 archetype concentrations: which archetypes disproportionately use the LLM-vendor community vs the data-engineering community? Does ecosystem membership align with archetype membership?
+
+**Essential sensitivities:** (a) aggregator exclusion, (b) cap at 50 postings per company before computing phi (co-occurrence is sensitive to prolific posters).
+
+**Output:** `exploration/reports/T35.md` + modularity Δ table + community classification table (stable / coalesced / new / fragmented) + named ecosystem list + side-by-side network visualization + archetype-community cross-tab.
+
+---
+
+### T36. Legacy-stack substitution map `[Agent S]`
+
+**Goal:** For each 2024 SWE title that disappeared in 2026 (per T10), find the nearest 2026 descriptive neighbor. Produces a "role substitution map" that strengthens the paper's legacy-stack-consolidation narrative.
+
+**Hypothesis under test:** H_L. T10 listed disappearing titles (Java architect, Drupal, PHP, .NET, DevOps architect) but didn't map what replaced them. The substitution pattern tells us whether legacy roles are being rebranded (same content, new name), replaced by cross-stack generalists, or absorbed into AI-enabled roles.
+
+**Steps:**
+1. **Disappearing-title list.** Load T10's top 20 disappearing titles (by arshkon volume, confirmed absent from scraped 2026 with threshold ≥10 arshkon postings and <3 scraped postings). Include the Wave 2 finding's headline list: `java architect`, `drupal developer`, `devops architect`, `senior php developer`, `sr. .net developer`, and expand to the full top-20.
+2. **Per-title centroid.** For each disappearing title, collect all arshkon SWE postings with that title (where `text_source='llm'`). Compute TF-IDF centroid on cleaned descriptions using shared vocab from `swe_cleaned_text.parquet`.
+3. **2026 title universe.** Enumerate 2026 titles with ≥10 scraped postings (top ~500-1000 titles). For each, compute its cleaned-description TF-IDF centroid.
+4. **Substitution search.** For each disappearing title, compute cosine similarity to every 2026 title centroid. Record the top-5 nearest 2026 neighbors per disappearing title with cosine, posting volume, and mean `seniority_final`.
+5. **Substitution table.** Single table: disappearing_title | arshkon_n | top1_2026_neighbor | cosine | 2026_n | neighbor_seniority_shift. For each row, note whether the substitution is (a) same seniority level (e.g., senior PHP developer → senior backend engineer), (b) upward (entry DevOps → senior platform engineer), (c) downward, (d) title consolidation (legacy specialist → cross-stack generalist).
+6. **Content drift per pair.** For each disappearing title and its top-1 2026 neighbor, run Fightin' Words (log-odds with informative Dirichlet prior) between the two corpora. Report top-20 terms favoring the disappearing corpus (what's leaving) and top-20 favoring the 2026 neighbor (what's arriving). Tag with semantic categories (legacy_tech / modern_tech / ai_tool / scope / mgmt / methodology).
+7. **AI-vocabulary comparison.** For each substitution pair, compute: ai_strict binary share in disappearing corpus vs in 2026 neighbor corpus. If 2026 neighbors have systematically higher AI-mention rates, the "legacy consolidation → AI-enabled roles" interpretation strengthens.
+8. **Manual inspection.** Read 10 disappearing-title postings and 10 top-1-neighbor postings side-by-side. Is the substitution credible? Does the content genuinely map, or is it a loose cosine match?
+
+**Essential sensitivities:** (a) aggregator exclusion.
+
+**Output:** `exploration/reports/T36.md` + substitution table (20 disappearing × top-5 neighbors) + content-drift summary per pair + AI-vocabulary comparison + manual-inspection notes.
+
+---
+
+### T37. Sampling-frame returning-companies sensitivity `[Agent T]`
+
+**Goal:** Quantify how much of each anticipated Gate-3 headline is a sampling-frame artifact vs a genuine longitudinal signal. T06 found 74.5% of scraped companies are new entrants; T28 found 81% of AI/ML archetype growth is new-entrant-driven. T37 restricts analysis to the returning-companies cohort (n=2,024 firms) and re-runs each headline on that restricted sample.
+
+**Hypothesis under test:** H_H (T24, priority 6). Paper-defensibility: without this restriction-test, every longitudinal claim carries an implicit "which companies are posting" confound.
+
+**Steps:**
+1. **Returning-company cohort.** Identify the returning-companies cohort (n=2,024 firms, from T06 step 8) — companies appearing in both 2024 sources (arshkon ∪ asaniczka) and scraped 2026. Load from `exploration/tables/T06/08_new_vs_returning.csv` if available, or recompute from `data/unified.parquet` joining on `company_name_canonical`.
+2. **Restrict-and-recompute headlines.** For each anticipated Gate-3 headline (enumerated below; these are the Wave 2–3 headlines the paper is most likely to cite), recompute on the returning-cohort-only subset:
+   - AI-mention strict binary share 2024→2026 Δ (full-corpus baseline: +12.2pp strict / +31pp broad)
+   - AI-mention broad binary share Δ
+   - `requirement_breadth` length-residualized Δ (full: +1.93)
+   - Mentor-binary rate Δ at S1 (full: 1.46-1.73×)
+   - Requirements-section share Δ (T18: −10.7pp)
+   - J2 entry share Δ under arshkon-only baseline (full: −0.8pp) and pooled-2024 baseline (full: +1.4pp)
+   - S1 senior share Δ under arshkon-only baseline (full: near-flat) and pooled-2024 baseline (full: −16pp)
+   - Senior archetype shift: mgmt_strict_density at S1 (T21)
+   - AI archetype share change (T28: 3.7% → 18.7%)
+3. **Retention ratio.** For each headline, compute: returning-cohort Δ / full-corpus Δ. If > 0.80, the headline survives sampling-frame restriction. If 0.50-0.80, partially robust. If < 0.50, sampling-frame-driven. **Materiality threshold:** the ratio is only interpretable when the full-corpus |Δ| is large enough that small-sample noise in the returning cohort does not dominate. Require |full-corpus Δ| ≥ 1pp (for share metrics) / ≥ 0.2 SD (for composite scores) before citing a ratio. When the full-corpus Δ falls below this threshold, mark the ratio "undefined — full-corpus Δ too small" and report the absolute returning-cohort Δ and its 95% CI side-by-side instead.
+4. **Verdict per headline.** Classify as: robust / partially-robust / sampling-frame-driven. Paper's top-5 headlines (AI rewriting, scope broadening, senior shift, RQ3 inversion, boundary sharpening) must be classified.
+5. **Cross-check with T16.** T16 found AI-strict rewriting is 102% within-company on the 240-co overlap panel. T37 extends to the returning cohort (n=2,024 firms). Do the two within-company estimates agree within 20%? If not, investigate.
+6. **Sensitivity table.** Produce a one-page table for the paper's robustness appendix: metric | full-corpus Δ | returning-cohort Δ | retention ratio | verdict. Bold the headline metrics.
+7. **Implication statement.** Write 2-3 paragraphs interpreting the results: which claims are defensible even under the strictest sampling-frame restriction, and which need to be qualified in the paper text.
+
+**Essential sensitivities:** (c) T30 panel — verify the returning-cohort sample is not too thin for panel-variant MDEs.
+
+**Output:** `exploration/reports/T37.md` + sampling-frame sensitivity table + per-headline retention ratio + verdict + paper-appendix-ready text block.
+
+---
+
+### T38. Hiring-selectivity × scope-broadening correlation `[Agent T]`
+
+**Goal:** Test whether the 2024-to-2026 scope-broadening pattern is partly a selectivity response to the JOLTS hiring slowdown (2026 Info-sector openings 0.66× of 2023 average). If companies with the largest posting-volume contraction are also writing the broadest JDs, "scope broadening" is partly "filter-raising under hiring constraint."
+
+**Hypothesis under test:** H_N. Novel — not in T24. Explains a possible macro-mediated mechanism for the within-company scope rise that T16 documented.
+
+**Steps:**
+1. **Panel.** Start from the 240-company arshkon∩scraped overlap panel (T16). Compute per company:
+   - `posting_volume_2024` = arshkon SWE posting count / (arshkon window days)
+   - `posting_volume_2026` = scraped SWE posting count / (scraped window days as of cutoff)
+   - `posting_volume_log_ratio` = log(posting_volume_2026) − log(posting_volume_2024). This is the per-company daily-rate change.
+2. **Content Δ metrics per company.** For each company, compute 2024 → 2026 change in:
+   - `breadth_resid_delta` (length-residualized `requirement_breadth`)
+   - `ai_strict_delta` (V1-refined pattern)
+   - `mentor_rate_delta` (V1-refined strict mentor pattern, on S1 postings only)
+   - `desc_len_delta` (median cleaned description length)
+   - `yoe_extracted_delta` (median YOE within the company's SWE postings)
+3. **Correlation matrix.** Pearson AND Spearman of `posting_volume_log_ratio` with each content Δ. Report with 95% CI. Direction predictions:
+   - If hypothesis holds: negative correlation (volume ↓ + breadth ↑, volume ↓ + yoe ↑).
+   - If null: no correlation.
+   - If positive: volume-up companies are scope-expanding (reverse of selectivity prediction).
+4. **Stratification by company size.** Using `company_size` where available (arshkon companion data). Re-run correlation within large (≥10K employees), mid (1K-10K), and small companies. Does the selectivity response differ by firm size?
+5. **Stratification by archetype.** Using T09 archetype labels (project via nearest-centroid). Are specific archetypes (legacy / consulting / tech-giant / ML-AI) carrying the signal?
+6. **Robustness — exclude tech giants.** Tech giants (Google, Amazon, Microsoft, AWS, Apple, Meta — T16 cluster 4 "consolidating giants") have idiosyncratic volume patterns. Re-run correlations on the mid-market subset (240 - 11 = 229 companies). Does the correlation direction hold?
+7. **Robustness — exclude aggregators.** Aggregator volume is driven by ad spend, not hiring. Re-run on non-aggregator subset.
+8. **Interpretation.** If correlations are negative and significant after robustness checks, the hiring-selectivity hypothesis is supported and the paper should acknowledge macro-mediation of the scope-broadening finding. If null or positive, scope-broadening is NOT a selectivity response and the paper can claim it as a demand-side content shift independent of volume.
+
+**Essential sensitivities:** (a) aggregator exclusion (central to this task), (c) T30 panel for seniority-stratified sub-analysis.
+
+**Output:** `exploration/reports/T38.md` + correlation table (Pearson + Spearman with CI) + per-size-class stratification + per-archetype stratification + robustness re-runs + interpretation paragraph.
+
+---
+
 ### Wave 4 — Integration & Hypothesis Generation
 
 ---
 
-### T24. Hypothesis generation from findings `[Agent N]`
+### T24. Hypothesis consolidation and analysis-phase priorities `[Agent N]`
 
-**Goal:** The most important task in the exploration. Read ALL prior reports and generate NEW research hypotheses that go beyond RQ1-RQ4.
+**Goal:** Consolidate the exploration's hypothesis landscape after all computational waves (1, 2, 3, 3.5) and both verification gates (V1, V2). For hypotheses that Wave 3.5 directly tested, report verdicts; for hypotheses that emerge from the full body of evidence but were not tested, write new specifications; for hypotheses that remain analysis-phase deferred, assign priority. T24's output is the input to T26 SYNTHESIS.md and to the analysis plan's hypothesis-test pre-registration.
+
+The Wave 3.5 layer changes T24 from "generate new hypotheses from scratch" to "consolidate tested + untested hypotheses into a priority-ranked analysis-phase roadmap." Most high-priority induced hypotheses (H_A, H_B, H_C, H_H, H_M, plus new H_K, H_L, H_N) will have already been tested in Wave 3.5 — T24 reports those verdicts and reasons about what remains.
 
 **Steps:**
-1. Read all `exploration/reports/T*.md`
-2. **Confirmation inventory:** Which existing RQ1-RQ4 hypotheses are supported by the data? Which are contradicted? Which are ambiguous?
-3. **Surprise inventory:** Across all tasks, what findings were unexpected or contradicted prior assumptions? List each with its evidence strength.
-4. **New hypothesis generation:** Based on the full body of findings, propose 5-10 new testable hypotheses that are NOT already in the research design. For each:
-   - State the hypothesis precisely
-   - What evidence from exploration supports it?
-   - What additional analysis would test it?
-   - How novel/publishable is it?
-5. **Method suitability assessment:** For each RQ (existing and new), what statistical/analytical methods are best suited given our data's specific characteristics (sample sizes, confounds, measurement quality)?
-6. **Key tensions:** List the 5 most important tensions or puzzles that the analysis phase needs to resolve.
-7. **Data gaps:** What data would we need to answer the most interesting questions we can't currently answer?
+1. Read all `exploration/reports/T*.md` (T01-T38), both verification reports (V1_verification.md, V2_verification.md), and all gate memos (gate_0_pre_exploration.md, gate_1.md, gate_2.md, gate_3.md).
+2. **Confirmation inventory across the full pipeline.** For each RQ1-RQ4 claim and each sub-claim, report:
+   - Verdict (supported / contradicted / ambiguous / inverted / decomposed)
+   - Evidence cites (specific task numbers, including Wave 3.5 where applicable)
+   - Whether V1 or V2 verification confirmed or corrected the magnitude
+3. **Wave 3.5 verdict table.** For each task T31-T38, a row with:
+   - Hypothesis tested (H_M, H_A, H_B, H_C, H_K, H_L, H_H, H_N for T31-T38 respectively)
+   - One-sentence verdict (supported / partially supported / rejected / null)
+   - Headline numeric result (effect size, CI or robustness range, p-value where applicable)
+   - How this Wave 3.5 verdict changes or strengthens the SYNTHESIS.md ranked-findings list
+4. **Surprise inventory.** Across all tasks, which findings were unexpected or contradicted prior assumptions? Separately flag surprises from Wave 3.5 (often these are results on tests that Gate 2/3 predicted but that turned out differently).
+5. **New-hypothesis generation (post-Wave-3.5 gap).** Based on the full body of evidence including Wave 3.5 results, propose any NEW testable hypotheses that are NOT already covered by: RQ1-RQ4, Wave 3.5's 8 tasks, or the T24 H_A-H_J planned list. Fewer new hypotheses are expected at this stage because Wave 3.5 pre-tested the highest-priority induced hypotheses. For each new hypothesis: precise statement, supporting evidence, proposed analysis-phase test, novelty/publishability.
+6. **Deferred-hypothesis inventory.** Hypotheses from the T24 H_A-H_J planned list that were NOT directly tested in Wave 3.5 (specifically H_D senior IC-as-team-multiplier, H_E same-co J1 drop + J3 rise regime shift, H_F Sunbelt AI surge catchup, H_G staff-title redistribution, H_I AI as coordination signal, H_J recruiter-LLM senior bias) should be listed here with:
+   - Why Wave 3.5 did not cover them (scope, data needs, lower priority)
+   - Analysis-phase priority ranking
+   - What data or method would be required to test them
+7. **Method-suitability assessment.** For each confirmed or partially-confirmed claim, what analytical methods are best suited for the analysis phase (accounting for sample sizes, confounds, measurement quality surfaced in Waves 1 through 3.5)?
+8. **Key tensions.** List the 5 most important tensions or puzzles that the analysis phase must resolve. The post-Wave-3.5 tension list differs from the Gate 3 tension list — Wave 3.5 resolves some (e.g., the T16 within-company vs T06 between-company tension is clarified by T31's pair-level drift) and introduces others. List the current set.
+9. **Data gaps.** What data would we need to answer the most interesting questions we still cannot answer? Distinguish "gaps that Wave 3.5 surfaced" from "pre-existing gaps."
 
-**Output:** `exploration/reports/T24.md` — this is the intellectual payoff of the exploration
+**Output:** `exploration/reports/T24.md` — the hypothesis consolidation document. Structured so T26 SYNTHESIS.md can pull section by section without reworking.
 
 ### T25. Interview elicitation artifacts `[Agent N]`
 
-**Goal:** Produce 5 artifacts for RQ4 data-prompted interviews, drawing on the full body of exploration findings.
+**Goal:** Produce 5-7 artifacts for RQ4 data-prompted interviews, drawing on the full body of exploration findings including Wave 3.5.
 
-**Steps (reads all prior reports):**
+**Steps (reads all prior reports including Wave 3.5):**
 1. **Inflated junior JDs:** From T11/T22, select 3-5 entry-level postings with the most extreme scope-inflated or ghost-like requirements. Query parquet for actual text.
-2. **Paired JDs over time:** From T16, select 3-5 same-company pairs (2024 vs 2026). Format side-by-side.
+2. **Paired JDs over time:** From T16/T31, select 3-5 same-company (and where possible same-title) pairs (2024 vs 2026). If T31 produced a "top-20 drift pairs" list, use those. Format side-by-side.
 3. **Junior-share trend plot:** From T08, annotated with AI model release dates (GPT-4: Mar 2023, Claude 3: Mar 2024, GPT-4o: May 2024, Claude 3.5 Sonnet: Jun 2024, o1: Sep 2024, DeepSeek V3: Dec 2024, Claude 3.5 MAX: Feb 2025, GPT-4.5: Feb 2025, Claude 3.6 Sonnet: Apr 2025, Claude 4 Opus: Sep 2025, Claude 4.5 Haiku: Oct 2025, Gemini 2.5 Pro: Mar 2026).
-4. **Senior archetype chart:** From T21, management vs orchestration vs strategic language profiles (2024 vs 2026).
-5. **Posting-usage divergence chart:** From T23.
-6. **Bonus: Any particularly striking discovery from T24** that would be valuable to present to interviewees for reaction.
+4. **Senior archetype chart:** From T21 and T34 (AI-enabled tech lead profile), management vs orchestration vs strategic language profiles (2024 vs 2026). If T34 validated the "AI-enabled tech lead" naming, include exemplar postings from that cluster.
+5. **Posting-usage divergence chart:** From T23 (SWE) and T32 (cross-occupation extension). If T32 confirmed the inversion cross-occupation, present as a multi-occupation chart.
+6. **Hidden hiring-bar exemplars:** From T33, select 3-5 postings with the largest requirements-section contraction paired with lowered YOE / credential asks. Format as before/after company snapshots.
+7. **Bonus — striking discoveries from T24's surprise inventory** that would be valuable to present to interviewees for reaction.
 
-**Output:** `exploration/artifacts/` with each artifact as PNG + a README
+**Output:** `exploration/artifacts/T25_interview/` with each artifact as PNG or markdown + a README that maps each artifact to the interview question it probes.
 
 ### T26. Exploration synthesis `[Agent N]`
 
-**Goal:** Consolidate everything into a single handoff for the analysis phase.
+**Goal:** Consolidate everything from Waves 1 through 3.5 (plus both verification reports and all gate memos) into a single handoff document for the analysis phase. SYNTHESIS.md is the one document the analysis agent reads first and the one document Agent P (presentation) reads to tell the story; Wave 3.5 findings must appear as first-class claims in the ranked findings and robustness material, not as an optional appendix section.
 
-**Steps (reads all reports):**
-1. Read all `exploration/reports/T*.md`
+**Steps (reads all prior reports including Wave 3.5):**
+1. Read all `exploration/reports/T*.md` (T01-T38), verification reports (V1, V2), gate memos (gate_0 through gate_3), and T24's hypothesis consolidation.
 2. Write `exploration/reports/SYNTHESIS.md` covering:
-   - **Data quality verdict per RQ** — what analyses are safe, what need caveats?
-   - **Recommended analytical samples** (rows, columns, filters) for each type of analysis
-   - **Seniority validation summary** — does `seniority_final` agree with the YOE-based proxy on the directional findings? Where does it diverge, and why?
-   - **Known confounders** with severity assessment (description length growth, asaniczka label gap, aggregator contamination, company composition shift, field-wide vs SWE-specific trends)
-   - **Discovery findings** organized by:
-     - Confirmed hypotheses (with confidence level)
-     - Contradicted hypotheses (with evidence)
-     - New discoveries (with novelty assessment)
-     - Unresolved tensions
-   - **Posting archetype summary** from T09 — the natural structure of the market
-   - **Technology evolution summary** from T14
-   - **Geographic heterogeneity summary** from T17
-   - **Senior archetype characterization** from T21
-   - **Ghost/aspirational prevalence** from T22
-   - **New hypotheses** from T24 — ranked by priority for analysis phase
-   - **Method recommendations** for the analysis phase
-   - **Sensitivity requirements** — which findings need robustness checks?
-   - **Interview priorities** — what should qualitative work focus on?
+   - **Executive summary (≤400 words):** paper's lead sentence + 3-4 supporting claims + RQ evolution summary + method recommendations + key caveats. Wave 3.5 findings that materially sharpen the lead (e.g., T31 pair-level within-company drift tightening the "employer-side rewriting" claim; T32 cross-occupation extension potentially elevating RQ3 from a SWE-specific story to a general labor-market finding) must be integrated here, not deferred to an appendix.
+   - **Data quality verdict per RQ** — what analyses are safe, what need caveats. Integrate V1 + V2 findings including Wave 3.5 verifications.
+   - **Recommended analytical samples** (rows, columns, filters) per analysis type. Cite the 240-co overlap panel, the returning-companies cohort (n=2,024 firms, from T37), the LLM-labeled subset, and any Wave 3.5-specific sample frames.
+   - **Seniority validation summary.** Integrates T03, T30, V1 LLM-frame flip, and Wave 3.5 T31's pair-level results under the T30 panel.
+   - **Known confounders with severity + mitigation.** Include: description length growth, asaniczka label gap, aggregator contamination, company composition shift, field-wide vs SWE-specific trends, LLM-frame selection artifact, recruiter-LLM mediation, 2026 JOLTS hiring-low macro context, platform taxonomy drift. For each confounder, cite the specific Wave 2/3/3.5 task(s) that characterized it. T37's sampling-frame sensitivity table is the primary defense against composition-shift confounds; T38's selectivity correlation handles macro-hiring-context.
+   - **Ranked findings** organized by evidence strength × novelty × narrative value. Wave 3.5 findings sit in the same ranked list alongside Wave 2-3 findings, not a separate section. Candidate rank (the orchestrator's Gate 3 memo provides the interim ranking; T26 refines with Wave 3.5 results):
+     1. AI-vocabulary rewriting: SWE-specific (T18 DiD), within-company (T16, T31), cross-archetype (T28), cross-metro (T17). Wave 3.5 T31 provides the tightest per-pair test.
+     2. Cross-occupation RQ3 inversion (T23 SWE + T32 extension).
+     3. Within-company scope broadening (T16 + T31).
+     4. Hidden hiring-bar mechanism (T13 + T18 + T33).
+     5. AI-enabled tech lead archetype (T21 cluster 2 + T34 profiling + naming).
+     6. Seniority boundary sharpening (T20).
+     7. Technology ecosystem crystallization (T14 + T35).
+     8. Legacy-stack substitution map (T10 + T36).
+     9. Sampling-frame robustness results (T06 + T16 + T37).
+     10. Recruiter-LLM partial mediation (T29).
+     11. Junior-share baseline-dependence (Gate 1 + T08).
+     12. Hiring-selectivity × scope correlation (T38, direction-dependent).
+   - **Discovery findings organized:** confirmed, contradicted, new discoveries, unresolved tensions. Each with evidence cite to specific task + wave.
+   - **Posting archetype summary (T09 + T28 + T34).**
+   - **Technology evolution summary (T14 + T35 + T36).**
+   - **Geographic heterogeneity summary (T17).**
+   - **Senior archetype characterization (T21 + T34).**
+   - **Ghost/aspirational prevalence (T22).**
+   - **Robustness appendix.** Include: the sampling-frame sensitivity table from T37 (per-headline retention ratio under full-corpus vs returning-cohort restriction); hiring-selectivity correlation from T38; aggregator-exclusion sensitivities from T06/T16; within-2024 calibration SNRs from the Prep calibration table; V1/V2 corrections summary.
+   - **Hypothesis status table (from T24).** Every hypothesis (RQ1-RQ4 original + T24 H_A-H_J + Wave 3.5 H_K/H_L/H_M/H_N + any new post-3.5 hypotheses): verdict, evidence, analysis-phase action (test / revisit / archive).
+   - **Method recommendations** for the analysis phase (draws from V1, V2, T24, T07).
+   - **Sensitivity requirements** — which findings still need robustness checks the exploration didn't run?
+   - **Interview priorities** — what should qualitative RQ4 work focus on? Integrate T34 (AI-enabled tech lead), T33 (hidden hiring-bar), T22 (ghost patterns), T29 (recruiter-LLM adoption) as mechanism hypotheses interviews should adjudicate.
+   - **Recommended paper positioning** — hybrid dataset/methods × substantive labor paper; RQ3 inversion anchors a standalone short-paper option if T32 generalization survives.
+   - **Paper figures candidate list.** Top 5-7 figures that should make the paper, sourced from `exploration/figures/`. Candidates span Wave 2-3-3.5: T08 length-section stacked bar, T18 AI gradient cross-occupation, T21 mgmt/orch/strat senior profile, T23/T32 employer-worker divergence (cross-occupation if T32 supports), T09/T34 archetype UMAP with AI-enabled-tech-lead callout, T16/T31 within-company decomposition, T20 boundary AUC.
 
-**Output:** `exploration/reports/SYNTHESIS.md` — the one document the analysis agent reads first.
+**Output:** `exploration/reports/SYNTHESIS.md` — the one document the analysis agent reads first and Agent P consumes for the presentation.
 
 ---
 
@@ -1083,6 +1381,8 @@ Report the rate-of-change under each operationalization and discuss any disagree
 **Goal:** Package the exploration's findings into a navigable, presentable artifact that works at multiple levels of depth — from a 10-minute slide presentation down to the raw task reports and gate memos. Host it and share the link.
 
 **Inputs:** Read `exploration/reports/SYNTHESIS.md` (primary — the consolidated findings), gate memos (`exploration/memos/gate_*.md`), and `exploration/reports/INDEX.md` for the full task inventory. Reference existing figures from `exploration/figures/` and reports from `exploration/reports/`. Also read `docs/preprocessing-guide.md` (and skim `docs/preprocessing-schema.md` for the output schema) to extract a concise description of the preprocessing pipeline for the methodology layer — see "Preprocessing description" below. Do not regenerate analysis — package what exists.
+
+**You MUST** Think critically about the findings, identify interesting facts, conclusions and present them in a simple to read way. You must review the website and all the text to identify unnecessary complexity/verbosity in the language and make it more concise. 
 
 ---
 
@@ -1163,40 +1463,48 @@ After hosting, print the Tailscale URL clearly so the user can copy-paste and sh
 
 ## 4. Deferred to analysis plan
 
-These items require formal statistical framework, LLM-stage outputs, or analysis-phase infrastructure:
+Items below still require formal statistical framework, LLM-stage outputs, or analysis-phase infrastructure beyond what the exploration waves (including Wave 3.5) can produce. Where Wave 3.5 partially addresses an item descriptively, the item is retained here because the formal/causal version still needs to be done.
 
-- Robustness pre-registration / specification curve
-- Placebo and falsification tests
-- Oaxaca-Blinder decomposition
-- Selection bias reweighting / IPSW
-- Full power analysis refinement (effect-size-specific, beyond T07 feasibility estimates)
-- Seniority boundary classifier (analysis-phase, needs embeddings + LLM labels)
-- Company fixed-effects regression (uses T16's overlap panel)
-- Formal break detection / event-study plots
-- Causal timing analysis with model release windows
-- Full embedding-based document classification
+- **Robustness pre-registration / specification curve** — exploration enumerated sensitivity dimensions; formal curve requires pre-registration.
+- **Placebo and falsification tests** — Wave 3.5 T37 is a sampling-frame sensitivity test but not a pre-registered placebo. Analysis phase pre-registers placebos.
+- **Oaxaca-Blinder decomposition** — T16 and T31 run within/between decompositions descriptively; formal O-B with standard errors remains analysis-phase.
+- **Selection bias reweighting / IPSW** — T37 quantifies sampling-frame sensitivity but does not reweight. IPSW remains analysis-phase.
+- **Full power analysis refinement** — T07 gave feasibility estimates; effect-size-specific refinement after Wave 3/3.5 results is analysis-phase.
+- **Seniority boundary classifier** — T20 runs logistic-regression boundary classifiers; embedding-based learned classifier with proper CV is analysis-phase.
+- **Company fixed-effects regression** — T16 and T31 use within/between decomposition and pair-level deltas descriptively; formal FE with clustered SEs is analysis-phase.
+- **Formal break detection / event-study plots** — we have three snapshots, not a continuous series; break detection needs more dense sampling.
+- **Causal timing analysis with model release windows** — T19 annotates the timeline; causal timing needs pre-registered event-study design.
+- **Full embedding-based document classification** — Wave 2/3 embed for similarity/clustering; supervised classification is analysis-phase.
+- **Remaining T24 hypotheses** (H_D senior IC-as-team-multiplier, H_E same-co J1/J3 regime shift, H_F Sunbelt catchup, H_G staff-title redistribution, H_I AI as coordination signal, H_J recruiter-LLM senior bias) — T24 inventories with priority. Wave 3.5 covered H_A, H_B, H_C, H_H + introduced and tested H_K, H_L, H_M, H_N.
 
 ---
 
 ## 5. Bias threat summary
+
+Mitigations cite the tasks that characterized or reduced the bias. Wave 3.5 entries (T31, T37, T38) handle composition-shift, sampling-frame, and hiring-context threats at the pre-synthesis stage.
 
 | Bias | Direction | Mitigation task | Residual risk |
 |---|---|---|---|
 | Platform selection | Favors SWE | T07 | Low for SWE |
 | Scraper query design | Misses long-tail | T05 | Moderate |
 | Aggregator contamination | Inflates some companies | T06, T16 | Low after flagging |
-| Description length inflation | Biases raw keyword counts | Length-normalization everywhere | Low after normalization |
-| Company composition shift | Could drive aggregate seniority shift | T06, T16 | Low after decomposition |
+| Description length inflation | Biases raw keyword counts | Length-normalization everywhere; residualize composites (T11, T16, V1 correction) | Low after normalization |
+| Company composition shift | Could drive aggregate seniority shift | T06, T16, T31 (same-co × same-title pair test), T37 (returning-cohort restriction) | Low after Wave 3/3.5 decomposition |
 | Temporal selection (volatility) | Oversamples long-lived postings | T19 | Moderate |
 | Kaggle provenance unknown | Unknown | T05 | High (irreducible) |
-| asaniczka missing entry-level | Thin baseline | T02, T03 | Moderate |
+| asaniczka missing entry-level | Thin baseline | T02, T03, T30 panel | Moderate |
 | Boilerplate in raw text | Noisy text analysis | Use `description_core_llm` (LLM-cleaned); raw `description` only for boilerplate-insensitive checks | Low after LLM coverage |
 | Company-name contamination | Pollutes corpus comparisons | Company-name stripping in preamble | Low after stripping |
 | Remote flag incomparability | 0% in 2024 (data gap, not real) | Do not interpret as real change | Low if noted |
 | SWE classification temporal instability | Could change SWE sample composition | T04 | Moderate |
-| Within-2024 cross-source variation | Could inflate 2024-to-2026 effect sizes | Within-2024 calibration in T05, T08 | Low after calibration |
-| Instrument difference (Kaggle unformatted vs scraped markdown) | Inflates text-based 2024-to-2026 differences | Within-2024 calibration (sensitivity dim f) | Moderate |
+| Within-2024 cross-source variation | Could inflate 2024-to-2026 effect sizes | Within-2024 calibration in T05, T08, Prep calibration table | Low after calibration |
+| Instrument difference (Kaggle unformatted vs scraped markdown) | Inflates text-based 2024-to-2026 differences | Within-2024 calibration (sensitivity dim f); Wave 3.5 T35 re-tests co-occurrence structure per period separately | Moderate |
 | SWE classification tier uncertainty | 9-10% from elevated-FP tier could shift sample composition | Sensitivity dim g in T09, T14, T15, T18 | Low after check |
+| Sampling-frame artifact (74.5% scraped cos new entrants) | Longitudinal claims conflate firm population shift with content change | T06, T16 (within-co decomp); T37 (returning-cohort sensitivity, n=2,024 returning firms, on anticipated Gate-3 headlines); T31 (same-co × same-title pair drift) | Low after Wave 3.5 sensitivity table |
+| Keyword pattern precision | Broad patterns inflate effect sizes (e.g., `manage`, `agent`) | V1 semantic precision refinement; T22 validated_mgmt_patterns.json; Wave 3.5 agents load validated patterns | Low after refinement |
+| LLM-frame selection artifact | Scraped `llm_extraction_coverage='labeled'` subset is non-random w.r.t. junior signal | V1 flagged; Wave 3.5 MUST requires agents to flag the artifact when restricting text-sensitive analyses to labeled rows, and to report labeled-row coverage by period and source per sensitivity dim (h) | Moderate (analysis-phase IPSW) |
+| Recruiter-LLM mediation of JD content | Apparent content shifts partly driven by recruiter tooling, not employer demand | T29 authorship score + low-score subset test (partial mediation ~15-30%) | Moderate (analysis-phase needs labeled-authorship calibration set) |
+| 2026 macro hiring slowdown | JOLTS Info-sector 0.66× of 2023 avg confounds volume-based claims | T07 JOLTS contextualization; Wave 3.5 T38 tests selectivity-scope interaction | Low for share-based metrics, moderate for volume claims |
 
 ---
 

@@ -84,7 +84,6 @@ DEFAULT_ERROR_LOG = LOG_DIR / "llm_errors.jsonl"
 
 CHUNK_SIZE = 50_000
 MIN_DESCRIPTION_WORDS = 15
-CLASSIFICATION_STRONG_TIERS = {"regex", "embedding_high", "title_lookup_llm"}
 
 
 def _format_top_counts(mapping: dict[str, int] | None, *, limit: int = 8) -> str:
@@ -109,20 +108,6 @@ def configure_logging() -> logging.Logger:
     return logging.getLogger(__name__)
 
 
-def classification_skip_mask(df: pd.DataFrame) -> pd.Series:
-    """Rows where Stage 5 already produced a high-confidence answer.
-
-    Skips the LLM when ALL of:
-      - SWE classification tier is one of the strong tiers
-      - seniority_final was set by a strong rule (i.e. != 'unknown')
-      - ghost_job_risk is 'low'
-    """
-    strong_occupation_signal = df["swe_classification_tier"].fillna("").isin(CLASSIFICATION_STRONG_TIERS)
-    has_strong_seniority = df["seniority_final"].fillna("unknown").astype(str).ne("unknown")
-    low_ghost_risk = df["ghost_job_risk"].fillna("").eq("low")
-    return strong_occupation_signal & has_strong_seniority & low_ghost_risk
-
-
 def prepare_classification_rows(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     raw_description = out["description"].fillna("").astype(str)
@@ -135,8 +120,7 @@ def prepare_classification_rows(df: pd.DataFrame) -> pd.DataFrame:
         )
     in_scope = out["selected_for_llm_frame"].fillna(False).astype(bool)
     short_skip = raw_word_count.lt(MIN_DESCRIPTION_WORDS)
-    skip_mask = classification_skip_mask(out)
-    classification_eligible = is_linkedin & is_english & ~short_skip & ~skip_mask
+    classification_eligible = is_linkedin & is_english & ~short_skip
 
     classification_input = [
         derive_classification_input(core_llm, desc)
@@ -160,7 +144,6 @@ def prepare_classification_rows(df: pd.DataFrame) -> pd.DataFrame:
     out.loc[in_scope, "llm_classification_sample_tier"] = "core"
     out["llm_classification_reason"] = "not_selected"
     out.loc[in_scope & short_skip, "llm_classification_reason"] = "short_description_excluded_by_stage9"
-    out.loc[in_scope & skip_mask & ~short_skip, "llm_classification_reason"] = "high_confidence_technical_rules"
     out.loc[out["needs_llm_classification"], "llm_classification_reason"] = "routed"
     return out
 
@@ -323,7 +306,6 @@ def integrate_chunk(
     coverage = reason.map({
         "not_selected": "not_selected",
         "short_description_excluded_by_stage9": "skipped_short",
-        "high_confidence_technical_rules": "rule_sufficient",
         "routed": "deferred",
     }).fillna("not_selected")
     has_core_result = reason.eq("routed") & has_cached_result
@@ -339,10 +321,8 @@ def integrate_chunk(
         resolution.loc[cached_mask] = "cached_llm"
     out["llm_classification_resolution"] = resolution
 
-    # Overwrite seniority_final with the LLM result for labeled rows. Stage 5
-    # left these rows as 'unknown'; the LLM supplies the value here. For
-    # rule_sufficient and other coverage values, seniority_final keeps whatever
-    # Stage 5 wrote (a strong-rule label or 'unknown').
+    # Overwrite seniority_final with the LLM result for labeled rows. The
+    # rule-based snapshot lives in seniority_rule / seniority_rule_source.
     llm_seniority_series = pd.Series(llm_seniority_values, index=out.index, dtype="object")
     labeled_mask = coverage.eq("labeled") & llm_seniority_series.notna()
     out.loc[labeled_mask, "seniority_final"] = llm_seniority_series[labeled_mask]
@@ -369,7 +349,6 @@ def summarize_stage10_routing(
         "routed_rows": int(routed_rows),
         "selected_control_rows": int(selected_control_rows),
         "short_skip_rows": int(reason_counts.get("short_description_excluded_by_stage9", 0)),
-        "high_confidence_skip_rows": int(reason_counts.get("high_confidence_technical_rules", 0)),
         "not_routed_rows": int(reason_counts.get("not_selected", 0)),
         "unique_tasks": int(unique_task_count),
         "duplicate_rows_collapsed": int(duplicate_rows_collapsed),
@@ -385,12 +364,11 @@ def log_stage10_plan(log: logging.Logger, summary: dict[str, int], *, max_worker
         format_engine_labels(runtime.engines),
     )
     log.info(
-        "Routing summary | rows=%s | selected_controls=%s | routed_rows=%s | short_skips=%s | high_confidence_skips=%s | not_routed=%s",
+        "Routing summary | rows=%s | selected_controls=%s | routed_rows=%s | short_skips=%s | not_routed=%s",
         f"{summary['total_rows']:,}",
         f"{summary['selected_control_rows']:,}",
         f"{summary['routed_rows']:,}",
         f"{summary['short_skip_rows']:,}",
-        f"{summary['high_confidence_skip_rows']:,}",
         f"{summary['not_routed_rows']:,}",
     )
     log.info(
@@ -835,7 +813,7 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Max new LLM calls (REQUIRED, no default). "
             "Use 0 for cache-only. Counts unique classification tasks after "
-            "Stage 9 frame inheritance, rule_sufficient resolution, and cache reuse."
+            "Stage 9 frame inheritance and cache reuse."
         ),
     )
     parser.add_argument(
