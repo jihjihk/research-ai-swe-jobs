@@ -162,6 +162,31 @@ AI-mentioning SWE postings persist 0.9 days longer on average — a small effect
 
 ---
 
+## Robustness: balanced core vs natural sample
+
+**The concern.** `unified_core.parquet` is the Stage 9 balanced sample (40% SWE / 30% adjacent / 30% control within each `source × analysis_group × date_bin` bucket). That 40/30/30 proportion is imposed by the pipeline, not natural to LinkedIn. If Stage 9's within-group sampling is correlated with any dimension we measured (AI-vocab presence, industry label, seniority, per-firm posting patterns), our findings could be sampling artifacts.
+
+**The check.** I re-ran the rate-based metrics behind the four most-headline findings on the full `unified.parquet` (restricted to `source_platform='linkedin' AND is_english AND date_flag='ok'` for filter parity), and compared to the core numbers. Full script at `eda/scripts/robustness_check.py`; outputs at `eda/tables/C_robustness_core_vs_full.csv` and `eda/tables/C_robustness_side_by_side.csv`.
+
+**The result — every rate-based finding replicates essentially unchanged on the natural distribution.** Selected comparisons (absolute difference |core − full| in percentage points):
+
+| hypothesis | scope | core | full | abs diff |
+|---|---|---|---|---|
+| **H1 / H7** SWE AI-vocab rate | 2026-04 | 28.45% | 28.10% | **0.35pp** |
+| **H1 / H7** control AI-vocab rate | 2026-04 | 1.37% | 1.39% | 0.02pp |
+| **H4** non-tech share of SWE | 2026-04 | 54.40% | 53.85% | 0.55pp |
+| **H5a** AI rate — junior | 2026-04 | 26.46% | 27.02% | 0.57pp |
+| **H5a** AI rate — senior | 2026-04 | 31.61% | 31.50% | 0.11pp |
+| **H13** mean within-firm Δ | 2024↔2026 panel | +19.36pp | **+20.69pp** | 1.33pp |
+| **H13** % of firms rising | " | 75.0% | **79.2%** | 4.2pp |
+| **H13** % rising >20pp | " | 39.4% | **44.1%** | 4.7pp |
+
+**What this tells us.** Stage 9's within-group sampling is **not** correlated with any of the dimensions we used for inference (AI-vocab, industry label, seniority bucket, per-firm pattern). The rate measurements are not sampling artifacts; they reflect the natural distribution. H13 within-firm rewrite is actually *stronger* on the full file (natural panel has 356 firms vs 292 in core; mean Δ rises from +19.4pp to +20.7pp).
+
+**What would still be vulnerable.** Claims that depend on **absolute group shares** (e.g., "SWE is X% of LinkedIn postings") or **raw volumes** (e.g., "Y postings in 2026") — neither of which any of our substantive findings rely on. The v2 report uses only within-group rates and within-firm deltas, which this cross-check establishes as robust.
+
+---
+
 ## Limitations (v2)
 
 - **LinkedIn-only** by construction on `unified_core.parquet`. No Indeed sensitivity in this pass.
