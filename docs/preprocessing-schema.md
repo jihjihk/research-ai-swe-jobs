@@ -16,7 +16,8 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 - `description_core_llm`: **The only cleaned-text column** and the required input for every text-dependent analysis. Check `llm_extraction_coverage` for coverage by source. Raw `description` is the only acceptable fallback and only for analyses that are insensitive to boilerplate (e.g., binary keyword presence); text-sensitive work must filter to `llm_extraction_coverage = 'labeled'`.
 - **Seniority — use `seniority_final`.** This is the single primary seniority column. Stage 5 fills it from high-confidence title keywords; Stage 10 overwrites it with the LLM result for rows the router sent to the LLM. `seniority_final_source` records which path produced the value (`title_keyword`, `title_manager`, `llm`, or `unknown`). See Section 4 for details.
 - `ghost_assessment_llm`: Primary ghost indicator (`realistic`/`inflated`/`ghost_likely`). Richer than rule-based `ghost_job_risk`. Use `ghost_job_risk` as fallback.
-- `swe_classification_llm`, `yoe_min_years_llm`: Cross-check columns.
+- `yoe_min_years_llm`: **Primary YOE column** within the LLM frame (`llm_classification_coverage = 'labeled'`); rule-based `yoe_extracted` is the audit/fallback. See Section 6.
+- `swe_classification_llm`: Cross-check against `is_swe`.
 
 Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. For raw Stage 9/Stage 10 LLM columns (including `description_core_llm`), filter to `labeled`. Seniority is the exception: `seniority_final` is already the combined best-available column and should be used directly without filtering by coverage.
 
@@ -60,7 +61,7 @@ Work from `data/unified.parquet` (the final output with all rule-based and avail
 | Analysis need | Primary column | Ablation / fallback | Notes |
 |---|---|---|---|
 | SWE sample | `is_swe` | `swe_classification_llm` where labeled | `is_swe_adjacent` for broader tech sample. |
-| Seniority | `seniority_final` | `seniority_native` (arshkon-only diagnostic), YOE-based proxy | `seniority_final` is the combined high-confidence rule + LLM column. Always validate entry-level findings with the YOE-based proxy. |
+| Seniority | `seniority_final` | `seniority_native` (arshkon-only diagnostic), `yoe_min_years_llm` (LLM YOE, primary proxy), `yoe_extracted` (rule ablation) | `seniority_final` is the combined high-confidence rule + LLM column. Always validate entry-level findings with the YOE-based proxy (LLM primary, rule ablation). |
 | Seniority (coarse) | `seniority_3level` | — | junior/mid/senior/unknown |
 | Time period | `period` | `date_posted`, `scrape_date` | Query current `period` values and source date ranges before temporal analysis. |
 | Description text | `description_core_llm` | raw `description` (only when LLM cleaned text is unavailable and the analysis is boilerplate-insensitive) | No rule-based cleaned text exists. `description_core` was retired on 2026-04-10. |
@@ -96,7 +97,7 @@ Work from `preprocessing/intermediate/stage10_llm_integrated.parquet` or `data/u
 | Analysis need | Primary column | Fallback / ablation |
 |---|---|---|
 | SWE sample | `swe_classification_llm` (for routed rows) | `is_swe` |
-| Seniority | `seniority_final` | `seniority_native` (arshkon-only), YOE-based proxy |
+| Seniority | `seniority_final` | `seniority_native` (arshkon-only), `yoe_min_years_llm` (primary proxy), `yoe_extracted` (rule ablation) |
 | Clean text | `description_core_llm` | raw `description` (boilerplate-insensitive analyses only) |
 | Ghost / inflation | `ghost_assessment_llm` | `ghost_job_risk` |
 
@@ -146,7 +147,7 @@ Query `data/unified.parquet` for current row counts, date ranges, and SWE rows b
 1. `description_core_llm` (where `llm_extraction_coverage = 'labeled'`) — the only boilerplate-removed text column.
 2. `description` (raw) — full text including boilerplate. Acceptable only for analyses that are insensitive to boilerplate (e.g., binary keyword presence) or when falling back because LLM coverage is absent.
 
-The rule-based `description_core` column (and its `core_length` / `boilerplate_flag` siblings) was retired on 2026-04-10 because the regex-based extractor performed at ~44% accuracy and was causing downstream agents to mix rule-based and LLM text.
+The rule-based `description_core` column (and its `core_length` / `boilerplate_flag` siblings) was retired on 2026-04-10 because the regex-based extractor performed at a low accuracy that was misleading downstream agents into mixing rule-based and LLM text.
 
 **Usage guidance:** For binary keyword presence (does the posting mention X?), raw `description` is acceptable and may improve recall. For density/frequency metrics (mentions per 1K chars), embeddings, topic modeling, and corpus comparison, use `description_core_llm` — restrict the sample to rows where it is labeled rather than backfilling with raw text.
 
@@ -208,7 +209,7 @@ Use `seniority_final` as the primary seniority column for any seniority-stratifi
 
 For label-independence validation (required for any entry-level finding), use:
 
-1. **YOE-based proxy:** share of postings with `yoe_extracted ≤ 2` by period, plus the YOE distribution by period. This is the strongest fully label-independent check, since it does not depend on any seniority labeler.
+1. **YOE-based proxy (primary label-independent check).** Share of postings with `yoe_min_years_llm ≤ 2` by period (filter to `llm_classification_coverage = 'labeled'`), plus the YOE distribution by period. Rule-based `yoe_extracted ≤ 2` is the audit ablation for out-of-frame rows and for extractor-agreement checks. This is the strongest fully label-independent check, since it does not depend on any seniority labeler.
 2. **`seniority_native` (arshkon-only):** the platform's own label, available as a sanity check for entry-level baselines on arshkon. **Do not pool asaniczka into a `seniority_native`-based comparison** — asaniczka has zero native entry-level labels and would dilute the entry rate to near-zero.
 
 If `seniority_final` and the YOE-based proxy disagree on the direction of an entry-level trend, do not pick a side without investigating. Possible explanations include: real market change, differential native-label quality across snapshots, shifts in employer labeling explicitness, compositional change in the unknown pool, or instrument noise. Report disagreement honestly — material disagreement is itself a finding, not a problem to hide.
@@ -247,16 +248,16 @@ The LLM classifier looks for **explicit seniority signals only** — title keywo
 
 | Column | Type | Stage | Meaning |
 |---|---|---|---|
-| `yoe_extracted` | DOUBLE | 5 | Primary resolved YOE floor from rule-based parser. Parsed from raw `description`. |
+| `yoe_extracted` | DOUBLE | 5 | Rule-based YOE floor from the clause-aware Stage 5 parser. Parsed from raw `description`. Audit/fallback column: use when LLM YOE is unavailable (Indeed, out-of-LLM-frame rows) or as an ablation against `yoe_min_years_llm`. |
 | `yoe_min_extracted` | DOUBLE | 5 | Minimum valid YOE mention across all accepted candidates. |
 | `yoe_max_extracted` | DOUBLE | 5 | Maximum valid YOE bound across all accepted candidates. |
 | `yoe_match_count` | SMALLINT | 5 | Count of accepted YOE mention candidates. |
 | `yoe_resolution_rule` | VARCHAR | 5 | Which rule selected `yoe_extracted` from candidates. |
 | `yoe_all_mentions_json` | VARCHAR | 5 | JSON audit trail of all candidate mentions, flags, and reject reasons. |
 | `yoe_seniority_contradiction` | BOOL | 5 | True when YOE and seniority contradict (e.g., entry-level + 5 YOE). Feeds `ghost_job_risk`. |
-| `yoe_min_years_llm` | INT64 | 10 | LLM-extracted binding YOE floor. **Cross-check column only** — does not drive seniority. |
+| `yoe_min_years_llm` | INT64 | 10 | **Primary LLM-extracted YOE floor** within the LLM frame (`llm_classification_coverage = 'labeled'`). Returns null when the posting states no YOE requirement; `0` appears on rows where the posting literally states 0 years or is framed as entry-level / no-experience-required. Does not drive `seniority_final`. |
 
-The rule-based YOE extractor uses clause-aware section segmentation with multiple candidate tagging and a resolver hierarchy. `yoe_min_years_llm` is a separate LLM cross-check that exists only for ablation against the rule-based extractor.
+`yoe_min_years_llm` is the primary YOE signal for analysis within the LLM frame. The rule-based extractor (`yoe_extracted`, Stage 5) uses clause-aware section segmentation and is retained as an audit ablation and as the fallback for rows outside the LLM frame (Indeed, unlabeled). LLM-vs-rule exact-agreement on rows where both are populated is reported by T30 as a diagnostic.
 
 ---
 
@@ -327,7 +328,7 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 |---|---|---|---|---|
 | `swe_classification_llm` | VARCHAR | 10 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM occupation classification. Null for rows where rule-based confidence was high. |
 | `ghost_assessment_llm` | VARCHAR | 10 | `realistic`, `inflated`, `ghost_likely` | LLM ghost-job assessment. |
-| `yoe_min_years_llm` | INT64 | 10 | Numeric or null | LLM-extracted YOE floor. Cross-check only. |
+| `yoe_min_years_llm` | INT64 | 10 | Numeric or null | Primary LLM-extracted YOE floor within the LLM frame. See Section 6. |
 | `description_core_llm` | VARCHAR | 9 | Text | LLM-cleaned description. Empty string for short-description skips. |
 | `selected_for_llm_frame` | BOOL | 9-10 | true/false | Deterministic core-frame flag propagated from Stage 9. Marks the sticky balanced core only. |
 | `selected_for_control_cohort` | BOOL | 9-10 | true/false | Compatibility-only mirror for legacy consumers. Equivalent to `selected_for_llm_frame & is_control` when the legacy flag is still needed. |
@@ -392,7 +393,7 @@ Not all columns are populated across all sources. Key gaps:
 
 ## Important Caveats
 
-1. **Seniority requires label-independent validation.** Use `seniority_final` as the primary seniority column — Stage 5 fills it from high-confidence title keywords and Stage 10 overwrites it with the LLM result for routed rows. The Stage 8 unknown rate is high because Stage 5 only fires on strong title keywords; the LLM closes most of the gap within the selected core frame. Always cross-check seniority-stratified findings against the label-independent YOE-based proxy. Differential native-label quality across data snapshots is a known risk; if any seniority-stratified finding disagrees with the YOE-based proxy on the direction of an entry-level trend, report the disagreement.
+1. **Seniority requires label-independent validation.** Use `seniority_final` as the primary seniority column — Stage 5 fills it from high-confidence title keywords and Stage 10 overwrites it with the LLM result for routed rows. The Stage 8 unknown rate is high because Stage 5 only fires on strong title keywords; the LLM closes most of the gap within the selected core frame. Always cross-check seniority-stratified findings against the label-independent YOE-based proxy (`yoe_min_years_llm` primary within the LLM frame; `yoe_extracted` as the rule ablation and out-of-frame fallback). Differential native-label quality across data snapshots is a known risk; if any seniority-stratified finding disagrees with the YOE-based proxy on the direction of an entry-level trend, report the disagreement.
 
 2. **Entry-level baselines are limited and source-dependent.** arshkon is the only 2024 source with native entry labels in `seniority_native`. Asaniczka has none. Use arshkon as the 2024 baseline for any sanity check that uses `seniority_native`. `seniority_final` and the YOE-based proxy can include asaniczka, since they do not depend on native labels — but asaniczka entry counts in `seniority_final` come entirely from the LLM (where it routed asaniczka rows) and may be small.
 

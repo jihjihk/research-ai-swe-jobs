@@ -119,7 +119,7 @@ Stages 9 and 10 now require an explicit `--llm-budget` parameter — **there is 
 
 **Reading LLM columns correctly:**
 - For text and ghost columns (`description_core_llm`, `ghost_assessment_llm`, `swe_classification_llm`, `yoe_min_years_llm`), filter to `llm_*_coverage == 'labeled'` and report the labeled count alongside the eligible count.
-- For **seniority**, `seniority_final` is the combined rule+LLM column and there is no separate `seniority_llm`. It is the label-based primary, but every seniority-stratified finding must be reported under the T30 ablation panel (J1–J4 for junior claims, S1–S4 for senior claims), loaded from `exploration/artifacts/shared/seniority_definition_panel.csv`. Directional disagreement across panel variants is itself a finding to investigate, not a problem to bury. See `docs/task-reference-exploration.md` Section 1a for the panel definition and `docs/preprocessing-schema.md` Section 4 for the seniority schema.
+- For **seniority**, `seniority_final` is the combined rule+LLM label column and there is no separate `seniority_llm`. Every seniority-stratified finding must be reported under the T30 ablation panel (J1–J4 for junior claims, S1–S4 for senior claims), with J3/S4 (YOE-based from `yoe_min_years_llm`) as the panel primary and J1/J2/S1/S2 as label-based sensitivities. Load the panel from `exploration/artifacts/shared/seniority_definition_panel.csv`. Directional YOE-vs-label disagreement is itself a finding to investigate — label variants carry asaniczka-entry-gap and LLM-frame-selection artifacts. See `docs/task-reference-exploration.md` Section 1a and `docs/preprocessing-schema.md` Section 4.
 
 **Statistical framing:** Findings from LLM columns are based on the sticky core frame (`selected_for_llm_frame = true`) plus any explicitly labeled supplemental cache rows you decide to include. Report `n` of labeled rows alongside total eligible in all analyses, and separate core from supplemental-cache counts. Flag thin cells. Balanced-sample claims apply only to the core frame.
 
@@ -164,12 +164,12 @@ Key evaluation questions:
 - Are there data characteristics that suggest analyses NOT in our plan? (e.g., if industry data is rich enough, industry-level analysis becomes feasible.)
 - Is the SWE classification reliable enough that we can trust the sample, or do we need to hedge?
 - How large is the within-2024 cross-source variability? This sets the noise floor for all 2024-to-2026 comparisons.
-- **Which seniority definition is primary for Wave 2?** Read T30's panel recommendation against T07's per-definition MDE cross-tab. If J1 (`seniority_final = 'entry'`) is underpowered but J2 (entry+associate) is well-powered, make J2 the Wave 2 primary and J1 a sensitivity. Write that decision into the Wave 2 agent prompts — do not let it get re-litigated downstream.
+- **Which seniority definition is primary for Wave 2?** Read T30's panel recommendation against T07's per-definition MDE cross-tab. The default is J3 (`yoe_min_years_llm <= 2`) for junior and S4 (`yoe_min_years_llm >= 5`) for senior, with label variants as sensitivities. If T30's MDE shows J3 underpowered for a specific comparison, use J4 (generous) or explicitly promote a label-based variant with MDE-grounded justification. Write that decision into the Wave 2 agent prompts — do not let it get re-litigated downstream.
 - What does the feasibility table from T07 say? Which analyses are well-powered and which are underpowered? Don't waste Wave 2 effort on analyses we can't statistically support.
 
 **Writing the memo:** Focus on what's feasible vs. infeasible. Be honest about thin samples. If entry-level analysis is underpowered under every T30 junior variant, say so — the paper may need to emphasize a different dimension. If the T30 panel shows directional disagreement across variants, document the disagreement and the most likely mechanism rather than burying one side. The Gate 1 memo's seniority panel table is the primary artifact Wave 2 agents will reference.
 
-**Pass to Wave 1.5:** After Wave 1 completes, dispatch Agent Prep for shared preprocessing. Update INDEX.md with the seniority validation findings (does `seniority_final` agree with the YOE-based proxy?), column constraints, and feasibility assessment. Wave 2 agents read INDEX.md and load shared artifacts.
+**Pass to Wave 1.5:** After Wave 1 completes, dispatch Agent Prep for shared preprocessing. Update INDEX.md with the seniority validation findings (does the label panel agree with the YOE panel? does the LLM YOE extractor agree with the rule-based one? does S4 on asaniczka match arshkon?), column constraints, and feasibility assessment. Wave 2 agents read INDEX.md and load shared artifacts.
 
 ### Wave 1.5 — Shared Preprocessing (Agent Prep)
 
@@ -200,7 +200,7 @@ Key evaluation questions:
 - **What didn't we expect?** The "Surprises" sections are gold. A surprising finding is either a discovery or an artifact — figure out which.
 - **Do the methods agree?** T09 compares BERTopic and NMF on the same data. T15 compares embedding-based and TF-IDF-based similarity, plus UMAP/PCA/t-SNE visualizations. Where methods agree, findings are robust. Where they disagree, understand why — the disagreement itself is informative.
 - **Do findings survive sensitivity checks?** Each task reports its essential sensitivities. Check which findings are robust to aggregator exclusion, company capping, and seniority operationalization. Findings that survive all sensitivity checks are your strongest evidence. Findings that are materially sensitive need careful qualification.
-- **Is scope inflation real or an artifact of longer descriptions?** T13 should tell us whether the 56% length growth is in requirements sections (real signal) or boilerplate (artifact). This is critical — it affects interpretation of almost everything else.
+- **Is scope inflation real or an artifact of longer descriptions?** T13 should tell us whether description-length growth is concentrated in requirements sections (real signal) or boilerplate (artifact). This is critical — it affects interpretation of almost everything else.
 - **What's the dominant structure?** T09's clusters reveal what the market's natural structure IS. Does it organize by seniority? By tech stack? By industry? By company type? The answer may reframe the entire paper.
 - **Are the original RQs still the right questions?** After seeing the actual data patterns, RQ1-RQ4 may need revision. Maybe the most interesting finding is about technology ecosystem restructuring (not originally a core RQ). Maybe the senior archetype shift is stronger than the junior scope inflation. Follow the evidence.
 
@@ -230,7 +230,7 @@ This is a lightweight quality gate, not a full wave. If verification reveals a p
 **Dispatch:** Launch all 5 agents in parallel, with any modifications from your Gate 2 assessment. T19 focuses on rate-of-change estimation, within-period stability, and data representativeness. T28 uses T09's archetype labels; T29 tests the recruiter-LLM authorship mediation hypothesis.
 
 **What Wave 3 must produce for Wave 3.5.** Wave 3.5 consumes Wave 3 artifacts directly, so the orchestrator must verify these are persisted before dispatching Wave 3.5:
-- T16 persists the 240-co arshkon∩scraped overlap panel with per-company change vectors in `exploration/tables/T16/` (consumed by Wave 3.5 T31, T37, T38).
+- T16 persists the arshkon∩scraped overlap panel with per-company change vectors in `exploration/tables/T16/` (consumed by Wave 3.5 T31, T37, T38).
 - T21 persists k-means senior cluster assignments in `exploration/tables/T21/` (consumed by T34).
 - T22 persists `exploration/artifacts/shared/validated_mgmt_patterns.json` with measured precision (consumed by all Wave 3.5 agents).
 - T13's section classifier at `exploration/scripts/T13_section_classifier.py` (from Wave 2) is re-used by Wave 3.5 T33.
@@ -290,7 +290,7 @@ V2's protocol:
 
 1. **Re-derive the top 3-5 headline numbers from Wave 3 independently** (T18 DiD, T16 within-company decomposition, T23 SWE divergence, T20 boundary AUC, T21 senior-specific mentor rise).
 2. **Re-derive one headline from each Wave 3.5 task:**
-   - T31 pair-level within-company drift (matches/exceeds T16's company-level 102% within?)
+   - T31 pair-level within-company drift (compare to T16's company-level within-company share)
    - T32 cross-occupation divergence (direction matches T23? magnitude?)
    - T33 hidden-hiring-bar regression (period coefficient on requirements-share + correlation with YOE / credential)
    - T34 AI-enabled-tech-lead profile (cluster-2 title distribution, company concentration)
@@ -403,4 +403,4 @@ The exploration should tell us which positioning is strongest. Don't decide prem
 
 ## Start
 
-Read the documents listed in Setup. Then pause and think: given the research design and data schema, what are you most and least confident about going into Wave 1? What would change your assessment of the project's direction? Write a brief pre-exploration note in `exploration/memos/gate_0_pre_exploration.md` capturing your initial assessment, then dispatch Wave 1.
+Read the documents listed in Setup. Then pause and think: given the research design and data schema, what are you most and least confident about going into Wave 1? What would change your assessment of the project's direction? Write a brief pre-exploration note in `exploration/memos/gate_0_pre_exploration.md` capturing your initial assessment, then dispatch Wave 1. 

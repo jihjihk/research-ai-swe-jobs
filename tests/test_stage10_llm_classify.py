@@ -51,7 +51,7 @@ U.S. office located in NYC."""
 
 
 @pytest.mark.unit
-def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
+def test_prepare_classification_rows_uses_cleaned_text_and_short_filter():
     df = pd.DataFrame(
         [
             {
@@ -137,8 +137,8 @@ def test_prepare_classification_rows_uses_cleaned_text_and_skip_logic():
     )
     assert out.loc["c2", "llm_classification_reason"] == "short_description_excluded_by_stage9"
     assert not out.loc["c2", "needs_llm_classification"]
-    assert out.loc["c3", "llm_classification_reason"] == "high_confidence_technical_rules"
-    assert not out.loc["c3", "needs_llm_classification"]
+    assert out.loc["c3", "llm_classification_reason"] == "routed"
+    assert out.loc["c3", "needs_llm_classification"]
     assert out.loc["c4", "llm_classification_reason"] == "not_selected"
     assert out.loc["c4", "llm_classification_sample_tier"] == "none"
     assert not out.loc["c4", "needs_llm_classification"]
@@ -313,7 +313,7 @@ def test_build_results_row_maps_classification_payload():
 
 
 @pytest.mark.unit
-def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states():
+def test_integrate_chunk_maps_selected_rows_to_deferred_and_labeled_states():
     chunk = pd.DataFrame(
         [
             {
@@ -331,6 +331,8 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
                 "swe_classification_tier": "regex",
                 "seniority_final": "mid-senior",
                 "seniority_final_source": "title_keyword",
+                "seniority_rule": "mid-senior",
+                "seniority_rule_source": "title_keyword",
                 "ghost_job_risk": "low",
             },
             {
@@ -348,6 +350,8 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
                 "swe_classification_tier": "weak",
                 "seniority_final": "unknown",
                 "seniority_final_source": "unknown",
+                "seniority_rule": "unknown",
+                "seniority_rule_source": "unknown",
                 "ghost_job_risk": "medium",
             },
             {
@@ -365,6 +369,8 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
                 "swe_classification_tier": "weak",
                 "seniority_final": "unknown",
                 "seniority_final_source": "unknown",
+                "seniority_rule": "unknown",
+                "seniority_rule_source": "unknown",
                 "ghost_job_risk": "medium",
             },
         ]
@@ -387,18 +393,23 @@ def test_integrate_chunk_maps_selected_rows_to_rule_deferred_and_labeled_states(
 
     out = stage10.integrate_chunk(chunk, cache, fresh_hashes=set()).set_index("job_id")
 
-    # rule-1: strong rule already set seniority_final, router skipped, value preserved
+    # rule-1: routes now that the skip shortcut is gone. No cache entry → deferred.
     assert out.loc["rule-1", "llm_classification_sample_tier"] == "core"
-    assert out.loc["rule-1", "llm_classification_coverage"] == "rule_sufficient"
-    assert out.loc["rule-1", "llm_classification_resolution"] == "rule_sufficient"
+    assert out.loc["rule-1", "llm_classification_coverage"] == "deferred"
+    assert out.loc["rule-1", "llm_classification_resolution"] == "deferred"
     assert out.loc["rule-1", "seniority_final"] == "mid-senior"
     assert out.loc["rule-1", "seniority_final_source"] == "title_keyword"
-    # llm-1: routed, LLM result overwrites seniority_final, source becomes "llm"
+    assert out.loc["rule-1", "seniority_rule"] == "mid-senior"
+    assert out.loc["rule-1", "seniority_rule_source"] == "title_keyword"
+    # llm-1: routed, LLM result overwrites seniority_final, source becomes "llm",
+    # but seniority_rule preserves Stage 5's snapshot.
     assert out.loc["llm-1", "llm_classification_sample_tier"] == "core"
     assert out.loc["llm-1", "llm_classification_coverage"] == "labeled"
     assert out.loc["llm-1", "llm_classification_resolution"] == "cached_llm"
     assert out.loc["llm-1", "seniority_final"] == "entry"
     assert out.loc["llm-1", "seniority_final_source"] == "llm"
+    assert out.loc["llm-1", "seniority_rule"] == "unknown"
+    assert out.loc["llm-1", "seniority_rule_source"] == "unknown"
     # The legacy seniority_llm column no longer exists
     assert "seniority_llm" not in out.columns
     # out-1: outside the frame, seniority_final stays as Stage 5 wrote it
@@ -455,6 +466,78 @@ def test_integrate_chunk_marks_fresh_hashes_as_fresh_llm():
 
 
 @pytest.mark.unit
+def test_seniority_rule_preserved_when_llm_overrides():
+    chunk = pd.DataFrame(
+        [
+            {
+                "job_id": "override-1",
+                "source_platform": "linkedin",
+                "title": "Software Engineer",
+                "company_name": "Acme",
+                "description": "A long enough raw description that should not be excluded by the Stage 9 short-description rule.",
+                "description_core_llm": "LLM CORE",
+                "is_english": True,
+                "selected_for_llm_frame": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "weak",
+                "seniority_final": "junior",
+                "seniority_final_source": "title_keyword",
+                "seniority_rule": "junior",
+                "seniority_rule_source": "title_keyword",
+                "ghost_job_risk": "medium",
+            },
+        ]
+    )
+    cache_hash = stage10.compute_classification_input_hash("Software Engineer", "Acme", "LLM CORE")
+    cache = {
+        cache_hash: {
+            "response_json": json.dumps(classification_payload(seniority="senior")),
+            "model": "gpt-5.4-mini",
+            "prompt_version": stage10.CLASSIFICATION_PROMPT_VERSION,
+        }
+    }
+
+    out = stage10.integrate_chunk(chunk, cache, fresh_hashes=set()).set_index("job_id")
+
+    assert out.loc["override-1", "seniority_final"] == "senior"
+    assert out.loc["override-1", "seniority_final_source"] == "llm"
+    assert out.loc["override-1", "seniority_rule"] == "junior"
+    assert out.loc["override-1", "seniority_rule_source"] == "title_keyword"
+
+
+@pytest.mark.unit
+def test_prepare_rows_no_skip_for_strong_rule_based():
+    df = pd.DataFrame(
+        [
+            {
+                "job_id": "strong-1",
+                "source_platform": "linkedin",
+                "title": "Senior Backend Engineer",
+                "company_name": "Gamma",
+                "description": "A long enough raw description for routing that clearly exceeds the Stage 9 short-description threshold.",
+                "description_core_llm": "LLM CORE",
+                "is_english": True,
+                "selected_for_llm_frame": True,
+                "is_swe": True,
+                "is_swe_adjacent": False,
+                "selected_for_control_cohort": False,
+                "swe_classification_tier": "regex",
+                "seniority_final": "mid-senior",
+                "seniority_final_source": "title_keyword",
+                "ghost_job_risk": "low",
+            }
+        ]
+    )
+
+    out = stage10.prepare_classification_rows(df).set_index("job_id")
+
+    assert out.loc["strong-1", "needs_llm_classification"]
+    assert out.loc["strong-1", "llm_classification_reason"] == "routed"
+
+
+@pytest.mark.unit
 def test_integrate_chunk_falls_back_to_raw_description_when_stage9_llm_text_missing():
     raw_description = "A long enough raw description that acts as the fallback when Stage 9 LLM cleaned text is missing."
     chunk = pd.DataFrame(
@@ -507,7 +590,6 @@ def test_summarize_stage10_routing_reports_volume_drivers():
         reason_counts=Counter(
             {
                 "routed": 9,
-                "high_confidence_technical_rules": 6,
                 "short_description_excluded_by_stage9": 2,
                 "not_selected": 3,
             }
@@ -523,7 +605,6 @@ def test_summarize_stage10_routing_reports_volume_drivers():
         "routed_rows": 9,
         "selected_control_rows": 3,
         "short_skip_rows": 2,
-        "high_confidence_skip_rows": 6,
         "not_routed_rows": 3,
         "unique_tasks": 7,
         "duplicate_rows_collapsed": 2,
