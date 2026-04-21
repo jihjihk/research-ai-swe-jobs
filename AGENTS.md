@@ -3,20 +3,7 @@
 
 ## Purpose
 
-Research project studying how AI coding agents are restructuring SWE roles. The core comparison is historical LinkedIn postings from 2024 versus daily-scraped postings from 2026.
-
-### Research Questions
-
-- RQ1: Employer-side restructuring — junior share/volume, scope inflation, senior role redefinition
-- RQ2: Task and requirement migration — which requirements moved between seniority levels
-- RQ3: Employer-requirement / worker-usage divergence — do posting AI requirements outpace actual usage
-- RQ4: Mechanisms — interview-based qualitative (reflexive thematic analysis)
-
-### Team
-
-Two-person team:
-- Partner owns scraper/infrastructure
-- You own preprocessing, analysis, and related documentation in the analysis lane
+Research project studying how AI coding agents are restructuring software-engineering roles, comparing historical LinkedIn postings from 2024 against daily-scraped postings from 2026. The emerging picture is that the same firms are rewriting the same roles toward AI-tooling and platform-infrastructure content, with seniority boundaries sharpening rather than blurring and the ladder narrowing at senior rather than entry levels; interviews extend the employer-side evidence with mechanism accounts of who rewrote the job descriptions and what changed about the work.
 
 ## Repo Structure
 
@@ -33,7 +20,7 @@ Two-person team:
 
 ## Work Areas
 
-### 1. Preprocessing & analysis (`preprocessing/`, `data/`, `notebooks/`, `tests/`)
+### 1. Preprocessing (`preprocessing/`, `data/`, `tests/`)
 
 Pipeline that transforms raw job-posting data into analysis-ready datasets.
 
@@ -59,9 +46,16 @@ Exploratory analysis on pipeline outputs to validate data quality and surface re
 
 ### 3. Analysis
 
-Formal hypothesis testing and robustness checks for RQ1-RQ3.
+Formal hypothesis testing and robustness checks for RQ1-RQ3. Formal analysis plan is pending.
 
-- **Plan:** formal analysis plan is pending; use `docs/1-research-design.md` and the current exploration handoff until it is written
+**Navigation index — where existing work lives, where to look for new questions:**
+
+- **Latest full exploration:** `exploration-archive/v9_final_opus_47/` — the 8-wave orchestrator run. Start with `reports/SYNTHESIS.md` (paper backbone), `reports/INDEX.md` (task catalog T01-T38), and `memos/gate_{0,1,2,3}.md` (narrative evolution). If a later version exists (v10, v11, …), prefer it.
+- **Targeted follow-up analysis:** `eda/` — open-ended, hypothesis-driven notebooks that extend the exploration. Current entry point: `eda/reports/open_ended_v2.md` and `eda/notebooks/findings_consolidated_2026-04-21.ipynb`. See `eda/README.md` for structure.
+- **Primary data for new queries:** `data/unified_core.parquet` — 193 MB, ~110k rows, 42 columns, covers the columns most analyses need. Start here. Switch to `data/unified.parquet` (7.4 GB) only when you need columns not in the core.
+- **Data schema:** `docs/preprocessing-schema.md` — column definitions, stage availability, source-specific gaps, enum values. Read before writing any SQL.
+- **Research design:** `docs/1-research-design.md` through `docs/6-methods-learning.md` — RQs, constructs, interview protocol, literature, publication targets, methods notes.
+- **RAM:** 31 GB limit. Use DuckDB / pyarrow — never `pd.read_parquet` on the full `unified.parquet`.
 
 ### 4. Scraper & infrastructure (`scraper/`)
 
