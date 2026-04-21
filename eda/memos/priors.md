@@ -55,3 +55,51 @@ Read after Phase A profile: `exploration-archive/v8_claude_opus47/reports/INDEX.
 5. **Layoff-narrative vs content framing of H1** — v8 tested content-level H1 only. We surface the volume/share trajectory per Sv so the interview-phase (RQ4) can pursue the narrative-layer question.
 
 The EDA is NOT a replacement for v8; it is a narrower audit + three extensions (H4, H6, and the narrative framing of H1). Triangulation with v8 tables is a verification step, not a novelty claim.
+
+---
+
+## Hypotheses added in v2 (after switch to `data/unified_core.parquet`)
+
+Six new hypotheses emerged from an initial exploration of `unified_core.parquet` (the 110k-row balanced LLM-frame sample). These are added to the pre-registered list for the v2 pass. Added AFTER data contact, so should be treated with appropriate skepticism — but each has an explicit falsifiable prediction and independent triangulation.
+
+### H8 — YOE floor is FALLING, not rising (counter scope-inflation)
+
+*Expect:* junior LLM-YOE declines 2024→2026. The classic scope-inflation narrative (junior postings asking for more experience) is falsified at the YOE bar.
+*Falsifier:* junior mean YOE increases, or is flat with large noise bands.
+*Initial observation on core:* mean junior yoe_min_years_llm 2.01 (2024-01) → 1.23 (2026-04); median 2 → 1. Senior median 6 → 5.
+*Bet:* 85% for falling direction given core evidence. Triangulation needed.
+
+### H9 — Dev-tool vendor labor-market leaderboard is measurable and non-uniform
+
+*Expect:* vendor-specific mentions in SWE postings show a clear hierarchy. Prediction: Copilot leads by virtue of being first, Claude/Cursor are gaining faster, ChatGPT as a brand is plateauing as language matures toward "GPT" / "OpenAI" / specific product names.
+*Falsifier:* uniform mentions across vendors, or no ordering.
+*Novel contribution:* nobody has published a labor-demand vendor-share table for dev tools.
+*Bet:* hierarchy is real; Copilot ≥ Claude ≥ OpenAI ≥ Cursor in 2026-04. Bet 90% on hierarchy direction.
+
+### H10 — AI mention is NOT a ghost-job signal
+
+*Expect:* AI-mentioning SWE postings have equal-to-lower inflated-ghost rate than non-AI postings. Rebuts the "AI buzzword = ghost job" narrative.
+*Falsifier:* AI-tagged postings have materially higher `ghost_assessment_llm = inflated` rate.
+*Initial observation on core:* AI-mentioning SWE postings inflated rate 4.5% vs non-AI 5.5% (2026-04). Direction correct; magnitude small but stable across periods.
+*Bet:* 75% for non-elevated direction.
+
+### H11 — Non-SWE AI-language spread is niche-specific (finance + power/nuclear engineering), not broad
+
+*Expect:* the control AI-rate rise (0.23% → 1.37%) concentrates in a small subset of control occupations (specifically finance/accounting and electrical/nuclear/mechanical engineering), not uniformly across retail/HR/sales/nursing.
+*Falsifier:* AI mentions uniform across control titles.
+*Initial observation on core:* top 2026-04 AI-mentioning control titles are Senior Financial Analyst, Senior/Associate Electrical Engineer Substation, Electrical/Mechanical Engineer (Nuclear), Accounting Manager, Senior Revenue Accountant. Retail/nursing/HR/sales mostly absent. Reframes H4 "industry spread."
+*Bet:* 80% for niche-specific direction; 40% for "finance + power/nuclear specifically" as the top two clusters.
+
+### H12 — Posting survival differs by tier and by AI-tag
+
+*Expect:* posting persistence (days between first and last scrape_date) differs along theoretically motivated splits. Two candidate predictions: (a) ghost-like postings live longer (employers leave them up without filling) — would predict higher persistence for `ghost_assessment_llm=inflated` rows; (b) AI-tagged postings are in-demand and fill faster — would predict shorter survival for AI-mentioning SWE rows.
+*Falsifier:* no detectable survival difference.
+*Data:* `data/unified_core_observations.parquet` has up to 18 daily observations per uid on 2026-03 scraped postings.
+*Bet:* hold — direction genuinely unknown.
+
+### H13 — Within-firm AI rewrite is real (not composition)
+
+*Expect:* for companies that posted SWE roles in both 2024 and 2026, the same company's AI-vocab rate rose. Rules out between-firm composition as the sole driver.
+*Falsifier:* within-firm AI-vocab delta is near zero (all apparent rise is compositional).
+*v8 comparator:* T16's 240-company breadth panel showed +1.43 within-company breadth. We test AI-vocab specifically.
+*Bet:* 85% for non-zero within-firm rise given v8's directional evidence.
