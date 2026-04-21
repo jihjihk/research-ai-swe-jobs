@@ -1,0 +1,2834 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Three-layer evidence package for the software-engineering labor-market exploration phase.">
+      
+      
+        <meta name="author" content="Exploration pipeline (Waves 1-5)">
+      
+      
+        <link rel="canonical" href="http://localhost:8080/evidence/tasks/T08/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T08 — Distribution profiling & anomaly detection - SWE Labor Exploration (2024 to 2026)</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t08-distribution-profiling-anomaly-detection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="SWE Labor Exploration (2024 to 2026)" class="md-header__button md-logo" aria-label="SWE Labor Exploration (2024 to 2026)" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Exploration (2024 to 2026)
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T08 — Distribution profiling &amp; anomaly detection
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../.." class="md-tabs__link">
+          
+  
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../findings/" class="md-tabs__link">
+          
+  
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../stories/" class="md-tabs__link">
+          
+  
+  
+  Stories
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../methodology/" class="md-tabs__link">
+          
+  
+  
+  Methodology
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="SWE Labor Exploration (2024 to 2026)" class="md-nav__button md-logo" aria-label="SWE Labor Exploration (2024 to 2026)" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Exploration (2024 to 2026)
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SWE postings got rewritten — by the same firms, for the same titles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../presentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slide deck
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Executive summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to-read/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How to read this site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/a1-cross-occupation-divergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A1 Cross-occupation AI divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/a2-within-firm-rewriting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A2 Within-firm same-title rewriting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/a3-seniority-sharpening/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A3 Seniority boundaries sharpened
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/a4-scope-inflation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A4 Scope inflation universal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/a5-archetypes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A5 Emergent senior archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/a6-did-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A6 DiD robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/rejections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What we rejected
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Measurement corrections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stories
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stories
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corners of the Screen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/01-narrowing-middle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    01 The narrowing middle that wasn't
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/02-copilot-paradox/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    02 The Copilot paradox
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/03-atlanta-not-san-francisco/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    03 Atlanta, not San Francisco
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/04-finance-densest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    04 What the compliance lobby can't see
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/05-management-never-there/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    05 A decline that wasn't
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/06-easy-explanations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    06 The rejection of the easy explanation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/07-applied-ai-older/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    07 The democratiser that asks for more experience
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/08-ranking-right/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    08 The market got the pattern right
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/09-forward-deployed/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    09 Forward-deployed, finally
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../stories/10-where-middle-narrowed/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10 Where the middle narrowed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methodology
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources and samples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/llm-prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/sensitivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/pattern-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pattern validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/claim-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What the paper can claim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-3-5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3.5 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../verifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate memos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../synthesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t08-distribution-profiling-anomaly-detection">T08 — Distribution profiling &amp; anomaly detection<a class="headerlink" href="#t08-distribution-profiling-anomaly-detection" title="Permanent link">&para;</a></h1>
+<p><strong>Agent:</strong> E
+<strong>Run date:</strong> 2026-04-20
+<strong>Inputs:</strong> <code>data/unified.parquet</code> (SWE LinkedIn universe; 68,137 rows), <code>exploration/artifacts/shared/*</code>
+<strong>Default filter:</strong> <code>is_swe AND source_platform='linkedin' AND is_english AND date_flag='ok'</code>
+<strong>Scripts:</strong> <code>exploration/scripts/T08_distribution_profiling.py</code>, <code>T08_supplemental.py</code>, <code>T08_within_between.py</code>, <code>T08_within_between_strict.py</code>
+<strong>Tables:</strong> <code>exploration/tables/T08/*.csv</code> (28 CSVs)
+<strong>Figures:</strong> <code>exploration/figures/T08/fig1_desc_length.png</code>, <code>fig2_yoe_llm.png</code>, <code>fig3_seniority_final.png</code>, <code>fig4_effect_ranking.png</code></p>
+<hr />
+<h2 id="headline-finding">Headline finding<a class="headerlink" href="#headline-finding" title="Permanent link">&para;</a></h2>
+<p>The junior-share rise 2024→2026 is <strong>not uniformly between-company</strong> as Gate 1 claimed — the "within-company ≈ 0" claim is specific to the <strong>arshkon-only ≥5 panel (n=125)</strong> and does <strong>not replicate</strong> under pooled, asaniczka-only, or looser size cuts, where within-company J3 rise is +3.5 to +6.4 pp (weighted) and accounts for most of the aggregate delta. The Gate 1 decomposition is materially sensitive to overlap-panel construction. Separately: the <strong>pattern inverts within senior-titled postings</strong> (sr/senior SWE titles show J3 <em>drop</em> from 4.3% → 2.5% while generic SWE rises 8.6% → 15.9%), suggesting role redefinition, not pure composition. AI-mention rise (+16.7 pp aggregate, +14.2 pp within-company on returning cohort) is robust to length, labeled-coverage, and aggregator sensitivities.</p>
+<hr />
+<h2 id="1-methodology">1. Methodology<a class="headerlink" href="#1-methodology" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Universe:</strong> 68,137 SWE LinkedIn rows under default filter. arshkon 4,691 (period 2024-04); asaniczka 18,129 (2024-01); scraped 45,317 (2026-03/04).</li>
+<li><strong>LLM labeled coverage:</strong> 2024 sources 99.9%+; scraped 56.9% (<code>not_selected</code> 43.0%, <code>deferred</code> 0.02%). The scraped labeled subset is the only place <code>yoe_min_years_llm</code> exists (table <code>labeled_split_by_source.csv</code>).</li>
+<li><strong>Primary seniority operationalizations:</strong> J3 <code>yoe_min_years_llm ≤ 2</code> (labeled), S4 <code>yoe_min_years_llm ≥ 5</code> (labeled). J1 / J2 use <code>seniority_final</code>. All four junior definitions and all four senior definitions reported as T30 panels.</li>
+<li><strong>Baseline calibration SNR:</strong> loaded from <code>calibration_table.csv</code> and joined to every cross-period finding.</li>
+<li><strong>Company-cap sensitivity:</strong> 20 rows per <code>company_name_canonical</code> per period (<code>junior_senior_cap20.csv</code>). Aggregator exclusion, entry-specialist exclusion, strict SWE-tier subset are additional sensitivities.</li>
+</ul>
+<hr />
+<h2 id="2-core-distributions">2. Core distributions<a class="headerlink" href="#2-core-distributions" title="Permanent link">&para;</a></h2>
+<h3 id="2a-description-length-anomaly-detected">2a. Description length — anomaly detected<a class="headerlink" href="#2a-description-length-anomaly-detected" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Period</th>
+<th>n</th>
+<th>Mean</th>
+<th>Median</th>
+<th>p10</th>
+<th>p90</th>
+<th>p99</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arshkon</td>
+<td>2024-04</td>
+<td>4,691</td>
+<td>3,306</td>
+<td>2,974</td>
+<td>816</td>
+<td>6,218</td>
+<td>9,156</td>
+</tr>
+<tr>
+<td>asaniczka</td>
+<td>2024-01</td>
+<td>18,129</td>
+<td>3,881</td>
+<td>3,733</td>
+<td>1,255</td>
+<td>6,580</td>
+<td>9,513</td>
+</tr>
+<tr>
+<td>scraped</td>
+<td>2026-03</td>
+<td>19,740</td>
+<td>4,975</td>
+<td>4,916</td>
+<td>1,909</td>
+<td>8,002</td>
+<td>10,899</td>
+</tr>
+<tr>
+<td>scraped</td>
+<td>2026-04</td>
+<td>25,577</td>
+<td>4,830</td>
+<td>4,773</td>
+<td>1,761</td>
+<td>7,875</td>
+<td>10,852</td>
+</tr>
+</tbody>
+</table>
+<p>Length buckets (table <code>length_bucket_shares.csv</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Bucket</th>
+<th>2024 share</th>
+<th>2026 share</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≤500 (too short?)</td>
+<td>2.5%</td>
+<td>0.6%</td>
+</tr>
+<tr>
+<td>501–2,000</td>
+<td>20.8%</td>
+<td>11.5%</td>
+</tr>
+<tr>
+<td>2,001–4,000</td>
+<td>33.8%</td>
+<td>24.8%</td>
+</tr>
+<tr>
+<td>4,001–7,000</td>
+<td>35.8%</td>
+<td>44.7%</td>
+</tr>
+<tr>
+<td>7,001–15,000</td>
+<td>7.0%</td>
+<td><strong>18.3%</strong></td>
+</tr>
+<tr>
+<td>&gt;15,000</td>
+<td>0.04%</td>
+<td>0.07%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Anomaly:</strong> the 7,001–15,000 char bucket <em>triples</em> 2024→2026 (7% → 18%). This is the single largest shift in the length distribution and consistent with scraped postings having longer disclosure/boilerplate sections (EEO, pay transparency, benefits). Calibration (<code>desc_length_mean</code>): SNR 1.81 (near_noise) — a real shift, but a chunk is within-2024 noise.</p>
+<p><strong>Length percentiles (pooled):</strong> 2024 p50 = 3,594 chars; 2026 p50 = 4,842 chars (delta +1,248 chars at median).</p>
+<p><strong>Anomaly:</strong> within arshkon, description_length mean varies <strong>4× by company_size quartile</strong> (Q1 = 2,223 chars at ≤92 employees; Q4 = 4,686 chars at ≥9,287). Larger companies write substantially longer postings even in 2024. This is source of "length growth" confounding with company-size shift.</p>
+<h3 id="2b-yoe-distribution">2b. YOE distribution<a class="headerlink" href="#2b-yoe-distribution" title="Permanent link">&para;</a></h3>
+<p><code>yoe_min_years_llm</code> (labeled only, table <code>yoe_llm_by_source_period.csv</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Period</th>
+<th>n_labeled</th>
+<th>Mean</th>
+<th>Median</th>
+<th>sd</th>
+<th>J3 (≤2)</th>
+<th>S4 (≥5)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arshkon</td>
+<td>2024-04</td>
+<td>3,454</td>
+<td>5.48</td>
+<td>5.0</td>
+<td>2.80</td>
+<td><strong>13.0%</strong></td>
+<td>65.0%</td>
+</tr>
+<tr>
+<td>asaniczka</td>
+<td>2024-01</td>
+<td>14,765</td>
+<td>6.05</td>
+<td>5.0</td>
+<td>3.13</td>
+<td>8.2%</td>
+<td><strong>72.1%</strong></td>
+</tr>
+<tr>
+<td>scraped</td>
+<td>2026-03</td>
+<td>9,371</td>
+<td>5.34</td>
+<td>5.0</td>
+<td>2.86</td>
+<td>14.5%</td>
+<td>63.5%</td>
+</tr>
+<tr>
+<td>scraped</td>
+<td>2026-04</td>
+<td>11,140</td>
+<td>5.36</td>
+<td>5.0</td>
+<td>2.88</td>
+<td><strong>14.0%</strong></td>
+<td>62.9%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Anomaly:</strong> YOE median is flat at 5 across all four snapshots. The entire "junior rise" happens at the <strong>left tail of the YOE distribution</strong>, not the median — below the 20<sup>th</sup> percentile.</p>
+<p><strong>Anomaly (inverse of prior report):</strong> arshkon has a <strong>higher</strong> J3 share than asaniczka within 2024 (13.0% vs 8.2%) — +4.8 pp within-2024 asymmetry. The scraped 2026 value (14.2%) is closer to arshkon 2024 than to asaniczka 2024. Calibration SNR = 1.06, i.e. just barely above within-2024 noise — most of the aggregate "pooled→2026" J3 rise (+5.0 pp) is absorbed by the asymmetry in which 2024 source you use as baseline.</p>
+<h3 id="2c-seniority_final">2c. seniority_final<a class="headerlink" href="#2c-seniority_final" title="Permanent link">&para;</a></h3>
+<p>Shares by source (table <code>seniority_final_by_source.csv</code>):</p>
+<table>
+<thead>
+<tr>
+<th>seniority_final</th>
+<th>arshkon 2024-04</th>
+<th>asaniczka 2024-01</th>
+<th>scraped 2026-03</th>
+<th>scraped 2026-04</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>entry</td>
+<td>3.8%</td>
+<td>1.3%</td>
+<td>4.3%</td>
+<td>3.1%</td>
+</tr>
+<tr>
+<td>associate</td>
+<td>0.3%</td>
+<td>0.2%</td>
+<td>0.3%</td>
+<td>0.3%</td>
+</tr>
+<tr>
+<td>mid-senior</td>
+<td>42.9%</td>
+<td>63.8%</td>
+<td>43.8%</td>
+<td>43.2%</td>
+</tr>
+<tr>
+<td>director</td>
+<td>0.4%</td>
+<td>0.4%</td>
+<td>0.8%</td>
+<td>0.7%</td>
+</tr>
+<tr>
+<td><strong>unknown</strong></td>
+<td><strong>52.6%</strong></td>
+<td><strong>34.3%</strong></td>
+<td><strong>50.8%</strong></td>
+<td><strong>52.7%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Anomaly:</strong> 50–53% of SWE rows are <code>seniority_final='unknown'</code> in arshkon and scraped; asaniczka is 34.3%. The 18 pp arshkon-vs-asaniczka spread is larger than any cross-period effect. The director share (S2) is effectively 0 everywhere.</p>
+<p><code>seniority_final_source</code> breakdown for scraped is mixed-provenance: 2026-03 is 60% LLM + 17% title_keyword + 23% unknown; 2026-04 is 55% LLM + 19% title_keyword + 26% unknown. Scraped has more rule-labeled rows (stage 5 title_keyword hits were expanded).</p>
+<h3 id="2d-arshkon-native-entry-quality-diagnostic">2d. Arshkon native-entry quality diagnostic<a class="headerlink" href="#2d-arshkon-native-entry-quality-diagnostic" title="Permanent link">&para;</a></h3>
+<p>For <code>seniority_native='entry'</code> on arshkon (table <code>arshkon_native_yoe_profile.csv</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Native</th>
+<th>n</th>
+<th>n_w_yoe</th>
+<th>YOE mean</th>
+<th>YOE median</th>
+<th>Share YOE≤2</th>
+<th>Share YOE≥5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>entry</td>
+<td>738</td>
+<td>543</td>
+<td><strong>4.21</strong></td>
+<td><strong>4.0</strong></td>
+<td>27.8%</td>
+<td><strong>44.9%</strong></td>
+</tr>
+<tr>
+<td>intern</td>
+<td>20</td>
+<td>1</td>
+<td>2.00</td>
+<td>2.0</td>
+<td>100%</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>associate</td>
+<td>263</td>
+<td>198</td>
+<td>3.90</td>
+<td>3.0</td>
+<td>29.3%</td>
+<td>34.3%</td>
+</tr>
+<tr>
+<td>mid-senior</td>
+<td>2,231</td>
+<td>1,724</td>
+<td>5.92</td>
+<td>5.0</td>
+<td>6.0%</td>
+<td>75.2%</td>
+</tr>
+<tr>
+<td>director</td>
+<td>20</td>
+<td>15</td>
+<td>9.60</td>
+<td>10.0</td>
+<td>0%</td>
+<td>100%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Major finding:</strong> Arshkon <code>native='entry'</code> has median YOE = <strong>4 years</strong> and <strong>45% have YOE ≥ 5</strong>. This is not a clean entry-level signal — arshkon's platform-native "entry" label is more like "junior-ish" with heavy mid-level contamination. Implication: <code>seniority_native</code> is <strong>not</strong> a usable sanity-check baseline for entry-level findings even on arshkon alone. This sharpens the Gate 1 memo's "seniority_native effectively unusable" position — it's unusable not only for temporal stability but also cross-sectionally.</p>
+<h3 id="2e-t30-panel-junior-and-senior-4-row-tables-primary">2e. T30 panel — junior and senior 4-row tables (primary)<a class="headerlink" href="#2e-t30-panel-junior-and-senior-4-row-tables-primary" title="Permanent link">&para;</a></h3>
+<p>Table <code>t30_panel_juniorsenior.csv</code>. All values are <strong>share of denominator</strong> (J3/J4/S4: labeled rows; J1/J2/S1/S2/S3: all rows).</p>
+<p><strong>Junior panel (pooled-2024 baseline primary):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Def</th>
+<th>Denom 2024</th>
+<th>Denom 2026</th>
+<th>2024 pooled</th>
+<th>2026 pooled</th>
+<th>Arshkon</th>
+<th>Asaniczka</th>
+<th><strong>Pooled Δ pp</strong></th>
+<th><strong>Arshkon-only Δ pp</strong></th>
+<th>Within-2024 Δ pp</th>
+<th>Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>J1</td>
+<td>22,820</td>
+<td>45,317</td>
+<td>1.82%</td>
+<td>3.64%</td>
+<td>3.77%</td>
+<td>1.31%</td>
+<td><strong>+1.82</strong></td>
+<td><strong>−0.13</strong></td>
+<td>−2.46</td>
+<td>up</td>
+</tr>
+<tr>
+<td>J2</td>
+<td>22,820</td>
+<td>45,317</td>
+<td>2.06%</td>
+<td>3.91%</td>
+<td>4.09%</td>
+<td>1.53%</td>
+<td><strong>+1.85</strong></td>
+<td><strong>−0.18</strong></td>
+<td>−2.57</td>
+<td>up</td>
+</tr>
+<tr>
+<td>J3</td>
+<td>18,219</td>
+<td>20,511</td>
+<td>9.15%</td>
+<td>14.19%</td>
+<td>13.00%</td>
+<td>8.25%</td>
+<td><strong>+5.04</strong></td>
+<td><strong>+1.19</strong></td>
+<td>−4.75</td>
+<td>up</td>
+</tr>
+<tr>
+<td>J4</td>
+<td>18,219</td>
+<td>20,511</td>
+<td>21.28%</td>
+<td>28.90%</td>
+<td>27.24%</td>
+<td>19.88%</td>
+<td><strong>+7.62</strong></td>
+<td><strong>+1.65</strong></td>
+<td>−7.36</td>
+<td>up</td>
+</tr>
+</tbody>
+</table>
+<p>Direction: all four UP on pooled-2024 baseline. <strong>But arshkon-only-vs-2026: J1/J2 FLIP to negative</strong>, J3 is barely above noise (+1.2 pp with calibration SNR ≈ 1.06), J4 is +1.7 pp. The "junior rise" magnitude depends critically on which 2024 source is used as baseline.</p>
+<p><strong>Senior panel:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Def</th>
+<th>Denom 2024</th>
+<th>Denom 2026</th>
+<th>2024 pooled</th>
+<th>2026 pooled</th>
+<th>Arshkon</th>
+<th>Asaniczka</th>
+<th><strong>Pooled Δ pp</strong></th>
+<th><strong>Arshkon-only Δ pp</strong></th>
+<th>Within-2024 Δ pp</th>
+<th>Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1</td>
+<td>22,820</td>
+<td>45,317</td>
+<td>59.88%</td>
+<td>44.20%</td>
+<td>43.30%</td>
+<td>64.17%</td>
+<td><strong>−15.69</strong></td>
+<td><strong>+0.90</strong></td>
+<td>+20.88</td>
+<td>down</td>
+</tr>
+<tr>
+<td>S2</td>
+<td>22,820</td>
+<td>45,317</td>
+<td>0.40%</td>
+<td>0.72%</td>
+<td>0.36%</td>
+<td>0.41%</td>
+<td>+0.32</td>
+<td>+0.35</td>
+<td>+0.05</td>
+<td>flat</td>
+</tr>
+<tr>
+<td>S3</td>
+<td>22,820</td>
+<td>45,317</td>
+<td>56.71%</td>
+<td>41.89%</td>
+<td>38.46%</td>
+<td>61.43%</td>
+<td><strong>−14.82</strong></td>
+<td><strong>+3.43</strong></td>
+<td>+22.98</td>
+<td>down</td>
+</tr>
+<tr>
+<td>S4</td>
+<td>18,219</td>
+<td>20,511</td>
+<td>70.77%</td>
+<td>63.18%</td>
+<td>65.03%</td>
+<td>72.12%</td>
+<td><strong>−7.59</strong></td>
+<td><strong>−1.85</strong></td>
+<td>+7.09</td>
+<td>down</td>
+</tr>
+</tbody>
+</table>
+<p>Direction on pooled 2026 vs pooled 2024: 3 of 4 DOWN (S2 flat). On arshkon-only-vs-2026: <strong>S1 and S3 actually flip UP (+0.9 and +3.4 pp)</strong>, S4 is mildly down (−1.9 pp, below noise). The asaniczka-arshkon senior asymmetry is so large it dominates the pooled effect. This is consistent with T30 but the magnitude flip is worth highlighting.</p>
+<h3 id="figures">Figures<a class="headerlink" href="#figures" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>fig1_desc_length.png</code> — description length full range + zoom.</li>
+<li><code>fig2_yoe_llm.png</code> — YOE histograms arshkon / asaniczka vs scraped.</li>
+<li><code>fig3_seniority_final.png</code> — seniority_final shares pooled 2024 vs 2026.</li>
+<li><code>fig4_effect_ranking.png</code> — cross-period vs within-2024 absolute effect for proportion metrics.</li>
+</ul>
+<hr />
+<h2 id="3-calibration-table-snr">3. Calibration table (SNR)<a class="headerlink" href="#3-calibration-table-snr" title="Permanent link">&para;</a></h2>
+<p>Loaded from <code>calibration_table.csv</code> (Prep step 6). Full table preserved in <code>exploration/tables/T08/ranked_metrics.csv</code>. Top 8 by absolute cross-period effect, with SNR:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Arshkon</th>
+<th>Asaniczka</th>
+<th>Scraped</th>
+<th>Cross-period</th>
+<th>Within-2024</th>
+<th><strong>SNR ratio</strong></th>
+<th>Flag</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>distinct_techs_per_posting_mean</td>
+<td>5.66</td>
+<td>5.34</td>
+<td>7.46</td>
+<td>2.06</td>
+<td>0.32</td>
+<td><strong>6.4</strong></td>
+<td>above</td>
+</tr>
+<tr>
+<td>description_length_mean</td>
+<td>3,306</td>
+<td>3,881</td>
+<td>4,893</td>
+<td>d=0.50</td>
+<td>d=0.28</td>
+<td>1.8</td>
+<td>near</td>
+</tr>
+<tr>
+<td>tech_count_per_posting_mean</td>
+<td>5.66</td>
+<td>5.34</td>
+<td>7.46</td>
+<td>d=0.40</td>
+<td>d=0.07</td>
+<td><strong>5.8</strong></td>
+<td>above</td>
+</tr>
+<tr>
+<td>ai_mention_broad</td>
+<td>16.5%</td>
+<td>15.1%</td>
+<td>51.0%</td>
+<td>+35.6 pp</td>
+<td>+1.4 pp</td>
+<td><strong>25.4</strong></td>
+<td>above</td>
+</tr>
+<tr>
+<td>soft_skill_term_count_mean</td>
+<td>1.57</td>
+<td>1.64</td>
+<td>1.93</td>
+<td>d=0.30</td>
+<td>d=0.06</td>
+<td><strong>4.8</strong></td>
+<td>above</td>
+</tr>
+<tr>
+<td>scope_term_rate</td>
+<td>32.8%</td>
+<td>32.3%</td>
+<td>53.4%</td>
+<td>+21.0 pp</td>
+<td>+0.5 pp</td>
+<td><strong>42.8</strong></td>
+<td>above</td>
+</tr>
+<tr>
+<td>s1_midsen_or_director_share</td>
+<td>43.3%</td>
+<td>64.2%</td>
+<td>44.2%</td>
+<td>−15.7 pp</td>
+<td>+20.9 pp</td>
+<td><strong>0.75</strong></td>
+<td>below</td>
+</tr>
+<tr>
+<td>ai_mention_strict</td>
+<td>1.4%</td>
+<td>1.0%</td>
+<td>14.4%</td>
+<td>+13.3 pp</td>
+<td>+0.4 pp</td>
+<td><strong>32.9</strong></td>
+<td>above</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-calibration-notes">Key calibration notes<a class="headerlink" href="#key-calibration-notes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>AI, scope, tech count, soft-skill count</strong> are well above noise. Claims on these at pooled 2024 → 2026 survive within-2024 scrutiny.</li>
+<li><strong>J3 (0.05/0.047 = SNR 1.06)</strong> is only <em>barely</em> above within-2024 noise. <strong>Every J3 cross-period claim must be reported with arshkon-only magnitude alongside</strong> (Gate 1 pre-commit).</li>
+<li><strong>J1 (SNR 0.74), J2 (0.72), S1 (0.75), and education mentions (0.03–0.20)</strong> are all below noise. Do not make bare cross-period claims on these.</li>
+</ul>
+<hr />
+<h2 id="4-ranked-change-list-top-20-metrics-snr">4. Ranked change list (top 20 metrics × SNR)<a class="headerlink" href="#4-ranked-change-list-top-20-metrics-snr" title="Permanent link">&para;</a></h2>
+<p>Aligned with calibration table, sorted by |cross-period effect| × SNR (table <code>ranked_metrics.csv</code>):</p>
+<ol>
+<li><strong>ai_mention_strict</strong> +13.3 pp × SNR 32.9 → <strong>437</strong> (cleanest signal — large AND above noise)</li>
+<li><strong>scope_term_rate</strong> +21.0 pp × SNR 42.8 → <strong>897</strong></li>
+<li><strong>ai_mention_broad</strong> +35.6 pp × SNR 25.4 → <strong>905</strong></li>
+<li><strong>tech_count_mean</strong> d=0.40 × SNR 5.8 → 2.3</li>
+<li><strong>distinct_techs_mean</strong> 2.06 × SNR 6.4 → 13.1</li>
+<li><strong>mgmt_strict</strong> +8.0 pp × SNR 2.1 → <strong>16.6</strong></li>
+<li><strong>soft_skill_density</strong> +6.8 pp × SNR 1.81 → 12.3</li>
+<li><strong>description_length_mean</strong> d=0.50 × SNR 1.81 → 0.9</li>
+<li><strong>S4 YOE≥5</strong> −7.6 pp × SNR 1.07 → 8.1 (<em>direction fragile</em>)</li>
+<li><strong>J3 YOE≤2</strong> +5.0 pp × SNR 1.06 → 5.3 (<em>direction fragile</em>)</li>
+<li><strong>S1 mid+director</strong> −15.7 pp × SNR 0.75 → 11.8 (<em>below noise — do not use</em>)</li>
+<li><strong>mgmt_broad</strong> +2.8 pp × SNR 0.45 → 1.3 (<em>below noise</em>)</li>
+<li><strong>J1 entry</strong> +1.8 pp × SNR 0.74 → 1.3 (<em>below noise</em>)</li>
+<li><strong>J2 entry/assoc</strong> +1.9 pp × SNR 0.72 → 1.3 (<em>below noise</em>)</li>
+<li><strong>edu_bs</strong> +1.6 pp × SNR 0.11 → 0.18 (<em>well below noise</em>)</li>
+<li><strong>aggregator_share</strong> +2.2 pp × SNR 0.32 → 0.7 (<em>well below noise</em>)</li>
+<li><strong>edu_phd</strong> +0.7 pp × SNR 0.20 → 0.15</li>
+<li><strong>edu_ms</strong> +0.3 pp × SNR 0.03 → 0.01</li>
+<li><strong>soft_skill_count_mean</strong> d=0.30 × SNR 4.8 → 1.5</li>
+<li><strong>yoe_median</strong> d=0.20 × SNR 1.08 → 0.22</li>
+</ol>
+<p><strong>Ranking interpretation:</strong> the three dominant signals are <strong>AI mentions (strict/broad), scope terms, and mgmt-strict terms</strong>. The next tier is tech breadth (count + distinct). J3/S4/mid-senior share are MODERATE in magnitude but weak-to-marginal in SNR and cannot be cited alone without arshkon-only magnitude. Aggregator share, education mentions, and J1/J2 are at-or-below instrument noise.</p>
+<hr />
+<h2 id="5-t30-panel-results-expanded">5. T30 panel results, expanded<a class="headerlink" href="#5-t30-panel-results-expanded" title="Permanent link">&para;</a></h2>
+<p>See section 2e. Additional notes:</p>
+<ul>
+<li><strong>Sensitivities on J3/S4 (table <code>junior_senior_sensitivities.csv</code>):</strong></li>
+<li>Base (pooled): J3 2024 = 9.15% → 2026 = 14.19% (Δ +5.04 pp)</li>
+<li>No aggregator: J3 2024 = 9.97% → 2026 = 14.70% (Δ +4.73 pp — shrinks slightly)</li>
+<li>No entry specialist: J3 2024 = 8.55% → 2026 = 13.44% (Δ +4.89 pp)</li>
+<li>SWE tier strict (regex + embedding_high): J3 2024 = 8.99% → 2026 = 14.11% (Δ +5.11 pp)</li>
+<li>Cap 20 per canonical: J3 2024 = 9.97% → 2026 = 12.34% (Δ +2.37 pp)</li>
+</ul>
+<p><strong>Materially sensitive</strong> (≥30% change from base Δ): <strong>cap20 cuts J3 Δ in half</strong> (from +5.0 pp to +2.4 pp). This is direct evidence that a few high-volume employers drive a non-trivial share of the aggregate J3 rise — specifically, once company-level over-representation is capped, the 2024→2026 J3 delta is consistent with within-2024 noise (SNR ≈ 0.5 against 4.75 pp within-2024 baseline).</p>
+<ul>
+<li>
+<p><strong>Arshkon-only-vs-scraped (mandatory alongside pooled):</strong>
+  J3 arshkon-2024 = 13.00% → pooled-2026 = 14.19% (Δ <strong>+1.19 pp</strong>, within-2024 noise ≥ 4.75 pp → SNR ≈ 0.25 on this comparison). <strong>Under arshkon-only baseline, the J3 rise does not clear noise.</strong></p>
+</li>
+<li>
+<p><strong>Gate 1 within-between REPLICATION — materially sensitive</strong> (table <code>overlap_panel_decomposition.csv</code>):</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Panel</th>
+<th>n_cos</th>
+<th>J3 aggregate Δ pp</th>
+<th>Within-co weighted Δ pp</th>
+<th>Between-co residual pp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pooled min1 (all returning 2,109)</td>
+<td>1,423</td>
+<td>+6.17</td>
+<td><strong>+4.23</strong></td>
+<td>+1.94</td>
+</tr>
+<tr>
+<td>pooled min3</td>
+<td>563</td>
+<td>+8.17</td>
+<td><strong>+5.11</strong></td>
+<td>+3.05</td>
+</tr>
+<tr>
+<td>pooled min5</td>
+<td>346</td>
+<td>+7.90</td>
+<td><strong>+5.05</strong></td>
+<td>+2.85</td>
+</tr>
+<tr>
+<td><strong>arshkon-only min5 (n=125 — T06)</strong></td>
+<td><strong>121</strong></td>
+<td>+5.02</td>
+<td><strong>−0.03</strong></td>
+<td><strong>+5.05</strong></td>
+</tr>
+<tr>
+<td>asaniczka-only min5</td>
+<td>247</td>
+<td>+8.70</td>
+<td><strong>+6.43</strong></td>
+<td>+2.26</td>
+</tr>
+<tr>
+<td>pooled min10</td>
+<td>159</td>
+<td>+7.90</td>
+<td><strong>+5.20</strong></td>
+<td>+2.69</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Flagged direction reversal:</strong> the Gate 1 "within-co ≈ 0" claim replicates ONLY on the arshkon-only ≥5 panel (T06's n=125). On every other panel construction (pooled, asaniczka-only, min1, min3, min5, min10), within-company J3 rise is +3.5 to +6.4 pp weighted and is the LARGER component of the aggregate delta. <strong>Recommendation: Gate 2 memo should weaken the "J3 rise is entirely between-company" framing.</strong> The arshkon-only n=125 panel shows a specific subset (arshkon high-volume returning cos) that maintained J3 share; the broader cohorts show material within-firm rise.</p>
+<ul>
+<li><strong>Entry-specialist composition (table <code>entry_specialist_composition.csv</code>):</strong></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Bucket</th>
+<th>n_total</th>
+<th>J3 share (labeled)</th>
+<th>J1 share (all)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td>entry_specialist</td>
+<td>970</td>
+<td><strong>23.7%</strong></td>
+<td>5.4%</td>
+</tr>
+<tr>
+<td>2024</td>
+<td>other</td>
+<td>21,850</td>
+<td>8.6%</td>
+<td>1.7%</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>entry_specialist</td>
+<td>2,808</td>
+<td><strong>26.1%</strong></td>
+<td>10.1%</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>other</td>
+<td>42,509</td>
+<td>13.4%</td>
+<td>3.2%</td>
+</tr>
+</tbody>
+</table>
+<p>Entry specialists are 4% of 2024 volume and 6% of 2026 volume but account for <strong>10.9% of 2026 J3 postings</strong> and <strong>17.3% of 2026 J1 postings</strong>. Even excluding them, J3 rise is +4.9 pp (vs +5.0 pp base) — so the aggregate claim doesn't collapse, but the J1/J2 claims lean heavily on them.</p>
+<hr />
+<h2 id="6-anomaly-flags">6. Anomaly flags<a class="headerlink" href="#6-anomaly-flags" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Anomaly</th>
+<th>Where</th>
+<th>Implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1</td>
+<td>Arshkon <code>native='entry'</code> has median YOE = 4 and 45% ≥ 5 YOE</td>
+<td>table <code>arshkon_native_yoe_profile.csv</code></td>
+<td><code>seniority_native</code> is noisy cross-sectionally, not just temporally. Even arshkon-only <code>seniority_native</code> cannot be trusted as a clean entry baseline.</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>J3 cap-20 sensitivity cuts Δ in half (5.0 → 2.4 pp)</td>
+<td>table <code>junior_senior_sensitivities.csv</code></td>
+<td>Aggregate J3 rise is heavily weighted by high-volume employers.</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>Arshkon baseline has HIGHER J3 than asaniczka (13.0% vs 8.2%)</td>
+<td>table <code>yoe_llm_by_source_period.csv</code></td>
+<td>The two 2024 sources disagree on entry share by 4.75 pp — comparable to the cross-period effect.</td>
+</tr>
+<tr>
+<td>A4</td>
+<td>Generic SWE titles show J3 rise (+7.3 pp), senior SWE titles show J3 DROP (−1.8 pp)</td>
+<td>table <code>title_family_j3_s4.csv</code></td>
+<td>Junior-share movement is title-specific; senior-titled postings are tightening while generic SWE absorbs juniors.</td>
+</tr>
+<tr>
+<td>A5</td>
+<td>Within-company J3 rise = +4–6 pp on pooled / asaniczka / min-3 / min-10 panels; ≈ 0 only on arshkon-min5</td>
+<td>table <code>overlap_panel_decomposition.csv</code></td>
+<td>Gate 1 "within ≈ 0" is construction-specific. Within-company component is non-trivial.</td>
+</tr>
+<tr>
+<td>A6</td>
+<td>description_length 7k–15k bucket triples (7% → 18%)</td>
+<td>table <code>length_bucket_shares.csv</code></td>
+<td>Long-tail shift drives mean. Could be boilerplate (pay transparency / EEO) or content — T13 decides.</td>
+</tr>
+<tr>
+<td>A7</td>
+<td>50–53% of SWE rows are <code>seniority_final='unknown'</code> in arshkon and scraped</td>
+<td>table <code>seniority_final_by_source.csv</code></td>
+<td>The label-based J1/J2 metrics always have a &gt;50% denominator hole.</td>
+</tr>
+<tr>
+<td>A8</td>
+<td>Director share S2 is effectively 0 (0.4–0.8%) across all sources</td>
+<td>table <code>seniority_final_by_source.csv</code></td>
+<td>Director analyses will be underpowered in every operationalization.</td>
+</tr>
+<tr>
+<td>A9</td>
+<td>Scraped <code>is_remote = 0.0%</code> at all sources (reflects stage-5 inference)</td>
+<td>table <code>remote_multi_location_by_source.csv</code></td>
+<td>Remote flags are 100% artifact-driven; use <code>is_remote_inferred</code> only.</td>
+</tr>
+<tr>
+<td>A10</td>
+<td>Aggregator share of 2024: arshkon 9.2%, asaniczka 16.2% (7 pp within-2024 gap)</td>
+<td>table <code>aggregator_by_source.csv</code></td>
+<td>Any aggregator-related cross-period finding must stratify by source; SNR = 0.32 (below noise).</td>
+</tr>
+<tr>
+<td>A11</td>
+<td>Industry labels drift dramatically: "IT Services and IT Consulting" 34% → 18%; "Software Development" 17% → 38%</td>
+<td>table <code>top15_industry_by_period.csv</code></td>
+<td>Confirms T07 taxonomy drift — industry-stratified 2024→2026 raw-label claims are invalid.</td>
+</tr>
+<tr>
+<td>A12</td>
+<td>AI-strict prevalence is essentially identical between LLM-labeled (18.1%) and not_selected (18.2%) scraped rows</td>
+<td>table <code>ai_strict_by_coverage.csv</code></td>
+<td>The AI-mention rise is not a labeled-only artifact; it appears equally in rule-routed rows.</td>
+</tr>
+<tr>
+<td>A13</td>
+<td>NYC metro share jumps 0.4% → 6.5% in scraped</td>
+<td>table <code>top20_metro_area.csv</code></td>
+<td>Scraper design shift — NYC was barely represented in 2024 sources; treat metro-share trend as scraping artifact unless corroborated.</td>
+</tr>
+<tr>
+<td>A14</td>
+<td><code>seniority_native</code> in asaniczka contains ONLY associate (10%) and mid-senior (90%) — no entry, no director</td>
+<td>table <code>seniority_native_by_source.csv</code></td>
+<td>Confirmed T01/T05 finding; pooling asaniczka into any <code>seniority_native</code>-based comparison collapses the entry rate.</td>
+</tr>
+<tr>
+<td>A15</td>
+<td>Length-matched counterfactual: if 2026 posts had 2024 length distribution, AI-strict share would still be 16.9% vs actual 18.2% — only 7.7% of AI rise is length-driven</td>
+<td>table <code>length_matched_ai_summary.csv</code></td>
+<td>AI mention rise is overwhelmingly content, not length.</td>
+</tr>
+<tr>
+<td>A16</td>
+<td>ML Engineer 2024 arshkon vs scraped: <strong>381 → 3,193 rows (8.4× growth)</strong></td>
+<td>table <code>title_family_j3_s4.csv</code></td>
+<td>ML engineer volume is a major composition shift. Matches T04 19.6 pp ML-SWE classification asymmetry caveat.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-data-quality-caveats">7. Data quality caveats<a class="headerlink" href="#7-data-quality-caveats" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Scraped LLM labeled coverage is 56.9%</strong> (25,816 of 45,317). Any analysis using <code>yoe_min_years_llm</code>, <code>description_core_llm</code>, or <code>ghost_assessment_llm</code> on scraped is computed on a subset. The supplemental check (A12) shows AI-strict rate is nearly identical labeled vs not_selected — so the labeled subset is not obviously biased for AI signals. But J3 shares are defined only on labeled.</li>
+<li><strong>Arshkon <code>seniority_native='entry'</code> is not clean</strong> (A1). The seniority_native column should be retired from sanity-check duty entirely.</li>
+<li><strong>Industry labels drifted</strong> (A11). Do not stratify cross-period by raw company_industry.</li>
+<li><strong>Remote flags are uniformly 0</strong> (A9). Use <code>is_remote_inferred</code> only.</li>
+<li><strong>Asaniczka has no native entry labels</strong> (A14, already known from T01).</li>
+<li><strong>Within-company decomposition depends strongly on overlap-panel construction</strong> (A5). Any "within vs between" claim must specify min_n filter and source subset.</li>
+<li><strong>Company cap sensitivity is material</strong> (A2). Any aggregate share claim should report cap-20 alongside.</li>
+</ol>
+<hr />
+<h2 id="8-action-items-for-downstream-tasks">8. Action items for downstream tasks<a class="headerlink" href="#8-action-items-for-downstream-tasks" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>T09 (archetypes):</strong> expect domain-heterogeneous archetypes. ML engineer is a distinct cluster (8.4× volume growth → 7% of scraped SWE); senior-SWE-titled postings behave opposite to generic SWE on J3. Cluster on content rather than title.</li>
+<li><strong>T11 (requirements complexity):</strong> MUST length-residualize. Description length shifted 20.8% → 18.3% in the long-tail bucket. Check if "requirement count" rises survives length normalization.</li>
+<li><strong>T12 (text evolution):</strong> report labeled vs not_selected split for any scraped text metric. A12 shows AI is labeled-insensitive; other metrics may not be.</li>
+<li><strong>T13 (linguistic/structural):</strong> critical to decide if length growth is boilerplate (long-tail bucket) or content. Section-stratify the 7k–15k bucket comparison.</li>
+<li><strong>T14 (tech mapping):</strong> tech_count metric has SNR 6.4 — safe to cite. ML Engineer source composition warning still applies.</li>
+<li><strong>T16 (hiring strategy):</strong> the overlap-panel construction matters — report min_n ∈ {1, 5, 10} and source subsets in parallel.</li>
+<li><strong>T17 (geography):</strong> NYC metro jump (A13) is scraping-artifact; state-level shifts for CA (+6.6 pp), TX (+3.8 pp), VA (−0.2 pp) are more robust.</li>
+<li><strong>T20 (seniority boundary):</strong> senior-titled J3 DROP (A4) vs generic-SWE J3 RISE is a direct boundary-clarity signal. Worth a dedicated analysis.</li>
+<li><strong>T21 (senior role evolution):</strong> senior-titled postings got +1,400 chars longer and J3 share dropped — compatible with role tightening, not dilution.</li>
+<li><strong>T23 (employer-requirement divergence):</strong> AI-strict SNR 32.9 is the cleanest cross-period signal. The within-company rise (+14.2 pp on returning cohort) vs aggregate (+16.7 pp) means within-firm rewriting is the dominant mechanism.</li>
+<li><strong>T28 (domain × seniority):</strong> defer until T09 produces archetype labels. Industry label drift (A11) blocks any raw-label industry × seniority analysis.</li>
+</ul>
+<hr />
+<h2 id="9-surprises-unexpected-patterns">9. Surprises &amp; unexpected patterns<a class="headerlink" href="#9-surprises-unexpected-patterns" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>Gate 1 "J3 within-co ≈ 0" does not replicate outside the arshkon-only n=125 panel.</strong> On pooled min1/min3/min5/min10 and asaniczka-only min5, within-company J3 rise is +3.5 to +6.4 pp weighted — the majority of the aggregate delta. The Gate 1 framing of "junior rise is a composition story, AI rise is within-firm" needs to be softened. Junior rise has both components, and the within-company share is material once you move off the arshkon-only high-volume panel.</p>
+</li>
+<li>
+<p><strong>Arshkon baseline J3 is HIGHER than asaniczka (13.0% vs 8.2%) — reverse of what's in the orchestrator mental model.</strong> In calibration, the within-2024 asymmetry on J3 (4.75 pp) is comparable to the cross-period effect (5.04 pp). Under arshkon-only baseline, J3 rise collapses to +1.2 pp — well below noise. This sharpens the Gate 1 "magnitude fragility" warning from senior-side to junior-side as well.</p>
+</li>
+<li>
+<p><strong>Senior-SWE-titled postings (sr/senior) J3 share DROPS from 4.3% → 2.5% while generic-SWE J3 share RISES from 8.6% → 15.9%.</strong> This is not visible in the T30 panel because S4 and J3 definitions collapse title variation. Title-family stratification reveals the market is bifurcating: senior-labeled roles are tightening experience bar, generic SWE roles are absorbing juniors. Combined with the description_length growth in senior-titled postings (+1,400 chars), this looks like "scope inflation within senior bucket, junior absorption into generic."</p>
+</li>
+<li>
+<p><strong>Arshkon <code>seniority_native='entry'</code> has 45% of rows at ≥5 YOE and median YOE of 4.</strong> This was assumed to be a usable cross-sectional baseline; it is not. The native classifier equates "entry" with "early-career" broadly, not with ≤2 YOE. T01's "arshkon entry = 15.7%" and "seniority_final entry = 3.8%" gap is explained: the native-entry pool is 5-year-median people labeled as "entry" at the source. Recommendation: <code>seniority_native</code> should not be used as a sanity check in Wave 2+ at all, not even on arshkon.</p>
+</li>
+<li>
+<p><strong>AI-strict prevalence is 18.1% on labeled and 18.2% on not_selected scraped rows.</strong> The LLM-routing decision is essentially orthogonal to AI content presence. This is strong reassurance that the labeled-only AI findings are not subset-biased. But it is a sobering note for interpretation: the LLM cleanup is NOT filtering AI-dense vs AI-sparse rows, so comparisons of AI rates between labeled and not_selected subsets should not expect to find coverage artifacts.</p>
+</li>
+<li>
+<p><strong>Length-matched counterfactual: only 7.7% of the AI-strict rise is length-driven.</strong> A bulk of the AI signal survives even if 2026 posts were shortened to 2024 length distribution. This is powerful evidence that the AI rise is content, not boilerplate bloat.</p>
+</li>
+<li>
+<p><strong>ML engineer volume grew 8.4× (381 → 3,193).</strong> This is far more than the broader SWE growth (68,137 → 45,317 total is ~2×). ML engineer is a major composition shift in 2026; paper MUST source-stratify ML/AI-specific claims by the arshkon-vs-asaniczka-vs-scraped split and note the 19.6 pp cross-source ML-SWE classification gap (T04).</p>
+</li>
+<li>
+<p><strong>Company_size quartile 1 vs Q4 on arshkon: J3 share 10.7% vs 16.6%</strong> — large employers post MORE entry roles. This is the opposite of the intuition that startups hire more juniors (arshkon only captures company_size, so this is 2024-only). AI-strict share also scales with size (3.2% Q1 → 5.0% Q4). If the 2026 composition shifts toward larger employers (returning-cohort dominated by big tech), these size effects explain some of the aggregate J3 and AI rises.</p>
+</li>
+<li>
+<p><strong>The "unknown" seniority_final share is 50–53% in arshkon and scraped, but 34% in asaniczka.</strong> Asaniczka LLM routing found more explicit seniority signals. Possible mechanism: asaniczka postings are more template-driven. This is an LLM-routing artifact noise floor that every seniority share analysis inherits.</p>
+</li>
+<li>
+<p><strong>NYC metro share jumps 0.4% → 6.5% between 2024 and 2026.</strong> This is too large for organic market change. It is almost certainly scraper query design (NYC was barely queried in 2024 data sources). Any NYC-specific claim must be excluded from cross-period trend narratives. CA (+6.6 pp), TX (+3.8 pp), WA (+3.0 pp) are more defensible trends.</p>
+</li>
+</ol>
+<hr />
+<h2 id="10-sensitivity-results-dim-abcefgi">10. Sensitivity results (dim a/b/c/e/f/g/i)<a class="headerlink" href="#10-sensitivity-results-dim-abcefgi" title="Permanent link">&para;</a></h2>
+<p>Per the Wave 2 framework:</p>
+<table>
+<thead>
+<tr>
+<th>Dim</th>
+<th>What</th>
+<th>Result on J3 primary finding</th>
+<th>Material?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(a) Aggregator exclusion</td>
+<td>Drop <code>is_aggregator=true</code></td>
+<td>J3 Δ: +5.04 → +4.73 pp (−6%)</td>
+<td>No — within 30%</td>
+</tr>
+<tr>
+<td>(b) Company capping (cap 20)</td>
+<td>Per-period cap</td>
+<td>J3 Δ: +5.04 → +2.37 pp (−53%)</td>
+<td><strong>YES — materially sensitive.</strong> High-volume employers account for half the J3 Δ. Drilling in: top 20 employers by 2026 J3 volume: ClearanceJobs, Amazon, Capital One, USAA, MassMutual, Wells Fargo, Cisco, Verizon, Walmart, Deloitte, etc. Many have mixed J3 rates ≥20%.</td>
+</tr>
+<tr>
+<td>&copy; Seniority operationalization</td>
+<td>T30 panel</td>
+<td>J1 Δ: +1.82 pp (SNR 0.74, below noise); J2 +1.85 (SNR 0.72, below noise); J3 +5.04 (SNR 1.06, near noise); J4 +7.62 (SNR 1.05, near noise). <strong>Arshkon-only flips J1 and J2 negative; J3 drops to +1.2 pp.</strong></td>
+<td><strong>YES — J1/J2 direction-sensitive to baseline choice.</strong></td>
+</tr>
+<tr>
+<td>(e) Source restriction</td>
+<td>Arshkon-only vs pooled</td>
+<td>J3 arshkon-only Δ: +1.19 pp (vs pooled +5.04)</td>
+<td><strong>YES — effect shrinks to 24% of pooled.</strong></td>
+</tr>
+<tr>
+<td>(f) Within-2024 calibration</td>
+<td>SNR ratio</td>
+<td>J3 SNR = 1.06 (near_noise). J1 0.74, J2 0.72 (below noise). S4 1.07 (near), S1 0.75 (below). AI-strict 32.9, scope 42.8, mgmt-strict 2.07 (all above). Decision: J3/S4 citations require both pooled and arshkon-only; J1/J2/S1 cannot be cited cross-period alone.</td>
+<td><strong>YES — baked into every primary metric recommendation.</strong></td>
+</tr>
+<tr>
+<td>(g) SWE classification tier</td>
+<td>Drop <code>title_lookup_llm</code></td>
+<td>J3 Δ: +5.04 → +5.11 pp (+1%)</td>
+<td>No</td>
+</tr>
+<tr>
+<td>(h) LLM text coverage</td>
+<td>Labeled vs not_selected on AI-strict</td>
+<td>AI-strict: labeled 18.1% vs not_selected 18.2% — no split effect. J3 cannot be checked (only defined on labeled).</td>
+<td>No for AI; N/A for J3</td>
+</tr>
+<tr>
+<td>(i) Indeed cross-platform</td>
+<td>Rule <code>yoe_extracted ≤ 2</code></td>
+<td>LinkedIn 2024 rule-J3 = 11.2%; LinkedIn 2026 rule-J3 = 17.2% (Δ +6.0 pp); <strong>Indeed 2026 rule-J3 = 18.3%</strong>. Indeed corroborates LinkedIn 2026 entry share at ~18%. Direction: LinkedIn-Indeed 2026 agree (17.2% vs 18.3%).</td>
+<td>No — Indeed corroborates LinkedIn 2026 magnitude</td>
+</tr>
+</tbody>
+</table>
+<h3 id="materially-sensitive-summary">Materially sensitive summary<a class="headerlink" href="#materially-sensitive-summary" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Company capping (b):</strong> J3 aggregate Δ drops from +5.0 pp to +2.4 pp (53% reduction). Aggregate claim leans heavily on top employers.</li>
+<li><strong>Seniority op &copy; + Source restriction (e):</strong> J1 and J2 flip direction arshkon-only; J3 drops 5× to +1.2 pp. Any "junior share rose" claim must cite both pooled Δ and arshkon-only Δ — the paper's single-number claim is not defensible.</li>
+<li><strong>Within-between decomposition on overlap panels:</strong> within-co weighted J3 Δ ranges from −0.03 pp (arshkon min5) to +6.4 pp (asaniczka min5). The Gate 1 "within ≈ 0" is overlap-panel-specific.</li>
+</ul>
+<h3 id="recommended-downstream-treatment">Recommended downstream treatment<a class="headerlink" href="#recommended-downstream-treatment" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Report J3 aggregate Δ with THREE magnitudes: pooled (+5.0 pp), arshkon-only (+1.2 pp), cap-20 pooled (+2.4 pp). The modal number should be ~+2-3 pp, not +5.</li>
+<li>Stop using "junior rise is entirely between-company." Use: "junior rise has both within-company and between-company components; the balance depends on overlap-panel construction."</li>
+<li><code>seniority_native</code> is retired from sanity-check duty (it was already retired for temporal claims in Gate 1; now also for cross-sectional baselines on arshkon).</li>
+<li>AI-mention rise is the cleanest signal. No cautions needed beyond standard length/labeled sensitivities, which have been explicitly checked and are negligible.</li>
+<li>Senior-title sub-population inversion (A4) merits a dedicated T20/T21 deep dive.</li>
+</ol>
+<hr />
+<h2 id="appendix-a-file-inventory">Appendix A — file inventory<a class="headerlink" href="#appendix-a-file-inventory" title="Permanent link">&para;</a></h2>
+<p>Tables (43 CSVs in <code>exploration/tables/T08/</code>):
+<code>universe_counts.csv</code>, <code>desc_length_by_source_period.csv</code>, <code>desc_length_by_period_seniority.csv</code>, <code>desc_length_deciles.csv</code>, <code>length_bucket_shares.csv</code>, <code>yoe_llm_by_source_period.csv</code>, <code>seniority_final_by_source.csv</code>, <code>seniority_native_by_source.csv</code>, <code>seniority_final_source_by_source.csv</code>, <code>seniority_final_pooled.csv</code>, <code>arshkon_native_yoe_profile.csv</code>, <code>t30_panel_juniorsenior.csv</code>, <code>top20_metro_area.csv</code>, <code>top20_state.csv</code>, <code>top15_industry_by_period.csv</code>, <code>aggregator_by_source.csv</code>, <code>ghost_job_risk_by_source.csv</code>, <code>ghost_assessment_llm_by_source.csv</code>, <code>remote_multi_location_by_source.csv</code>, <code>swe_tier_by_source.csv</code>, <code>arshkon_company_size_quartiles.csv</code>, <code>text_binary_rates_pooled.csv</code>, <code>text_per_1k_rates_pooled.csv</code>, <code>junior_senior_sensitivities.csv</code>, <code>junior_senior_cap20.csv</code>, <code>indeed_cross_platform_rule_yoe.csv</code>, <code>returning_cohort_j3_s4.csv</code>, <code>returning_cohort_j3_within.csv</code>, <code>ranked_metrics.csv</code>, <code>labeled_split_by_source.csv</code>, <code>ai_strict_by_coverage.csv</code>, <code>returning_cohort_ai_strict_pooled.csv</code>, <code>returning_cohort_ai_strict_within.csv</code>, <code>entry_specialist_composition.csv</code>, <code>entry_specialist_share_summary.csv</code>, <code>ai_by_length_decile.csv</code>, <code>length_matched_ai_summary.csv</code>, <code>title_family_j3_s4.csv</code>, <code>j3_no_entry_specialist_pooled.csv</code>, <code>returning_cohort_jpanel_agg.csv</code>, <code>returning_cohort_jpanel_within_between.csv</code>, <code>overlap_panel_aggregates.csv</code>, <code>overlap_panel_decomposition.csv</code>.</p>
+<p>Figures (4 PNGs in <code>exploration/figures/T08/</code>):
+<code>fig1_desc_length.png</code>, <code>fig2_yoe_llm.png</code>, <code>fig3_seniority_final.png</code>, <code>fig4_effect_ranking.png</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.instant", "navigation.tracking", "toc.follow", "toc.integrate", "content.code.copy", "content.tabs.link", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,2422 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Three-layer evidence package for the software-engineering labor-market exploration phase.">
+      
+      
+        <meta name="author" content="Exploration pipeline (Waves 1-5)">
+      
+      
+        <link rel="canonical" href="http://localhost:8080/methodology/sensitivity/">
+      
+      
+        <link rel="prev" href="../llm-prompts/">
+      
+      
+        <link rel="next" href="../pattern-validation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Sensitivity framework - SWE Labor Exploration (2024 to 2026)</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sensitivity-framework" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Exploration (2024 to 2026)" class="md-header__button md-logo" aria-label="SWE Labor Exploration (2024 to 2026)" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Exploration (2024 to 2026)
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Sensitivity framework
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../findings/" class="md-tabs__link">
+          
+  
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../stories/" class="md-tabs__link">
+          
+  
+  
+  Stories
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Methodology
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../evidence/" class="md-tabs__link">
+          
+  
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Exploration (2024 to 2026)" class="md-nav__button md-logo" aria-label="SWE Labor Exploration (2024 to 2026)" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Exploration (2024 to 2026)
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SWE postings got rewritten — by the same firms, for the same titles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../presentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slide deck
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Executive summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-read/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How to read this site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/a1-cross-occupation-divergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A1 Cross-occupation AI divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/a2-within-firm-rewriting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A2 Within-firm same-title rewriting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/a3-seniority-sharpening/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A3 Seniority boundaries sharpened
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/a4-scope-inflation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A4 Scope inflation universal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/a5-archetypes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A5 Emergent senior archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/a6-did-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A6 DiD robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/rejections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What we rejected
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Measurement corrections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stories
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stories
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corners of the Screen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/01-narrowing-middle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    01 The narrowing middle that wasn't
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/02-copilot-paradox/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    02 The Copilot paradox
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/03-atlanta-not-san-francisco/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    03 Atlanta, not San Francisco
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/04-finance-densest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    04 What the compliance lobby can't see
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/05-management-never-there/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    05 A decline that wasn't
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/06-easy-explanations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    06 The rejection of the easy explanation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/07-applied-ai-older/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    07 The democratiser that asks for more experience
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/08-ranking-right/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    08 The market got the pattern right
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/09-forward-deployed/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    09 Forward-deployed, finally
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stories/10-where-middle-narrowed/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10 Where the middle narrowed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methodology
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources and samples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm-prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity framework
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#nine-sensitivity-dimensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nine sensitivity dimensions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#within-2024-snr-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Within-2024 SNR calibration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#t30-multi-operationalization-seniority-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T30 multi-operationalization seniority panel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#t37-sampling-frame-sensitivity-robustness-centerpiece" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T37 sampling-frame sensitivity (robustness centerpiece)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#t38-hiring-selectivity-null-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T38 hiring-selectivity null result
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#t29-low-llm-authorship-re-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T29 low-LLM-authorship re-test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aggregator-exclusion-sensitivities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggregator-exclusion sensitivities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composite-score-length-residualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composite-score length-residualization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pattern-validation-see-dedicated-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern validation — see dedicated page
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pattern-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pattern validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../claim-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What the paper can claim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/wave-1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/wave-2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/wave-3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/wave-3-5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3.5 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/wave-4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/verifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/gates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate memos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evidence/synthesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sensitivity-framework">Sensitivity framework<a class="headerlink" href="#sensitivity-framework" title="Permanent link">&para;</a></h1>
+<p>Every Tier A and Tier B claim on this site is cross-checked against at least one of these frameworks. The SYNTHESIS.md §14 robustness appendix is reproduced inline below.</p>
+<h2 id="nine-sensitivity-dimensions">Nine sensitivity dimensions<a class="headerlink" href="#nine-sensitivity-dimensions" title="Permanent link">&para;</a></h2>
+<p>Introduced in Gate 1 and applied by Wave 2 onward (dimensions a through i):</p>
+<table>
+<thead>
+<tr>
+<th>Dim</th>
+<th>Check</th>
+<th>Typical artifact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>a</strong></td>
+<td>Source stratification (arshkon-only vs asaniczka-only vs pooled)</td>
+<td>T30 panel</td>
+</tr>
+<tr>
+<td><strong>b</strong></td>
+<td>Aggregator-exclusion</td>
+<td>T22, T16 sensitivities</td>
+</tr>
+<tr>
+<td><strong>c</strong></td>
+<td>Company-cap (no firm contributes &gt; 20 or &gt; 50 rows)</td>
+<td>T11 sensitivity</td>
+</tr>
+<tr>
+<td><strong>d</strong></td>
+<td>Within-2024 SNR calibration</td>
+<td><code>calibration_table.csv</code></td>
+</tr>
+<tr>
+<td><strong>e</strong></td>
+<td>Length residualization</td>
+<td>T11 Phase D</td>
+</tr>
+<tr>
+<td><strong>f</strong></td>
+<td>Company-panel minimum (n &gt;= 3 / 5 / 10 per firm)</td>
+<td>T16 overlap panels</td>
+</tr>
+<tr>
+<td><strong>g</strong></td>
+<td>Classifier sensitivity (dual classifier)</td>
+<td>T13 + T33</td>
+</tr>
+<tr>
+<td><strong>h</strong></td>
+<td>Text-source labeled-vs-not</td>
+<td>T29, Gate 1 pre-commit 4</td>
+</tr>
+<tr>
+<td><strong>i</strong></td>
+<td>Pattern-provenance (V1-rebuilt vs top-level)</td>
+<td>V1 + T22</td>
+</tr>
+</tbody>
+</table>
+<h2 id="within-2024-snr-calibration">Within-2024 SNR calibration<a class="headerlink" href="#within-2024-snr-calibration" title="Permanent link">&para;</a></h2>
+<p>The shared artifact <code>exploration/artifacts/shared/calibration_table.csv</code> reports, for every metric used in a claim, the within-2024 noise floor (arshkon vs asaniczka on the same metric) and the cross-period effect (pooled-2024 vs scraped-2026).</p>
+<p>SNR = cross-period effect / within-2024 effect.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Within-2024 effect</th>
+<th>Cross-period effect</th>
+<th>SNR</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ai_mention_strict</td>
+<td>+0.004</td>
+<td>+0.133</td>
+<td><strong>32.9</strong></td>
+<td>above_noise</td>
+</tr>
+<tr>
+<td>scope_term_rate</td>
+<td>+0.005</td>
+<td>+0.210</td>
+<td><strong>42.8</strong></td>
+<td>above_noise</td>
+</tr>
+<tr>
+<td>description_length_mean</td>
+<td>+0.28 d</td>
+<td>+0.50 d</td>
+<td>1.80</td>
+<td>near_noise</td>
+</tr>
+<tr>
+<td>J3 share</td>
+<td>+4.75 pp</td>
+<td>+5.04 pp</td>
+<td>1.06</td>
+<td>near_noise</td>
+</tr>
+<tr>
+<td>S4 share</td>
+<td>+7.09 pp</td>
+<td>+7.59 pp</td>
+<td>1.07</td>
+<td>near_noise</td>
+</tr>
+<tr>
+<td>mgmt_strict prevalence</td>
+<td>+0.038</td>
+<td>+0.080</td>
+<td>2.07</td>
+<td>above_noise</td>
+</tr>
+<tr>
+<td>mgmt_broad prevalence</td>
+<td>+0.062</td>
+<td>+0.028</td>
+<td>0.45</td>
+<td><strong>below_noise</strong></td>
+</tr>
+<tr>
+<td>Aggregate credential stack</td>
+<td>noise</td>
+<td>+0.20</td>
+<td>0.59</td>
+<td><strong>below_noise</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Implications:</p>
+<ul>
+<li><strong>AI and scope are clean cross-period signals.</strong> SNR &gt;&gt; 10.</li>
+<li><strong>Seniority shares are near-noise under annualized rates.</strong> Use raw pp deltas, not annualized (T19 / T30).</li>
+<li><strong>mgmt_broad is below noise.</strong> Corroborates V1's 0.28-precision pattern finding.</li>
+<li><strong>Aggregate credential stack is below noise.</strong> Cite only per-seniority (J3 +16.9 pp, S4 +13.3 pp), not aggregate.</li>
+</ul>
+<h2 id="t30-multi-operationalization-seniority-panel">T30 multi-operationalization seniority panel<a class="headerlink" href="#t30-multi-operationalization-seniority-panel" title="Permanent link">&para;</a></h2>
+<p>See <code>exploration/artifacts/shared/seniority_definition_panel.csv</code> — 13 seniority definitions x 6 analysis groups = 78 rows.</p>
+<p><strong>12 of 13 definitions are direction-consistent across periods:</strong></p>
+<ul>
+<li><strong>Junior side</strong> — 7 of 7 definitions (J1, J2, J3, J4, J5, J6, J3_rule) move UP.</li>
+<li><strong>Senior side</strong> — 5 of 6 definitions (S1, S3, S4, S5, S4_rule) move DOWN; S2 (director-only; &lt; 1% of SWE) is flat, at the noise floor.</li>
+</ul>
+<p><strong>Primary panel (Gate 1 pre-commit)</strong>: J3 (YOE LLM &lt;= 2) + S4 (YOE LLM &gt;= 5), pooled-2024 baseline with arshkon-only co-primary for senior.</p>
+<p><strong>Primary magnitudes</strong>:
+- J3 +5.04 pp pooled / +1.19 pp arshkon-only (MDE 2.5 pp).
+- S4 -7.59 pp pooled / -1.78 pp arshkon-only (asaniczka-asymmetry drives the pooled magnitude).</p>
+<h2 id="t37-sampling-frame-sensitivity-robustness-centerpiece">T37 sampling-frame sensitivity (robustness centerpiece)<a class="headerlink" href="#t37-sampling-frame-sensitivity-robustness-centerpiece" title="Permanent link">&para;</a></h2>
+<p>The T37 table (15 tested headlines, returning-companies cohort n=2,109):</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Full Δ</th>
+<th>Returning Δ</th>
+<th>Ratio</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H_a AI-strict prevalence</td>
+<td>+9.72 pp</td>
+<td>+8.36 pp</td>
+<td>0.86</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_b J3 entry share (pooled)</td>
+<td>+5.05 pp</td>
+<td>+6.17 pp</td>
+<td>1.22</td>
+<td><strong>amplified</strong></td>
+</tr>
+<tr>
+<td>H_b-alt J3 (arshkon-only)</td>
+<td>+1.19 pp</td>
+<td>+2.10 pp</td>
+<td>1.77</td>
+<td><strong>amplified</strong></td>
+</tr>
+<tr>
+<td>H_c S4 senior (pooled)</td>
+<td>-7.62 pp</td>
+<td>-8.29 pp</td>
+<td>1.09</td>
+<td><strong>amplified</strong></td>
+</tr>
+<tr>
+<td>H_c-alt S4 (arshkon-only)</td>
+<td>-1.94 pp</td>
+<td>-3.06 pp</td>
+<td>1.58</td>
+<td><strong>amplified</strong></td>
+</tr>
+<tr>
+<td>H_d-J3 Breadth resid (J3)</td>
+<td>+1.56</td>
+<td>+1.09</td>
+<td>0.70</td>
+<td><strong>partially</strong></td>
+</tr>
+<tr>
+<td>H_d-S4 Breadth resid (S4)</td>
+<td>+2.60</td>
+<td>+2.55</td>
+<td>0.98</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_e-J3 Credential stack (J3)</td>
+<td>+17.1 pp</td>
+<td>+16.5 pp</td>
+<td>0.97</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_e-S4 Credential stack (S4)</td>
+<td>+13.4 pp</td>
+<td>+13.7 pp</td>
+<td>1.03</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_f T13 requirements-share</td>
+<td>-2.54 pp</td>
+<td>-3.37 pp</td>
+<td>1.33</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_g Description length median</td>
+<td>+1,244 chars</td>
+<td>+1,276 chars</td>
+<td>1.03</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_h Scope term prevalence (V1)</td>
+<td>+23.26 pp</td>
+<td>+22.41 pp</td>
+<td>0.96</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_h-alt Scope kitchen-sink</td>
+<td>+22.82 pp</td>
+<td>+23.21 pp</td>
+<td>1.02</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_i CI/CD at S4</td>
+<td>+20.62 pp</td>
+<td>+20.27 pp</td>
+<td>0.98</td>
+<td>robust</td>
+</tr>
+<tr>
+<td>H_j AI-oriented senior cluster</td>
+<td>+10.19 pp</td>
+<td>+9.18 pp</td>
+<td>0.90</td>
+<td>robust</td>
+</tr>
+</tbody>
+</table>
+<p><strong>13 of 15 headlines retain ratio &gt;= 0.80. Zero are sampling-frame-driven.</strong> J3 and S4 directions <strong>intensify</strong> on the returning cohort (not attenuate). H_d J3 breadth_resid at 0.70 is the one partial-robustness case.</p>
+<p>Bootstrap 95% CIs on the returning cohort: AI-strict [+7.61, +9.08]; J3 [+3.21, +9.86]; S4 [-11.97, -4.67]; scope [+19.94, +25.27]. All exclude zero.</p>
+<h2 id="t38-hiring-selectivity-null-result">T38 hiring-selectivity null result<a class="headerlink" href="#t38-hiring-selectivity-null-result" title="Permanent link">&para;</a></h2>
+<p>Pearson correlations on the arshkon_min3 n=243 primary panel:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Pearson r</th>
+<th>95% CI</th>
+<th>p</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>breadth_resid Δ</td>
+<td>-0.032</td>
+<td>[-0.157, +0.094]</td>
+<td>0.617</td>
+</tr>
+<tr>
+<td>ai_strict Δ</td>
+<td>-0.089</td>
+<td>[-0.212, +0.038]</td>
+<td>0.169</td>
+</tr>
+<tr>
+<td>mentor_on_S1 Δ</td>
+<td>-0.072</td>
+<td>[-0.202, +0.061]</td>
+<td>0.287</td>
+</tr>
+<tr>
+<td>desc_len_median Δ</td>
+<td><strong>+0.203</strong></td>
+<td>[+0.079, +0.321]</td>
+<td><strong>0.0015</strong></td>
+</tr>
+<tr>
+<td>yoe_llm_median Δ</td>
+<td>-0.008</td>
+<td>[-0.138, +0.122]</td>
+<td>0.899</td>
+</tr>
+<tr>
+<td>scope_v1 Δ</td>
+<td>-0.033</td>
+<td>[-0.158, +0.093]</td>
+<td>0.605</td>
+</tr>
+</tbody>
+</table>
+<p>Only <code>desc_len_median</code> is significant — <strong>positive</strong> direction (opposite of selectivity prediction). Volume-up firms write longer JDs. Robust across arshkon_min5 n=125 and pooled_min5 n=356.</p>
+<h2 id="t29-low-llm-authorship-re-test">T29 low-LLM-authorship re-test<a class="headerlink" href="#t29-low-llm-authorship-re-test" title="Permanent link">&para;</a></h2>
+<p>Content deltas on the bottom quartile by signature vocabulary density:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Full</th>
+<th>Low-LLM</th>
+<th>% preserved</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI-binary Δ</td>
+<td>+0.131</td>
+<td>+0.115</td>
+<td>88%</td>
+</tr>
+<tr>
+<td>Tech count Δ</td>
+<td>+2.06</td>
+<td>+1.99</td>
+<td>97%</td>
+</tr>
+<tr>
+<td>Scope density Δ</td>
+<td>+0.096</td>
+<td>+0.123</td>
+<td>128% (stronger)</td>
+</tr>
+<tr>
+<td>Credential stack &gt;= 5 (J3) Δ</td>
+<td>+16.9 pp</td>
+<td>+16.6 pp</td>
+<td>97%</td>
+</tr>
+<tr>
+<td>Requirement breadth_resid Δ</td>
+<td>+1.22</td>
+<td>+0.98</td>
+<td>80%</td>
+</tr>
+<tr>
+<td>Length growth</td>
+<td>+1,130 chars</td>
+<td>+583 chars</td>
+<td>52% (half LLM-mediated)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="aggregator-exclusion-sensitivities">Aggregator-exclusion sensitivities<a class="headerlink" href="#aggregator-exclusion-sensitivities" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>T16 within-company AI</strong> — aggregator-excluded moves by &lt; 20%; direction preserved.</li>
+<li><strong>T31 pair-level AI drift</strong> — aggregator-excluded <strong>tightens</strong> signal from +13.4 pp to +16.5 pp. Direct employers lead the rewriting.</li>
+<li><strong>T22 ghost-likeness</strong> concentrates at DIRECT employers, not aggregators (counter-prior).</li>
+<li><strong>T34 cluster 0 and cluster 1 metrics</strong> shift &lt; 3% on aggregator-exclusion.</li>
+</ul>
+<h2 id="composite-score-length-residualization">Composite-score length-residualization<a class="headerlink" href="#composite-score-length-residualization" title="Permanent link">&para;</a></h2>
+<p>For any metric with r(metric, log_length) &gt; 0.3, residualize via <code>y ~ a + b * log(length)</code> on the full corpus before cross-period comparison. T11 Phase D established residualization for:</p>
+<ul>
+<li><code>requirement_breadth</code> (r = 0.45)</li>
+<li><code>credential_stack_depth</code> (r = 0.34)</li>
+<li><code>scope_count</code> (r = 0.41)</li>
+<li><code>mgmt_broad</code> (r = 0.39)</li>
+</ul>
+<p>V1 re-fit independently; residuals match T11 at mean absolute difference 0.001.</p>
+<h2 id="pattern-validation-see-dedicated-page">Pattern validation — see dedicated page<a class="headerlink" href="#pattern-validation-see-dedicated-page" title="Permanent link">&para;</a></h2>
+<p>The protocol for validating content patterns is on the <a href="../pattern-validation/">Pattern validation page</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.instant", "navigation.tracking", "toc.follow", "toc.integrate", "content.code.copy", "content.tabs.link", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
