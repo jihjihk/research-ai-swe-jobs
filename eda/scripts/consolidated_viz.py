@@ -4,18 +4,18 @@ Visualization functions for the consolidated findings notebook.
 Reuses the established figure functions for headlines and previously-tested
 disproven hypotheses (imported from headlines_viz). Adds new figures:
 
-- viz_junior_scope_panel        — 2x2 grid, 4 metrics, (SWE|control) x (junior|senior)
-                                  x 4 periods, for the new analytical section.
-- viz_senior_scope_inflation    — small multiples showing senior scope > junior
-                                  scope inflation on the SWE side (headline #3 support).
-- viz_disproven_hiring_bar      — requirements-section contraction does NOT
-                                  correlate with hiring-bar-proxy metrics.
-- viz_disproven_selectivity     — volume-UP firms write LONGER JDs
-                                  (scatter on the 292-co within-firm panel).
-- viz_verdict_table             — rewritten, 11 rows with neutral claim labels
-                                  (no hypothesis IDs visible).
+- viz_junior_scope_panel: 2x2 grid, 4 metrics, (SWE|control) x (junior|senior)
+  x 4 periods, for the new analytical section.
+- viz_senior_scope_inflation: small multiples showing senior scope > junior
+  scope inflation on the SWE side (headline #3 support).
+- viz_disproven_hiring_bar: requirements-section contraction does NOT
+  correlate with hiring-bar-proxy metrics.
+- viz_disproven_selectivity: volume-UP firms write LONGER JDs
+  (scatter on the 292-co within-firm panel).
+- viz_verdict_table: rewritten, 11 rows with neutral claim labels
+  (no hypothesis IDs visible).
 
-No matplotlib.pyplot.savefig — figures are returned and displayed inline via
+No matplotlib.pyplot.savefig. Figures are returned and displayed inline via
 the notebook's `plt.show()` calls.
 """
 
@@ -84,7 +84,7 @@ def viz_junior_scope_panel():
                 "share (%)", pct=True)
 
     fig.suptitle(
-        "Junior vs senior, software-engineer vs control — four scope metrics",
+        "Junior vs senior, software-engineer vs control: four scope metrics",
         fontsize=13, fontweight="bold",
     )
     fig.text(0.5, -0.01,
@@ -139,7 +139,7 @@ def viz_senior_scope_inflation():
         fontsize=13, fontweight="bold",
     )
     fig.text(0.5, -0.01,
-             "Breadth is residualized on description length — rising bars are NOT a length artifact. "
+             "Breadth is residualized on description length, so rising bars are NOT a length artifact. "
              "Source: cached posting-feature artifact.",
              ha="center", fontsize=8, style="italic", color="#666")
     fig.tight_layout()
@@ -147,11 +147,11 @@ def viz_senior_scope_inflation():
 
 
 # ---------------------------------------------------------------------------
-# Disproven — hiring-bar lowering via requirements-section contraction
+# Disproven: hiring-bar lowering via requirements-section contraction
 # ---------------------------------------------------------------------------
 
 def viz_disproven_hiring_bar():
-    """Prose-only summary — requirements-section contraction hypothesis fails
+    """Prose-only summary. Requirements-section contraction hypothesis fails
     three independent tests. No underlying per-posting data pull; values below
     are from the narrative audit documented elsewhere."""
     _style_setup()
@@ -189,7 +189,7 @@ def viz_disproven_hiring_bar():
 
 
 # ---------------------------------------------------------------------------
-# Disproven — hiring-selectivity (volume-up firms write longer JDs)
+# Disproven: hiring-selectivity (volume-up firms write longer JDs)
 # ---------------------------------------------------------------------------
 
 def viz_disproven_selectivity():
@@ -228,7 +228,7 @@ def viz_disproven_selectivity():
     ax.axvline(0, color="black", alpha=0.3, linestyle="--", linewidth=1)
     ax.set_xlabel("Δ posting volume 2026 − 2024  (more postings →)")
     ax.set_ylabel("Δ AI-vocab rate 2026 − 2024, percentage points")
-    ax.set_title("Firms posting MORE roles also added MORE AI language — opposite of a hiring squeeze")
+    ax.set_title("Firms posting MORE roles also added MORE AI language (the opposite of a hiring squeeze)")
     ax.legend(loc="upper left")
 
     ax.text(0.98, 0.03,
@@ -248,7 +248,7 @@ def viz_disproven_selectivity():
 
 
 # ---------------------------------------------------------------------------
-# Rewritten verdict-table — neutral claim labels, no hypothesis IDs
+# Rewritten verdict-table: neutral claim labels, no hypothesis IDs
 # ---------------------------------------------------------------------------
 
 CLAIMS = [
@@ -341,7 +341,7 @@ def viz_verdict_table():
                 transform=ax.transAxes, wrap=True)
         y -= row_h
 
-    ax.set_title("All findings on one page — 6 supported, 5 falsified",
+    ax.set_title("All findings on one page: 6 supported, 5 falsified",
                  fontsize=13, fontweight="bold", y=1.0, loc="left")
     fig.tight_layout()
     return fig

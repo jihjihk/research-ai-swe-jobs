@@ -2,7 +2,7 @@
 Polished visualizations for the headlines notebook.
 
 Each function reads from an existing CSV in eda/tables/ and returns a
-matplotlib Figure (no save_fig — the headlines notebook embeds figures
+matplotlib Figure (no save_fig. The headlines notebook embeds figures
 inline so the .ipynb is self-contained).
 
 Usage from the notebook:
@@ -67,7 +67,7 @@ def _style_setup():
 
 
 # ---------------------------------------------------------------------------
-# HEADLINE 1 — Within-firm AI rewrite (S17 / H13)
+# HEADLINE 1: within-firm AI rewrite
 # ---------------------------------------------------------------------------
 
 def viz_within_firm():
@@ -127,7 +127,7 @@ def viz_within_firm():
     axes[1].set_title(f"{pct_up:.0f}% of {len(s17)} companies rose; {pct_10:.0f}% rose >10pp")
     axes[1].legend()
 
-    fig.suptitle("HEADLINE 1 — Within-firm AI rewrite is real (rules out composition)")
+    fig.suptitle("The same role at the same company reads differently in 2026 than in 2024")
     fig.text(0.5, -0.02,
              "Panel: 292 companies with ≥5 SWE postings in BOTH 2024 (Kaggle) and 2026 (scraped).  Source: eda/tables/S17_within_firm_panel.csv",
              ha="center", fontsize=8, style="italic", color="#666")
@@ -136,7 +136,7 @@ def viz_within_firm():
 
 
 # ---------------------------------------------------------------------------
-# HEADLINE 2 — SWE-specific divergence (S11 / H7)
+# HEADLINE 2: SWE-specific divergence
 # ---------------------------------------------------------------------------
 
 def viz_swe_vs_control():
@@ -156,7 +156,7 @@ def viz_swe_vs_control():
 
     ax.set_xlabel("period")
     ax.set_ylabel("AI-vocab mention rate (%)")
-    ax.set_title("HEADLINE 2 — AI rewriting is SWE-specific (S11, H7)")
+    ax.set_title("AI language rewrite is specific to software-engineer postings")
     ax.legend(title="analysis_group", loc="upper left")
     ax.set_ylim(-2, 33)
 
@@ -179,7 +179,7 @@ def viz_swe_vs_control():
 
 
 # ---------------------------------------------------------------------------
-# HEADLINE 3 — YOE floor falling (S12 / H8)
+# HEADLINE 3: YOE floor falling
 # ---------------------------------------------------------------------------
 
 def viz_yoe_floor():
@@ -199,7 +199,7 @@ def viz_yoe_floor():
                                  ha="center", fontsize=9, color=PAL[lvl], fontweight="bold")
     axes[0].set_xlabel("period")
     axes[0].set_ylabel("mean yoe_min_years_llm (years)")
-    axes[0].set_title("Mean LLM-YOE — declining across all levels")
+    axes[0].set_title("Mean years of experience required, by seniority")
     axes[0].legend(title="seniority_3level")
     axes[0].set_ylim(0, 8)
 
@@ -210,11 +210,11 @@ def viz_yoe_floor():
                      linewidth=2.5, markersize=9, label=lvl)
     axes[1].set_xlabel("period")
     axes[1].set_ylabel("median yoe_min_years_llm (years)")
-    axes[1].set_title("Median LLM-YOE — junior 2 → 1, senior 6 → 5")
+    axes[1].set_title("Median years of experience required (junior: 2 → 1, senior: 6 → 5)")
     axes[1].legend(title="seniority_3level")
     axes[1].set_ylim(0, 8)
 
-    fig.suptitle("HEADLINE 3 — YOE floor is FALLING, not rising (counter scope-inflation)")
+    fig.suptitle("Years of experience required is falling, not rising")
     fig.text(0.5, -0.01,
              "Classic 'scope inflation' predicts junior YOE rising. LLM-YOE shows the opposite across all levels.  Source: eda/tables/S12_yoe_trajectory.csv",
              ha="center", fontsize=8, style="italic", color="#666")
@@ -223,7 +223,7 @@ def viz_yoe_floor():
 
 
 # ---------------------------------------------------------------------------
-# HEADLINE 4 — Vendor leaderboard (S13 / H9)
+# HEADLINE 4: vendor leaderboard
 # ---------------------------------------------------------------------------
 
 def viz_vendor_leaderboard():
@@ -241,7 +241,7 @@ def viz_vendor_leaderboard():
         axes[0].text(rate * 100 + 0.05, bar.get_y() + bar.get_height() / 2,
                      f"{rate*100:.2f}%", va="center", fontsize=9, fontweight="bold")
     axes[0].set_xlabel("share of SWE postings mentioning vendor (%)")
-    axes[0].set_title("2026-04 leaderboard — Copilot leads, Cursor emerged from zero")
+    axes[0].set_title("2026-04 leaderboard: Copilot leads, Cursor emerged from near-zero")
     axes[0].set_xlim(0, lb["rate_2026_04"].max() * 100 * 1.15)
 
     # (b) trajectory of top 5
@@ -260,7 +260,7 @@ def viz_vendor_leaderboard():
     axes[1].set_title("Top-5 vendor trajectory (Claude growth fastest)")
     axes[1].legend(loc="upper left")
 
-    fig.suptitle("HEADLINE 4 — Dev-tool labor-market leaderboard (S13, H9)")
+    fig.suptitle("Dev-tool vendor leaderboard in software-engineer postings")
     fig.text(0.5, -0.01,
              "First published vendor-share table for dev tools from labor demand. ChatGPT brand plateauing; Claude/Cursor climbing fastest. Source: eda/tables/S13_*.csv",
              ha="center", fontsize=8, style="italic", color="#666")
@@ -269,7 +269,7 @@ def viz_vendor_leaderboard():
 
 
 # ---------------------------------------------------------------------------
-# HEADLINE 5 — Big Tech AI density gap (S10 / H6)
+# HEADLINE 5: Big Tech AI density gap
 # ---------------------------------------------------------------------------
 
 def viz_bigtech_density():
@@ -306,7 +306,7 @@ def viz_bigtech_density():
     axes[1].set_title("(b) BT AI density 17pp HIGHER than rest in 2026")
     axes[1].legend()
 
-    fig.suptitle("HEADLINE 5 — Big Tech: more posting volume AND more AI density (S10, H6)")
+    fig.suptitle("Big Tech: more posting volume AND more AI language")
     fig.text(0.5, -0.01,
              "Surprising direction: BT posting share rose, not fell. Pair with named-firm layoff timing in a follow-up. Source: eda/tables/S10_core_bigtech_vs_rest.csv",
              ha="center", fontsize=8, style="italic", color="#666")
@@ -315,7 +315,7 @@ def viz_bigtech_density():
 
 
 # ---------------------------------------------------------------------------
-# DISPROVEN 1 — H1 AI-washing
+# DISPROVEN 1: AI-washing (content level)
 # ---------------------------------------------------------------------------
 
 def viz_disproven_aiwashing():
@@ -333,7 +333,7 @@ def viz_disproven_aiwashing():
     for i, v in enumerate([ctrl_delta, swe_delta]):
         ax.text(v + 0.5, i, f"+{v:.1f}pp", va="center", fontsize=12, fontweight="bold")
     ax.set_xlabel("Δ AI-vocab rate (2024-01 → 2026-04), percentage points")
-    ax.set_title("DISPROVEN — H1 AI-washing (content-level)")
+    ax.set_title("If AI were narrative cover for layoffs, software and control would move together")
     ax.text(0.5, 0.96,
             "If AI were narrative cover for layoffs, SWE and control should move TOGETHER.\n"
             f"Observed ratio: {swe_delta/ctrl_delta:.0f}× SWE-only.",
@@ -345,7 +345,7 @@ def viz_disproven_aiwashing():
 
 
 # ---------------------------------------------------------------------------
-# DISPROVEN 2 — H4 industry spread
+# DISPROVEN 2: industry spread on LinkedIn
 # ---------------------------------------------------------------------------
 
 def viz_disproven_industry_spread():
@@ -361,7 +361,7 @@ def viz_disproven_industry_spread():
                 f"{v*100:.1f}%", ha="center", fontsize=11, fontweight="bold")
 
     ax.set_ylabel("non-tech industry share of SWE postings (with labeled industry) (%)")
-    ax.set_title("DISPROVEN — H4 industry spread to non-tech on LinkedIn")
+    ax.set_title("Software jobs are not visibly spreading to non-tech industries on LinkedIn")
     ax.set_ylim(0, 70)
     ax.text(0.5, 0.94,
             "The Economist predicted SWE jobs spreading to non-tech industries (retail +12%, property +75%, construction +100%).\n"
@@ -376,7 +376,7 @@ def viz_disproven_industry_spread():
 
 
 # ---------------------------------------------------------------------------
-# DISPROVEN 3 — H5(a) junior-first automation
+# DISPROVEN 3: junior-first automation
 # ---------------------------------------------------------------------------
 
 def viz_disproven_juniorfirst():
@@ -394,7 +394,7 @@ def viz_disproven_juniorfirst():
         ax.text(b.get_x() + b.get_width()/2, v * 100 + 0.7,
                 f"{v*100:.1f}%", ha="center", fontsize=12, fontweight="bold")
     ax.set_ylabel("AI-vocab rate, 2026-04 (%)")
-    ax.set_title("DISPROVEN — H5(a) junior-first automation story")
+    ax.set_title("AI is not hitting junior engineers first")
     ax.set_ylim(0, max(sub["ai_rate"] * 100) * 1.35)
     ax.text(0.5, 0.94,
             "If automation hit juniors first (classic scope-inflation story), juniors would lead AI-vocab adoption.\n"
@@ -463,7 +463,7 @@ def viz_verdict_table():
                 color=v_color, transform=ax.transAxes)
         ax.text(0.65, y, ev, fontsize=10, color="#444", transform=ax.transAxes)
 
-    ax.set_title("Verdict table — all 13 hypotheses (v2 on unified_core.parquet)",
+    ax.set_title("Verdict table, all 13 hypotheses",
                  fontsize=13, fontweight="bold", y=0.99)
 
     # Legend
