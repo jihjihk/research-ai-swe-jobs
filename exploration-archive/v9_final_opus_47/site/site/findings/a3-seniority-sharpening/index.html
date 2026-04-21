@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#a3-seniority-boundaries-sharpened-not-blurred" class="md-skip">
+        <a href="#junior-and-senior-job-descriptions-moved-apart-between-2024-and-2026-not-together" class="md-skip">
           Skip to content
         </a>
       
@@ -131,7 +131,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -141,7 +141,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -765,10 +765,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#falsifies" class="md-nav__link">
+  <a href="#what-this-falsifies" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Falsifies
+        What this falsifies
       
     </span>
   </a>
@@ -1920,35 +1920,37 @@
 
 
 
-<h1 id="a3-seniority-boundaries-sharpened-not-blurred">A3 — Seniority boundaries sharpened, not blurred<a class="headerlink" href="#a3-seniority-boundaries-sharpened-not-blurred" title="Permanent link">&para;</a></h1>
+<h1 id="junior-and-senior-job-descriptions-moved-apart-between-2024-and-2026-not-together">Junior and senior job descriptions moved apart between 2024 and 2026, not together<a class="headerlink" href="#junior-and-senior-job-descriptions-moved-apart-between-2024-and-2026-not-together" title="Permanent link">&para;</a></h1>
 <div class="admonition quote">
 <p class="admonition-title">Claim</p>
-<p>Junior and senior SWE postings became more distinct between 2024 and 2026, under both unsupervised and supervised methods. TF-IDF junior-senior centroid cosine: 0.946 to 0.863 (diverging, delta = -0.083). Supervised AUC at the associate-to-mid-senior boundary: +0.150. Label-based and YOE-based relabeling diagnostics agree: 2026 entry postings are not 2024 senior postings. This falsifies the pre-exploration hypothesis that "junior roles were relabeled as senior."</p>
+<p>Junior and senior SWE postings became <em>more</em> distinct between 2024 and 2026, under two independent methods. On a cosine similarity score (a 0-to-1 measure of shared vocabulary between two documents; closer to 1 means more overlap) using TF-IDF weighting (which emphasises distinctive words and downweights common filler), the junior-senior similarity dropped from 0.946 to 0.863. A supervised classifier's ability to separate the two tiers — measured by area under the curve, where 0.5 is chance and 1.0 is perfect — rose by 0.150 at the cleanest boundary. Two relabeling diagnostics confirm: 2026 entry postings do not look like 2024 senior postings. This falsifies a prior hypothesis that employers were quietly relabelling junior work as senior.</p>
 </div>
 <h2 id="key-figures">Key figures<a class="headerlink" href="#key-figures" title="Permanent link">&para;</a></h2>
-<p><img alt="T20 boundary AUC comparison" src="../../figures/T20/auc_by_boundary.png" /></p>
-<p>Four boundary-level AUC pairs (entry-to-associate, associate-to-mid-senior, mid-senior-to-director, and the aggregate) comparing 2024 vs 2026. The associate-to-mid-senior bar (the cleanest signal) rises from 0.743 to 0.893.</p>
-<p><img alt="T15 TF-IDF similarity heatmap" src="../../figures/T15_similarity_heatmap_tfidf.png" /></p>
-<p>Period x seniority cosine heatmap on TF-IDF centroids. The junior-senior cross-period cells (off-diagonal) are darker than within-period cells — junior and senior postings became less similar, not more.</p>
+<p><img alt="AUC separating junior from senior, four boundaries, 2024 vs 2026" src="../../figures/T20/auc_by_boundary.png" /></p>
+<p>Four pairs of bars, one for each seniority boundary (entry-to-associate, associate-to-mid-senior, mid-senior-to-director, and the aggregate), showing how well a supervised classifier separates the two tiers in 2024 vs 2026. The associate-to-mid-senior bar — the cleanest signal — rises from 0.743 to 0.893.</p>
+<p><img alt="Cross-period cosine similarity heatmap" src="../../figures/T15_similarity_heatmap_tfidf.png" /></p>
+<p>A heatmap of cosine similarities between each seniority tier in each period. Cells comparing junior to senior across periods are darker than within-period cells, meaning junior-2026 and senior-2026 share less vocabulary than junior-2024 and senior-2024 did.</p>
 <h2 id="evidence">Evidence<a class="headerlink" href="#evidence" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>T15</strong> — TF-IDF junior-senior cosine 0.946 to 0.863; V1 replicated at 0.950 to 0.871 (delta +0.004 to +0.008 vs T15).</li>
-<li><strong>T20</strong> — supervised logistic regression AUC: entry-to-associate +0.093, associate-to-mid-senior +0.150 (cleanest signal), mid-senior-to-director -0.022 (softened, likely driven by director share moving into T34 Applied-AI cluster).</li>
-<li><strong>T20</strong> continuous YOE-by-period interaction: +0.273 items per YOE-year on requirement_breadth (p &lt; 1e-44).</li>
-<li><strong>T12</strong> — label-based AND YOE-based relabeling diagnostics agree: 2026 entry does not look like 2024 senior.</li>
+<li>Junior-senior cosine similarity on TF-IDF centroids fell from 0.946 to 0.863. A follow-up replication landed within 0.008 of that figure (0.950 to 0.871).</li>
+<li>A supervised logistic regression separating adjacent seniority tiers rose on two of three boundaries. The entry-to-associate AUC rose by 0.093. The associate-to-mid-senior AUC, the cleanest signal, rose by 0.150. The mid-senior-to-director AUC fell by 0.022. That softening is likely explained by the director-share shift into the new "applied AI" senior archetype (see <a href="../a5-archetypes/">A5</a>).</li>
+<li>Treating years of experience as a continuous signal, the interaction with period is +0.273 items per YOE-year on requirement breadth (p &lt; 1e-44). More experience in 2026 buys disproportionately more listed requirements than in 2024.</li>
+<li>Relabelling diagnostics using both the native LinkedIn seniority labels and the YOE-based definitions agree: 2026 entry postings are not sitting where 2024 senior postings used to sit.</li>
 </ul>
 <h2 id="sensitivity-verdict-strong-and-methods-convergent">Sensitivity verdict — strong and methods-convergent<a class="headerlink" href="#sensitivity-verdict-strong-and-methods-convergent" title="Permanent link">&para;</a></h2>
-<p>Two independent methods (unsupervised TF-IDF divergence + supervised AUC) agree. V2 confirmed associate-to-mid-senior AUC lift at +0.146 (vs T20 +0.150). T20 AUC sharpening survives YOE-drop sensitivity: without the YOE feature, entry-to-associate AUC rises +0.194 and associate-to-mid-senior +0.147. The sharpening is not just about YOE as a feature.</p>
-<p>V2 flagged the entry-to-associate and mid-senior-to-director boundaries as sample-thin (direction-only; power-limited).</p>
-<h2 id="falsifies">Falsifies<a class="headerlink" href="#falsifies" title="Permanent link">&para;</a></h2>
+<p>Two independent methods agree: unsupervised similarity says postings diverged; supervised classification says they got easier to tell apart. A follow-up replication reproduced the associate-to-mid-senior AUC lift at +0.146 (against the original +0.150). Removing YOE as a classifier feature entirely — to rule out the possibility that this is just a YOE story — actually strengthens the entry-to-associate lift to +0.194 and holds associate-to-mid-senior at +0.147. The sharpening is about more than YOE numbers.</p>
+<p>One caveat. The entry-to-associate and mid-senior-to-director boundaries were flagged as sample-thin; treat those as direction-only, not precisely calibrated.</p>
+<h2 id="what-this-falsifies">What this falsifies<a class="headerlink" href="#what-this-falsifies" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Pre-exploration RQ1 prior "junior roles relabeled as senior" — rejected.</li>
-<li>Pre-exploration RQ1 prior "seniority boundaries blurring" — rejected.</li>
+<li>The hypothesis that junior roles had been quietly relabelled as senior between 2024 and 2026: rejected.</li>
+<li>The hypothesis that seniority boundaries were blurring as AI compressed skill differences: rejected.</li>
 </ul>
 <h2 id="dig-deeper">Dig deeper<a class="headerlink" href="#dig-deeper" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Raw task reports: <a href="../../evidence/tasks/T15/">T15</a> (TF-IDF), <a href="../../evidence/tasks/T20/">T20</a> (supervised AUC), <a href="../../evidence/tasks/T12/">T12</a> (relabeling diagnostics).</li>
-<li>Verification: <a href="../../evidence/verifications/">V1 H2</a>.</li>
+<li>The TF-IDF similarity analysis: <a href="../../evidence/tasks/T15/">source task</a>.</li>
+<li>The supervised AUC analysis: <a href="../../evidence/tasks/T20/">source task</a>.</li>
+<li>The relabelling diagnostics: <a href="../../evidence/tasks/T12/">source task</a>.</li>
+<li>The robustness replication: <a href="../../evidence/verifications/">verification notes</a>.</li>
 </ul>
 
 

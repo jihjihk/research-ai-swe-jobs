@@ -131,7 +131,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -141,7 +141,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -1577,10 +1577,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#open-questions-for-the-analysis-phase" class="md-nav__link">
+  <a href="#open-questions-the-analysis-phase-should-take-up" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Open questions for the analysis phase
+        Open questions the analysis phase should take up
       
     </span>
   </a>
@@ -1591,7 +1591,7 @@
   <a href="#what-the-exploration-deliberately-did-not-do" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the exploration deliberately did NOT do
+        What the exploration deliberately did not do
       
     </span>
   </a>
@@ -1943,52 +1943,99 @@
 
 
 <h1 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h1>
+<p>Every study has gaps. This page lists the ones that a reader should have in mind before relying on any specific number on this site. Foundational limitations come first within each section; technical ones follow.</p>
 <h2 id="data">Data<a class="headerlink" href="#data" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Three snapshots, not a continuous panel.</strong> arshkon (2024-04), asaniczka (2024-01), scraped (2026-03+) are temporally spaced; there is no ~2025 snapshot. Event-study analyses on specific model-release dates are not feasible with current data.</li>
-<li><strong><code>posting_age_days</code> coverage is 0.9%.</strong> Posting-lifecycle / re-post behavior analysis is not supported.</li>
-<li><strong>Scraped is query-stratified.</strong> Raw SWE-share comparisons cross-period are not valid. Within-SWE share claims are safe.</li>
-<li><strong>Asaniczka has no native entry labels.</strong> Use arshkon-only for any sanity check that uses <code>seniority_native</code>.</li>
-<li><strong>Industry taxonomy drift.</strong> LinkedIn changed industry labels between 2024 and 2026. No raw-label industry-stratified claim is valid across periods without a NAICS / external crosswalk.</li>
+<li>
+<p><strong>The study has three snapshots, not a continuous time series.</strong> The three datasets are the 2024 asaniczka release (January 2024), the 2024 arshkon release (April 2024), and our 2026 scrape (March-April 2026). There is no 2025 snapshot in between. This means no event study can be run on any specific model release date. The two-year gap spans roughly eight major model launches, and the data cannot separate their effects.</p>
+</li>
+<li>
+<p><strong>The 2024 asaniczka dataset has no native entry-level labels.</strong> LinkedIn's own "entry" tag was stripped before the dataset was published. Any claim that uses LinkedIn's native seniority labels has to fall back to arshkon alone (which is four times smaller). This is the single biggest reason the study uses years-of-experience floors as its primary seniority definitions.</p>
+</li>
+<li>
+<p><strong>The 2026 scrape is query-stratified.</strong> It was built by searching for specific roles rather than sweeping every posting on LinkedIn. Claims about <em>shares within</em> software engineering (the share of postings asking for 2+ years, say) are valid. Claims about software engineering as a share of <em>all jobs</em> on the platform are not.</p>
+</li>
+<li>
+<p><strong>Posting-age information is almost entirely missing.</strong> Fewer than 1% of rows carry a usable posting-age field, which rules out any analysis of how long postings stay up or how often they get re-listed.</p>
+</li>
+<li>
+<p><strong>LinkedIn's industry taxonomy changed between 2024 and 2026.</strong> Industry labels cannot be compared across periods without an external crosswalk to a stable classification like NAICS. No cross-period claim stratified by raw industry label is valid.</p>
+</li>
 </ol>
 <h2 id="classification">Classification<a class="headerlink" href="#classification" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Control-occupation definition sensitivity.</strong> V2 tested four alt definitions; all held. Analysis-phase should pre-register a narrower or wider set.</li>
-<li><strong>ML Engineer cross-source gap</strong> (T04): arshkon 78% SWE vs asaniczka 59%. Source stratification needed.</li>
-<li><strong>Director cell accuracy is 22 to 27%</strong> (T03). Do not use S2 (director-only, &lt;1% of SWE) as a primary.</li>
-<li><strong>LLM seniority abstains on 34 to 53% of SWE rows.</strong> This is by design (explicit-signal-only), but creates a large <code>'unknown'</code> pool.</li>
+<li>
+<p><strong>The control-occupation set is a judgement call.</strong> The study tested four alternative definitions of "non-tech control occupations" and the headline results hold under all four, but an analysis-phase paper should pre-register a specific wider or narrower set before running the test again.</p>
+</li>
+<li>
+<p><strong>ML Engineer roles are classified inconsistently across sources.</strong> The software-engineering classifier flags 78% of ML-engineer postings in the arshkon dataset but only 59% in asaniczka, likely because of different title conventions. Any ML-specific claim must stratify by source.</p>
+</li>
+<li>
+<p><strong>The director cell is too small and too noisy to carry claims on its own.</strong> The LLM's label precision on director-level postings is only 22 to 27%, and directors are less than 1% of the corpus to begin with. The study uses the director code diagnostically only, never as a primary signal.</p>
+</li>
+<li>
+<p><strong>The language-model seniority classifier abstains on 34 to 53% of software-engineering rows.</strong> This is by design, not a defect: the prompt explicitly tells the model to return "unknown" on unclear cases rather than guess. But it leaves a large pool of rows with no LLM seniority label, and analyses that need a label for every row have to use the rule-based fallback.</p>
+</li>
 </ol>
 <h2 id="method">Method<a class="headerlink" href="#method" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>T31 pair-count range-reportable.</strong> V2 could not reproduce the n=23 arshkon_min3 filter exactly; replicates produce n=37 at +9.98 pp (relaxed) or n=12 at +13.3 pp (strict arshkon-only). Direction robust; magnitude range-report.</li>
-<li><strong>T16 + T23 pattern-provenance mismatch.</strong> Report-text claims v1_rebuilt pattern; code used top-level ai_strict. Under v1_rebuilt magnitudes drop 10 to 15%; direction unchanged.</li>
-<li><strong>T36 disappearing-titles list is thin</strong> (n=2 to 11). Legacy-substitution finding is small-sample; cite as qualified negative.</li>
-<li><strong>T34 cluster 1 heterogeneity.</strong> Visibly bundles data-engineering + DevOps/SRE + AI-lab data-contract work. A k=6 or k=7 clustering would likely split this. Silhouette 0.477 is mid-range.</li>
-<li><strong>Requirements-section direction classifier-sensitive.</strong> T13 + T33 dual-classifier opposite signs at aggregate. Cite as flagged; prefer LLM-adjudicated section classifier for analysis-phase.</li>
+<li>
+<p><strong>The same-title pair panel's exact row count could not be reproduced.</strong> The original analysis reports 23 same-firm same-title pairs under specific filter settings; a follow-up replication under a relaxed filter produces 37 pairs (+9.98 percentage points AI rewriting), and under strict arshkon-only filtering produces 12 pairs (+13.3 pp). The direction is the same across all three; the magnitude is reported as a range of +10 to +13 pp.</p>
+</li>
+<li>
+<p><strong>The within-company AI rewriting finding has a pattern-provenance caveat.</strong> The report text claims to use the audited "v1_rebuilt" version of the AI-mention pattern, but the code actually runs the top-level pattern. Under the v1_rebuilt pattern the magnitudes drop by 10 to 15%. Direction is unchanged.</p>
+</li>
+<li>
+<p><strong>The "disappearing titles" list is small-sample.</strong> Only 2 to 11 titles dropped enough between periods to qualify, depending on the threshold. The legacy-substitution claim (new titles replacing old) is cited only as a qualified negative.</p>
+</li>
+<li>
+<p><strong>The largest archetype cluster is heterogeneous.</strong> A topic-modelling pass at six clusters bundles data-engineering, DevOps/SRE, and AI-lab data-contract work into one cell. A seven- or eight-cluster solution would likely split this. The cluster-quality score (silhouette 0.477 on a -1 to +1 scale) is mid-range, not clean separation.</p>
+</li>
+<li>
+<p><strong>The requirements-section direction flips depending on which classifier you use.</strong> Two different sentence-level classifiers that split postings into "requirements" versus "narrative" give opposite aggregate signs on whether the requirements share shrank. The site cites this as flagged; an analysis-phase paper should prefer the LLM-adjudicated classifier.</p>
+</li>
 </ol>
 <h2 id="llm-tooling">LLM tooling<a class="headerlink" href="#llm-tooling" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Scraped 2026 LLM coverage 56.9%.</strong> 43% <code>not_selected</code>; text-sensitive analyses must split or restrict.</li>
-<li><strong>Recruiter-LLM authorship is present but not dominant</strong> (T29). Length growth is ~52% LLM-mediated; content effects 80 to 130% preserved on low-LLM subset. Senior-subset-specific test deferred (H_J).</li>
+<li>
+<p><strong>Coverage on the 2026 scrape is 56.9%.</strong> Forty-three percent of 2026 postings were not routed to the LLM (the run was budget-capped). Any claim that reads the LLM's output on the 2026 data must either restrict to the labeled subset or report the labeled-versus-unlabeled split.</p>
+</li>
+<li>
+<p><strong>Recruiter-side LLM writing is present in the corpus but does not dominate the findings.</strong> A diagnostic that flags postings likely written with LLM assistance shows that roughly 52% of the 2024-to-2026 length growth is LLM-mediated, but 80 to 130% of the content effects (AI mentions, scope terms, credential counts) persist even on the quartile of postings least likely to be LLM-authored. A more targeted test for whether the effect is senior-specific is deferred to a future phase.</p>
+</li>
 </ol>
 <h2 id="benchmarks">Benchmarks<a class="headerlink" href="#benchmarks" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Worker-AI benchmark vintage.</strong> T32 benchmarks are 2024 vintage; 2025 / 2026 vintages will show higher worker rates and widened gap.</li>
-<li><strong>Benchmark heterogeneity.</strong> SO vs DORA vs Anthropic use different "AI use" definitions. T32 reports under 4 bands; direction universally positive; magnitude varies.</li>
+<li>
+<p><strong>The worker-side AI-use benchmarks are 2024 vintage.</strong> The employer-versus-worker divergence is computed against 2024 survey numbers. Later 2025 and 2026 vintages will show higher worker-side AI use and therefore a wider gap; the study's reported gap should be read as a 2024-benchmark-date estimate.</p>
+</li>
+<li>
+<p><strong>Worker-side benchmarks use different definitions.</strong> The three sources the study triangulates against (Stack Overflow, DORA, Anthropic) each define "AI use at work" differently. The study reports across four definitional bands; the direction is positive under all four, but the magnitude varies with the definition.</p>
+</li>
 </ol>
-<h2 id="open-questions-for-the-analysis-phase">Open questions for the analysis phase<a class="headerlink" href="#open-questions-for-the-analysis-phase" title="Permanent link">&para;</a></h2>
+<h2 id="open-questions-the-analysis-phase-should-take-up">Open questions the analysis phase should take up<a class="headerlink" href="#open-questions-the-analysis-phase-should-take-up" title="Permanent link">&para;</a></h2>
+<p>Four questions the exploration surfaced but could not answer without data it did not have:</p>
 <ol>
-<li>Digital-maturity × AI-rewriting (H_O) — requires external firm-maturity data.</li>
-<li>Financial-services-specific Applied-AI concentration (H_P) — requires regulatory-context informant data.</li>
-<li>J3 hedging-near-AI formal quantification (H_Q) — data exists; formal test deferred.</li>
-<li>Senior-IC as team-multiplier (H_D) — requires external hiring-panel data.</li>
+<li>
+<p><strong>Does within-firm AI rewriting correlate with firm-level digital maturity?</strong> Requires external firm-maturity data the study did not collect.</p>
+</li>
+<li>
+<p><strong>Is the concentration of "applied AI" senior roles in financial services real?</strong> Seventeen percent of the main applied-AI cluster is financial services, which is plausibly driven by regulatory-AI adoption, but this needs regulatory-context interviews the study did not conduct.</p>
+</li>
+<li>
+<p><strong>Are junior postings specifically hedging their AI asks (requiring some AI exposure but not committing)?</strong> The data supports a qualitative read; a formal test is deferred to a later phase.</p>
+</li>
+<li>
+<p><strong>Are senior individual contributors being asked to act as team multipliers?</strong> Requires external hiring-panel data the study did not have.</p>
+</li>
 </ol>
-<h2 id="what-the-exploration-deliberately-did-not-do">What the exploration deliberately did NOT do<a class="headerlink" href="#what-the-exploration-deliberately-did-not-do" title="Permanent link">&para;</a></h2>
+<h2 id="what-the-exploration-deliberately-did-not-do">What the exploration deliberately did not do<a class="headerlink" href="#what-the-exploration-deliberately-did-not-do" title="Permanent link">&para;</a></h2>
+<p>The study is scoped to pattern-finding, not causal testing. Specifically:</p>
 <ul>
-<li><strong>No new analysis in Wave 5.</strong> The site packages what exists; no new statistical claims are introduced.</li>
-<li><strong>No interview data collection.</strong> RQ4 interviews are an analysis-phase activity. T25 ships 9 interview artifacts but no transcripts.</li>
-<li><strong>No formal hypothesis testing at pre-registered alpha.</strong> Exploration-phase findings are descriptive and patterning-oriented; analysis-phase will pre-register tests for the deferred hypotheses.</li>
-<li><strong>No causal claims.</strong> T29 + T33 + T38 computationally pre-clear three alt mechanisms, but the positive within-firm rewriting story awaits interview mechanism elicitation (RQ4).</li>
+<li>No new analysis was added in the final packaging phase. The site reports what the exploration already produced; no new statistical claims were introduced to fill gaps.</li>
+<li>No worker interviews were conducted. Interview artifacts exist as outputs (discussion guides, exemplar postings), but no transcripts were collected.</li>
+<li>No hypothesis was tested at a pre-registered significance level. Findings are descriptive and patterning-oriented. An analysis phase would pre-register tests for the four deferred questions above.</li>
+<li>No causal claim is made. Three alternative explanations for the main finding (that language models are writing the postings; that firms are lowering their hiring bars; that firms are becoming more selective) were ruled out at the quantitative level, but the positive causal story (that firms are genuinely restructuring work) awaits interview evidence to close the loop.</li>
 </ul>
 
 

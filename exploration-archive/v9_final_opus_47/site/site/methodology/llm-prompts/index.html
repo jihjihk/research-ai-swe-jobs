@@ -131,7 +131,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -141,7 +141,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -1410,15 +1410,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#stage-10-classification-classification_prompt_template" class="md-nav__link">
+  <a href="#stage-10-classification" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Stage 10 — Classification (CLASSIFICATION_PROMPT_TEMPLATE)
+        Stage 10: classification
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Stage 10 — Classification (CLASSIFICATION_PROMPT_TEMPLATE)">
+    <nav class="md-nav" aria-label="Stage 10: classification">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1433,10 +1433,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#seniority-design-note" class="md-nav__link">
+  <a href="#a-note-on-the-seniority-design" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Seniority design note
+        A note on the seniority design
       
     </span>
   </a>
@@ -1449,15 +1449,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stage-9-extraction-extraction_prompt_template" class="md-nav__link">
+  <a href="#stage-9-boilerplate-extraction" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Stage 9 — Extraction (EXTRACTION_PROMPT_TEMPLATE)
+        Stage 9: boilerplate extraction
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Stage 9 — Extraction (EXTRACTION_PROMPT_TEMPLATE)">
+    <nav class="md-nav" aria-label="Stage 9: boilerplate extraction">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1465,17 +1465,6 @@
     <span class="md-ellipsis">
       
         What extraction produces
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#hard-skip-descriptions-under-15-words-are-not-routed-to-extraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hard-skip: descriptions under 15 words are not routed to extraction.
       
     </span>
   </a>
@@ -1510,10 +1499,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#coverage-caveats-repeated-here-for-convenience" class="md-nav__link">
+  <a href="#coverage-caveats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Coverage caveats (repeated here for convenience)
+        Coverage caveats
       
     </span>
   </a>
@@ -1977,9 +1966,11 @@
 
 
 <h1 id="llm-prompts">LLM prompts<a class="headerlink" href="#llm-prompts" title="Permanent link">&para;</a></h1>
-<p>Two LLM tasks run in Stages 9 and 10. Every LLM-derived column traces to one of these prompts. Prompts are versioned by SHA-256 content hash; any text change forces a cache-key change and re-resolution.</p>
-<h2 id="stage-10-classification-classification_prompt_template">Stage 10 — Classification (<code>CLASSIFICATION_PROMPT_TEMPLATE</code>)<a class="headerlink" href="#stage-10-classification-classification_prompt_template" title="Permanent link">&para;</a></h2>
-<p>Produces four columns: <code>swe_classification_llm</code>, <code>seniority_final</code> (when LLM routed), <code>ghost_assessment_llm</code>, <code>yoe_min_years_llm</code>.</p>
+<p>This page shows the exact text sent to the language model for every LLM-mediated step in the preprocessing pipeline. Nothing here has been paraphrased or summarized. Each block below is what the model actually reads when it classifies or cleans a posting.</p>
+<p>Two tasks use the language model: <strong>classification</strong> (stage 10) and <strong>boilerplate extraction</strong> (stage 9). Each task has a single prompt template; every field the model writes to in the dataset traces to one of the two templates below.</p>
+<p>Every prompt is versioned by a SHA-256 hash of its content. Changing any character of a prompt changes the hash, which in turn changes the cache key, forcing every posting to be re-routed under the new version rather than served from the stale cache.</p>
+<h2 id="stage-10-classification">Stage 10: classification<a class="headerlink" href="#stage-10-classification" title="Permanent link">&para;</a></h2>
+<p>The classification prompt performs four tasks in a single call: it decides whether the posting is a software-engineering role, assigns a seniority band, rates whether the posting looks like a genuine open position, and extracts a years-of-experience floor from the text. The four outputs feed four separate columns in the dataset (<code>swe_classification_llm</code>, <code>seniority_final</code> when the LLM-routed path is taken, <code>ghost_assessment_llm</code>, and <code>yoe_min_years_llm</code>).</p>
 <p>Source: <code>preprocessing/scripts/llm_shared.py</code>, line 52.</p>
 <details class="note">
 <summary>Full prompt text (click to expand)</summary>
@@ -2102,10 +2093,12 @@
 </tr>
 </tbody>
 </table>
-<h3 id="seniority-design-note">Seniority design note<a class="headerlink" href="#seniority-design-note" title="Permanent link">&para;</a></h3>
-<p>The prompt explicitly tells the LLM not to infer seniority from responsibilities, tech stack, team size, or YOE. This is by design: the research analyzes how requirements differ by seniority level, so the seniority label must not be derived from the signals being analyzed. A consequence is that the LLM returns <code>'unknown'</code> on 34 to 53% of SWE rows it is called on — this is correct behavior, not a defect. T03 audited and confirmed it.</p>
-<h2 id="stage-9-extraction-extraction_prompt_template">Stage 9 — Extraction (<code>EXTRACTION_PROMPT_TEMPLATE</code>)<a class="headerlink" href="#stage-9-extraction-extraction_prompt_template" title="Permanent link">&para;</a></h2>
-<p>Produces <code>description_core_llm</code> — the only cleaned-text column in the pipeline. Descriptions are segmented into numbered sentence units; the LLM returns IDs of units to DROP.</p>
+<h3 id="a-note-on-the-seniority-design">A note on the seniority design<a class="headerlink" href="#a-note-on-the-seniority-design" title="Permanent link">&para;</a></h3>
+<p>The seniority task in the prompt above explicitly tells the model <em>not</em> to infer seniority from responsibilities, tech stack, team size, or years of experience. This is deliberate. The study analyzes how requirements and responsibilities differ by seniority level; if the seniority label were itself derived from requirements or responsibilities, the finding "requirements differ by seniority" would collapse into a tautology.</p>
+<p>The consequence is that the model returns "unknown" on 34 to 53% of software-engineering rows. This is correct behavior, not a defect. The model is refusing to guess when the posting does not give it an explicit title-level or career-stage signal. An audit confirmed the abstentions are genuinely ambiguous cases, not the model failing to classify clear ones.</p>
+<h2 id="stage-9-boilerplate-extraction">Stage 9: boilerplate extraction<a class="headerlink" href="#stage-9-boilerplate-extraction" title="Permanent link">&para;</a></h2>
+<p>The extraction prompt takes a posting description and returns the unit IDs that should be dropped from it: things like company-overview language, benefits text, EEO disclaimers, and application-process paragraphs. What is left after the drops is the cleaned description used in every text-sensitive analysis.</p>
+<p>The description is pre-segmented into numbered sentence-level units before the prompt runs; the model reads those numbered units and returns a JSON list of IDs to discard. Descriptions under 15 words are not routed at all.</p>
 <p>Source: <code>preprocessing/scripts/llm_shared.py</code>, line 138.</p>
 <details class="note">
 <summary>Full prompt text (click to expand)</summary>
@@ -2185,8 +2178,9 @@
 </tr>
 </tbody>
 </table>
-<h3 id="hard-skip-descriptions-under-15-words-are-not-routed-to-extraction">Hard-skip: descriptions under 15 words are not routed to extraction.<a class="headerlink" href="#hard-skip-descriptions-under-15-words-are-not-routed-to-extraction" title="Permanent link">&para;</a></h3>
+<p>Descriptions under 15 words are hard-skipped and never routed to the extraction prompt.</p>
 <h2 id="engine-configuration">Engine configuration<a class="headerlink" href="#engine-configuration" title="Permanent link">&para;</a></h2>
+<p>The study used three language-model providers, with Codex as the default and the others enabled for subsets of the run when Codex was rate-limited:</p>
 <table>
 <thead>
 <tr>
@@ -2213,18 +2207,20 @@
 </tr>
 </tbody>
 </table>
-<p>Models are pinned in code. Claude and OpenAI were enabled for subsets of the run to accelerate coverage during quota pauses on Codex.</p>
+<p>Model identifiers are pinned in code, not passed at call time. Claude and OpenAI were enabled for subsets of the run to accelerate coverage during quota pauses on the default engine.</p>
 <h2 id="prompt-versioning">Prompt versioning<a class="headerlink" href="#prompt-versioning" title="Permanent link">&para;</a></h2>
+<p>Prompt versions are content hashes, computed at import time:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">CLASSIFICATION_PROMPT_VERSION</span> <span class="o">=</span> <span class="n">sha256</span><span class="p">(</span><span class="n">CLASSIFICATION_PROMPT_TEMPLATE</span><span class="p">)</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">EXTRACTION_PROMPT_VERSION</span>     <span class="o">=</span> <span class="n">sha256</span><span class="p">(</span><span class="n">EXTRACTION_PROMPT_TEMPLATE</span><span class="p">)</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">PROMPT_BUNDLE_VERSION</span>         <span class="o">=</span> <span class="n">sha256</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">CLASSIFICATION_PROMPT_VERSION</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">EXTRACTION_PROMPT_VERSION</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div>
-<p>Cache key is <code>(input_hash, task_name, prompt_version)</code> — any text change forces re-resolution.</p>
-<h2 id="coverage-caveats-repeated-here-for-convenience">Coverage caveats (repeated here for convenience)<a class="headerlink" href="#coverage-caveats-repeated-here-for-convenience" title="Permanent link">&para;</a></h2>
+<p>The cache key is <code>(input_hash, task_name, prompt_version)</code>. Any edit to the prompt text (including whitespace) changes the hash and forces every row to be re-resolved under the new version. Cached results from the previous version remain on disk but are no longer served.</p>
+<h2 id="coverage-caveats">Coverage caveats<a class="headerlink" href="#coverage-caveats" title="Permanent link">&para;</a></h2>
+<p>Restating the points in <a href="../preprocessing/">preprocessing</a> that matter for reading LLM-derived columns:</p>
 <ul>
-<li>Scraped 2026 coverage on Stage 10 classification: 56.9% labeled, 43.0% <code>not_selected</code>, 0.02% <code>deferred</code>.</li>
-<li>T29 shows content deltas persist at 80 to 130% on the low-LLM-quartile subset, so LLM-authorship is not a dominant mediator of content claims.</li>
-<li><code>seniority_final</code> is always populated (from rule or LLM or <code>'unknown'</code>) and should be used directly without coverage filtering. Other LLM columns (<code>swe_classification_llm</code>, <code>ghost_assessment_llm</code>, <code>yoe_min_years_llm</code>, <code>description_core_llm</code>) must be coverage-filtered.</li>
+<li>On the 2026 scrape, the classification prompt labeled 56.9% of postings; 43.0% were not selected for routing (budget-capped) and 0.02% were deferred.</li>
+<li>The re-test on postings least likely to be LLM-authored shows that 80 to 130% of content deltas persist, so recruiter-side LLM writing is not a dominant mediator of the study's content findings.</li>
+<li>The <code>seniority_final</code> column is always populated (rule-based, LLM-based, or "unknown") and can be used directly without a coverage filter. Every other LLM-derived column (<code>swe_classification_llm</code>, <code>ghost_assessment_llm</code>, <code>yoe_min_years_llm</code>, <code>description_core_llm</code>) must be coverage-filtered before use.</li>
 </ul>
 
 

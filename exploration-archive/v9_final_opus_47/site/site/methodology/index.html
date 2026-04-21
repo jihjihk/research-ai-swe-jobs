@@ -131,7 +131,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -141,7 +141,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -1326,17 +1326,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#pages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pages
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#principle" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1888,19 +1877,19 @@
 
 
 <h1 id="methodology">Methodology<a class="headerlink" href="#methodology" title="Permanent link">&para;</a></h1>
-<p>This tab answers "should I trust this?" Each page below covers one aspect of how the exploration produced its evidence.</p>
-<h2 id="pages">Pages<a class="headerlink" href="#pages" title="Permanent link">&para;</a></h2>
+<p>This section answers a single question: should you trust the numbers on this site?</p>
+<p>A reader landing here cold should start with <strong><a href="data/">Data sources and samples</a></strong>. That page names the three datasets the study rests on (two public Kaggle releases of LinkedIn postings from 2024, and a fresh 2026 scrape), defines the seven slices of those datasets that individual findings lean on, and sets out what each slice can and cannot support. Most other pages on this site refer back to it.</p>
+<p>After that, the rest of the methodology pages can be read in any order:</p>
 <ul>
-<li><strong><a href="data/">Data sources and samples</a></strong> — the three LinkedIn panels, the default filter, and the seven analytical samples used across task reports.</li>
-<li><strong><a href="preprocessing/">Preprocessing pipeline</a></strong> — eight rule-based stages plus two LLM stages, producing <code>unified_core.parquet</code>.</li>
-<li><strong><a href="llm-prompts/">LLM prompts</a></strong> — the exact prompts used for Stage 9 extraction and Stage 10 classification, plus the coverage caveats.</li>
-<li><strong><a href="sensitivity/">Sensitivity framework</a></strong> — the 9 dimensions (a through i), the within-2024 SNR calibration, and the T30 multi-operationalization seniority panel.</li>
-<li><strong><a href="pattern-validation/">Pattern validation</a></strong> — the protocol V1 piloted and T22 generalized, including the 7 primary patterns now in <code>validated_mgmt_patterns.json</code>.</li>
-<li><strong><a href="claim-scope/">What the paper can claim</a></strong> — per-RQ safe-vs-unsafe claim inventory.</li>
-<li><strong><a href="limitations/">Limitations</a></strong> — the known weak spots, organized for the analysis phase.</li>
+<li><strong><a href="preprocessing/">Preprocessing pipeline</a></strong>: how the three raw datasets become one analysis-ready table. Eight deterministic cleaning stages, then two stages that send postings to a language model for classification and text cleanup.</li>
+<li><strong><a href="llm-prompts/">LLM prompts</a></strong>: the exact text sent to the language model, for anyone who wants to audit what the model was asked to do.</li>
+<li><strong><a href="sensitivity/">Sensitivity framework</a></strong>: nine different ways the study stress-tested each headline claim, and the results of those tests. Includes a signal-to-noise calibration built by comparing the two 2024 datasets against each other.</li>
+<li><strong><a href="pattern-validation/">Pattern validation</a></strong>: why the study does not trust a regex just because it matches. Every pattern used in a published claim was hand-audited on a 50-posting sample for semantic (not just token-level) precision.</li>
+<li><strong><a href="claim-scope/">What the paper can claim</a></strong>: a plain inventory of which claims the evidence supports, which need caveats, and which the data cannot support.</li>
+<li><strong><a href="limitations/">Limitations</a></strong>: the known weak spots, grouped by whether they concern the data, the classifiers, the methods, or the external benchmarks.</li>
 </ul>
 <h2 id="principle">Principle<a class="headerlink" href="#principle" title="Permanent link">&para;</a></h2>
-<p>Every claim the site makes cites a task report or a verification report. The task reports are reproducible by running the scripts in <code>exploration/scripts/</code> against <code>data/unified.parquet</code>. Where a claim is flagged (D1-D5, V1/V2 flags), the flag is called out inline on the relevant finding page.</p>
+<p>Every claim on this site traces back to a specific analysis and a specific robustness check. Where a claim has a known weakness, the weakness is called out in the same place the claim appears, not hidden at the bottom of a page. The analysis code and underlying tables are reproducible from the repository.</p>
 
 
 
