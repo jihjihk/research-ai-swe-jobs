@@ -167,6 +167,8 @@ Questions to cover:
 - Has senior work shifted away from mentoring or coordination?
 - Has review, orchestration, architecture, or evaluation become more central?
 - Has the team changed what it expects from a "senior engineer"?
+- Has your organization flattened levels, collapsed manager/IC tracks, or widened management spans in the last two years?
+- If management language has dropped out of senior JDs, is that because the work changed (AI leverage) or because the org chart changed (delayering), or both?
 
 ### Module 5: JD authorship and screening
 
@@ -199,7 +201,9 @@ Prepare a small but sharp set of artifacts.
 | Inflated junior JD | Real entry-level posting with system design, CI/CD, AI-tool, ownership language | All cohorts | Test scope inflation |
 | Paired JDs over time | Similar role from 2023-2024 vs. 2026 | Seniors, hiring-side | Make change concrete |
 | Junior-share trend plot | Junior SWE share over time | Seniors, hiring-side | Compare perceived timing to data |
+| Anthropic young-worker finding | Massenkoff and McCrory's ~14% drop in job-finding rates for 22-25 year olds in high-exposure occupations | All cohorts, especially juniors and hiring-side | Probe whether the worker-side slowdown matches their experience of the hiring bar |
 | Senior archetype chart | Management vs. orchestration language over time | Seniors, hiring-side | Validate senior shift |
+| Span-of-control / delayering artifact | Gallup 10.9 → 12.1 direct-reports trend + a public delayering example (Amazon program, Meta 50:1 ratio) | Seniors, hiring-side | Separate AI-leverage from org flattening as drivers of the senior shift |
 | Posting-usage divergence chart | Posting AI mention rate vs. observed AI usage benchmark | All cohorts | Probe anticipatory restructuring |
 
 Protocol rule:
@@ -251,6 +255,7 @@ Reflexive thematic analysis with hybrid deductive and inductive coding.
 - `screened_vs_unscreened_requirement`
 - `actual_ai_workflow_change`
 - `anticipatory_restructuring`
+- `org_delayering`
 - `market_tightness_non_ai`
 - `career_ladder_breakdown`
 - `zeitgeist_anxiety`
@@ -267,6 +272,7 @@ Examples:
 | Junior bar | "AI handles the basics" | "They want senior output for junior pay" | "We can be pickier in this market" |
 | AI requirement | "Useful but not central" | "Feels mandatory to signal fluency" | "Sometimes added because leadership expects it" |
 | Senior shift | "More review and architecture" | "Seniors feel less available to mentor" | "We need leverage, not headcount" |
+| Delayering | "My skip-level disappeared" | "There is no one above my manager anymore" | "We removed a layer; spans went up" |
 | Ghost requirements | "Nice to have" | "Looks impossible" | "Some bullets are template-driven" |
 
 ### Integration with quantitative analysis
@@ -311,7 +317,7 @@ The post-interview memo step is important. It captures context and hypotheses th
 | Quant construct | What interviews test |
 |---|---|
 | Junior scope inflation | Whether inflated junior requirements are perceived as real and why they appeared |
-| Senior archetype shift | Whether senior work truly shifted toward orchestration, review, and architecture |
+| Senior archetype shift | Whether senior work truly shifted toward orchestration, review, and architecture — and whether any decline in management language reflects AI-enabled leverage, org delayering, or both |
 | Posting-usage divergence | Whether AI mentions reflect actual use or anticipatory signaling |
 | Ghost requirements | Whether listed requirements are screened, copied, defensive, or aspirational |
 | Break analysis | Whether practitioners remember a sudden shift, a gradual shift, or no meaningful break |

@@ -32,7 +32,9 @@ Eloundou, Tyna, Sam Manning, Pamela Mishkin, and Daniel Rock, "GPTs Are GPTs: An
 
 Handa, Kunal, Alex Tamkin, Miles McCain, Saffron Huang, Esin Durmus, Sarah Heck, Jared Mueller, Jerry Hong, Stuart Ritchie, Tim Belonax, Kevin K. Troy, Dario Amodei, Jared Kaplan, Jack Clark, and Deep Ganguli, "Which Economic Tasks are Performed with AI? Evidence from Millions of Claude Conversations," 2025.
 
-Appel, Ruth, Maxim Massenkoff, Peter McCrory, Miles McCain, Ryan Heller, Tyler Neylon, and Alex Tamkin, "Anthropic Economic Index Report: Economic Primitives," 2026.
+Appel, Ruth, Maxim Massenkoff, Peter McCrory, Miles McCain, Ryan Heller, Tyler Neylon, and Alex Tamkin, "Anthropic Economic Index Report: Economic Primitives," January 2026. https://www.anthropic.com/research/anthropic-economic-index-january-2026-report
+
+Massenkoff, Maxim and Peter McCrory, "Labor Market Impacts of AI: A New Measure and Early Evidence," Anthropic, March 2026. https://www.anthropic.com/research/labor-market-impacts
 
 Tamkin, Alex and Peter McCrory, "Estimating AI Productivity Gains from Claude Conversations," 2025.
 
@@ -75,3 +77,13 @@ Akanegbu, A., "(404) Job Not Found: What Workforce Training Can't Fix for Black 
 Chandar, B., "AI and Labor Markets: What We Know and Don't Know," Stanford Digital Economy Lab, 2025.
 
 Challapally, A., Pease, C., Raskar, R., and Chari, P., "The GenAI Divide: State of AI in Business 2025 Report," MIT NANDA, 2025.
+
+## Industry and grey literature
+
+These are contemporaneous industry sources used as corroborating evidence, not primary measurement. They are cited where the underlying observation is relevant and the source is the earliest or clearest articulation; academic replacements are preferred once available.
+
+Gallup, "Span of Control: What's the Optimal Team Size for Managers?" Gallup Workplace, 2026. Sample sizes `n=4,355` (2024) and `n=8,795` (2025); reports average direct reports per manager at `10.9` in 2024 and `12.1` in 2025, with median team size stable at 5-6 and the mean increase driven by a rise in teams of 25 or more. https://www.gallup.com/workplace/700718/span-control-optimal-team-size-managers.aspx
+
+Musa, Zuhayeer, "Companies aren't just laying people off — they're restructuring org charts," LinkedIn post, Levels.fyi, 2026. Industry articulation of tech-sector delayering (compressing from seven-to-eight levels toward five), citing Amazon and Meta as examples. https://www.linkedin.com/posts/zuhayeer_companies-arent-just-laying-people-off-due-activity-7440136301531705344-7Ngq/
+
+Rachitsky, Lenny, "State of the Product Job Market in 2026," Lenny's Newsletter, March 24, 2026. TrueUp-sourced aggregate hiring volumes: 7,300+ open PM roles globally (up 75% from early-2023 lows) and 67,000+ open engineering roles as of March 2026. Useful for framing aggregate demand as healthy despite compositional shifts. https://www.lennysnewsletter.com/p/state-of-the-product-job-market-in-ee9

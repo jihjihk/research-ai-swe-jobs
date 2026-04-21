@@ -57,7 +57,7 @@ Verified against official conference pages on 2026-03-20. Two publishable output
 
 | Priority | Venue | Why | Deadline |
 |----------|-------|-----|----------|
-| 1 | AEA/ASSA 2027 | Maximum visibility in labor econ | Apr 1, 2026 |
+| 1 | AEA/ASSA 2027 | Maximum visibility in labor econ; positions as the employer-side, posting-content complement to Massenkoff and McCrory (2026) worker-side exposure and young-hire evidence | Apr 1, 2026 |
 | 2 | SEA 2026 | Strong labor-econ backup and same-day deadline as AEA | Apr 1, 2026 |
 | 3 | ESEM 2026 Technical Track | Best near-term fit if you want an empirical software engineering audience | Apr 29, 2026 |
 | 4 | AIES 2026 | Non-archival option; societal impact framing | May 21, 2026 |

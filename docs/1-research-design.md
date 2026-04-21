@@ -38,7 +38,7 @@ This project is not:
 
 - Daily-scraped SWE postings across 26 US metros from LinkedIn, Indeed, and YC
 - Historical LinkedIn benchmark data from Kaggle / Hugging Face for 2023-2024
-- Public Anthropic occupation-level AI usage / exposure benchmarks
+- Public Anthropic Economic Index usage data (Handa et al. 2025; Appel et al. 2026) and the `observed exposure` measure from Massenkoff and McCrory (2026), which combines O\*NET tasks, Eloundou et al. feasibility scores, and Claude usage
 - Public Revelio aggregate labor statistics
 - Qualitative interviews we can field ourselves
 
@@ -120,6 +120,8 @@ Candidate indicators:
 - rise in orchestration / review / agent / evaluation language
 - shifts in skill and task bundles within senior postings
 
+A decline in management language is consistent with two different forces: AI-enabled leverage moving senior work toward review and orchestration, and structural delayering that compresses the management rung independent of AI (Gallup's 2026 span-of-control data shows average direct reports rising from `10.9` to `12.1` between 2024 and 2025). The posting text alone cannot separate these. The quantitative analysis should report the decline without attributing it solely to AI, and the interview study is responsible for disentangling which mechanism is operating where.
+
 ### Posting-usage divergence
 
 The gap between employer-side AI requirements and observed AI usage in comparable occupation groups.
@@ -172,11 +174,14 @@ The design should not assume one universal `Post-agent` date. The point is wheth
 
 ### 4. Comparative benchmarking, not overclaimed DiD
 
-Brynjolfsson et al., Acemoglu et al., and Hampole et al. provide useful external benchmarks:
+Brynjolfsson et al., Acemoglu et al., Hampole et al., and Massenkoff and McCrory (2026) provide useful external benchmarks:
 
 - payroll employment by age group
 - online vacancy composition
 - task exposure and labor-demand effects
+- worker-side `observed exposure` and young-worker job-finding rates
+
+The Massenkoff and McCrory finding — a roughly `14%` drop in job-finding rates for 22-25 year olds in high-exposure occupations post-ChatGPT, without a matching aggregate unemployment rise — is especially useful as a downstream benchmark. Their worker-side signal and our employer-side posting-content signal are measuring different parts of the same phenomenon, and the paper should present the two as complementary rather than competing.
 
 We should compare our findings to theirs, but not present our employer-side vacancy design as a direct replication of their employment or firm-level estimates.
 
@@ -236,6 +241,7 @@ The hiring-side cohort is essential here. Protocol details live in `docs/2-inter
 | Seniority is noisy | Titles are inflated | Use title + content classifier, then validate manually |
 | AI keywords are noisy | Mention does not equal actual work | Build validated dictionaries and use interviews for adjudication |
 | Ghost requirements are latent | Hard to infer from text alone | Treat as mixed-methods construct, not text-only fact |
+| Senior archetype shift confounds AI-leverage with org delayering | A decline in management language may reflect structural flattening rather than AI-enabled leverage | Report descriptives without causal attribution; rely on interview probes to separate mechanisms |
 | Metro sample is not the entire US | Limits generalization | Describe the frame as major US metros, not all US SWE jobs |
 | Platform composition differs | LinkedIn and Indeed serve different slices | Show separate results before pooling |
 
@@ -279,5 +285,6 @@ Lead with:
 
 - "We document rapid restructuring in SWE postings"
 - "We find the junior rung narrowing and senior roles shifting in content"
-- "These employer-side changes appear larger and faster than observed AI usage benchmarks"
+- "These employer-side changes appear larger and faster than observed AI usage benchmarks, and run in the same direction as the worker-side young-hire slowdown reported by Massenkoff and McCrory (2026)"
+- "The senior shift is consistent with both AI-enabled leverage and concurrent org delayering; interviews adjudicate which mechanism dominates"
 - "Interviews suggest a mix of real workflow change and anticipatory employer beliefs"
