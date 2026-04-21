@@ -12,7 +12,7 @@ This is **not** a replacement for a full `exploration/` orchestrator run. It is 
 
 ## How to re-run
 
-From the repo root (`/home/jihgaboot/gabor/job-research`):
+From the repo root:
 
 ```bash
 # Phase A — corpus profile

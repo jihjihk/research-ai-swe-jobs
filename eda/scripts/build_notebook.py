@@ -79,9 +79,9 @@ def build() -> nbf.NotebookNode:
         ")\n"
         "\n"
         "con = duckdb.connect()\n"
-        "print(f'Project root: {ROOT}')\n"
-        "print(f'Core file:    {CORE_PATH}')\n"
-        "print(f'Core obs:     {CORE_OBS_PATH}')"
+        "print('Environment ready.')\n"
+        "print(f'Core file:    data/{CORE_PATH.name}')\n"
+        "print(f'Core obs:     data/{CORE_OBS_PATH.name}')"
     ))
 
     cells.append(md("## 1. Hypothesis recap (H1–H13)"))

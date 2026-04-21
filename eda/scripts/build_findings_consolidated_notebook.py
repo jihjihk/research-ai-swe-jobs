@@ -79,7 +79,7 @@ def build() -> nbf.NotebookNode:
         ")\n"
         "\n"
         "con = duckdb.connect()\n"
-        "print(f'Project root: {ROOT}')"
+        "print('Environment ready.')"
     ))
 
     # =========================================================================
@@ -248,7 +248,7 @@ def build() -> nbf.NotebookNode:
         "Defense firms flat. In plain terms, the same job at the same company "
         "now reads very differently from how it read two years ago.\n\n"
         "The popular *AI-washing* and *junior-scope-inflation* narratives do "
-        "not survive the data. Two additional findings stand out: "
+        "not hold up here. Two additional findings stand out: "
         "**years-of-experience requirements are falling**, not rising "
         "(junior median YOE dropped from 2 to 1), and **a dev-tool vendor "
         "leaderboard has emerged** in labor demand, with Copilot at 4.3%, "
@@ -536,10 +536,11 @@ def build() -> nbf.NotebookNode:
         "**Why it fails.** AI-vocab adoption is essentially uniform across "
         "seniority in 2026-04 (junior 27%, mid 30%, senior 31%). Combined "
         "with the falling-junior-YOE finding above, the junior-first reading "
-        "does not survive.\n\n"
+        "does not fit the data.\n\n"
         "The consistent reading is **senior-restructuring**: senior postings "
-        "shifted in *content* (toward orchestration, review, AI-leverage "
-        "language), while junior postings remained structurally similar with "
+        "shifted in *content* (more language about reviewing, coordinating, "
+        "and using AI tools to get more done), while junior postings remained "
+        "structurally similar with "
         "AI vocabulary mixed in at roughly equal rates."
     ))
     cells.append(code("fig = viz_disproven_juniorfirst(); plt.show()"))

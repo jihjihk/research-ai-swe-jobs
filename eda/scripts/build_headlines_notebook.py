@@ -82,7 +82,7 @@ def build() -> nbf.NotebookNode:
         ")\n"
         "\n"
         "con = duckdb.connect()\n"
-        "print(f'Project root: {ROOT}')"
+        "print('Environment ready.')"
     ))
 
     # =========================================================================
@@ -229,7 +229,7 @@ def build() -> nbf.NotebookNode:
         "only 0.2% → 1.4%** (a 23:1 delta ratio). The rewrite is happening **within firms** — "
         "the same 292 companies that posted SWE roles in both 2024 and 2026 saw a mean +19.4 "
         "pp within-firm rise — not driven by between-firm composition churn. The popular "
-        "*AI-washing* and *junior-scope-inflation* narratives don't survive the data. New "
+        "*AI-washing* and *junior-scope-inflation* narratives don't hold up in the data. New "
         "artifacts: a dev-tool vendor leaderboard (Copilot 4.3% > Claude 3.8% > OpenAI 3.6% > "
         "Cursor 2.2% in 2026-04) and a counter-narrative finding that **YOE floors are "
         "FALLING, not rising** — junior median YOE dropped from 2 years to 1 year."
@@ -289,7 +289,7 @@ def build() -> nbf.NotebookNode:
         "| mid     | 4.00         | 2.36         | 3 → 2 |\n"
         "| senior  | 6.55         | 6.37         | 6 → 5 |\n\n"
         "**Why it matters:** if anything, employers are asking for *less* experience in 2026, "
-        "not more. The popular scope-inflation narrative does not survive on the LLM-extracted "
+        "not more. The popular scope-inflation narrative does not hold on the LLM-extracted "
         "YOE measure.\n\n"
         "*Methodological note:* v8's earlier rule-based YOE extractor found a junior YOE rise "
         "that was 95% compositional (between-company churn). The LLM-YOE here is a cleaner "
@@ -396,7 +396,7 @@ def build() -> nbf.NotebookNode:
         "and the first to lose volume / rise in YOE requirements.\n\n"
         "**Why it fails:** AI-vocab adoption is essentially uniform across seniority in "
         "2026-04 (junior 27%, mid 30%, senior 31%, unknown 25%). Combined with Headline 3 "
-        "(junior YOE actually *fell*), the junior-first reading does not survive.\n\n"
+        "(junior YOE actually *fell*), the junior-first reading does not fit the data.\n\n"
         "The consistent reading is **H5(b) senior-restructuring**: senior postings shifted "
         "in *content* (toward orchestration / review / AI-leverage language per v8's earlier "
         "T21 finding), while junior postings remained structurally similar with simply more "
