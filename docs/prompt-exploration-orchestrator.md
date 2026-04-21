@@ -248,7 +248,7 @@ Key evaluation questions:
 - **Ghost requirements:** T22 + Wave 3.5 T33 (hidden hiring-bar) assess whether scope-inflation is aspirational copy-paste vs real hiring-bar changes. T33 tests specifically whether requirements-section contraction correlates with lowered YOE / credential asks (the implicit hiring-bar lowering hypothesis).
 - **The divergence story:** T23 is RQ3. Wave 3.5 T32 generalizes to cross-occupation. If the inversion holds universally across AI-exposed occupations, RQ3 becomes a general labor-market finding — potentially paper-lead-material rather than a second-section story.
 - **Ecosystem and legacy dynamics:** Wave 3.5 T35 (ecosystem crystallization) and T36 (legacy substitution) are descriptive enrichments. Read them to see whether the technology-evolution narrative has a clean structure or is noise-dominated.
-- **Senior role content:** T21 + Wave 3.5 T34 (AI-enabled tech lead profiling). If T34 validates the mgmt+orch+strat+AI sub-archetype as a distinct role with specific titles/companies/content, the senior-shift finding becomes a concrete publishable claim.
+- **Senior role content:** T21 + Wave 3.5 T34 (emergent senior-role profiling). If T34's precondition is met and it validates a distinct candidate senior role (distinct titles/companies/content), the senior-shift finding becomes a concrete publishable claim with a content-driven role name.
 - **Narrative coherence:** Do Wave 3 + Wave 3.5 findings strengthen or weaken the narrative from Wave 2? Which threads held up under deeper scrutiny? Which fell apart?
 
 **Preparing for Wave 3.5 dispatch:** After all Wave 3 agents return, before dispatching Wave 3.5:
@@ -288,20 +288,19 @@ Do NOT write the Gate 3 memo yet — V2 runs next and may correct magnitudes. Ga
 
 V2's protocol:
 
-1. **Re-derive the top 3-5 headline numbers from Wave 3 independently** (T18 DiD, T16 within-company decomposition, T23 SWE divergence, T20 boundary AUC, T21 senior-specific mentor rise).
-2. **Re-derive one headline from each Wave 3.5 task:**
-   - T31 pair-level within-company drift (compare to T16's company-level within-company share)
-   - T32 cross-occupation divergence (direction matches T23? magnitude?)
-   - T33 hidden-hiring-bar regression (period coefficient on requirements-share + correlation with YOE / credential)
-   - T34 AI-enabled-tech-lead profile (cluster-2 title distribution, company concentration)
-   - T35 ecosystem crystallization (modularity Δ; LLM-vendor community verification)
-   - T36 legacy substitution (top-5 neighbors per disappearing title; AI-vocabulary comparison)
-   - T37 sampling-frame retention ratios on top-5 headlines
-   - T38 hiring-selectivity correlation direction + robustness
-3. **Validate new or rebuilt keyword patterns semantically** on 50-row stratified samples; flag any tautological precision claim and re-run it. Wave 3.5 agents are required to load V1-refined + T22-validated patterns rather than re-derive, but V2 confirms they did.
+1. **Re-derive the top 3-5 headline numbers from Wave 3 independently.** Load the orchestrator's draft Gate 3 ranking to identify which Wave 3 headlines V2 should verify; these typically include one or more of: cross-occupation difference-in-differences, within-company vs between-company decomposition, employer-vs-worker divergence metrics, seniority boundary discriminability, senior-role-language shifts. Write independent SQL/Python; do NOT read prior agents' scripts. Match within 5% = verified; otherwise investigate.
+2. **Re-derive one headline from each Wave 3.5 task that produced one.** Each Wave 3.5 agent closes its report with "Headline claims for SYNTHESIS." For each such claim, V2 independently re-derives it and verifies the magnitude + direction. Prioritize headlines by the type of verification they demand:
+   - Pair-level or same-cohort drift: compare the tightened estimate to the coarser upstream estimate (e.g., pair-level within-company drift vs company-level within-company share). Direction and magnitude consistency is the test.
+   - Cross-group pattern extension: if a Wave 3 pattern was SWE-specific, does extending to SWE-adjacent / control / other occupations preserve direction and scale? Report universality verdict.
+   - Mechanism regressions: if a hypothesis links a scope/structure change to a hiring-bar proxy (YOE, credential, education), verify the regression coefficient, confidence interval, and covariate controls.
+   - Emergent-role profiling: if a Wave 3.5 task profiles a discovered cluster or archetype, verify its composition (title distribution, company concentration, content exemplars) and test whether it survives perturbations (seed re-run, subset resampling).
+   - Sampling-frame retention: re-compute retention ratio (returning-cohort Δ / full-corpus Δ) for each of Wave 3's top headlines and confirm the classification (robust / partially-robust / sampling-frame-driven).
+   - Descriptive network / substitution results: spot-check community memberships, modularity, and nearest-neighbor mappings for face validity.
+   - Macro-mechanism correlations: verify sign, significance, and robustness under alternative firm subsets.
+3. **Validate new or rebuilt keyword patterns semantically** on 50-row stratified samples; flag any tautological precision claim and re-run it. Wave 3.5 agents load V1-refined + T22-validated patterns rather than re-deriving; V2 confirms they did.
 4. **Audit prevalence citation transparency across Wave 3 AND Wave 3.5 reports.** Flag any cross-task citation that combines different patterns or subsets.
-5. **Audit composite-score matching** for any matched-delta finding (T31 pair drift, T33 hidden-bar regression, T37 residualized headlines).
-6. **Test cross-occupation DiD robustness (T18, T32)** under alternative control group definitions. Check whether decomposition results hold across T30 panel variants.
+5. **Audit composite-score matching** for any matched-delta finding. Verify per-component × outcome correlations were reported and that matched effects were reinterpreted when components crossed r > 0.3.
+6. **Test cross-occupation DiD robustness** under alternative control group definitions. Check whether decomposition results hold across T30 panel variants.
 7. **Propose alternative explanations** for each Wave 3 and Wave 3.5 lead finding.
 
 Write `exploration/reports/V2_verification.md`. If verification reveals a material correction, fix/annotate before writing the Gate 3 memo.

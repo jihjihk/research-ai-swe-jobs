@@ -49,11 +49,10 @@ Pipeline that transforms raw job-posting data into analysis-ready datasets.
 
 Exploratory analysis on pipeline outputs to validate data quality and surface research insights.
 
-- **Task reference:** [`docs/task-reference-exploration.md`](docs/task-reference-exploration.md) — shared preamble, 26 task specs + 2 verification agents
-- **Orchestrator:** [`docs/prompt-exploration-orchestrator.md`](docs/prompt-exploration-orchestrator.md) — dispatch, gate logic, wave guidance
-- **Outputs:** generated under `exploration/` for each run; stale outputs should not be treated as canonical across reruns
-- **Current status (Wave 4 complete, 2026-04-17):** Waves 1-4 + V1/V2 verification done. Read `exploration/reports/SYNTHESIS.md` first — it contains the paper's lead sentence, three supporting claims, RQ evolution (RQ1a lead, RQ3 inverted), recommended analytical samples, confounder assessments, 10 new hypotheses (T24), and 6 interview elicitation artifacts (T25). Wave 5 (P — presentation) is pending.
-- **Key exploration-phase verdicts (pre-analysis):** SWE-specific AI-vocabulary rewriting is the lead finding (T18 DiD 99% SWE-specific strict; T16 102% within-company). RQ3 direction inverted: employers UNDER-specify AI by 15-30pp vs worker usage (T23). Junior scope-inflation REJECTED as junior-specific; seniority boundaries SHARPENED (T20); seniors changed more than juniors (T12, T21).
+- **Task reference:** [`docs/task-reference-exploration.md`](docs/task-reference-exploration.md) — shared preamble, task specs (T01–T38), agent dispatch blocks, V1/V2 verification specs.
+- **Orchestrator:** [`docs/prompt-exploration-orchestrator.md`](docs/prompt-exploration-orchestrator.md) — dispatch, gate logic, wave guidance.
+- **Outputs:** generated under `exploration/` for each run; stale outputs from prior runs are archived and not treated as canonical.
+- **Current status:** prior exploration run archived; a fresh run is planned. Starting hypotheses are RQ1–RQ4 as stated in `docs/1-research-design.md`. Any reframing of RQs must be justified from the fresh run's Wave 2+ evidence, documented in a gate memo.
 
 ### 3. Analysis
 
