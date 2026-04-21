@@ -18,6 +18,12 @@ from pathlib import Path
 
 import duckdb
 
+from build_unified_core import (
+    CORE_COLUMNS,
+    CORE_ROW_FILTER,
+    build_core,
+    has_core_filter_column,
+)
 from io_utils import (
     cleanup_temp_file,
     parquet_columns,
@@ -35,6 +41,8 @@ UNIFIED_INPUT = INTERMEDIATE_DIR / "stage10_llm_integrated.parquet"
 OBS_INPUT = INTERMEDIATE_DIR / "stage1_observations.parquet"
 UNIFIED_OUTPUT = DATA_DIR / "unified.parquet"
 OBS_OUTPUT = DATA_DIR / "unified_observations.parquet"
+CORE_OUTPUT = DATA_DIR / "unified_core.parquet"
+CORE_OBS_OUTPUT = DATA_DIR / "unified_core_observations.parquet"
 QUALITY_OUTPUT = DATA_DIR / "quality_report.json"
 LOG_OUTPUT = DATA_DIR / "preprocessing_log.txt"
 
@@ -78,7 +86,58 @@ def build_unified_observations(unified_path: Path, output_path: Path) -> int:
     duckdb.execute(sql)
     return parquet_rows(output_path)
 
-def compute_quality_report(unified_path: Path, observations_path: Path) -> dict:
+def compute_core_summary(core_path: Path, core_obs_path: Path) -> dict:
+    totals = duckdb.execute(
+        f"""
+        SELECT
+          count(*) AS n,
+          sum(CASE WHEN is_swe THEN 1 ELSE 0 END) AS n_swe,
+          sum(CASE WHEN is_swe_adjacent THEN 1 ELSE 0 END) AS n_adjacent,
+          sum(CASE WHEN is_control THEN 1 ELSE 0 END) AS n_control,
+          sum(CASE WHEN llm_classification_coverage = 'labeled' THEN 1 ELSE 0 END) AS n_labeled,
+          sum(CASE WHEN llm_classification_coverage = 'deferred' THEN 1 ELSE 0 END) AS n_deferred,
+          sum(CASE WHEN llm_classification_coverage = 'skipped_short' THEN 1 ELSE 0 END) AS n_skipped_short
+        FROM read_parquet('{core_path}')
+        """
+    ).fetchone()
+
+    by_source = duckdb.execute(
+        f"""
+        SELECT source, source_platform, count(*) AS n
+        FROM read_parquet('{core_path}')
+        GROUP BY 1, 2
+        ORDER BY 1, 2
+        """
+    ).fetchall()
+
+    return {
+        "row_filter": CORE_ROW_FILTER,
+        "n_columns": len(CORE_COLUMNS),
+        "rows": totals[0],
+        "observations_rows": parquet_rows(core_obs_path),
+        "by_analysis_group": {
+            "swe": totals[1],
+            "swe_adjacent": totals[2],
+            "control": totals[3],
+        },
+        "classification_coverage": {
+            "labeled": totals[4],
+            "deferred": totals[5],
+            "skipped_short": totals[6],
+        },
+        "by_source": [
+            {"source": source, "source_platform": platform, "rows": n}
+            for source, platform, n in by_source
+        ],
+    }
+
+
+def compute_quality_report(
+    unified_path: Path,
+    observations_path: Path,
+    core_path: Path | None = None,
+    core_observations_path: Path | None = None,
+) -> dict:
     q = f"""
     WITH unified AS (
       SELECT * FROM read_parquet('{unified_path}')
@@ -138,11 +197,16 @@ def compute_quality_report(unified_path: Path, observations_path: Path) -> dict:
         """
     ).fetchall()
 
+    core_subsection = None
+    if core_path is not None and core_observations_path is not None and core_path.exists():
+        core_subsection = compute_core_summary(core_path, core_observations_path)
+
     return {
         "pipeline_version": "3.0",
         "run_date": time.strftime("%Y-%m-%d"),
         "rule_based_only": False,
         "llm_augmented": True,
+        "core": core_subsection,
         "row_counts": {
             name: parquet_rows(path) for name, path in STAGE_INPUTS.items() if path.exists()
         },
@@ -257,6 +321,26 @@ def build_log_text(report: dict) -> str:
     for row in report["seniority_distribution_swe"]:
         lines.append(f"{row['seniority_final']:<12} {row['rows']:>10,}")
 
+    core = report.get("core")
+    if core:
+        lines.extend(
+            [
+                "",
+                "UNIFIED_CORE (analysis-ready subset)",
+                "------------------------------------",
+                f"Row filter:                     {core['row_filter']}",
+                f"Columns:                        {core['n_columns']}",
+                f"unified_core.parquet rows:      {core['rows']:>10,}",
+                f"core_observations rows:         {core['observations_rows']:>10,}",
+                f"  SWE:                          {core['by_analysis_group']['swe']:>10,}",
+                f"  SWE-adjacent:                 {core['by_analysis_group']['swe_adjacent']:>10,}",
+                f"  Control:                      {core['by_analysis_group']['control']:>10,}",
+                f"  classification labeled:       {core['classification_coverage']['labeled']:>10,}",
+                f"  classification deferred:      {core['classification_coverage']['deferred']:>10,}",
+                f"  classification skipped_short: {core['classification_coverage']['skipped_short']:>10,}",
+            ]
+        )
+
     return "\n".join(lines) + "\n"
 
 
@@ -265,36 +349,67 @@ def main() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     print("=" * 70)
-    print("FINAL OUTPUT: unified.parquet + unified_observations.parquet")
+    print("FINAL OUTPUT: unified.parquet + unified_observations.parquet + unified_core.parquet")
     print("=" * 70)
 
     tmp_unified_output = prepare_temp_output(UNIFIED_OUTPUT)
     tmp_obs_output = prepare_temp_output(OBS_OUTPUT)
+    tmp_core_output = prepare_temp_output(CORE_OUTPUT)
+    tmp_core_obs_output = prepare_temp_output(CORE_OBS_OUTPUT)
     tmp_quality_output = prepare_temp_output(QUALITY_OUTPUT)
     tmp_log_output = prepare_temp_output(LOG_OUTPUT)
 
+    build_core_this_run = False
+
     try:
-        print(f"[1/4] Copying {UNIFIED_INPUT} -> {tmp_unified_output}")
+        print(f"[1/5] Copying {UNIFIED_INPUT} -> {tmp_unified_output}")
         shutil.copy2(UNIFIED_INPUT, tmp_unified_output)
 
-        print(f"[2/4] Building {OBS_OUTPUT.name}")
+        print(f"[2/5] Building {OBS_OUTPUT.name}")
         obs_rows = build_unified_observations(tmp_unified_output, tmp_obs_output)
         print(f"  Observation rows written: {obs_rows:,}")
 
-        print(f"[3/4] Writing {QUALITY_OUTPUT.name}")
-        report = compute_quality_report(tmp_unified_output, tmp_obs_output)
+        if has_core_filter_column(tmp_unified_output):
+            build_core_this_run = True
+            print(f"[3/5] Building {CORE_OUTPUT.name} (+ core observations)")
+            core_summary = build_core(
+                tmp_unified_output,
+                tmp_obs_output,
+                tmp_core_output,
+                tmp_core_obs_output,
+            )
+            print(
+                f"  Core rows: {core_summary['core_rows']:,} | "
+                f"core obs rows: {core_summary['core_observations_rows']:,} | "
+                f"columns: {core_summary['n_columns']}"
+            )
+        else:
+            print("[3/5] Skipping core build: selected_for_llm_frame column absent")
+
+        print(f"[4/5] Writing {QUALITY_OUTPUT.name}")
+        report = compute_quality_report(
+            tmp_unified_output,
+            tmp_obs_output,
+            tmp_core_output if build_core_this_run else None,
+            tmp_core_obs_output if build_core_this_run else None,
+        )
         tmp_quality_output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
-        print(f"[4/4] Writing {LOG_OUTPUT.name}")
+        print(f"[5/5] Writing {LOG_OUTPUT.name}")
         tmp_log_output.write_text(build_log_text(report), encoding="utf-8")
 
         promote_temp_file(tmp_unified_output, UNIFIED_OUTPUT)
         promote_temp_file(tmp_obs_output, OBS_OUTPUT)
+        if build_core_this_run:
+            promote_temp_file(tmp_core_output, CORE_OUTPUT)
+            promote_temp_file(tmp_core_obs_output, CORE_OBS_OUTPUT)
         promote_temp_file(tmp_quality_output, QUALITY_OUTPUT)
         promote_temp_file(tmp_log_output, LOG_OUTPUT)
     except Exception:
         cleanup_temp_file(tmp_unified_output)
         cleanup_temp_file(tmp_obs_output)
+        cleanup_temp_file(tmp_core_output)
+        cleanup_temp_file(tmp_core_obs_output)
         cleanup_temp_file(tmp_quality_output)
         cleanup_temp_file(tmp_log_output)
         raise

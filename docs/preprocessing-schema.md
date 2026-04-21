@@ -1,6 +1,8 @@
 # Preprocessing Schema Reference
 
-Last updated: 2026-04-18
+Last updated: 2026-04-20
+
+**Changelog — 2026-04-20:** Added `data/unified_core.parquet` and `data/unified_core_observations.parquet` — strict analysis-ready projections of the main outputs, filtered to `selected_for_llm_frame = TRUE` and pruned to the columns that are actually used in analysis. Audit/routing/cache-internal columns are dropped. See the "`unified_core.parquet` — analysis-ready subset" section below.
 
 **Changelog — 2026-04-18:** Stage 10 skip-logic removed. Every in-frame eligible row (LinkedIn, English, ≥15 words, `selected_for_llm_frame = True`) now routes to the LLM; there is no rule-based shortcut. `llm_classification_coverage` enum simplified from 5 values to 4: `rule_sufficient` dropped. Stage 5 now writes two new append-only columns: `seniority_rule` (immutable rule-based seniority output) and `seniority_rule_source` (provenance of that label), preserved through Stage 10 overrides of `seniority_final`.
 
@@ -10,7 +12,7 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 
 ## How to Use This Document
 
-**Primary analysis file:** `data/unified.parquet`. This is the final analysis output containing rule-based columns plus LLM columns from Stages 9-10. Query the current artifact for row and column counts instead of relying on documented totals.
+**Primary analysis file:** `data/unified_core.parquet` for most analyses; `data/unified.parquet` when you need rows or columns outside the LLM frame. `unified_core.parquet` is a strict row-and-column projection of `unified.parquet` filtered to the Stage 9 balanced LLM frame with audit/routing columns dropped — see the dedicated section below. Query the current artifact for row and column counts instead of relying on documented totals.
 
 **LLM column usage (updated 2026-04-10):**
 - `description_core_llm`: **The only cleaned-text column** and the required input for every text-dependent analysis. Check `llm_extraction_coverage` for coverage by source. Raw `description` is the only acceptable fallback and only for analyses that are insensitive to boilerplate (e.g., binary keyword presence); text-sensitive work must filter to `llm_extraction_coverage = 'labeled'`.
@@ -22,6 +24,75 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. For raw Stage 9/Stage 10 LLM columns (including `description_core_llm`), filter to `labeled`. Seniority is the exception: `seniority_final` is already the combined best-available column and should be used directly without filtering by coverage.
 
 Balanced-sample claims apply only to `selected_for_llm_frame = true`. Supplemental cache rows can extend the usable LLM set, but they are not part of the balanced core frame.
+
+---
+
+## `unified_core.parquet` — analysis-ready subset
+
+`data/unified_core.parquet` is a strict projection of `data/unified.parquet`. It exists to remove two sources of confusion:
+
+1. **Rows that are not usable for most analyses** — postings that were never routed to the LLM (Indeed, non-English, short descriptions, outside the balanced core frame) do not have `description_core_llm`, LLM seniority, `yoe_min_years_llm`, or LLM ghost/SWE classifications. They dominate the row count in the full file.
+2. **Columns that are audit / routing / cache internals** — ~40 columns in `unified.parquet` exist for pipeline debugging and lineage but are never referenced in analysis.
+
+### Row filter
+
+```sql
+WHERE selected_for_llm_frame = TRUE
+```
+
+This is the Stage 9 deterministic balanced core frame: LinkedIn, English, raw description ≥ 15 words, assigned to an `analysis_group` (`swe` / `swe_adjacent` / `control`), and selected into the sticky balanced core over `source × analysis_group × date_bin`. Indeed is removed entirely. Balanced-sample claims apply to this filter by construction.
+
+Rows inside the core can still have `llm_classification_coverage = 'deferred'` (budget-capped in the current run) or `'skipped_short'`. Filter to `labeled` when reading LLM columns the same way you would in the full file.
+
+### Columns kept
+
+The authoritative list is the `CORE_COLUMNS` constant in [`preprocessing/scripts/build_unified_core.py`](../preprocessing/scripts/build_unified_core.py). Grouped summary:
+
+| Group | Columns |
+|---|---|
+| Identity | `uid` |
+| Source & time | `source`, `source_platform`, `period`, `date_posted`, `scrape_date` |
+| Job content | `title`, `description`, `description_core_llm`, `description_length` |
+| Company | `company_name`, `company_name_effective`, `company_name_canonical`, `is_aggregator`, `company_industry`, `company_size` |
+| Occupation | `is_swe`, `is_swe_adjacent`, `is_control`, `analysis_group`, `swe_classification_tier`, `swe_classification_llm` |
+| Seniority | `seniority_final`, `seniority_final_source`, `seniority_3level`, `seniority_rule`, `seniority_rule_source`, `seniority_native` |
+| YOE | `yoe_extracted`, `yoe_min_years_llm` |
+| Geography | `location`, `city_extracted`, `state_normalized`, `metro_area`, `is_remote_inferred`, `is_multi_location` |
+| Quality | `is_english`, `date_flag`, `ghost_job_risk`, `ghost_assessment_llm` |
+| LLM coverage | `llm_extraction_coverage`, `llm_classification_coverage` |
+
+### Columns dropped (and why)
+
+- **Uniform inside the core frame, so redundant** — `selected_for_llm_frame`, `selected_for_control_cohort`, `llm_extraction_sample_tier`, `llm_classification_sample_tier`, `analysis_in_scope`, `eligible_for_extraction`, `needs_llm_classification`.
+- **Routing reasons / cache internals** — `llm_text_skip_reason`, `llm_extraction_reason`, `llm_classification_reason`, `extraction_input_hash`, `classification_input_hash`, `llm_extraction_resolution`, `llm_classification_resolution`, `llm_model_classification`, `llm_prompt_version_classification`, `selection_date_bin`.
+- **Rule-based YOE audit trail** — `yoe_min_extracted`, `yoe_max_extracted`, `yoe_match_count`, `yoe_resolution_rule`, `yoe_all_mentions_json`, `yoe_seniority_contradiction`. Kept: `yoe_extracted` (fallback) and `yoe_min_years_llm` (primary).
+- **Pipeline metadata / provenance** — `description_raw`, `description_hash`, `preprocessing_version`, `dedup_method`, `company_name_canonical_method`.
+- **Redundant normalized/raw pairs** — `title_normalized`, `location_normalized`, `company_name_normalized`, `site` (duplicates `source_platform`), `company_size_raw`, `company_size_category`.
+- **Scraper search metadata** (query context, not posting location; use `metro_area`) — `search_query`, `query_tier`, `search_metro_id`, `search_metro_name`, `search_metro_region`, `search_location`.
+- **Rarely used** — `job_id`, `country_extracted`, `metro_source`, `metro_confidence`, `is_remote` (0% on 2024 sources — use `is_remote_inferred`), `skills_raw`, `asaniczka_skills`, `work_type`, `job_url`, `company_id_kaggle`, `real_employer` (subsumed by `company_name_effective`), `description_quality_flag` (short-desc rows already filtered), `posting_age_days`, `scrape_week`, `swe_confidence`.
+
+### When to use which file
+
+| Use case | File |
+|---|---|
+| Default analysis (any text, seniority, YOE, ghost, cross-period comparisons) | `unified_core.parquet` |
+| Daily panel / posting duration | `unified_core_observations.parquet` |
+| Audit a single posting end-to-end (raw description, hashes, routing reasons) | `unified.parquet` |
+| Indeed cross-platform sensitivity analysis | `unified.parquet` (Indeed is filtered out of core) |
+| Non-SWE / non-control rows (e.g., occupation taxonomy exploration) | `unified.parquet` |
+| Out-of-frame rule-based seniority / rule-based YOE audits | `unified.parquet` |
+
+### Companion observation file
+
+`data/unified_core_observations.parquet` is the daily-panel equivalent: one row per posting × scrape_date, inner-joined on the core `uid` set, with the same column list (and `scrape_date` replaced by the per-observation value). Use when posting duration / daily repost behavior matters.
+
+### Rebuilding standalone
+
+The core files are produced by the final pipeline stage. To rebuild them without re-running the full final stage (e.g., after editing `CORE_COLUMNS`):
+
+```bash
+./.venv/bin/python preprocessing/scripts/build_unified_core.py
+```
 
 ---
 

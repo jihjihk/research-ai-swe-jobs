@@ -48,8 +48,10 @@ Raw Data (3 sources)
   ├── Final Output Stage
   │
   ▼
-  data/unified.parquet                 (one row per unique posting)
-  data/unified_observations.parquet    (daily panel: one row per posting × scrape_date)
+  data/unified.parquet                       (one row per unique posting — full schema)
+  data/unified_observations.parquet          (daily panel: one row per posting × scrape_date)
+  data/unified_core.parquet                  (analysis-ready subset: selected_for_llm_frame = TRUE, curated cols)
+  data/unified_core_observations.parquet     (daily panel for the core subset)
   data/quality_report.json
   data/preprocessing_log.txt
 ```
@@ -60,8 +62,10 @@ Stage 3 is intentionally absent — the original stage 3 has been removed becaus
 
 | Artifact | Unit of observation | Purpose |
 |---|---|---|
-| `unified.parquet` | One row per unique posting | Primary analysis dataset |
-| `unified_observations.parquet` | One row per posting per scrape_date | Posting-duration analysis, daily panel |
+| `unified.parquet` | One row per unique posting | Full schema; use for audits and out-of-LLM-frame rows |
+| `unified_observations.parquet` | One row per posting per scrape_date | Full-schema daily panel |
+| `unified_core.parquet` | One row per unique posting | **Default analysis dataset.** Strict projection filtered to `selected_for_llm_frame = TRUE`; curated column set. See `preprocessing-schema.md` for the filter and column list. |
+| `unified_core_observations.parquet` | One row per posting per scrape_date | Daily panel for the core subset |
 | `quality_report.json` | Pipeline-level | Funnel metrics, quality summaries by source |
 | `preprocessing_log.txt` | Pipeline-level | Human-readable run summary |
 

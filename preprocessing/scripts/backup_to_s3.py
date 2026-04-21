@@ -5,6 +5,8 @@ Back up final pipeline outputs and LLM cache to S3 with timestamped paths.
 Uploads to: s3://swe-labor-research/backups/<YYYY-MM-DD_HHMMSS>/
     unified.parquet
     unified_observations.parquet
+    unified_core.parquet
+    unified_core_observations.parquet
     quality_report.json
     preprocessing_log.txt
     llm_responses.db
@@ -32,6 +34,8 @@ S3_BACKUP_PREFIX = "backups"
 BACKUP_MANIFEST = [
     (DATA_DIR / "unified.parquet", "unified.parquet"),
     (DATA_DIR / "unified_observations.parquet", "unified_observations.parquet"),
+    (DATA_DIR / "unified_core.parquet", "unified_core.parquet"),
+    (DATA_DIR / "unified_core_observations.parquet", "unified_core_observations.parquet"),
     (DATA_DIR / "quality_report.json", "quality_report.json"),
     (DATA_DIR / "preprocessing_log.txt", "preprocessing_log.txt"),
     (CACHE_DIR / "llm_responses.db", "llm_responses.db"),

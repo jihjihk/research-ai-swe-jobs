@@ -52,7 +52,10 @@ Exploratory analysis on pipeline outputs to validate data quality and surface re
 - **Task reference:** [`docs/task-reference-exploration.md`](docs/task-reference-exploration.md) — shared preamble, task specs (T01–T38), agent dispatch blocks, V1/V2 verification specs.
 - **Orchestrator:** [`docs/prompt-exploration-orchestrator.md`](docs/prompt-exploration-orchestrator.md) — dispatch, gate logic, wave guidance.
 - **Outputs:** generated under `exploration/` for each run; stale outputs from prior runs are archived and not treated as canonical.
-- **Current status:** prior exploration run archived; a fresh run is planned. Starting hypotheses are RQ1–RQ4 as stated in `docs/1-research-design.md`. Any reframing of RQs must be justified from the fresh run's Wave 2+ evidence, documented in a gate memo.
+- **Current status (2026-04-20):** exploration phase complete through Wave 5 (T27). SYNTHESIS.md + 9 interview artifacts + 3-layer evidence site done.
+  - **Paper's analytical backbone:** `exploration/reports/SYNTHESIS.md` (850 lines). Tier A + B + C + D rankings; 29-row hypothesis table; robustness appendix.
+  - **Presentable artifact:** `exploration/site/` serves on tailnet at `http://100.127.245.121:8080` (27-slide MARP deck + mkdocs-material site + raw audit trail). Python HTTP server on port 8080 (background, PID tracked in `/tmp/site_server.log`).
+  - **Hypotheses queued for analysis phase:** H_D (highest), H_O, H_P, H_Q; + 5 medium/low-priority from T24.
 
 ### 3. Analysis
 
