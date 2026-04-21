@@ -1,0 +1,3973 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration findings from the SWE labor market restructuring study">
+      
+      
+      
+      
+        <link rel="prev" href="../T07/">
+      
+      
+        <link rel="next" href="../T09/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T08 Distributions - SWE Labor Market Exploration</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t08-distribution-profiling-anomaly-detection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T08 Distributions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../slides/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Presentation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../findings/ai-requirements/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../methodology/data-sources/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Methods & Risks
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../T01/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Evidence
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Presentation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Presentation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration Findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/ai-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Requirements Surged +24pp (DiD), Validated as Genuine Hiring Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/ai-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Requirements Surged +24pp (DiD), Validated as Genuine Hiring Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/junior-decline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Junior hiring declined — SWE only
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/domain-recomposition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The market recomposed by domain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/technology-expansion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI expanded tech stacks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What we corrected along the way
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/orthogonality/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The orthogonality puzzle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/claims/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What the paper can claim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the story evolved
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/synthesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods & Risks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methods & Risks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/sensitivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity & robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations & open questions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evidence
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01: Column Coverage Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01: Column Coverage Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Executive Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-univariate-profiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Univariate Profiling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Univariate Profiling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-seniority-distributions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Seniority Distributions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-description-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Description Length
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-years-of-experience-yoe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Years of Experience (YOE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-aggregator-rates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Aggregator Rates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-metro-areas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Metro Areas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-company-industry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6 Company Industry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17-swe-classification-tier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7 SWE Classification Tier
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-anomaly-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Anomaly Detection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Anomaly Detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#flagged-distributions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flagged Distributions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#seniority-label-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seniority Label Provenance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-yoe-paradox-deep-dive-highest-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. YOE Paradox Deep Dive (HIGHEST PRIORITY)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. YOE Paradox Deep Dive (HIGHEST PRIORITY)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-the-paradox-stated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 The Paradox Stated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-resolution-slot-elimination-genuine-entry-residual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Resolution: Slot Elimination + Genuine Entry Residual
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.2 Resolution: Slot Elimination + Genuine Entry Residual">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-binned-yoe-distribution-slot-elimination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Binned YOE distribution (slot elimination)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-within-title-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Within-title analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-seniority-provenance-decomposition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Seniority provenance decomposition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-aggregator-decomposition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. Aggregator decomposition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-company-capping-sensitivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. Company capping sensitivity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-top-employers-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F. Top employers composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-statistical-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Statistical Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-yoe-paradox-interpretation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 YOE Paradox: Interpretation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-yoe-coverage-caveat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 YOE Coverage Caveat
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-within-2024-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Within-2024 Calibration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Within-2024 Calibration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-description-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Description Length
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-technology-stack-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Technology Stack Calibration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-technologies-that-are-mostly-noise" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Technologies That Are Mostly Noise
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-junior-share-trends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Junior Share Trends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Junior Share Trends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-primary-estimate-seniority_final-arshkon-vs-scraped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Primary estimate (seniority_final, arshkon vs scraped)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-sensitivity-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Sensitivity checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-ranked-changes-largest-effect-sizes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Ranked Changes (Largest Effect Sizes)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Ranked Changes (Largest Effect Sizes)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#top-10-by-cohens-h-or-cohens-d-arshkon-2024-vs-scraped-2026-mid-senior-swe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Top 10 by |Cohen's h| or |Cohen's d| (arshkon 2024 vs scraped 2026, mid-senior SWE):
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#technologies-showing-decline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technologies showing DECLINE:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-surprises-unexpected-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Surprises &amp; Unexpected Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Surprises &amp; Unexpected Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#s1-the-yoe-paradox-is-a-feature-not-a-bug" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S1: The YOE paradox is a FEATURE, not a bug
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s2-aggregator-share-at-mid-level-quadrupled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S2: Aggregator share at mid-level quadrupled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s3-python-became-a-majority-requirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S3: Python became a majority requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s4-the-new-ai-technology-stack-appeared-from-near-zero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S4: The new AI technology stack appeared from near-zero
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s5-agile-practice-mentions-declined" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S5: Agile practice mentions declined
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s6-cc-nearly-disappeared-from-mid-senior-swe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S6: C/C++ nearly disappeared from mid-senior SWE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s7-yoe-extraction-coverage-is-an-informative-signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S7: YOE extraction coverage is an informative signal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-methodological-implications-for-downstream-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Methodological Implications for Downstream Tasks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tables-and-figures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tables and Figures
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tables and Figures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#figures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tables-30-csv-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tables (30 CSV files)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensitivity-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitivity Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T25/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T25 Interview Artifacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T26/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T26 Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gate Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t08-distribution-profiling-anomaly-detection">T08: Distribution Profiling &amp; Anomaly Detection</h1>
+<p><strong>Status:</strong> Complete<br />
+<strong>Date:</strong> 2026-04-05<br />
+<strong>Agent:</strong> E<br />
+<strong>Data:</strong> <code>data/unified.parquet</code> (SWE, LinkedIn, English, date_flag=ok)<br />
+<strong>Script:</strong> <code>exploration/scripts/T08_distribution_profiling.py</code></p>
+<hr />
+<h2 id="executive-summary">Executive Summary</h2>
+<p>Comprehensive distribution profiling across all key variables reveals three headline findings:</p>
+<ol>
+<li>
+<p><strong>The YOE paradox is RESOLVED: it reflects genuine slot elimination, not a measurement artifact.</strong> Entry-level median YOE dropped from 3.0 (arshkon 2024) to 2.0 (scraped 2026), driven by the near-elimination of high-YOE "entry-level" postings (5+ YOE entry share fell from 22.8% to 2.4%). This holds within titles, within seniority provenance, after company capping, and with aggregators excluded. The interpretation: companies that formerly labeled 3-5+ YOE roles as "entry-level" have either eliminated those slots or reclassified them upward, leaving only genuinely junior (0-2 YOE) positions in the entry tier.</p>
+</li>
+<li>
+<p><strong>AI/ML technology adoption shows massive, calibration-validated increases.</strong> Agent frameworks (0.1% to 10.8%), LLMs (1.8% to 14.4%), and Claude/Copilot mentions all exploded. These changes dwarf within-2024 instrument noise by 5-17x, confirming genuine market shifts.</p>
+</li>
+<li>
+<p><strong>Description length grew 57% (core: 52%) for mid-senior roles</strong>, the single largest structural effect (Cohen's d = 0.77). This length inflation means ALL text-derived metrics must be length-normalized.</p>
+</li>
+</ol>
+<hr />
+<h2 id="1-univariate-profiling">1. Univariate Profiling</h2>
+<h3 id="11-seniority-distributions">1.1 Seniority Distributions</h3>
+<p><strong><code>seniority_final</code> by period (all SWE):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">entry</th>
+<th style="text-align: right;">associate</th>
+<th style="text-align: right;">mid-senior</th>
+<th style="text-align: right;">director</th>
+<th style="text-align: right;">unknown</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024-01 (asaniczka)</td>
+<td style="text-align: right;">0.6%</td>
+<td style="text-align: right;">6.2%</td>
+<td style="text-align: right;">92.8%</td>
+<td style="text-align: right;">0.4%</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+<tr>
+<td>2024-04 (arshkon)</td>
+<td style="text-align: right;">16.5%</td>
+<td style="text-align: right;">4.5%</td>
+<td style="text-align: right;">59.5%</td>
+<td style="text-align: right;">0.4%</td>
+<td style="text-align: right;">19.0%</td>
+</tr>
+<tr>
+<td>2026-03 (scraped)</td>
+<td style="text-align: right;">13.5%</td>
+<td style="text-align: right;">2.6%</td>
+<td style="text-align: right;">76.2%</td>
+<td style="text-align: right;">0.9%</td>
+<td style="text-align: right;">6.7%</td>
+</tr>
+</tbody>
+</table>
+<p>Note: Asaniczka's 0.6% entry rate is a known artifact (zero native entry labels; all imputed). Exclude from seniority-stratified analyses.</p>
+<p><strong><code>seniority_3level</code> known-seniority share (arshkon vs scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">junior</th>
+<th style="text-align: right;">mid</th>
+<th style="text-align: right;">senior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024-04</td>
+<td style="text-align: right;"><strong>20.4%</strong></td>
+<td style="text-align: right;">5.6%</td>
+<td style="text-align: right;">74.0%</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td style="text-align: right;"><strong>14.5%</strong></td>
+<td style="text-align: right;">2.8%</td>
+<td style="text-align: right;">82.7%</td>
+</tr>
+</tbody>
+</table>
+<p>Junior share declined -5.9pp (absolute) and -29% (relative). This is consistent with Wave 1 T03 findings.</p>
+<p>Using <code>seniority_native</code> directly (no imputation): entry dropped from 22.3% to 14.0% (-8.3pp), also consistent.</p>
+<h3 id="12-description-length">1.2 Description Length</h3>
+<p><strong>Description lengths grew substantially across all seniority tiers:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Seniority</th>
+<th style="text-align: right;">Median desc_len</th>
+<th style="text-align: right;">Median core_len</th>
+<th style="text-align: right;">Growth (core)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024-04</td>
+<td>junior</td>
+<td style="text-align: right;">3,678</td>
+<td style="text-align: right;">2,858</td>
+<td style="text-align: right;">baseline</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>junior</td>
+<td style="text-align: right;">4,346</td>
+<td style="text-align: right;">3,466</td>
+<td style="text-align: right;"><strong>+21%</strong></td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td>senior</td>
+<td style="text-align: right;">3,156</td>
+<td style="text-align: right;">2,742</td>
+<td style="text-align: right;">baseline</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>senior</td>
+<td style="text-align: right;">5,289</td>
+<td style="text-align: right;">4,249</td>
+<td style="text-align: right;"><strong>+55%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Senior descriptions grew more than junior ones (55% vs 21% at median). Core length (post-boilerplate) grew proportionally, suggesting this is genuine content expansion, not just boilerplate inflation.</p>
+<p><strong>Anomaly flags:</strong> Moderate positive skew in core_length for asaniczka (skew=1.15) and in YOE across all periods (skew&gt;1.0). No bimodality detected in any univariate distribution.</p>
+<p>See: <code>fig1_description_length_by_period.png</code></p>
+<h3 id="13-years-of-experience-yoe">1.3 Years of Experience (YOE)</h3>
+<p><strong>YOE summary by seniority and period:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Seniority</th>
+<th style="text-align: right;">n (has YOE)</th>
+<th style="text-align: right;">Coverage</th>
+<th style="text-align: right;">Median</th>
+<th style="text-align: right;">Mean</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024-04</td>
+<td>junior</td>
+<td style="text-align: right;">476</td>
+<td style="text-align: right;">57.3%</td>
+<td style="text-align: right;"><strong>3.0</strong></td>
+<td style="text-align: right;">4.0</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>junior</td>
+<td style="text-align: right;">1,066</td>
+<td style="text-align: right;">32.7%</td>
+<td style="text-align: right;"><strong>2.0</strong></td>
+<td style="text-align: right;">2.2</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td>mid</td>
+<td style="text-align: right;">129</td>
+<td style="text-align: right;">56.6%</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">3.0</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>mid</td>
+<td style="text-align: right;">423</td>
+<td style="text-align: right;">68.0%</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">3.7</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td>senior</td>
+<td style="text-align: right;">1,989</td>
+<td style="text-align: right;">66.1%</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">5.6</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>senior</td>
+<td style="text-align: right;">13,826</td>
+<td style="text-align: right;">74.4%</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">5.3</td>
+</tr>
+</tbody>
+</table>
+<p>Senior and mid-level YOE are stable. The dramatic change is isolated to entry-level.</p>
+<p><strong>YOE extraction coverage dropped for entry-level</strong> (57.3% to 32.7%). Investigated in Step 3 -- this is because more 2026 entry posts lack explicit YOE requirements, consistent with genuinely junior roles.</p>
+<p>See: <code>fig2_yoe_by_period_seniority.png</code></p>
+<h3 id="14-aggregator-rates">1.4 Aggregator Rates</h3>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">Junior agg rate</th>
+<th style="text-align: right;">Senior agg rate</th>
+<th style="text-align: right;">Overall agg rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024-01</td>
+<td style="text-align: right;">9.2%</td>
+<td style="text-align: right;">29.2%</td>
+<td style="text-align: right;">27.3%</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td style="text-align: right;">23.1%</td>
+<td style="text-align: right;">10.3%</td>
+<td style="text-align: right;">11.8%</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td style="text-align: right;">28.2%</td>
+<td style="text-align: right;">13.2%</td>
+<td style="text-align: right;">14.6%</td>
+</tr>
+</tbody>
+</table>
+<p>Junior aggregator rates rose substantially (23.1% to 28.2%). Aggregators disproportionately post "entry-level" roles with inflated YOE, but this effect is now smaller because high-YOE entry posts disappeared.</p>
+<h3 id="15-metro-areas">1.5 Metro Areas</h3>
+<p>Top 5 metros are stable across periods: San Francisco, Washington DC, Seattle, Dallas-Fort Worth, and Boston consistently dominate. NYC appears in scraped (ranked 4th) but was not a top-5 in either Kaggle source, likely reflecting scraper search configuration.</p>
+<h3 id="16-company-industry">1.6 Company Industry</h3>
+<p>Available for arshkon and scraped only (asaniczka = 0%). Compound labels in scraped (e.g., "Accounting, IT Services and IT Consulting, and Business Consulting and Services") need normalization before cross-period comparison. Top categories are stable: Software Development, IT Services/Consulting, Financial Services.</p>
+<h3 id="17-swe-classification-tier">1.7 SWE Classification Tier</h3>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">regex</th>
+<th style="text-align: right;">title_lookup_llm</th>
+<th style="text-align: right;">embedding_high</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024-01</td>
+<td style="text-align: right;">87.9%</td>
+<td style="text-align: right;">10.4%</td>
+<td style="text-align: right;">1.7%</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td style="text-align: right;">89.2%</td>
+<td style="text-align: right;">9.3%</td>
+<td style="text-align: right;">1.5%</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td style="text-align: right;"><strong>94.2%</strong></td>
+<td style="text-align: right;">4.5%</td>
+<td style="text-align: right;">1.3%</td>
+</tr>
+</tbody>
+</table>
+<p>The scraped period has a higher regex-tier share. This likely reflects title normalization improvements in scraping, not a real change in role composition. Sensitivity analysis by tier shows the junior share decline holds across all tiers (regex: 20.0% to 14.5%, title_lookup_llm: 25.1% to 17.1%).</p>
+<hr />
+<h2 id="2-anomaly-detection">2. Anomaly Detection</h2>
+<h3 id="flagged-distributions">Flagged Distributions</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Period</th>
+<th>Flag</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>core_length</td>
+<td>2024-01</td>
+<td>MODERATE_SKEW</td>
+<td>skew=1.15, kurtosis=1.99 (long right tail)</td>
+</tr>
+<tr>
+<td>yoe_extracted</td>
+<td>2024-04</td>
+<td>MODERATE_SKEW</td>
+<td>skew=1.03, kurtosis=1.60</td>
+</tr>
+<tr>
+<td>yoe_extracted</td>
+<td>2026-03</td>
+<td>MODERATE_SKEW</td>
+<td>skew=1.21, kurtosis=2.68</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Entry-level YOE bimodality (arshkon 2024-04):</strong> The arshkon entry-level YOE distribution was clearly bimodal, with peaks at YOE=2 and YOE=5, and skew=1.42. This bimodality represents two distinct subpopulations:
+- <strong>Genuinely junior roles</strong> (0-2 YOE): the expected entry tier
+- <strong>Mislabeled/inflated roles</strong> (3-8 YOE): roles labeled "entry-level" by the platform despite requiring substantial experience</p>
+<p>In 2026-03, entry-level YOE is unimodal (peak at 2, skew=3.93 due to sparse outliers), with the 5+ YOE subpopulation almost entirely eliminated.</p>
+<h3 id="seniority-label-provenance">Seniority Label Provenance</h3>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">native_backfill</th>
+<th style="text-align: right;">title_keyword</th>
+<th style="text-align: right;">unknown</th>
+<th style="text-align: right;">other</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024-01</td>
+<td style="text-align: right;">37.5%</td>
+<td style="text-align: right;">62.5%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td style="text-align: right;">39.7%</td>
+<td style="text-align: right;">37.7%</td>
+<td style="text-align: right;">19.0%</td>
+<td style="text-align: right;">3.7%</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td style="text-align: right;">45.4%</td>
+<td style="text-align: right;">45.2%</td>
+<td style="text-align: right;">6.7%</td>
+<td style="text-align: right;">2.6%</td>
+</tr>
+</tbody>
+</table>
+<p>The scraped data has better seniority label coverage (93.3% resolved vs 81.0% for arshkon). The native_backfill and title_keyword provenances are nearly equal in scraped data.</p>
+<hr />
+<h2 id="3-yoe-paradox-deep-dive-highest-priority">3. YOE Paradox Deep Dive (HIGHEST PRIORITY)</h2>
+<h3 id="31-the-paradox-stated">3.1 The Paradox Stated</h3>
+<p>Wave 1 found that entry-level median YOE <strong>decreased</strong> from 3.0 (arshkon 2024) to 2.0 (scraped 2026). This appears to contradict the "scope inflation" hypothesis -- if employers are asking more of junior roles, why would YOE requirements go DOWN?</p>
+<h3 id="32-resolution-slot-elimination-genuine-entry-residual">3.2 Resolution: Slot Elimination + Genuine Entry Residual</h3>
+<p><strong>Finding: The YOE decrease is real and reflects the selective elimination of high-YOE "entry-level" slots.</strong></p>
+<p>Evidence from five independent decompositions:</p>
+<h4 id="a-binned-yoe-distribution-slot-elimination">A. Binned YOE distribution (slot elimination)</h4>
+<table>
+<thead>
+<tr>
+<th>YOE bin</th>
+<th style="text-align: right;">2024-04 share</th>
+<th style="text-align: right;">2026-03 share</th>
+<th style="text-align: right;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Missing</td>
+<td style="text-align: right;">42.7%</td>
+<td style="text-align: right;">67.3%</td>
+<td style="text-align: right;">+24.6pp</td>
+</tr>
+<tr>
+<td>1-2</td>
+<td style="text-align: right;">17.7%</td>
+<td style="text-align: right;">27.2%</td>
+<td style="text-align: right;">+9.5pp</td>
+</tr>
+<tr>
+<td>3-4</td>
+<td style="text-align: right;"><strong>16.9%</strong></td>
+<td style="text-align: right;"><strong>3.2%</strong></td>
+<td style="text-align: right;"><strong>-13.7pp</strong></td>
+</tr>
+<tr>
+<td>5+</td>
+<td style="text-align: right;"><strong>22.8%</strong></td>
+<td style="text-align: right;"><strong>2.4%</strong></td>
+<td style="text-align: right;"><strong>-20.4pp</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The 5+ YOE category collapsed from 22.8% to 2.4% of entry-level postings. The 3-4 YOE category collapsed similarly. What remains is the 1-2 YOE tier, which actually grew in share.</p>
+<p><strong>Ghost job risk confirms this:</strong> In arshkon, 22.8% of entry-level posts were flagged as "high" ghost risk (entry label + 5+ YOE) vs only 2.4% in scraped. The pipeline's ghost detector essentially identifies the same phenomenon.</p>
+<h4 id="b-within-title-analysis">B. Within-title analysis</h4>
+<p>Of 14 matched titles (&gt;=3 observations in both periods), <strong>11 show YOE decrease or stability, 2 are unchanged, and 1 shows increase</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Title</th>
+<th style="text-align: right;">Med YOE 2024</th>
+<th style="text-align: right;">Med YOE 2026</th>
+<th style="text-align: right;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>full stack developer</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;"><strong>-4.0</strong></td>
+</tr>
+<tr>
+<td>servicenow developer</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;"><strong>-4.0</strong></td>
+</tr>
+<tr>
+<td>java developer</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;"><strong>-3.0</strong></td>
+</tr>
+<tr>
+<td>quality assurance engineer</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;"><strong>-2.0</strong></td>
+</tr>
+<tr>
+<td>software developer</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">-1.0</td>
+</tr>
+<tr>
+<td>data engineer</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">-1.0</td>
+</tr>
+<tr>
+<td>cloud engineer</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">-1.0</td>
+</tr>
+<tr>
+<td>systems engineer</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">-1.0</td>
+</tr>
+<tr>
+<td>software engineer</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">0.0</td>
+</tr>
+<tr>
+<td>product engineer</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">0.0</td>
+</tr>
+</tbody>
+</table>
+<p>The decrease is within-title, not compositional. Titles that formerly asked for 5-6 YOE at "entry-level" now ask for 2 YOE.</p>
+<h4 id="c-seniority-provenance-decomposition">C. Seniority provenance decomposition</h4>
+<p>Even restricting to the same provenance pathway:</p>
+<table>
+<thead>
+<tr>
+<th>Provenance</th>
+<th style="text-align: right;">Med YOE 2024</th>
+<th style="text-align: right;">Med YOE 2026</th>
+<th style="text-align: right;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>native_backfill</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">-1.0</td>
+</tr>
+<tr>
+<td>title_keyword</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">0.0</td>
+</tr>
+</tbody>
+</table>
+<p>The native_backfill pathway (platform-assigned "entry" labels) shows the same decrease. Title_keyword (imputed from title text) was already at 2.0 in both periods.</p>
+<h4 id="d-aggregator-decomposition">D. Aggregator decomposition</h4>
+<table>
+<thead>
+<tr>
+<th>Segment</th>
+<th style="text-align: right;">Med YOE 2024</th>
+<th style="text-align: right;">Med YOE 2026</th>
+<th style="text-align: right;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Direct employers</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">-1.0</td>
+</tr>
+<tr>
+<td>Aggregators</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;"><strong>-3.0</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Aggregators show the largest YOE drop, but direct employers show it too. This is not an aggregator-specific artifact.</p>
+<h4 id="e-company-capping-sensitivity">E. Company capping sensitivity</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Company cap</th>
+<th style="text-align: right;">Med YOE 2024</th>
+<th style="text-align: right;">Med YOE 2026</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">3 per company</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+</tr>
+<tr>
+<td style="text-align: right;">5 per company</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+</tr>
+<tr>
+<td style="text-align: right;">10 per company</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+</tr>
+<tr>
+<td style="text-align: right;">50 per company</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+</tr>
+<tr>
+<td style="text-align: right;">No cap</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.0</td>
+</tr>
+</tbody>
+</table>
+<p>The YOE decrease is completely invariant to company capping.</p>
+<h4 id="f-top-employers-composition">F. Top employers composition</h4>
+<p>Arshkon 2024-04 top entry-level employers were staffing agencies posting inflated requirements:
+- Tata Consultancy Services (n=30, med YOE=8.0)
+- Open Systems Technologies (n=26, med YOE=5.0)
+- TEKsystems (n=22, med YOE=5.0)</p>
+<p>Scraped 2026-03 top entry-level employers are direct employers with genuine entry requirements:
+- Jobs via Dice (n=213, med YOE=2.0)
+- Epic (n=163, med YOE=NaN -- no YOE listed)
+- TikTok (n=93, med YOE=2.0)
+- Cisco (n=51, med YOE=1.0)
+- SpaceX (n=37, med YOE=2.0)</p>
+<h3 id="33-statistical-test">3.3 Statistical Test</h3>
+<p>Mann-Whitney U test for entry-level YOE, 2024-04 vs 2026-03:
+- U = 399,360, p = 2.94e-81
+- Cohen's d = 0.94 (large effect)
+- Mean: 4.04 -&gt; 2.17
+- Median: 3.0 -&gt; 2.0</p>
+<h3 id="34-yoe-paradox-interpretation">3.4 YOE Paradox: Interpretation</h3>
+<p>The YOE paradox is NOT a contradiction of scope inflation. It is evidence of a complementary phenomenon: <strong>slot purification</strong>. The story is:</p>
+<ol>
+<li>In 2024, "entry-level" was a broad label encompassing both genuinely junior roles (0-2 YOE) AND experienced roles mislabeled as entry (3-8 YOE). Many of the latter were from staffing agencies.</li>
+<li>By 2026, the high-YOE "entry-level" slots were eliminated -- either reclassified to appropriate seniority levels, or the roles themselves were cut.</li>
+<li>What remains in the entry tier are genuinely junior positions with YOE requirements matching their seniority label.</li>
+</ol>
+<p>This is <strong>consistent</strong> with scope inflation if we distinguish between:
+- <strong>Vertical inflation</strong> (junior roles demanding more): not supported by YOE data
+- <strong>Horizontal elimination</strong> (junior slots disappearing entirely): supported by junior share decline (-5.9pp)
+- <strong>Label purification</strong> (entry tier becoming more accurately labeled): supported by YOE data</p>
+<p>The 3+ YOE "entry-level" roles that disappeared were likely never genuinely junior. Their elimination from the entry tier reduces noise and makes the remaining junior-senior comparison cleaner.</p>
+<h3 id="35-yoe-coverage-caveat">3.5 YOE Coverage Caveat</h3>
+<p>YOE extraction coverage is lower for entry-level in 2026 (32.7%) than 2024 (57.3%). This is partially because more 2026 entry posts omit explicit YOE requirements entirely (especially from companies like Epic where 163 entry posts have no extracted YOE). This is consistent with genuinely entry-level roles not bothering to state a YOE floor.</p>
+<hr />
+<h2 id="4-within-2024-calibration">4. Within-2024 Calibration</h2>
+<h3 id="41-description-length">4.1 Description Length</h3>
+<p>Comparing asaniczka (Jan 2024) vs arshkon (Apr 2024) for mid-senior SWE establishes the instrument noise floor:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;">Within-2024 Cohen's d</th>
+<th style="text-align: right;">2024-2026 Cohen's d</th>
+<th style="text-align: right;">Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>description_length</td>
+<td style="text-align: right;">-0.285</td>
+<td style="text-align: right;"><strong>0.770</strong></td>
+<td style="text-align: right;"><strong>2.7x</strong></td>
+</tr>
+<tr>
+<td>core_length</td>
+<td style="text-align: right;">0.107</td>
+<td style="text-align: right;"><strong>0.761</strong></td>
+<td style="text-align: right;"><strong>7.1x</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The 2024-to-2026 description length effect is 2.7-7.1x the within-2024 noise, confirming genuine growth.</p>
+<h3 id="42-technology-stack-calibration">4.2 Technology Stack Calibration</h3>
+<p>Top technologies by |2024-2026 difference| with calibration ratio:</p>
+<table>
+<thead>
+<tr>
+<th>Technology</th>
+<th style="text-align: right;">Asaniczka</th>
+<th style="text-align: right;">Arshkon</th>
+<th style="text-align: right;">Scraped</th>
+<th style="text-align: right;">Within-2024</th>
+<th style="text-align: right;">2024-2026</th>
+<th style="text-align: right;">Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>lang_python</td>
+<td style="text-align: right;">34.8%</td>
+<td style="text-align: right;">33.9%</td>
+<td style="text-align: right;">49.6%</td>
+<td style="text-align: right;">-0.9pp</td>
+<td style="text-align: right;"><strong>+15.8pp</strong></td>
+<td style="text-align: right;"><strong>17.0x</strong></td>
+</tr>
+<tr>
+<td>ai_llm</td>
+<td style="text-align: right;">1.7%</td>
+<td style="text-align: right;">1.8%</td>
+<td style="text-align: right;">14.4%</td>
+<td style="text-align: right;">+0.2pp</td>
+<td style="text-align: right;"><strong>+12.5pp</strong></td>
+<td style="text-align: right;">(noise~0)</td>
+</tr>
+<tr>
+<td>devops_cicd</td>
+<td style="text-align: right;">18.0%</td>
+<td style="text-align: right;">24.3%</td>
+<td style="text-align: right;">36.4%</td>
+<td style="text-align: right;">+6.3pp</td>
+<td style="text-align: right;">+12.0pp</td>
+<td style="text-align: right;">1.9x</td>
+</tr>
+<tr>
+<td>ai_agent_frameworks</td>
+<td style="text-align: right;">0.03%</td>
+<td style="text-align: right;">0.1%</td>
+<td style="text-align: right;">10.8%</td>
+<td style="text-align: right;">+0.07pp</td>
+<td style="text-align: right;"><strong>+10.7pp</strong></td>
+<td style="text-align: right;">(noise~0)</td>
+</tr>
+<tr>
+<td>ai_generative_ai</td>
+<td style="text-align: right;">0.8%</td>
+<td style="text-align: right;">1.6%</td>
+<td style="text-align: right;">9.7%</td>
+<td style="text-align: right;">+0.8pp</td>
+<td style="text-align: right;"><strong>+8.1pp</strong></td>
+<td style="text-align: right;"><strong>10.6x</strong></td>
+</tr>
+<tr>
+<td>ml_machine_learning</td>
+<td style="text-align: right;">8.4%</td>
+<td style="text-align: right;">7.4%</td>
+<td style="text-align: right;">14.9%</td>
+<td style="text-align: right;">-1.0pp</td>
+<td style="text-align: right;">+7.5pp</td>
+<td style="text-align: right;">7.9x</td>
+</tr>
+</tbody>
+</table>
+<p>AI/ML technologies show signal-to-noise ratios of 7-17x. CI/CD shows a 1.9x ratio -- a real increase but with substantial instrument noise. Python's 17x ratio is remarkable, suggesting a genuine doubling of Python prevalence in SWE postings.</p>
+<h3 id="43-technologies-that-are-mostly-noise">4.3 Technologies That Are Mostly Noise</h3>
+<table>
+<thead>
+<tr>
+<th>Technology</th>
+<th style="text-align: right;">Within-2024 diff</th>
+<th style="text-align: right;">2024-2026 diff</th>
+<th style="text-align: right;">Ratio</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>be_dotnet</td>
+<td style="text-align: right;">+2.9pp</td>
+<td style="text-align: right;">-4.3pp</td>
+<td style="text-align: right;">1.5x</td>
+<td>Instrument noise dominates</td>
+</tr>
+<tr>
+<td>fe_html_css</td>
+<td style="text-align: right;">+0.2pp</td>
+<td style="text-align: right;">-4.5pp</td>
+<td style="text-align: right;">Unclear</td>
+<td>Possible real decline, but noisy</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-junior-share-trends">5. Junior Share Trends</h2>
+<h3 id="51-primary-estimate-seniority_final-arshkon-vs-scraped">5.1 Primary estimate (seniority_final, arshkon vs scraped)</h3>
+<table>
+<thead>
+<tr>
+<th>Measure</th>
+<th style="text-align: right;">2024-04</th>
+<th style="text-align: right;">2026-03</th>
+<th style="text-align: right;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Entry share (all SWE)</td>
+<td style="text-align: right;">16.5%</td>
+<td style="text-align: right;">13.5%</td>
+<td style="text-align: right;"><strong>-3.0pp</strong></td>
+</tr>
+<tr>
+<td>Entry share (known seniority)</td>
+<td style="text-align: right;">20.4%</td>
+<td style="text-align: right;">14.5%</td>
+<td style="text-align: right;"><strong>-5.9pp</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-sensitivity-checks">5.2 Sensitivity checks</h3>
+<table>
+<thead>
+<tr>
+<th>Sensitivity</th>
+<th style="text-align: right;">Entry 2024-04</th>
+<th style="text-align: right;">Entry 2026-03</th>
+<th style="text-align: right;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>seniority_native only</td>
+<td style="text-align: right;">22.3%</td>
+<td style="text-align: right;">14.0%</td>
+<td style="text-align: right;"><strong>-8.3pp</strong></td>
+</tr>
+<tr>
+<td>Aggregator exclusion</td>
+<td style="text-align: right;">14.4%</td>
+<td style="text-align: right;">11.4%</td>
+<td style="text-align: right;"><strong>-3.1pp</strong></td>
+</tr>
+<tr>
+<td>regex-tier SWE only</td>
+<td style="text-align: right;">20.0%</td>
+<td style="text-align: right;">14.5%</td>
+<td style="text-align: right;"><strong>-5.5pp</strong></td>
+</tr>
+<tr>
+<td>title_lookup_llm SWE only</td>
+<td style="text-align: right;">25.1%</td>
+<td style="text-align: right;">17.1%</td>
+<td style="text-align: right;"><strong>-8.0pp</strong></td>
+</tr>
+</tbody>
+</table>
+<p>All sensitivities show decline. Aggregator exclusion reduces the magnitude (from -5.9pp to -3.1pp) because aggregators disproportionately post entry-level. seniority_native shows the largest decline (-8.3pp).</p>
+<hr />
+<h2 id="6-ranked-changes-largest-effect-sizes">6. Ranked Changes (Largest Effect Sizes)</h2>
+<h3 id="top-10-by-cohens-h-or-cohens-d-arshkon-2024-vs-scraped-2026-mid-senior-swe">Top 10 by |Cohen's h| or |Cohen's d| (arshkon 2024 vs scraped 2026, mid-senior SWE):</h3>
+<table>
+<thead>
+<tr>
+<th>Rank</th>
+<th>Variable</th>
+<th>Category</th>
+<th>Effect Size</th>
+<th>Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>description_length</td>
+<td>structural</td>
+<td>d = 0.77</td>
+<td>INCREASE</td>
+</tr>
+<tr>
+<td>2</td>
+<td>core_length</td>
+<td>structural</td>
+<td>d = 0.76</td>
+<td>INCREASE</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ai_agent_frameworks</td>
+<td>technology</td>
+<td>h = 0.61</td>
+<td>INCREASE (0.1% to 10.8%)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>ai_llm</td>
+<td>technology</td>
+<td>h = 0.51</td>
+<td>INCREASE (1.8% to 14.4%)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>tool_claude</td>
+<td>technology</td>
+<td>h = 0.41</td>
+<td>NEW (0% to 4.1%)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>ai_generative_ai</td>
+<td>technology</td>
+<td>h = 0.38</td>
+<td>INCREASE (1.6% to 9.7%)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>aggregator_share_mid</td>
+<td>structural</td>
+<td>h = 0.38</td>
+<td>INCREASE (3.1% to 12.7%)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>tool_copilot</td>
+<td>technology</td>
+<td>h = 0.34</td>
+<td>INCREASE (0.2% to 4.4%)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>ai_rag</td>
+<td>technology</td>
+<td>h = 0.33</td>
+<td>INCREASE (0.5% to 5.3%)</td>
+</tr>
+<tr>
+<td>10</td>
+<td>lang_python</td>
+<td>technology</td>
+<td>h = 0.32</td>
+<td>INCREASE (33.9% to 49.6%)</td>
+</tr>
+</tbody>
+</table>
+<p>Description length is the single largest change. After that, the top changes are almost entirely AI/ML technology adoption. Python is the only general-purpose language in the top 10.</p>
+<h3 id="technologies-showing-decline">Technologies showing DECLINE:</h3>
+<table>
+<thead>
+<tr>
+<th>Technology</th>
+<th style="text-align: right;">Arshkon</th>
+<th style="text-align: right;">Scraped</th>
+<th style="text-align: right;">Cohen's h</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>lang_c_cpp</td>
+<td style="text-align: right;">1.2%</td>
+<td style="text-align: right;">0.08%</td>
+<td style="text-align: right;">-0.17</td>
+</tr>
+<tr>
+<td>practice_agile</td>
+<td style="text-align: right;">33.0%</td>
+<td style="text-align: right;">28.4%</td>
+<td style="text-align: right;">-0.10</td>
+</tr>
+<tr>
+<td>fe_html_css</td>
+<td style="text-align: right;">11.8%</td>
+<td style="text-align: right;">7.3%</td>
+<td style="text-align: right;">-0.15</td>
+</tr>
+<tr>
+<td>lang_sql</td>
+<td style="text-align: right;">30.5%</td>
+<td style="text-align: right;">25.4%</td>
+<td style="text-align: right;">-0.11</td>
+</tr>
+</tbody>
+</table>
+<p>C/C++, Agile, and frontend HTML/CSS mentions declined, though these are smaller effects and partially within the noise floor.</p>
+<hr />
+<h2 id="7-surprises-unexpected-patterns">7. Surprises &amp; Unexpected Patterns</h2>
+<h3 id="s1-the-yoe-paradox-is-a-feature-not-a-bug">S1: The YOE paradox is a FEATURE, not a bug</h3>
+<p>The most surprising finding is that the YOE decrease is not an artifact but a genuine market signal. The 2024 "entry-level" tier was contaminated with experienced-hire roles mislabeled as entry. By 2026, these have been purified out. This has a major methodological implication: the 2024 entry-level YOE distribution was bimodal (genuine juniors + mislabeled seniors), making any 2024 entry-level text analysis contaminated by senior-level content.</p>
+<h3 id="s2-aggregator-share-at-mid-level-quadrupled">S2: Aggregator share at mid-level quadrupled</h3>
+<p>Mid-level aggregator share went from 3.1% to 12.7% (Cohen's h = 0.38). This is the 7th largest effect size. Staffing agencies appear to be shifting their SWE postings from entry-level to mid-level roles.</p>
+<h3 id="s3-python-became-a-majority-requirement">S3: Python became a majority requirement</h3>
+<p>Python prevalence in mid-senior SWE postings went from 33.9% to 49.6%. It is now mentioned in essentially half of all senior SWE job postings, up from one-third just two years ago. This is the largest single general-purpose technology shift.</p>
+<h3 id="s4-the-new-ai-technology-stack-appeared-from-near-zero">S4: The new AI technology stack appeared from near-zero</h3>
+<p>Agent frameworks (0.1% to 10.8%), RAG (0.5% to 5.3%), LangChain (0.2% to 3.4%), and prompt engineering (0.3% to 3.7%) all emerged from essentially zero prevalence. These represent genuinely new requirements that did not exist in the 2024 labor market.</p>
+<h3 id="s5-agile-practice-mentions-declined">S5: Agile practice mentions declined</h3>
+<p>Agile/Scrum mentions went from 33.0% to 28.4%. This is unexpected -- agile methodologies are if anything more prevalent in industry. This may reflect a shift in what employers emphasize in job postings rather than a decline in practice.</p>
+<h3 id="s6-cc-nearly-disappeared-from-mid-senior-swe">S6: C/C++ nearly disappeared from mid-senior SWE</h3>
+<p>C/C++ went from 1.2% to 0.08%, a near-complete elimination. This is surprising even if it was already rare -- the remaining roles presumably represent embedded/systems work that shifted to Rust (which grew from 1.2% to 4.2%).</p>
+<h3 id="s7-yoe-extraction-coverage-is-an-informative-signal">S7: YOE extraction coverage is an informative signal</h3>
+<p>The lower YOE extraction rate for entry-level in 2026 (32.7% vs 57.3%) is not missing data -- it likely reflects that genuinely entry-level roles do not specify YOE requirements, while the inflated "entry" roles of 2024 did specify (5+ YOE). The missingness itself is evidence of slot purification.</p>
+<hr />
+<h2 id="8-methodological-implications-for-downstream-tasks">8. Methodological Implications for Downstream Tasks</h2>
+<ol>
+<li>
+<p><strong>Length normalization is mandatory.</strong> The 55-77% increase in description length (d=0.77) means all text-derived metrics (keyword counts, topic prevalence, etc.) must be normalized per 1K characters at minimum.</p>
+</li>
+<li>
+<p><strong>The 2024 entry tier is contaminated.</strong> Approximately 23% of arshkon entry-level postings had 5+ YOE requirements. Any analysis of "entry-level requirements" in 2024 should either (a) filter to YOE &lt;= 2 or (b) treat the bimodal distribution as a known confounder.</p>
+</li>
+<li>
+<p><strong>Aggregator sensitivity is critical for entry-level.</strong> The entry-level junior share decline shrinks from -5.9pp to -3.1pp when aggregators are excluded. Report both.</p>
+</li>
+<li>
+<p><strong>Within-2024 calibration identifies genuine signals.</strong> Technologies with ratio &gt; 3 (python, AI/ML, agent frameworks, terraform, kubernetes) are genuine changes. Technologies with ratio &lt; 2 (dotnet, CICD) are within the noise floor.</p>
+</li>
+<li>
+<p><strong>YOE paradox is consistent with, not contradictory to, RQ1.</strong> The correct framing: employers reduced the number of junior slots (share decline) AND the remaining junior slots have more accurate labels (YOE decrease). This is structural reorganization of the entry tier, not scope inflation within it.</p>
+</li>
+</ol>
+<hr />
+<h2 id="tables-and-figures">Tables and Figures</h2>
+<h3 id="figures">Figures</h3>
+<ul>
+<li><code>fig1_description_length_by_period.png</code> — Description and core length distributions by period</li>
+<li><code>fig2_yoe_by_period_seniority.png</code> — YOE distributions by period and seniority tier</li>
+<li><code>fig3_yoe_paradox.png</code> — YOE paradox: entry-level YOE decrease decomposed (histogram, bin shares, native-backfill only)</li>
+<li><code>fig4_summary.png</code> — 4-panel summary (seniority share, entry YOE box, top tech changes, calibration scatter)</li>
+</ul>
+<h3 id="tables-30-csv-files">Tables (30 CSV files)</h3>
+<p>Key tables:
+- <code>ranked_changes.csv</code> — All metrics ranked by |effect size|
+- <code>yoe_entry_binned.csv</code> — Slot elimination evidence
+- <code>yoe_entry_matched_titles.csv</code> — Within-title YOE changes
+- <code>yoe_entry_company_capping.csv</code> — Capping sensitivity
+- <code>within_2024_calibration_tech.csv</code> — 146-technology calibration table
+- <code>calibration_effect_sizes.csv</code> — Description length calibration
+- <code>junior_share_by_period.csv</code> — Primary junior share estimates
+- Full table listing in <code>exploration/tables/T08/</code></p>
+<hr />
+<h2 id="sensitivity-summary">Sensitivity Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Sensitivity</th>
+<th>Applied to</th>
+<th>Effect on key finding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(a) Aggregator exclusion</td>
+<td>Junior share, YOE</td>
+<td>Junior decline shrinks -5.9pp to -3.1pp; YOE decrease survives</td>
+</tr>
+<tr>
+<td>(b) Company capping</td>
+<td>YOE paradox</td>
+<td>No change at any cap level (3, 5, 10, 50)</td>
+</tr>
+<tr>
+<td>(c) Seniority operationalization</td>
+<td>Junior share</td>
+<td>-5.9pp (seniority_final) to -8.3pp (seniority_native). Robust.</td>
+</tr>
+<tr>
+<td>(e) Source restriction</td>
+<td>Junior share</td>
+<td>Excludes asaniczka (no entry labels). Primary comparison is arshkon vs scraped.</td>
+</tr>
+<tr>
+<td>(f) Within-2024 calibration</td>
+<td>Tech, desc length</td>
+<td>AI tech changes 5-17x noise. Desc length 2.7-7.1x noise. Both genuine.</td>
+</tr>
+<tr>
+<td>(g) SWE tier</td>
+<td>Junior share</td>
+<td>Decline holds in regex-only (-5.5pp) and title_lookup_llm-only (-8.0pp)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

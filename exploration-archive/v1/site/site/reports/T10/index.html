@@ -1,0 +1,3864 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration v1 (Wave 1-3): raw findings from the SWE labor market restructuring study">
+      
+      
+      
+      
+        <link rel="prev" href="../T09/">
+      
+      
+        <link rel="next" href="../T11/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T10 Temporal Language Drift - SWE Labor Market Exploration — v1</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t10-fightin-words-corpus-comparison" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration — v1" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration — v1" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration — v1
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T10 Temporal Language Drift
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Overview
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../synthesis/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Synthesis
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../T01/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Evidence
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration — v1" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration — v1" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration — v1
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../synthesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evidence
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 Column Coverage Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Variants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Geographic & Macro Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Seniority Variant Sensitivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Temporal Language Drift
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Temporal Language Drift
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comparison summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comparison-1-junior-2024-vs-junior-2026-rq1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison 1: Junior 2024 vs Junior 2026 (RQ1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-2-senior-2024-vs-senior-2026-rq1-senior-redefinition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison 2: Senior 2024 vs Senior 2026 (RQ1 senior redefinition)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-3-junior-2024-vs-senior-2024-rq1rq2-baseline-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison 3: Junior 2024 vs Senior 2024 (RQ1/RQ2 baseline gap)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-4-junior-2026-vs-senior-2026-rq1rq2-current-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison 4: Junior 2026 vs Senior 2026 (RQ1/RQ2 current gap)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-5-junior-2026-vs-senior-2024-rq1-redefinition-hypothesis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison 5: Junior 2026 vs Senior 2024 (RQ1 redefinition hypothesis)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-6-swe-2026-vs-control-2026-supporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison 6: SWE 2026 vs Control 2026 (Supporting)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aillm-term-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI/LLM term analysis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thematic-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thematic patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Thematic patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#managementmentoring-terms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Management/Mentoring terms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system-design-terms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Design terms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ownership-terms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ownership terms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implication-for-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implication for analysis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-quality-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data quality note
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#action-items" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action items
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output files
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Within-Company Decomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Employer-Worker Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Data Quality Diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Cross-Occupation Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Interview Artifacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t10-fightin-words-corpus-comparison">T10: Fightin' Words Corpus Comparison</h1>
+<h2 id="finding">Finding</h2>
+<p>Fightin' Words analysis across 6 corpus pairs reveals three key patterns. (1) AI/ML terminology is the single strongest temporal distinguisher: "ai" is the #1 term in all temporal comparisons (z=-26.8 for junior, z=-43.8 for senior), with 14 AI-related terms significantly distinguishing 2026 junior postings from 2024 and 19 for senior. Specific tooling terms (llm, agents, rag, copilot, langchain) dominate 2026 postings. (2) Ownership/autonomy language shifted toward 2026 (ownership z=-11.9 for senior, autonomous z=-8.8), while traditional management language ("management" z=+14.7) favors 2024. (3) Comparison 5 (Junior 2026 vs Senior 2024) shows 2026 entry-level postings are more AI-heavy than 2024 senior postings (ai z=+38.8), but still trail in experience/years/management language, partially supporting the scope-inflation hypothesis -- junior roles absorbed new AI requirements but not traditional senior scope. C6 confirms AI terms are SWE-specific, not labor-market-wide (ai z=+65.5 SWE vs control).</p>
+<h2 id="comparison-summary">Comparison summary</h2>
+<p>| # | Comparison | n_A | n_B | Sig unigrams (|z|&gt;3) | Sig bigrams (|z|&gt;3) | Flag |
+|---|---|---|---|---|---|---|
+| 1 | Junior 2024 vs Junior 2026 | 745 | 549 | 621 | 476 |  |
+| 2 | Senior 2024 vs Senior 2026 | 2584 | 3262 | 2030 | 4226 |  |
+| 3 | Junior 2024 vs Senior 2024 | 745 | 2584 | 790 | 1408 |  |
+| 4 | Junior 2026 vs Senior 2026 | 549 | 3262 | 1141 | 3583 |  |
+| 5 | Junior 2026 vs Senior 2024 | 549 | 2584 | 1126 | 2067 |  |
+| 6 | SWE 2026 vs Control 2026 | 4219 | 4087 | 4517 | 10977 |  |</p>
+<h3 id="comparison-1-junior-2024-vs-junior-2026-rq1">Comparison 1: Junior 2024 vs Junior 2026 (RQ1)</h3>
+<ul>
+<li><strong>Corpus A:</strong> Junior 2024 (arshkon) (n=745)</li>
+<li><strong>Corpus B:</strong> Junior 2026 (scraped) (n=549)</li>
+</ul>
+<p><strong>Top unigrams favoring Junior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>years</td>
+<td>12.0</td>
+<td>0.0041</td>
+<td>0.0021</td>
+<td></td>
+</tr>
+<tr>
+<td>management</td>
+<td>11.3</td>
+<td>0.0030</td>
+<td>0.0014</td>
+<td>Mgmt/Mentoring</td>
+</tr>
+<tr>
+<td>capital</td>
+<td>9.2</td>
+<td>0.0009</td>
+<td>0.0002</td>
+<td></td>
+</tr>
+<tr>
+<td>analysis</td>
+<td>7.8</td>
+<td>0.0015</td>
+<td>0.0007</td>
+<td></td>
+</tr>
+<tr>
+<td>development</td>
+<td>7.6</td>
+<td>0.0073</td>
+<td>0.0055</td>
+<td></td>
+</tr>
+<tr>
+<td>application</td>
+<td>7.6</td>
+<td>0.0029</td>
+<td>0.0018</td>
+<td></td>
+</tr>
+<tr>
+<td>system</td>
+<td>7.5</td>
+<td>0.0031</td>
+<td>0.0020</td>
+<td>System Design</td>
+</tr>
+<tr>
+<td>technical</td>
+<td>7.2</td>
+<td>0.0043</td>
+<td>0.0030</td>
+<td></td>
+</tr>
+<tr>
+<td>etc</td>
+<td>7.1</td>
+<td>0.0014</td>
+<td>0.0007</td>
+<td></td>
+</tr>
+<tr>
+<td>requirements</td>
+<td>7.0</td>
+<td>0.0037</td>
+<td>0.0026</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top unigrams favoring Junior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ai</td>
+<td>-26.8</td>
+<td>0.0009</td>
+<td>0.0060</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>jobs</td>
+<td>-10.2</td>
+<td>0.0003</td>
+<td>0.0011</td>
+<td></td>
+</tr>
+<tr>
+<td>workflows</td>
+<td>-10.0</td>
+<td>0.0002</td>
+<td>0.0009</td>
+<td></td>
+</tr>
+<tr>
+<td>cisco</td>
+<td>-9.4</td>
+<td>0.0001</td>
+<td>0.0007</td>
+<td></td>
+</tr>
+<tr>
+<td>familiarity</td>
+<td>-8.8</td>
+<td>0.0006</td>
+<td>0.0015</td>
+<td></td>
+</tr>
+<tr>
+<td>privacy</td>
+<td>-8.6</td>
+<td>0.0003</td>
+<td>0.0009</td>
+<td></td>
+</tr>
+<tr>
+<td>build</td>
+<td>-8.5</td>
+<td>0.0016</td>
+<td>0.0027</td>
+<td></td>
+</tr>
+<tr>
+<td>recruitment</td>
+<td>-8.3</td>
+<td>0.0001</td>
+<td>0.0006</td>
+<td></td>
+</tr>
+<tr>
+<td>usd</td>
+<td>-8.1</td>
+<td>0.0002</td>
+<td>0.0007</td>
+<td></td>
+</tr>
+<tr>
+<td>ml</td>
+<td>-7.9</td>
+<td>0.0003</td>
+<td>0.0009</td>
+<td>AI/LLM</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Junior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>years experience</td>
+<td>12.0</td>
+<td>0.0031</td>
+<td>0.0010</td>
+<td></td>
+</tr>
+<tr>
+<td>capital one</td>
+<td>9.3</td>
+<td>0.0012</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>systems engineering</td>
+<td>6.8</td>
+<td>0.0009</td>
+<td>0.0003</td>
+<td>System Design</td>
+</tr>
+<tr>
+<td>protected law</td>
+<td>6.4</td>
+<td>0.0008</td>
+<td>0.0003</td>
+<td></td>
+</tr>
+<tr>
+<td>minimum years</td>
+<td>6.2</td>
+<td>0.0006</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Junior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ai engineer</td>
+<td>-6.3</td>
+<td>0.0001</td>
+<td>0.0005</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>ai driven</td>
+<td>-6.0</td>
+<td>0.0000</td>
+<td>0.0005</td>
+<td>AI/LLM, Ownership</td>
+</tr>
+<tr>
+<td>lockheed martin</td>
+<td>-6.0</td>
+<td>0.0001</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+<tr>
+<td>privacy notice</td>
+<td>-5.8</td>
+<td>0.0002</td>
+<td>0.0006</td>
+<td></td>
+</tr>
+<tr>
+<td>job seekers</td>
+<td>-5.8</td>
+<td>0.0001</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison-2-senior-2024-vs-senior-2026-rq1-senior-redefinition">Comparison 2: Senior 2024 vs Senior 2026 (RQ1 senior redefinition)</h3>
+<ul>
+<li><strong>Corpus A:</strong> Senior 2024 (arshkon) (n=2584)</li>
+<li><strong>Corpus B:</strong> Senior 2026 (scraped) (n=3262)</li>
+</ul>
+<p><strong>Top unigrams favoring Senior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>capital</td>
+<td>28.7</td>
+<td>0.0023</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>one</td>
+<td>24.5</td>
+<td>0.0039</td>
+<td>0.0022</td>
+<td></td>
+</tr>
+<tr>
+<td>development</td>
+<td>18.4</td>
+<td>0.0069</td>
+<td>0.0050</td>
+<td></td>
+</tr>
+<tr>
+<td>years</td>
+<td>17.8</td>
+<td>0.0054</td>
+<td>0.0038</td>
+<td></td>
+</tr>
+<tr>
+<td>database</td>
+<td>17.2</td>
+<td>0.0010</td>
+<td>0.0004</td>
+<td></td>
+</tr>
+<tr>
+<td>agile</td>
+<td>16.7</td>
+<td>0.0016</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>knowledge</td>
+<td>16.5</td>
+<td>0.0031</td>
+<td>0.0020</td>
+<td></td>
+</tr>
+<tr>
+<td>new</td>
+<td>16.4</td>
+<td>0.0035</td>
+<td>0.0024</td>
+<td></td>
+</tr>
+<tr>
+<td>fidelity</td>
+<td>15.9</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>net</td>
+<td>15.3</td>
+<td>0.0008</td>
+<td>0.0003</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top unigrams favoring Senior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ai</td>
+<td>-43.8</td>
+<td>0.0012</td>
+<td>0.0050</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>workflows</td>
+<td>-19.0</td>
+<td>0.0003</td>
+<td>0.0010</td>
+<td></td>
+</tr>
+<tr>
+<td>range</td>
+<td>-18.1</td>
+<td>0.0018</td>
+<td>0.0030</td>
+<td></td>
+</tr>
+<tr>
+<td>across</td>
+<td>-17.1</td>
+<td>0.0019</td>
+<td>0.0031</td>
+<td></td>
+</tr>
+<tr>
+<td>environments</td>
+<td>-15.6</td>
+<td>0.0006</td>
+<td>0.0013</td>
+<td></td>
+</tr>
+<tr>
+<td>chance</td>
+<td>-14.9</td>
+<td>0.0003</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>ordinance</td>
+<td>-14.6</td>
+<td>0.0001</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+<tr>
+<td>ml</td>
+<td>-14.5</td>
+<td>0.0006</td>
+<td>0.0013</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>llm</td>
+<td>-13.7</td>
+<td>0.0001</td>
+<td>0.0004</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>observability</td>
+<td>-13.5</td>
+<td>0.0002</td>
+<td>0.0006</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Senior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>capital one</td>
+<td>33.9</td>
+<td>0.0028</td>
+<td>0.0007</td>
+<td></td>
+</tr>
+<tr>
+<td>years experience</td>
+<td>20.1</td>
+<td>0.0035</td>
+<td>0.0020</td>
+<td></td>
+</tr>
+<tr>
+<td>position posted</td>
+<td>14.2</td>
+<td>0.0005</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>capitalone com</td>
+<td>12.6</td>
+<td>0.0003</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>one recruiting</td>
+<td>11.9</td>
+<td>0.0003</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Senior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fair chance</td>
+<td>-14.0</td>
+<td>0.0003</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>los angeles</td>
+<td>-12.0</td>
+<td>0.0001</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+<tr>
+<td>chance ordinance</td>
+<td>-11.9</td>
+<td>0.0000</td>
+<td>0.0004</td>
+<td></td>
+</tr>
+<tr>
+<td>hiring process</td>
+<td>-10.0</td>
+<td>0.0002</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+<tr>
+<td>distributed systems</td>
+<td>-9.6</td>
+<td>0.0003</td>
+<td>0.0006</td>
+<td>System Design</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison-3-junior-2024-vs-senior-2024-rq1rq2-baseline-gap">Comparison 3: Junior 2024 vs Senior 2024 (RQ1/RQ2 baseline gap)</h3>
+<ul>
+<li><strong>Corpus A:</strong> Junior 2024 (arshkon) (n=745)</li>
+<li><strong>Corpus B:</strong> Senior 2024 (arshkon) (n=2584)</li>
+</ul>
+<p><strong>Top unigrams favoring Junior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>actalent</td>
+<td>11.6</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>clearance</td>
+<td>10.9</td>
+<td>0.0008</td>
+<td>0.0003</td>
+<td></td>
+</tr>
+<tr>
+<td>talent</td>
+<td>9.9</td>
+<td>0.0010</td>
+<td>0.0004</td>
+<td></td>
+</tr>
+<tr>
+<td>program</td>
+<td>9.8</td>
+<td>0.0016</td>
+<td>0.0009</td>
+<td></td>
+</tr>
+<tr>
+<td>apex</td>
+<td>9.5</td>
+<td>0.0006</td>
+<td>0.0002</td>
+<td></td>
+</tr>
+<tr>
+<td>defense</td>
+<td>9.3</td>
+<td>0.0004</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>dice</td>
+<td>9.2</td>
+<td>0.0003</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>systems</td>
+<td>8.8</td>
+<td>0.0063</td>
+<td>0.0049</td>
+<td>System Design</td>
+</tr>
+<tr>
+<td>fanduel</td>
+<td>8.7</td>
+<td>0.0002</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>asia</td>
+<td>8.7</td>
+<td>0.0002</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top unigrams favoring Senior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>capital</td>
+<td>-14.1</td>
+<td>0.0008</td>
+<td>0.0023</td>
+<td></td>
+</tr>
+<tr>
+<td>senior</td>
+<td>-13.6</td>
+<td>0.0004</td>
+<td>0.0016</td>
+<td></td>
+</tr>
+<tr>
+<td>one</td>
+<td>-12.5</td>
+<td>0.0023</td>
+<td>0.0039</td>
+<td></td>
+</tr>
+<tr>
+<td>azure</td>
+<td>-10.0</td>
+<td>0.0012</td>
+<td>0.0022</td>
+<td></td>
+</tr>
+<tr>
+<td>experience</td>
+<td>-9.9</td>
+<td>0.0132</td>
+<td>0.0159</td>
+<td></td>
+</tr>
+<tr>
+<td>lead</td>
+<td>-9.4</td>
+<td>0.0008</td>
+<td>0.0015</td>
+<td>Mgmt/Mentoring</td>
+</tr>
+<tr>
+<td>cloud</td>
+<td>-8.8</td>
+<td>0.0030</td>
+<td>0.0042</td>
+<td></td>
+</tr>
+<tr>
+<td>platform</td>
+<td>-8.5</td>
+<td>0.0013</td>
+<td>0.0021</td>
+<td>System Design</td>
+</tr>
+<tr>
+<td>years</td>
+<td>-8.3</td>
+<td>0.0041</td>
+<td>0.0054</td>
+<td></td>
+</tr>
+<tr>
+<td>teams</td>
+<td>-8.0</td>
+<td>0.0019</td>
+<td>0.0028</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Junior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>talent solutions</td>
+<td>9.3</td>
+<td>0.0003</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>clients across</td>
+<td>9.3</td>
+<td>0.0004</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>systems engineering</td>
+<td>8.8</td>
+<td>0.0008</td>
+<td>0.0003</td>
+<td>System Design</td>
+</tr>
+<tr>
+<td>bae systems</td>
+<td>8.5</td>
+<td>0.0003</td>
+<td>0.0001</td>
+<td>System Design</td>
+</tr>
+<tr>
+<td>security clearance</td>
+<td>7.9</td>
+<td>0.0005</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Senior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>capital one</td>
+<td>-14.4</td>
+<td>0.0010</td>
+<td>0.0030</td>
+<td></td>
+</tr>
+<tr>
+<td>machine learning</td>
+<td>-7.7</td>
+<td>0.0006</td>
+<td>0.0012</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>senior software</td>
+<td>-6.9</td>
+<td>0.0000</td>
+<td>0.0006</td>
+<td></td>
+</tr>
+<tr>
+<td>years experience</td>
+<td>-6.6</td>
+<td>0.0027</td>
+<td>0.0037</td>
+<td></td>
+</tr>
+<tr>
+<td>position posted</td>
+<td>-6.1</td>
+<td>0.0002</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison-4-junior-2026-vs-senior-2026-rq1rq2-current-gap">Comparison 4: Junior 2026 vs Senior 2026 (RQ1/RQ2 current gap)</h3>
+<ul>
+<li><strong>Corpus A:</strong> Junior 2026 (scraped) (n=549)</li>
+<li><strong>Corpus B:</strong> Senior 2026 (scraped) (n=3262)</li>
+</ul>
+<p><strong>Top unigrams favoring Junior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>lensa</td>
+<td>26.5</td>
+<td>0.0013</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>cisco</td>
+<td>19.2</td>
+<td>0.0007</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>jobs</td>
+<td>18.2</td>
+<td>0.0010</td>
+<td>0.0002</td>
+<td></td>
+</tr>
+<tr>
+<td>cgi</td>
+<td>15.9</td>
+<td>0.0005</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>apex</td>
+<td>14.6</td>
+<td>0.0007</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>tiktok</td>
+<td>14.3</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>veeva</td>
+<td>14.1</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>internship</td>
+<td>13.9</td>
+<td>0.0005</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>lockheed</td>
+<td>13.1</td>
+<td>0.0003</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>program</td>
+<td>13.0</td>
+<td>0.0020</td>
+<td>0.0010</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top unigrams favoring Senior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>experience</td>
+<td>-12.6</td>
+<td>0.0111</td>
+<td>0.0144</td>
+<td></td>
+</tr>
+<tr>
+<td>years</td>
+<td>-12.4</td>
+<td>0.0021</td>
+<td>0.0038</td>
+<td></td>
+</tr>
+<tr>
+<td>lead</td>
+<td>-12.1</td>
+<td>0.0004</td>
+<td>0.0015</td>
+<td>Mgmt/Mentoring</td>
+</tr>
+<tr>
+<td>technical</td>
+<td>-10.6</td>
+<td>0.0030</td>
+<td>0.0046</td>
+<td></td>
+</tr>
+<tr>
+<td>cloud</td>
+<td>-10.4</td>
+<td>0.0020</td>
+<td>0.0033</td>
+<td></td>
+</tr>
+<tr>
+<td>azure</td>
+<td>-10.3</td>
+<td>0.0007</td>
+<td>0.0016</td>
+<td></td>
+</tr>
+<tr>
+<td>senior</td>
+<td>-9.8</td>
+<td>0.0003</td>
+<td>0.0011</td>
+<td></td>
+</tr>
+<tr>
+<td>infrastructure</td>
+<td>-9.8</td>
+<td>0.0014</td>
+<td>0.0024</td>
+<td>System Design</td>
+</tr>
+<tr>
+<td>aws</td>
+<td>-9.6</td>
+<td>0.0011</td>
+<td>0.0020</td>
+<td></td>
+</tr>
+<tr>
+<td>capital</td>
+<td>-9.6</td>
+<td>0.0002</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Junior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>lockheed martin</td>
+<td>13.1</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>apply now</td>
+<td>12.7</td>
+<td>0.0006</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>clicking apply</td>
+<td>12.5</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>python javascript</td>
+<td>12.3</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>career site</td>
+<td>12.1</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Senior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>years experience</td>
+<td>-9.8</td>
+<td>0.0009</td>
+<td>0.0020</td>
+<td></td>
+</tr>
+<tr>
+<td>capital one</td>
+<td>-8.5</td>
+<td>0.0001</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>fair chance</td>
+<td>-6.8</td>
+<td>0.0004</td>
+<td>0.0009</td>
+<td></td>
+</tr>
+<tr>
+<td>experience years</td>
+<td>-6.4</td>
+<td>0.0002</td>
+<td>0.0006</td>
+<td></td>
+</tr>
+<tr>
+<td>large scale</td>
+<td>-6.2</td>
+<td>0.0003</td>
+<td>0.0007</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison-5-junior-2026-vs-senior-2024-rq1-redefinition-hypothesis">Comparison 5: Junior 2026 vs Senior 2024 (RQ1 redefinition hypothesis)</h3>
+<ul>
+<li><strong>Corpus A:</strong> Junior 2026 (scraped) (n=549)</li>
+<li><strong>Corpus B:</strong> Senior 2024 (arshkon) (n=2584)</li>
+</ul>
+<p><strong>Top unigrams favoring Junior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ai</td>
+<td>38.8</td>
+<td>0.0059</td>
+<td>0.0012</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>jobs</td>
+<td>16.7</td>
+<td>0.0010</td>
+<td>0.0002</td>
+<td></td>
+</tr>
+<tr>
+<td>cisco</td>
+<td>15.5</td>
+<td>0.0007</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>agents</td>
+<td>13.6</td>
+<td>0.0006</td>
+<td>0.0000</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>program</td>
+<td>13.6</td>
+<td>0.0020</td>
+<td>0.0009</td>
+<td></td>
+</tr>
+<tr>
+<td>workflows</td>
+<td>12.4</td>
+<td>0.0009</td>
+<td>0.0003</td>
+<td></td>
+</tr>
+<tr>
+<td>clearance</td>
+<td>12.0</td>
+<td>0.0009</td>
+<td>0.0003</td>
+<td></td>
+</tr>
+<tr>
+<td>dice</td>
+<td>11.9</td>
+<td>0.0004</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>notice</td>
+<td>11.8</td>
+<td>0.0006</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>tiktok</td>
+<td>11.6</td>
+<td>0.0004</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top unigrams favoring Senior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>years</td>
+<td>-19.4</td>
+<td>0.0021</td>
+<td>0.0054</td>
+<td></td>
+</tr>
+<tr>
+<td>experience</td>
+<td>-16.5</td>
+<td>0.0111</td>
+<td>0.0159</td>
+<td></td>
+</tr>
+<tr>
+<td>capital</td>
+<td>-15.7</td>
+<td>0.0002</td>
+<td>0.0023</td>
+<td></td>
+</tr>
+<tr>
+<td>cloud</td>
+<td>-14.9</td>
+<td>0.0020</td>
+<td>0.0042</td>
+<td></td>
+</tr>
+<tr>
+<td>azure</td>
+<td>-13.8</td>
+<td>0.0007</td>
+<td>0.0022</td>
+<td></td>
+</tr>
+<tr>
+<td>one</td>
+<td>-13.5</td>
+<td>0.0020</td>
+<td>0.0039</td>
+<td></td>
+</tr>
+<tr>
+<td>senior</td>
+<td>-13.0</td>
+<td>0.0004</td>
+<td>0.0016</td>
+<td></td>
+</tr>
+<tr>
+<td>management</td>
+<td>-12.1</td>
+<td>0.0014</td>
+<td>0.0029</td>
+<td>Mgmt/Mentoring</td>
+</tr>
+<tr>
+<td>lead</td>
+<td>-12.0</td>
+<td>0.0004</td>
+<td>0.0015</td>
+<td>Mgmt/Mentoring</td>
+</tr>
+<tr>
+<td>technical</td>
+<td>-10.7</td>
+<td>0.0030</td>
+<td>0.0047</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Junior 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>security clearance</td>
+<td>11.6</td>
+<td>0.0007</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>real world</td>
+<td>11.5</td>
+<td>0.0007</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>apply now</td>
+<td>11.0</td>
+<td>0.0007</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>privacy notice</td>
+<td>10.9</td>
+<td>0.0006</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>ai driven</td>
+<td>10.6</td>
+<td>0.0005</td>
+<td>0.0000</td>
+<td>AI/LLM, Ownership</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Senior 2024 (arshkon):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>years experience</td>
+<td>-16.6</td>
+<td>0.0010</td>
+<td>0.0038</td>
+<td></td>
+</tr>
+<tr>
+<td>capital one</td>
+<td>-14.2</td>
+<td>0.0001</td>
+<td>0.0030</td>
+<td></td>
+</tr>
+<tr>
+<td>experience years</td>
+<td>-7.6</td>
+<td>0.0002</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>least years</td>
+<td>-6.3</td>
+<td>0.0000</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+<tr>
+<td>minimum years</td>
+<td>-6.2</td>
+<td>0.0001</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison-6-swe-2026-vs-control-2026-supporting">Comparison 6: SWE 2026 vs Control 2026 (Supporting)</h3>
+<ul>
+<li><strong>Corpus A:</strong> SWE 2026 (scraped) (n=4219)</li>
+<li><strong>Corpus B:</strong> Control 2026 (scraped) (n=4087)</li>
+</ul>
+<p><strong>Top unigrams favoring SWE 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>data</td>
+<td>82.7</td>
+<td>0.0089</td>
+<td>0.0018</td>
+<td></td>
+</tr>
+<tr>
+<td>software</td>
+<td>75.3</td>
+<td>0.0066</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>ai</td>
+<td>65.5</td>
+<td>0.0056</td>
+<td>0.0003</td>
+<td>AI/LLM</td>
+</tr>
+<tr>
+<td>systems</td>
+<td>52.9</td>
+<td>0.0059</td>
+<td>0.0022</td>
+<td>System Design</td>
+</tr>
+<tr>
+<td>experience</td>
+<td>51.7</td>
+<td>0.0140</td>
+<td>0.0083</td>
+<td></td>
+</tr>
+<tr>
+<td>solutions</td>
+<td>48.8</td>
+<td>0.0040</td>
+<td>0.0013</td>
+<td></td>
+</tr>
+<tr>
+<td>code</td>
+<td>46.0</td>
+<td>0.0025</td>
+<td>0.0003</td>
+<td></td>
+</tr>
+<tr>
+<td>technical</td>
+<td>45.9</td>
+<td>0.0044</td>
+<td>0.0016</td>
+<td></td>
+</tr>
+<tr>
+<td>security</td>
+<td>45.5</td>
+<td>0.0025</td>
+<td>0.0004</td>
+<td></td>
+</tr>
+<tr>
+<td>product</td>
+<td>44.8</td>
+<td>0.0025</td>
+<td>0.0005</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top unigrams favoring Control 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>care</td>
+<td>-99.8</td>
+<td>0.0008</td>
+<td>0.0106</td>
+<td></td>
+</tr>
+<tr>
+<td>health</td>
+<td>-61.1</td>
+<td>0.0016</td>
+<td>0.0055</td>
+<td></td>
+</tr>
+<tr>
+<td>accounting</td>
+<td>-55.8</td>
+<td>0.0001</td>
+<td>0.0041</td>
+<td></td>
+</tr>
+<tr>
+<td>healthcare</td>
+<td>-53.0</td>
+<td>0.0004</td>
+<td>0.0030</td>
+<td></td>
+</tr>
+<tr>
+<td>financial</td>
+<td>-50.6</td>
+<td>0.0011</td>
+<td>0.0038</td>
+<td></td>
+</tr>
+<tr>
+<td>patient</td>
+<td>-49.7</td>
+<td>0.0001</td>
+<td>0.0057</td>
+<td></td>
+</tr>
+<tr>
+<td>medical</td>
+<td>-49.4</td>
+<td>0.0013</td>
+<td>0.0040</td>
+<td></td>
+</tr>
+<tr>
+<td>travel</td>
+<td>-46.7</td>
+<td>0.0004</td>
+<td>0.0023</td>
+<td></td>
+</tr>
+<tr>
+<td>patients</td>
+<td>-46.1</td>
+<td>0.0001</td>
+<td>0.0030</td>
+<td></td>
+</tr>
+<tr>
+<td>staff</td>
+<td>-44.3</td>
+<td>0.0003</td>
+<td>0.0021</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring SWE 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>years experience</td>
+<td>27.8</td>
+<td>0.0020</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>best practices</td>
+<td>27.8</td>
+<td>0.0012</td>
+<td>0.0002</td>
+<td></td>
+</tr>
+<tr>
+<td>software engineering</td>
+<td>24.1</td>
+<td>0.0011</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+<tr>
+<td>hands experience</td>
+<td>23.9</td>
+<td>0.0008</td>
+<td>0.0001</td>
+<td></td>
+</tr>
+<tr>
+<td>computer science</td>
+<td>22.9</td>
+<td>0.0014</td>
+<td>0.0000</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top bigrams favoring Control 2026 (scraped):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>z-score</th>
+<th>freq_A</th>
+<th>freq_B</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>health care</td>
+<td>-30.5</td>
+<td>0.0001</td>
+<td>0.0012</td>
+<td></td>
+</tr>
+<tr>
+<td>patient care</td>
+<td>-25.4</td>
+<td>0.0000</td>
+<td>0.0023</td>
+<td></td>
+</tr>
+<tr>
+<td>hours per</td>
+<td>-24.9</td>
+<td>0.0001</td>
+<td>0.0008</td>
+<td></td>
+</tr>
+<tr>
+<td>per week</td>
+<td>-23.4</td>
+<td>0.0002</td>
+<td>0.0009</td>
+<td></td>
+</tr>
+<tr>
+<td>policies procedures</td>
+<td>-21.3</td>
+<td>0.0000</td>
+<td>0.0006</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="aillm-term-analysis">AI/LLM term analysis</h2>
+<p>AI-related terms appearing as significant distinguishers across comparisons:</p>
+<table>
+<thead>
+<tr>
+<th>Comparison</th>
+<th>Term</th>
+<th>Z-score</th>
+<th>Favors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C1</td>
+<td>ai</td>
+<td>-26.8</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>ml</td>
+<td>-7.9</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>agents</td>
+<td>-7.6</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>llm</td>
+<td>-7.0</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>llms</td>
+<td>-5.3</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>agent</td>
+<td>-5.0</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>learning</td>
+<td>-4.1</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>prompt</td>
+<td>-4.1</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>rag</td>
+<td>-3.9</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>langchain</td>
+<td>-3.6</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>deep</td>
+<td>-3.6</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>generative</td>
+<td>-3.5</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>genai</td>
+<td>-3.4</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>machine</td>
+<td>-3.1</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>copilot</td>
+<td>-3.0</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>openai</td>
+<td>-2.9</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>nlp</td>
+<td>-2.5</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>ai</td>
+<td>-43.8</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>ml</td>
+<td>-14.5</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>llm</td>
+<td>-13.7</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>agent</td>
+<td>-11.9</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>agents</td>
+<td>-11.4</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>deep</td>
+<td>-10.1</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>rag</td>
+<td>-8.7</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>llms</td>
+<td>-8.6</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>genai</td>
+<td>-7.6</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>copilot</td>
+<td>-7.5</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>prompt</td>
+<td>-7.2</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>openai</td>
+<td>-7.1</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>langchain</td>
+<td>-6.4</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>learning</td>
+<td>5.9</td>
+<td>Senior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>artificial</td>
+<td>-5.8</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>generative</td>
+<td>-5.8</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>intelligence</td>
+<td>-5.8</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>machine</td>
+<td>5.7</td>
+<td>Senior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>gpt</td>
+<td>-4.8</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>embeddings</td>
+<td>-4.5</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>prompting</td>
+<td>-3.0</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>transformer</td>
+<td>-2.4</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>learning</td>
+<td>-6.9</td>
+<td>Senior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>machine</td>
+<td>-6.7</td>
+<td>Senior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>ml</td>
+<td>-5.9</td>
+<td>Senior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>intelligence</td>
+<td>4.7</td>
+<td>Junior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>ai</td>
+<td>-4.2</td>
+<td>Senior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>agent</td>
+<td>4.1</td>
+<td>Junior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>deep</td>
+<td>-3.7</td>
+<td>Senior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>agents</td>
+<td>6.9</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>ai</td>
+<td>5.5</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>deep</td>
+<td>-5.0</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>ml</td>
+<td>-4.7</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>intelligence</td>
+<td>3.3</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>chatgpt</td>
+<td>2.8</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>embeddings</td>
+<td>2.6</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>agent</td>
+<td>-2.2</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>copilot</td>
+<td>-2.1</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>langchain</td>
+<td>2.1</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>artificial</td>
+<td>-2.0</td>
+<td>Senior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>ai</td>
+<td>38.8</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>agents</td>
+<td>13.6</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>llm</td>
+<td>10.3</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>agent</td>
+<td>9.6</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>rag</td>
+<td>8.1</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>llms</td>
+<td>7.2</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>langchain</td>
+<td>6.9</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>intelligence</td>
+<td>6.9</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>embeddings</td>
+<td>5.4</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>prompt</td>
+<td>5.1</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>copilot</td>
+<td>5.0</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>genai</td>
+<td>4.4</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>openai</td>
+<td>4.3</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>ml</td>
+<td>4.2</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>chatgpt</td>
+<td>3.1</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>generative</td>
+<td>3.0</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>machine</td>
+<td>-2.9</td>
+<td>Senior 2024 (arshkon)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>prompting</td>
+<td>2.4</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>gpt</td>
+<td>2.4</td>
+<td>Junior 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>ai</td>
+<td>65.5</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>learning</td>
+<td>30.9</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>machine</td>
+<td>25.4</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>deep</td>
+<td>25.0</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>intelligence</td>
+<td>19.7</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>ml</td>
+<td>17.2</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>agents</td>
+<td>16.5</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>agent</td>
+<td>15.5</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>generative</td>
+<td>13.9</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>prompt</td>
+<td>13.5</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>artificial</td>
+<td>12.0</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>llm</td>
+<td>9.8</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>copilot</td>
+<td>9.7</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>claude</td>
+<td>8.7</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>llms</td>
+<td>6.0</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>genai</td>
+<td>5.9</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>nlp</td>
+<td>5.5</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>openai</td>
+<td>5.2</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>gpt</td>
+<td>5.0</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>prompting</td>
+<td>3.9</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>neural</td>
+<td>3.5</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>transformer</td>
+<td>2.9</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>transformers</td>
+<td>-2.6</td>
+<td>Control 2026 (scraped)</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>chatgpt</td>
+<td>2.5</td>
+<td>SWE 2026 (scraped)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="thematic-patterns">Thematic patterns</h2>
+<h3 id="managementmentoring-terms">Management/Mentoring terms</h3>
+<ul>
+<li>C1: <strong>management</strong> (z=11.3, favors Junior 2024 (arshkon))</li>
+<li>C1: <strong>lead</strong> (z=4.4, favors Junior 2024 (arshkon))</li>
+<li>C1: <strong>cross</strong> (z=-4.3, favors Junior 2026 (scraped))</li>
+<li>C1: <strong>leadership</strong> (z=3.2, favors Junior 2024 (arshkon))</li>
+<li>C1: <strong>mentoring</strong> (z=3.1, favors Junior 2024 (arshkon))</li>
+<li>C2: <strong>management</strong> (z=14.7, favors Senior 2024 (arshkon))</li>
+<li>C2: <strong>coaching</strong> (z=-6.4, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>functional</strong> (z=6.1, favors Senior 2024 (arshkon))</li>
+<li>C2: <strong>stakeholder</strong> (z=-5.5, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>influence</strong> (z=-4.7, favors Senior 2026 (scraped))</li>
+<li>C3: <strong>lead</strong> (z=-9.4, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>mentor</strong> (z=-6.0, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>leadership</strong> (z=-4.9, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>cross</strong> (z=-4.9, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>mentoring</strong> (z=-4.7, favors Senior 2024 (arshkon))</li>
+<li>C4: <strong>lead</strong> (z=-12.1, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>leadership</strong> (z=-8.6, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>mentor</strong> (z=-7.3, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>management</strong> (z=-5.6, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>mentoring</strong> (z=-5.4, favors Senior 2026 (scraped))</li>
+<li>C5: <strong>management</strong> (z=-12.1, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>lead</strong> (z=-12.0, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>leadership</strong> (z=-7.6, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>mentor</strong> (z=-6.4, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>mentoring</strong> (z=-6.2, favors Senior 2024 (arshkon))</li>
+<li>C6: <strong>functional</strong> (z=19.7, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>stakeholders</strong> (z=18.0, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>cross</strong> (z=16.4, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>oversee</strong> (z=-15.8, favors Control 2026 (scraped))</li>
+<li>C6: <strong>strategy</strong> (z=15.6, favors SWE 2026 (scraped))</li>
+</ul>
+<h3 id="system-design-terms">System Design terms</h3>
+<ul>
+<li>C1: <strong>scalable</strong> (z=-7.9, favors Junior 2026 (scraped))</li>
+<li>C1: <strong>system</strong> (z=7.5, favors Junior 2024 (arshkon))</li>
+<li>C1: <strong>infrastructure</strong> (z=5.6, favors Junior 2024 (arshkon))</li>
+<li>C1: <strong>systems</strong> (z=4.1, favors Junior 2024 (arshkon))</li>
+<li>C1: <strong>scalability</strong> (z=-2.7, favors Junior 2026 (scraped))</li>
+<li>C2: <strong>systems</strong> (z=-12.3, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>scalable</strong> (z=-11.1, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>reliability</strong> (z=-8.9, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>performance</strong> (z=-8.0, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>distributed</strong> (z=-7.6, favors Senior 2026 (scraped))</li>
+<li>C3: <strong>systems</strong> (z=8.8, favors Junior 2024 (arshkon))</li>
+<li>C3: <strong>platform</strong> (z=-8.5, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>architecture</strong> (z=-7.4, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>system</strong> (z=6.3, favors Junior 2024 (arshkon))</li>
+<li>C3: <strong>scalable</strong> (z=-6.0, favors Senior 2024 (arshkon))</li>
+<li>C4: <strong>infrastructure</strong> (z=-9.8, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>platform</strong> (z=-8.7, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>architecture</strong> (z=-8.3, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>distributed</strong> (z=-7.2, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>reliability</strong> (z=-6.3, favors Senior 2026 (scraped))</li>
+<li>C5: <strong>infrastructure</strong> (z=-7.3, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>platform</strong> (z=-6.8, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>architecture</strong> (z=-6.7, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>design</strong> (z=-6.2, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>architectural</strong> (z=-4.8, favors Senior 2024 (arshkon))</li>
+<li>C6: <strong>systems</strong> (z=52.9, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>platform</strong> (z=42.5, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>infrastructure</strong> (z=41.5, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>architecture</strong> (z=35.0, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>reliability</strong> (z=31.3, favors SWE 2026 (scraped))</li>
+</ul>
+<h3 id="ownership-terms">Ownership terms</h3>
+<ul>
+<li>C1: <strong>responsible</strong> (z=5.2, favors Junior 2024 (arshkon))</li>
+<li>C1: <strong>ownership</strong> (z=-4.5, favors Junior 2026 (scraped))</li>
+<li>C1: <strong>self</strong> (z=3.5, favors Junior 2024 (arshkon))</li>
+<li>C1: <strong>driven</strong> (z=-3.1, favors Junior 2026 (scraped))</li>
+<li>C1: <strong>autonomy</strong> (z=-3.0, favors Junior 2026 (scraped))</li>
+<li>C2: <strong>ownership</strong> (z=-11.9, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>autonomous</strong> (z=-8.8, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>autonomy</strong> (z=-8.0, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>driven</strong> (z=-7.6, favors Senior 2026 (scraped))</li>
+<li>C2: <strong>self</strong> (z=5.9, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>end</strong> (z=-4.0, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>driven</strong> (z=-3.4, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>drive</strong> (z=-3.1, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>proactive</strong> (z=-2.5, favors Senior 2024 (arshkon))</li>
+<li>C3: <strong>ownership</strong> (z=-2.4, favors Senior 2024 (arshkon))</li>
+<li>C4: <strong>drive</strong> (z=-5.9, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>responsible</strong> (z=-4.4, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>ownership</strong> (z=-3.9, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>driven</strong> (z=-3.9, favors Senior 2026 (scraped))</li>
+<li>C4: <strong>autonomous</strong> (z=-3.8, favors Senior 2026 (scraped))</li>
+<li>C5: <strong>responsible</strong> (z=-6.8, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>autonomy</strong> (z=5.3, favors Junior 2026 (scraped))</li>
+<li>C5: <strong>drive</strong> (z=-4.8, favors Senior 2024 (arshkon))</li>
+<li>C5: <strong>ownership</strong> (z=3.5, favors Junior 2026 (scraped))</li>
+<li>C5: <strong>self</strong> (z=-3.1, favors Senior 2024 (arshkon))</li>
+<li>C6: <strong>end</strong> (z=25.9, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>driven</strong> (z=20.5, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>responsibility</strong> (z=-15.4, favors Control 2026 (scraped))</li>
+<li>C6: <strong>drive</strong> (z=14.7, favors SWE 2026 (scraped))</li>
+<li>C6: <strong>autonomous</strong> (z=13.0, favors SWE 2026 (scraped))</li>
+</ul>
+<h2 id="implication-for-analysis">Implication for analysis</h2>
+<ul>
+<li>RQ1: The Fightin' Words analysis provides direct evidence of how job posting language has shifted between 2024 and 2026. AI/ML terms emerging as strong distinguishers in temporal comparisons (C1, C2) supports the hypothesis of AI-driven role restructuring.</li>
+<li>RQ1/RQ2: The junior-senior gap comparisons (C3 vs C4) reveal whether the linguistic boundary between seniority levels has shifted, consistent with scope inflation or task migration.</li>
+<li>RQ1 redefinition: Comparison 5 (Junior 2026 vs Senior 2024) tests whether today's junior roles linguistically resemble yesterday's senior roles.</li>
+<li>Cross-occupation (C6) establishes that observed changes are SWE-specific rather than labor-market-wide trends.</li>
+</ul>
+<h2 id="data-quality-note">Data quality note</h2>
+<ul>
+<li>All corpora use <code>description</code> (full text, not <code>description_core</code>) to avoid boilerplate-removal artifacts.</li>
+<li>Seniority uses the patched workaround (seniority_patched) to incorporate native backfill labels.</li>
+<li>Minimum frequency thresholds applied: 5 total occurrences for unigrams, 3 for bigrams.</li>
+<li>Description length grew ~50% from 2024 to 2026 (per T05). Fightin' Words uses log-odds ratios which are somewhat robust to document length differences, but very long 2026 descriptions may contain more diverse vocabulary.</li>
+<li>All comparisons have n &gt;= 50 in both corpora.</li>
+</ul>
+<h2 id="action-items">Action items</h2>
+<ul>
+<li>[ ] Cross-reference T10 AI term emergence with T11 temporal drift metrics for consistency</li>
+<li>[ ] Use top distinguishing terms from C3/C4 to seed T12 requirement taxonomy</li>
+<li>[ ] After seniority_llm is available, re-run comparisons 1-5 to check robustness to seniority classification</li>
+<li>[ ] Terms strongly favoring 2026 in C1/C2 are candidates for the 'new requirements' list in RQ2 analysis</li>
+<li>[ ] C5 (Junior 2026 vs Senior 2024) results feed directly into the 'scope inflation' narrative for RQ1</li>
+</ul>
+<h2 id="output-files">Output files</h2>
+<ul>
+<li><code>exploration/tables/T10/comp{1-6}_unigrams_top50.csv</code> -- Top 50 distinguishing unigrams per comparison</li>
+<li><code>exploration/tables/T10/comp{1-6}_bigrams_top50.csv</code> -- Top 50 distinguishing bigrams per comparison</li>
+<li><code>exploration/tables/T10/comp{1-6}_unigrams_full.csv</code> -- Full unigram results per comparison</li>
+<li><code>exploration/tables/T10/comp{1-6}_bigrams_full.csv</code> -- Full bigram results per comparison</li>
+<li><code>exploration/tables/T10/ai_terms_summary.csv</code> -- AI term z-scores across comparisons</li>
+<li><code>../figures/T10/comp1_junior_temporal_unigrams.png</code> -- Junior temporal drift bar chart</li>
+<li><code>../figures/T10/comp2_senior_temporal_unigrams.png</code> -- Senior temporal drift bar chart</li>
+<li><code>../figures/T10/comp3v4_gap_evolution.png</code> -- Junior-senior gap evolution</li>
+<li><code>../figures/T10/ai_terms_heatmap.png</code> -- AI term z-scores heatmap</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "search.suggest", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

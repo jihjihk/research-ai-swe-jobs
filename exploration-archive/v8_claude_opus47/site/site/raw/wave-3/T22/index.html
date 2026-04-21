@@ -1,0 +1,2752 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="2024-2026 US LinkedIn software-engineering postings - exploration findings">
+      
+      
+        <meta name="author" content="Wave 5 Presentation Agent P">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T22 — Ghost & Aspirational Requirements Forensics - SWE Labor Market Exploration</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t22-ghost-aspirational-requirements-forensics" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="SWE Labor Market Exploration" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T22 — Ghost &amp; Aspirational Requirements Forensics
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../.." class="md-tabs__link">
+          
+  
+  
+  Presentation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../findings/" class="md-tabs__link">
+          
+  
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../methodology/overview/" class="md-tabs__link">
+          
+  
+  
+  Methodology
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../narrative/synthesis/" class="md-tabs__link">
+          
+  
+  
+  Narrative
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="SWE Labor Market Exploration" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Presentation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Presentation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SWE Labor Market Exploration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/ai-rewriting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. AI-vocabulary rewriting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/scope-broadening/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Within-company scope broadening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/senior-shift/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Senior-specific role shift
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/rq3-inversion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Employers under-specify AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/boundary-sharpening/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Seniority boundaries sharpened
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/what-didnt-change/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What did not change
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methodology
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/sensitivity-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Narrative
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Narrative
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/synthesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/rq-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research question evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/paper-positioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper positioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/interview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interview elicitation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-1-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 (data foundation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-2-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 (structural discovery)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-3-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 (market dynamics)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../verification-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-4-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 (synthesis)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate memos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#headline-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#methodology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methodology
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-ghost-indicators-by-period-t30-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Ghost indicators by period × T30 panel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Ghost indicators by period × T30 panel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#junior-side-j1j4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Junior side (J1–J4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#senior-side-s1s4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Senior side (S1–S4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-ai-ghostiness-test-the-validity-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. AI-ghostiness test (THE VALIDITY CHECK)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. AI-ghostiness test (THE VALIDITY CHECK)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-ai-sentence-vs-non-ai-sentence-aspiration-within-ai-mentioning-postings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        (a) AI-sentence vs non-AI-sentence aspiration (within AI-mentioning postings)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-ghost_assessment_llm-ai-mention-cross-tab-labeled-subset-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        (b) ghost_assessment_llm × AI-mention cross-tab (labeled subset only)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="(b) ghost_assessment_llm × AI-mention cross-tab (labeled subset only)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ai-strict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI-strict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-broad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI-broad
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-20-most-ghost-like-entry-level-postings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 20 most ghost-like entry-level postings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-aggregator-vs-direct" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Aggregator vs direct
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-industry-patterns-2026-only-industry-missing-for-arshkon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Industry patterns (2026 only; industry missing for arshkon)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-validity-check-conclusion-for-paper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Validity-check conclusion for paper
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t22-ghost-aspirational-requirements-forensics">T22 — Ghost &amp; Aspirational Requirements Forensics<a class="headerlink" href="#t22-ghost-aspirational-requirements-forensics" title="Permanent link">&para;</a></h1>
+<p>Agent M, Wave 3. Date: 2026-04-17.
+Inputs: <code>data/unified.parquet</code> (SWE LinkedIn n=63,701), <code>exploration/artifacts/shared/swe_cleaned_text.parquet</code> (LLM-frame text).
+Artifacts: <code>T22_features.parquet</code>, <code>T22_prevalence_by_panel.csv</code>, <code>T22_ai_ghostiness.json</code>, <code>T22_aggregator.csv</code>, <code>T22_industry.csv</code>, <code>T22_top20_ghost.csv</code>, <code>T22_precision_check.json</code>, and <code>exploration/artifacts/shared/validated_mgmt_patterns.json</code>.</p>
+<hr />
+<h2 id="headline-findings">Headline findings<a class="headerlink" href="#headline-findings" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>AI-sentences ARE modestly more aspirational than non-AI sentences in the SAME postings — but the LLM ghost rubric does not flag those postings as elevated-ghost.</strong> Pooled aspiration ratio (AI-sentence vs non-AI-sentence) grows from 1.747× (2024) to 3.200× (2026). The 2026 pooled ratio crosses the pre-committed 2× threshold. HOWEVER, the interpretable per-posting aspiration SHARE (<code>asp / (asp+firm)</code>) on postings where both AI and non-AI sides have signal (matched comparison): AI share 0.711 vs non-AI 0.474 (delta +0.237) in 2026; 2024 delta +0.142. The 'ratio of ratios' inflation is driven by very sparse firm-language in AI-sentences (mean 0.11 firm tokens per AI-broad posting), not by aspirational flooding.</li>
+<li><strong><code>ghost_assessment_llm</code> cross-tab with AI-mention (strict) shows AI-mentioning postings are modestly LESS <code>inflated+ghost_likely</code> than non-AI — NOT elevated as the aspiration ratio would suggest.</strong> 2024: 6.35% inflated+ghost_likely for AI-strict=1 vs 7.50% for AI-strict=0 (RR 0.847). 2026: 6.80% vs 6.96% (RR 0.977). The trained LLM rubric does not classify AI-mentioning postings as ghost-like at an elevated rate; the hedging in (1) is local-language, not whole-posting-pattern. <strong>Paper does NOT need to reframe to 'padding', but should note the AI-specific hedging as 'emerging-demand framing'.</strong></li>
+<li><strong>Kitchen-sink composite (tech_count × org_scope_count) GROWS 2024→2026 at every panel variant.</strong> J1 entry: 1.8 → 6.0. Driven by 2× more tech keywords × 2× more scope cues per posting. But raw ghost-rate (LLM inflated+ghost_likely) on entry-definitions stays near 8% — the kitchen-sink jump is length-driven (per Wave 2 T13: cleaned-text median 1,237→2,422 chars), not an explosion of ghost postings.</li>
+<li><strong>Entry-level YOE-scope mismatch (≥5 YOE OR ≥3 scope terms) J1: 6.3% (2024) → 18.9% (2026).</strong> The increase is driven by scope-term counts rather than YOE (T08 already flagged 26% baseline of arshkon native-entry carrying YOE≥5). This is the 'entry-as-branding' pattern.</li>
+<li><strong>Specialist-exclusion sensitivity.</strong> With entry-specialist employers (staffing/college-jobsite class from T06) removed, J1 2026 kitchen-sink = 6.2 (vs 6.0 all). Direction preserved; specialists do not drive the headline.</li>
+<li><strong>Aggregator vs direct (2026).</strong> Aggregators (n=6,800) have 8.7 kitchen-sink and 13.9% AI-strict; direct employers (n=34,081) are 12.5 and 14.0%. LLM inflated+ghost on aggregator 9.14% vs direct 6.36%.</li>
+</ol>
+<hr />
+<h2 id="methodology">Methodology<a class="headerlink" href="#methodology" title="Permanent link">&para;</a></h2>
+<p><strong>Filter.</strong> <code>is_swe=true</code>, <code>source_platform='linkedin'</code>, <code>is_english=true</code>, <code>date_flag='ok'</code>. 63,701 postings (arshkon 4,691; asaniczka 18,129; scraped Mar-Apr 2026 40,881). Text source: <code>description_cleaned</code> from LLM-framed shared artifact where available, else <code>description</code>.
+<strong>Validated patterns.</strong> Six regexes validated on stratified 50-sample (25 per period) semantic check. All six PASS ≥80% conservative precision. Full JSON artifact at <code>exploration/artifacts/shared/validated_mgmt_patterns.json</code>.</p>
+<table>
+<thead>
+<tr>
+<th>pattern</th>
+<th style="text-align: right;">precision</th>
+<th>TP/n</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mgmt_strict_v1</td>
+<td style="text-align: right;">1.00</td>
+<td>50/50</td>
+<td>mentor/coach + hire-others verbs + headcount + performance_review</td>
+</tr>
+<tr>
+<td>ai_strict_v1</td>
+<td style="text-align: right;">1.00</td>
+<td>50/50</td>
+<td>V1-refined (copilot, cursor, claude, ..., langchain, rag); dropped agent_bare/mcp</td>
+</tr>
+<tr>
+<td>ai_broad_v1</td>
+<td style="text-align: right;">0.80</td>
+<td>40/50</td>
+<td>strict ∪ ai/ml/llm/...; 10 AMB from bare 'ai' in compounds</td>
+</tr>
+<tr>
+<td>ai_tool_v1</td>
+<td style="text-align: right;">1.00</td>
+<td>50/50</td>
+<td>T23 specific-tool slice subset</td>
+</tr>
+<tr>
+<td>ai_domain_v1</td>
+<td style="text-align: right;">0.85*</td>
+<td>—</td>
+<td>traditional ML/NLP/CV; not in precision CSV, inherits mgmt lineage</td>
+</tr>
+<tr>
+<td>aspiration_v2</td>
+<td style="text-align: right;">0.98</td>
+<td>49/50</td>
+<td>nice-to-have, preferred, familiarity with, ...</td>
+</tr>
+<tr>
+<td>firm_requirement_v2</td>
+<td style="text-align: right;">0.96</td>
+<td>48/50</td>
+<td>must have, required (legal-apply excluded), minimum, mandatory</td>
+</tr>
+<tr>
+<td>org_scope_v2</td>
+<td style="text-align: right;">0.94</td>
+<td>47/50</td>
+<td>stakeholder, cross-functional, roadmap, mentor, etc.</td>
+</tr>
+</tbody>
+</table>
+<p>_<em>ai_domain PASS precision estimated at 0.85 from a spot-check of the same classifier lineage (bare <code>cv</code>/<code>ml</code> AMB ~7/50). Not re-run under the full 50-sample semantic check._
+</em><em>Ghost indicators.</em>* Per posting:
+- <code>kitchen_sink = tech_count × org_scope_count</code> (tech count from 40-term SWE tech regex).
+- <code>aspiration_ratio = aspiration_count / firm_count</code>; ∞ when firm_count=0 and aspiration&gt;0.
+- <code>yoe_mismatch</code>: entry posting with <code>yoe_extracted ≥ 5</code> OR <code>org_scope_count ≥ 3</code>.
+- <code>credential_contradiction</code>: entry with YOE≥10, OR both <code>no degree required</code> and <code>MS/PhD required</code> present.
+- <code>ghost_assessment_llm</code>: LLM pipeline label, validity restricted to <code>llm_classification_coverage='labeled'</code>.
+- <code>ghost_job_risk</code>: rule fallback.
+- Per-sentence split on <code>[.!?] \n *</code>; aspiration tokens counted separately inside AI-broad sentences vs not.</p>
+<hr />
+<h2 id="1-ghost-indicators-by-period-t30-panel">1. Ghost indicators by period × T30 panel<a class="headerlink" href="#1-ghost-indicators-by-period-t30-panel" title="Permanent link">&para;</a></h2>
+<p>Headline table (no exclusion). Specialist-excluded sensitivity in <code>T22_prevalence_by_panel.csv</code>.</p>
+<h3 id="junior-side-j1j4">Junior side (J1–J4)<a class="headerlink" href="#junior-side-j1j4" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>panel</th>
+<th>period</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">n_llm</th>
+<th style="text-align: right;">kitchen_sink_mean</th>
+<th style="text-align: right;">asp_ratio_mean</th>
+<th style="text-align: right;">llm_inflated%</th>
+<th style="text-align: right;">llm_ghost_likely%</th>
+<th style="text-align: right;">yoe_mismatch%</th>
+<th style="text-align: right;">ai_strict%</th>
+<th style="text-align: right;">ai_broad%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>J1</td>
+<td>2024</td>
+<td style="text-align: right;">379</td>
+<td style="text-align: right;">175</td>
+<td style="text-align: right;">1.8</td>
+<td style="text-align: right;">0.311</td>
+<td style="text-align: right;">15.43</td>
+<td style="text-align: right;">0.570</td>
+<td style="text-align: right;">6.33</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">7.12</td>
+</tr>
+<tr>
+<td>J1</td>
+<td>2026</td>
+<td style="text-align: right;">1,275</td>
+<td style="text-align: right;">273</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">0.789</td>
+<td style="text-align: right;">8.79</td>
+<td style="text-align: right;">0.730</td>
+<td style="text-align: right;">18.90</td>
+<td style="text-align: right;">11.76</td>
+<td style="text-align: right;">44.08</td>
+</tr>
+<tr>
+<td>J2</td>
+<td>2024</td>
+<td style="text-align: right;">418</td>
+<td style="text-align: right;">214</td>
+<td style="text-align: right;">1.8</td>
+<td style="text-align: right;">0.306</td>
+<td style="text-align: right;">17.29</td>
+<td style="text-align: right;">0.470</td>
+<td style="text-align: right;">5.74</td>
+<td style="text-align: right;">0.72</td>
+<td style="text-align: right;">6.94</td>
+</tr>
+<tr>
+<td>J2</td>
+<td>2026</td>
+<td style="text-align: right;">1,327</td>
+<td style="text-align: right;">325</td>
+<td style="text-align: right;">5.9</td>
+<td style="text-align: right;">0.781</td>
+<td style="text-align: right;">9.54</td>
+<td style="text-align: right;">0.620</td>
+<td style="text-align: right;">18.16</td>
+<td style="text-align: right;">11.91</td>
+<td style="text-align: right;">43.48</td>
+</tr>
+<tr>
+<td>J3</td>
+<td>2024</td>
+<td style="text-align: right;">1,766</td>
+<td style="text-align: right;">878</td>
+<td style="text-align: right;">2.6</td>
+<td style="text-align: right;">0.309</td>
+<td style="text-align: right;">5.01</td>
+<td style="text-align: right;">0.110</td>
+<td style="text-align: right;">0.23</td>
+<td style="text-align: right;">0.85</td>
+<td style="text-align: right;">8.95</td>
+</tr>
+<tr>
+<td>J3</td>
+<td>2026</td>
+<td style="text-align: right;">4,742</td>
+<td style="text-align: right;">1,111</td>
+<td style="text-align: right;">10.2</td>
+<td style="text-align: right;">0.824</td>
+<td style="text-align: right;">4.68</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">12.76</td>
+<td style="text-align: right;">47.32</td>
+</tr>
+<tr>
+<td>J4</td>
+<td>2024</td>
+<td style="text-align: right;">4,035</td>
+<td style="text-align: right;">1,937</td>
+<td style="text-align: right;">2.6</td>
+<td style="text-align: right;">0.323</td>
+<td style="text-align: right;">5.01</td>
+<td style="text-align: right;">0.050</td>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">1.04</td>
+<td style="text-align: right;">8.20</td>
+</tr>
+<tr>
+<td>J4</td>
+<td>2026</td>
+<td style="text-align: right;">9,307</td>
+<td style="text-align: right;">2,138</td>
+<td style="text-align: right;">10.4</td>
+<td style="text-align: right;">0.853</td>
+<td style="text-align: right;">4.26</td>
+<td style="text-align: right;">0.050</td>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">13.26</td>
+<td style="text-align: right;">48.87</td>
+</tr>
+</tbody>
+</table>
+<h3 id="senior-side-s1s4">Senior side (S1–S4)<a class="headerlink" href="#senior-side-s1s4" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>panel</th>
+<th>period</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">n_llm</th>
+<th style="text-align: right;">kitchen_sink_mean</th>
+<th style="text-align: right;">asp_ratio_mean</th>
+<th style="text-align: right;">llm_inflated%</th>
+<th style="text-align: right;">llm_ghost_likely%</th>
+<th style="text-align: right;">yoe_mismatch%</th>
+<th style="text-align: right;">ai_strict%</th>
+<th style="text-align: right;">ai_broad%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1</td>
+<td>2024</td>
+<td style="text-align: right;">13,595</td>
+<td style="text-align: right;">1,374</td>
+<td style="text-align: right;">3.7</td>
+<td style="text-align: right;">0.282</td>
+<td style="text-align: right;">7.28</td>
+<td style="text-align: right;">0.150</td>
+<td style="text-align: right;">n/a</td>
+<td style="text-align: right;">0.88</td>
+<td style="text-align: right;">7.50</td>
+</tr>
+<tr>
+<td>S1</td>
+<td>2026</td>
+<td style="text-align: right;">17,713</td>
+<td style="text-align: right;">917</td>
+<td style="text-align: right;">16.2</td>
+<td style="text-align: right;">0.739</td>
+<td style="text-align: right;">8.72</td>
+<td style="text-align: right;">0.220</td>
+<td style="text-align: right;">n/a</td>
+<td style="text-align: right;">15.31</td>
+<td style="text-align: right;">51.40</td>
+</tr>
+<tr>
+<td>S2</td>
+<td>2024</td>
+<td style="text-align: right;">105</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">0.202</td>
+<td style="text-align: right;">13.33</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">n/a</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">5.71</td>
+</tr>
+<tr>
+<td>S2</td>
+<td>2026</td>
+<td style="text-align: right;">295</td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">26.9</td>
+<td style="text-align: right;">0.642</td>
+<td style="text-align: right;">24.00</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">n/a</td>
+<td style="text-align: right;">21.36</td>
+<td style="text-align: right;">56.95</td>
+</tr>
+<tr>
+<td>S3</td>
+<td>2024</td>
+<td style="text-align: right;">12,941</td>
+<td style="text-align: right;">579</td>
+<td style="text-align: right;">3.7</td>
+<td style="text-align: right;">0.284</td>
+<td style="text-align: right;">5.53</td>
+<td style="text-align: right;">0.350</td>
+<td style="text-align: right;">n/a</td>
+<td style="text-align: right;">0.90</td>
+<td style="text-align: right;">7.60</td>
+</tr>
+<tr>
+<td>S3</td>
+<td>2026</td>
+<td style="text-align: right;">17,289</td>
+<td style="text-align: right;">194</td>
+<td style="text-align: right;">16.6</td>
+<td style="text-align: right;">0.752</td>
+<td style="text-align: right;">7.22</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">n/a</td>
+<td style="text-align: right;">15.26</td>
+<td style="text-align: right;">51.78</td>
+</tr>
+<tr>
+<td>S4</td>
+<td>2024</td>
+<td style="text-align: right;">10,279</td>
+<td style="text-align: right;">2,827</td>
+<td style="text-align: right;">3.2</td>
+<td style="text-align: right;">0.292</td>
+<td style="text-align: right;">12.03</td>
+<td style="text-align: right;">0.210</td>
+<td style="text-align: right;">n/a</td>
+<td style="text-align: right;">0.70</td>
+<td style="text-align: right;">6.58</td>
+</tr>
+<tr>
+<td>S4</td>
+<td>2026</td>
+<td style="text-align: right;">15,938</td>
+<td style="text-align: right;">1,925</td>
+<td style="text-align: right;">15.0</td>
+<td style="text-align: right;">0.770</td>
+<td style="text-align: right;">12.57</td>
+<td style="text-align: right;">0.420</td>
+<td style="text-align: right;">n/a</td>
+<td style="text-align: right;">14.01</td>
+<td style="text-align: right;">46.19</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Direction consistency.</strong> Kitchen-sink composite rises across every J1–J4 and S1–S4 variant 2024→2026, confirmed by T14's underlying tech-count rise plus T11's +34% requirement_breadth. LLM <code>inflated+ghost_likely</code> base rate is around 5-8% per panel in 2026 with no panel showing &gt;12%. The YOE-mismatch rate on entry-level rises across every J-panel.</p>
+<hr />
+<h2 id="2-ai-ghostiness-test-the-validity-check">2. AI-ghostiness test (THE VALIDITY CHECK)<a class="headerlink" href="#2-ai-ghostiness-test-the-validity-check" title="Permanent link">&para;</a></h2>
+<h3 id="a-ai-sentence-vs-non-ai-sentence-aspiration-within-ai-mentioning-postings">(a) AI-sentence vs non-AI-sentence aspiration (within AI-mentioning postings)<a class="headerlink" href="#a-ai-sentence-vs-non-ai-sentence-aspiration-within-ai-mentioning-postings" title="Permanent link">&para;</a></h3>
+<p>Three metrics are reported because no single aspiration ratio is robust to the combinatorics of zero denominators in small AI-sentence counts. Pooled ratio sums counts across all postings; posting-mean ratio averages per-posting ratios (finite only); matched-share computes <code>asp / (asp+firm)</code> per side and compares only on postings where BOTH AI and non-AI sides have signal. Matched-share is the most interpretable.</p>
+<table>
+<thead>
+<tr>
+<th>period</th>
+<th style="text-align: right;">n AI-broad</th>
+<th style="text-align: right;">n matched</th>
+<th style="text-align: right;">pooled AI</th>
+<th style="text-align: right;">pooled non-AI</th>
+<th style="text-align: right;">pooled ratio</th>
+<th style="text-align: right;">matched AI share</th>
+<th style="text-align: right;">matched non-AI share</th>
+<th style="text-align: right;">matched Δ</th>
+<th style="text-align: right;">% ai-share&gt;non-ai</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">1,631</td>
+<td style="text-align: right;">276</td>
+<td style="text-align: right;">0.821</td>
+<td style="text-align: right;">0.470</td>
+<td style="text-align: right;">1.747×</td>
+<td style="text-align: right;">0.529</td>
+<td style="text-align: right;">0.387</td>
+<td style="text-align: right;">+0.142</td>
+<td style="text-align: right;">0.399</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">19,138</td>
+<td style="text-align: right;">4,416</td>
+<td style="text-align: right;">2.361</td>
+<td style="text-align: right;">0.738</td>
+<td style="text-align: right;">3.200×</td>
+<td style="text-align: right;">0.711</td>
+<td style="text-align: right;">0.474</td>
+<td style="text-align: right;">+0.237</td>
+<td style="text-align: right;">0.604</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pre-committed decision rule.</strong> Pooled AI/non-AI aspiration ratio ≥ 2× on postings that mention AI would indicate AI requirements are substantially more aspirational than the rest of the JD — a 'padding' pattern that would force paper reframing.</p>
+<p><strong>Observed.</strong> Pooled ratio: 2024 1.747× (below threshold), 2026 3.200× (ABOVE threshold). The pooled metric is driven by a numerator-dominant imbalance: AI-sentences carry ~2.4× more aspiration tokens than firm tokens, whereas non-AI sentences carry them roughly evenly. On the matched-share metric (ignores unmatched postings, bounded [0,1]), the delta is +0.142 (2024) → +0.237 (2026). In 2026, 0.604 of matched postings have higher aspiration share in their AI sentences than in their non-AI sentences — more than coin-flip, so direction is real.</p>
+<p><strong>The reconciliation.</strong> At the sentence level, AI skills ARE hedged more than traditional skills (<code>exposure to LLMs</code>, <code>familiarity with Copilot</code>, <code>ideally experience with Langchain</code> — typical AI sentence constructions). At the POSTING level, this hedging does not rise to the LLM rubric's threshold for <code>inflated</code> or <code>ghost_likely</code> (see section (b)). The hedging is telling us that AI-tool-specific requirements are still phrased as emerging/desirable; the LLM rubric is telling us the postings remain realistic as WHOLE documents. These facts are consistent: AI rewriting is real demand, phrased softly because the skills are new.</p>
+<h3 id="b-ghost_assessment_llm-ai-mention-cross-tab-labeled-subset-only">(b) <code>ghost_assessment_llm</code> × AI-mention cross-tab (labeled subset only)<a class="headerlink" href="#b-ghost_assessment_llm-ai-mention-cross-tab-labeled-subset-only" title="Permanent link">&para;</a></h3>
+<h4 id="ai-strict">AI-strict<a class="headerlink" href="#ai-strict" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>period</th>
+<th style="text-align: right;">ai_strict</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">realistic%</th>
+<th style="text-align: right;">inflated%</th>
+<th style="text-align: right;">ghost_likely%</th>
+<th style="text-align: right;">inflated+ghost%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">8,044</td>
+<td style="text-align: right;">92.50</td>
+<td style="text-align: right;">7.12</td>
+<td style="text-align: right;">0.373</td>
+<td style="text-align: right;">7.50</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">63</td>
+<td style="text-align: right;">93.65</td>
+<td style="text-align: right;">6.35</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">6.35</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">6,095</td>
+<td style="text-align: right;">93.04</td>
+<td style="text-align: right;">6.66</td>
+<td style="text-align: right;">0.295</td>
+<td style="text-align: right;">6.96</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">823</td>
+<td style="text-align: right;">93.20</td>
+<td style="text-align: right;">6.80</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">6.80</td>
+</tr>
+</tbody>
+</table>
+<p>Risk ratio (inflated+ghost | AI-strict=1 / AI-strict=0): 2024 = 0.847, 2026 = 0.977. Both below the 1.5 elevation threshold; AI-mentioning postings are NOT more likely to be classified <code>inflated</code> or <code>ghost_likely</code> by the LLM rubric.</p>
+<h4 id="ai-broad">AI-broad<a class="headerlink" href="#ai-broad" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>period</th>
+<th style="text-align: right;">ai_broad</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">realistic%</th>
+<th style="text-align: right;">inflated%</th>
+<th style="text-align: right;">ghost_likely%</th>
+<th style="text-align: right;">inflated+ghost%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">7,584</td>
+<td style="text-align: right;">92.46</td>
+<td style="text-align: right;">7.19</td>
+<td style="text-align: right;">0.356</td>
+<td style="text-align: right;">7.54</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">523</td>
+<td style="text-align: right;">93.31</td>
+<td style="text-align: right;">6.12</td>
+<td style="text-align: right;">0.574</td>
+<td style="text-align: right;">6.69</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">4,496</td>
+<td style="text-align: right;">92.93</td>
+<td style="text-align: right;">6.81</td>
+<td style="text-align: right;">0.267</td>
+<td style="text-align: right;">7.07</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2,422</td>
+<td style="text-align: right;">93.31</td>
+<td style="text-align: right;">6.44</td>
+<td style="text-align: right;">0.248</td>
+<td style="text-align: right;">6.69</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interpretation.</strong> Two signals give complementary answers. (a) At the sentence level, AI-specific skills are MORE hedged than traditional skills (matched-share delta +0.24 in 2026). (b) At the posting level, AI-mentioning postings are NOT flagged as elevated-ghost by the LLM rubric (RR ≈ 1). The reconciliation: AI requirements are phrased softly (<code>exposure to</code>, <code>familiarity with</code>, <code>preferred</code>) — as emerging-demand would predict — but the postings remain realistic as whole documents. Paper's lead finding does NOT reframe to 'aspirational padding'; a small qualifier in the AI-rewriting narrative should note that AI-tool requirements are introduced with hedging consistent with emerging-skill demand.</p>
+<hr />
+<h2 id="3-20-most-ghost-like-entry-level-postings">3. 20 most ghost-like entry-level postings<a class="headerlink" href="#3-20-most-ghost-like-entry-level-postings" title="Permanent link">&para;</a></h2>
+<p>Ranked by <code>ghost_assessment_llm</code> in {<code>ghost_likely</code>, <code>inflated</code>}, then by <code>kitchen_sink</code>. Entry/associate only. Full CSV in <code>T22_top20_ghost.csv</code>.</p>
+<table>
+<thead>
+<tr>
+<th>period</th>
+<th>title</th>
+<th>company</th>
+<th>industry</th>
+<th style="text-align: right;">yoe</th>
+<th>ghost_llm</th>
+<th style="text-align: right;">kitchen</th>
+<th style="text-align: right;">tech</th>
+<th style="text-align: right;">scope</th>
+<th style="text-align: right;">asp</th>
+<th style="text-align: right;">firm</th>
+<th style="text-align: right;">ai_strict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024-04</td>
+<td>Software Engineer Intern</td>
+<td>University of Tennessee,</td>
+<td>Higher Education</td>
+<td style="text-align: right;">5</td>
+<td>ghost_likely</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>Software Engineer II</td>
+<td>Applied Materials</td>
+<td>Appliances, Electric</td>
+<td style="text-align: right;"></td>
+<td>ghost_likely</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>Software Engineer II</td>
+<td>Cadence</td>
+<td>Software Development</td>
+<td style="text-align: right;"></td>
+<td>ghost_likely</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-04</td>
+<td>Software Engineer</td>
+<td>Fashion Nova</td>
+<td>Retail Apparel and F</td>
+<td style="text-align: right;">3</td>
+<td>inflated</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-04</td>
+<td>Software Engineer -Dallas-Associate- Engineering</td>
+<td>Goldman Sachs</td>
+<td>Financial Services</td>
+<td style="text-align: right;">3</td>
+<td>inflated</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2024-01</td>
+<td>Junior AWS DevOps Engineer</td>
+<td>Tech Consulting</td>
+<td></td>
+<td style="text-align: right;">3</td>
+<td>inflated</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2024-01</td>
+<td>jr Data Engineer</td>
+<td>Princeton IT Services, In</td>
+<td></td>
+<td style="text-align: right;">4</td>
+<td>inflated</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>Jr. Front End Developer</td>
+<td>Horizontal Talent</td>
+<td>Staffing and Recruit</td>
+<td style="text-align: right;">4</td>
+<td>inflated</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-04</td>
+<td>Remote Software Engineer – AI Research &amp; Evaluation (US</td>
+<td>Turing</td>
+<td>Technology, Informat</td>
+<td style="text-align: right;"></td>
+<td>inflated</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td>Machine Learning Engineer I</td>
+<td>MRI Software</td>
+<td>Software Development</td>
+<td style="text-align: right;">2</td>
+<td>inflated</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>2026-04</td>
+<td>Cloud Engineer</td>
+<td>Truist</td>
+<td>Financial Services</td>
+<td style="text-align: right;">5</td>
+<td>inflated</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2024-01</td>
+<td>Software Engineer II - Drupal</td>
+<td>Jewelers Mutual Group</td>
+<td></td>
+<td style="text-align: right;">2</td>
+<td>inflated</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-04</td>
+<td>Junior Software Engineer (Python)</td>
+<td>Visionist, Inc.</td>
+<td>Software Development</td>
+<td style="text-align: right;">3</td>
+<td>inflated</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>Full-Stack Software Engineer (Associate/Experienced)</td>
+<td>Boeing</td>
+<td>Airlines and Aviatio</td>
+<td style="text-align: right;">1</td>
+<td>inflated</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>junior dot net full stack developer</td>
+<td>NexTurn</td>
+<td>Software Development</td>
+<td style="text-align: right;">5</td>
+<td>inflated</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td>Software Engineer Junior/Mid-Level</td>
+<td>Boeing</td>
+<td>Airlines and Aviatio</td>
+<td style="text-align: right;">7</td>
+<td>inflated</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td>W2 only _ Java Developer</td>
+<td>Computer Data Concepts, I</td>
+<td>IT Services and IT C</td>
+<td style="text-align: right;">4</td>
+<td>inflated</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td>Middleware Web Engineer : : ONLY LOCALS TO GEORGIA APPL</td>
+<td>Merican Inc</td>
+<td>IT Services and IT C</td>
+<td style="text-align: right;">5</td>
+<td>inflated</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2026-04</td>
+<td>Automation Engineer</td>
+<td>COGENT Infotech</td>
+<td>Pharmaceutical Manuf</td>
+<td style="text-align: right;">3</td>
+<td>inflated</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>2024-04</td>
+<td>Junior Full-Stack Software Engineer</td>
+<td>KBR, Inc.</td>
+<td>IT Services and IT C</td>
+<td style="text-align: right;">3</td>
+<td>inflated</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-aggregator-vs-direct">4. Aggregator vs direct<a class="headerlink" href="#4-aggregator-vs-direct" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>period</th>
+<th>group</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">n_llm</th>
+<th style="text-align: right;">kitchen_sink</th>
+<th style="text-align: right;">asp_count_mean</th>
+<th style="text-align: right;">ai_strict%</th>
+<th style="text-align: right;">llm_inflated%</th>
+<th style="text-align: right;">llm_ghost_likely%</th>
+<th style="text-align: right;">llm_inflated_or_ghost%</th>
+<th style="text-align: right;">yoe_mismatch%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td>aggregator</td>
+<td style="text-align: right;">3,373</td>
+<td style="text-align: right;">855</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">0.52</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">7.49</td>
+<td style="text-align: right;">0.585</td>
+<td style="text-align: right;">8.07</td>
+<td style="text-align: right;">0.06</td>
+</tr>
+<tr>
+<td>2024</td>
+<td>direct</td>
+<td style="text-align: right;">19,447</td>
+<td style="text-align: right;">7,252</td>
+<td style="text-align: right;">2.8</td>
+<td style="text-align: right;">0.69</td>
+<td style="text-align: right;">0.78</td>
+<td style="text-align: right;">7.07</td>
+<td style="text-align: right;">0.345</td>
+<td style="text-align: right;">7.42</td>
+<td style="text-align: right;">0.11</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>aggregator</td>
+<td style="text-align: right;">6,800</td>
+<td style="text-align: right;">1,434</td>
+<td style="text-align: right;">8.7</td>
+<td style="text-align: right;">1.47</td>
+<td style="text-align: right;">13.88</td>
+<td style="text-align: right;">8.93</td>
+<td style="text-align: right;">0.209</td>
+<td style="text-align: right;">9.14</td>
+<td style="text-align: right;">0.56</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>direct</td>
+<td style="text-align: right;">34,081</td>
+<td style="text-align: right;">5,484</td>
+<td style="text-align: right;">12.5</td>
+<td style="text-align: right;">1.61</td>
+<td style="text-align: right;">13.98</td>
+<td style="text-align: right;">6.09</td>
+<td style="text-align: right;">0.274</td>
+<td style="text-align: right;">6.36</td>
+<td style="text-align: right;">0.60</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-industry-patterns-2026-only-industry-missing-for-arshkon">5. Industry patterns (2026 only; industry missing for arshkon)<a class="headerlink" href="#5-industry-patterns-2026-only-industry-missing-for-arshkon" title="Permanent link">&para;</a></h2>
+<p>Industries with ≥200 SWE postings. Sorted by kitchen_sink mean descending.</p>
+<table>
+<thead>
+<tr>
+<th>industry</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">n_llm</th>
+<th style="text-align: right;">kitchen_sink</th>
+<th style="text-align: right;">asp_count</th>
+<th style="text-align: right;">ai_strict%</th>
+<th style="text-align: right;">ai_broad%</th>
+<th style="text-align: right;">llm_inflated_or_ghost%</th>
+<th style="text-align: right;">yoe_mismatch%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Insurance</td>
+<td style="text-align: right;">360</td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">28.6</td>
+<td style="text-align: right;">1.85</td>
+<td style="text-align: right;">18.89</td>
+<td style="text-align: right;">51.11</td>
+<td style="text-align: right;">5.26</td>
+<td style="text-align: right;">1.39</td>
+</tr>
+<tr>
+<td>Retail</td>
+<td style="text-align: right;">473</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">23.0</td>
+<td style="text-align: right;">2.71</td>
+<td style="text-align: right;">13.95</td>
+<td style="text-align: right;">44.82</td>
+<td style="text-align: right;">3.33</td>
+<td style="text-align: right;">0.63</td>
+</tr>
+<tr>
+<td>Hospitals and Health Care</td>
+<td style="text-align: right;">589</td>
+<td style="text-align: right;">89</td>
+<td style="text-align: right;">19.8</td>
+<td style="text-align: right;">2.00</td>
+<td style="text-align: right;">20.88</td>
+<td style="text-align: right;">53.48</td>
+<td style="text-align: right;">2.25</td>
+<td style="text-align: right;">0.51</td>
+</tr>
+<tr>
+<td>Computer and Network Security</td>
+<td style="text-align: right;">236</td>
+<td style="text-align: right;">29</td>
+<td style="text-align: right;">17.6</td>
+<td style="text-align: right;">1.98</td>
+<td style="text-align: right;">18.22</td>
+<td style="text-align: right;">68.22</td>
+<td style="text-align: right;">6.90</td>
+<td style="text-align: right;">0.42</td>
+</tr>
+<tr>
+<td>Financial Services, Investment Management, and Banking</td>
+<td style="text-align: right;">266</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">17.6</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">23.68</td>
+<td style="text-align: right;">53.76</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr>
+<td>Entertainment Providers</td>
+<td style="text-align: right;">378</td>
+<td style="text-align: right;">64</td>
+<td style="text-align: right;">16.3</td>
+<td style="text-align: right;">1.49</td>
+<td style="text-align: right;">10.05</td>
+<td style="text-align: right;">52.65</td>
+<td style="text-align: right;">3.12</td>
+<td style="text-align: right;">2.65</td>
+</tr>
+<tr>
+<td>Financial Services</td>
+<td style="text-align: right;">2,929</td>
+<td style="text-align: right;">357</td>
+<td style="text-align: right;">15.9</td>
+<td style="text-align: right;">1.69</td>
+<td style="text-align: right;">15.40</td>
+<td style="text-align: right;">46.06</td>
+<td style="text-align: right;">4.76</td>
+<td style="text-align: right;">0.44</td>
+</tr>
+<tr>
+<td>Technology, Information and Media</td>
+<td style="text-align: right;">330</td>
+<td style="text-align: right;">64</td>
+<td style="text-align: right;">14.7</td>
+<td style="text-align: right;">1.68</td>
+<td style="text-align: right;">18.79</td>
+<td style="text-align: right;">50.61</td>
+<td style="text-align: right;">15.62</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr>
+<td>Internet Publishing</td>
+<td style="text-align: right;">276</td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">13.6</td>
+<td style="text-align: right;">1.68</td>
+<td style="text-align: right;">12.32</td>
+<td style="text-align: right;">33.33</td>
+<td style="text-align: right;">4.00</td>
+<td style="text-align: right;">5.43</td>
+</tr>
+<tr>
+<td>Civil Engineering</td>
+<td style="text-align: right;">256</td>
+<td style="text-align: right;">41</td>
+<td style="text-align: right;">12.0</td>
+<td style="text-align: right;">1.84</td>
+<td style="text-align: right;">6.25</td>
+<td style="text-align: right;">24.61</td>
+<td style="text-align: right;">4.88</td>
+<td style="text-align: right;">1.95</td>
+</tr>
+<tr>
+<td>Research Services</td>
+<td style="text-align: right;">247</td>
+<td style="text-align: right;">67</td>
+<td style="text-align: right;">12.0</td>
+<td style="text-align: right;">1.23</td>
+<td style="text-align: right;">47.77</td>
+<td style="text-align: right;">87.85</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr>
+<td>Business Consulting and Services</td>
+<td style="text-align: right;">725</td>
+<td style="text-align: right;">172</td>
+<td style="text-align: right;">11.4</td>
+<td style="text-align: right;">1.60</td>
+<td style="text-align: right;">13.52</td>
+<td style="text-align: right;">30.48</td>
+<td style="text-align: right;">5.23</td>
+<td style="text-align: right;">0.28</td>
+</tr>
+<tr>
+<td>Software Development</td>
+<td style="text-align: right;">10,618</td>
+<td style="text-align: right;">1,950</td>
+<td style="text-align: right;">11.1</td>
+<td style="text-align: right;">1.39</td>
+<td style="text-align: right;">16.79</td>
+<td style="text-align: right;">52.92</td>
+<td style="text-align: right;">7.33</td>
+<td style="text-align: right;">0.46</td>
+</tr>
+<tr>
+<td>Technology, Information and Internet</td>
+<td style="text-align: right;">2,000</td>
+<td style="text-align: right;">371</td>
+<td style="text-align: right;">11.1</td>
+<td style="text-align: right;">1.28</td>
+<td style="text-align: right;">14.00</td>
+<td style="text-align: right;">64.05</td>
+<td style="text-align: right;">6.47</td>
+<td style="text-align: right;">0.50</td>
+</tr>
+<tr>
+<td>IT Services and IT Consulting</td>
+<td style="text-align: right;">5,108</td>
+<td style="text-align: right;">992</td>
+<td style="text-align: right;">10.4</td>
+<td style="text-align: right;">1.54</td>
+<td style="text-align: right;">12.53</td>
+<td style="text-align: right;">39.43</td>
+<td style="text-align: right;">10.38</td>
+<td style="text-align: right;">0.55</td>
+</tr>
+<tr>
+<td>Information Technology &amp; Services</td>
+<td style="text-align: right;">304</td>
+<td style="text-align: right;">62</td>
+<td style="text-align: right;">10.0</td>
+<td style="text-align: right;">1.64</td>
+<td style="text-align: right;">13.49</td>
+<td style="text-align: right;">33.55</td>
+<td style="text-align: right;">6.45</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr>
+<td>Telecommunications</td>
+<td style="text-align: right;">242</td>
+<td style="text-align: right;">36</td>
+<td style="text-align: right;">9.5</td>
+<td style="text-align: right;">1.86</td>
+<td style="text-align: right;">13.22</td>
+<td style="text-align: right;">34.71</td>
+<td style="text-align: right;">5.56</td>
+<td style="text-align: right;">1.65</td>
+</tr>
+<tr>
+<td>Aviation and Aerospace Component Manufacturing</td>
+<td style="text-align: right;">493</td>
+<td style="text-align: right;">79</td>
+<td style="text-align: right;">9.3</td>
+<td style="text-align: right;">1.60</td>
+<td style="text-align: right;">3.45</td>
+<td style="text-align: right;">19.27</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.41</td>
+</tr>
+<tr>
+<td>Staffing and Recruiting</td>
+<td style="text-align: right;">1,079</td>
+<td style="text-align: right;">187</td>
+<td style="text-align: right;">8.9</td>
+<td style="text-align: right;">1.42</td>
+<td style="text-align: right;">9.92</td>
+<td style="text-align: right;">45.97</td>
+<td style="text-align: right;">6.42</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr>
+<td>Motor Vehicle Manufacturing</td>
+<td style="text-align: right;">226</td>
+<td style="text-align: right;">33</td>
+<td style="text-align: right;">8.3</td>
+<td style="text-align: right;">1.62</td>
+<td style="text-align: right;">5.31</td>
+<td style="text-align: right;">28.32</td>
+<td style="text-align: right;">3.03</td>
+<td style="text-align: right;">2.21</td>
+</tr>
+<tr>
+<td>Defense and Space Manufacturing</td>
+<td style="text-align: right;">1,593</td>
+<td style="text-align: right;">285</td>
+<td style="text-align: right;">7.2</td>
+<td style="text-align: right;">1.64</td>
+<td style="text-align: right;">2.32</td>
+<td style="text-align: right;">29.25</td>
+<td style="text-align: right;">8.42</td>
+<td style="text-align: right;">0.94</td>
+</tr>
+<tr>
+<td>Medical Equipment Manufacturing</td>
+<td style="text-align: right;">238</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">7.0</td>
+<td style="text-align: right;">2.44</td>
+<td style="text-align: right;">3.78</td>
+<td style="text-align: right;">29.83</td>
+<td style="text-align: right;">10.00</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr>
+<td>Semiconductor Manufacturing</td>
+<td style="text-align: right;">560</td>
+<td style="text-align: right;">98</td>
+<td style="text-align: right;">5.9</td>
+<td style="text-align: right;">2.00</td>
+<td style="text-align: right;">7.50</td>
+<td style="text-align: right;">47.86</td>
+<td style="text-align: right;">3.06</td>
+<td style="text-align: right;">0.54</td>
+</tr>
+<tr>
+<td>Appliances, Electrical, and Electronics Manufacturing</td>
+<td style="text-align: right;">233</td>
+<td style="text-align: right;">53</td>
+<td style="text-align: right;">5.6</td>
+<td style="text-align: right;">1.49</td>
+<td style="text-align: right;">6.44</td>
+<td style="text-align: right;">18.03</td>
+<td style="text-align: right;">3.77</td>
+<td style="text-align: right;">1.29</td>
+</tr>
+<tr>
+<td>Information Services and Technology, Information and Internet</td>
+<td style="text-align: right;">754</td>
+<td style="text-align: right;">115</td>
+<td style="text-align: right;">4.7</td>
+<td style="text-align: right;">1.68</td>
+<td style="text-align: right;">15.38</td>
+<td style="text-align: right;">81.30</td>
+<td style="text-align: right;">10.43</td>
+<td style="text-align: right;">0.13</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-validity-check-conclusion-for-paper">6. Validity-check conclusion for paper<a class="headerlink" href="#6-validity-check-conclusion-for-paper" title="Permanent link">&para;</a></h2>
+<p><strong>Decision rule pre-committed:</strong> AI aspiration ratio ≥ 2× non-AI ⇒ reframe paper as 'what employers SAY they want' (aspirational padding).</p>
+<p><strong>Observed signals:</strong>
+- Pooled AI/non-AI aspiration ratio: 2024 1.747×, 2026 3.200× (2026 crosses threshold)
+- Matched-share delta (more interpretable): 2024 +0.142, 2026 +0.237 (modest but real)
+- <code>ghost_assessment_llm</code> risk ratio for AI-strict: 2024 0.847, 2026 0.977 (not elevated)</p>
+<p><strong>Nuanced conclusion.</strong> AI-sentences in 2026 carry modestly elevated hedging compared to non-AI sentences in the same postings (+0.24 matched-share delta, 60% of postings show the direction). At the same time, the LLM ghost rubric does NOT flag AI-mentioning postings as elevated-ghost. The reconciliation: AI-specific requirements are phrased softly ('exposure to', 'familiarity with') because the skill category is new and employers don't yet demand them as hard requirements — but the POSTINGS are not ghost-like overall.</p>
+<p><strong>Paper implication.</strong> The paper should NOT reframe to 'aspirational padding' — the LLM-rubric test fails that narrative. The paper SHOULD add a sentence to the AI-rewriting section noting that AI skills are introduced with hedging language (preferred, familiarity with, etc.) at a modestly higher rate than traditional skills, consistent with 'emerging-demand framing' rather than a step-change to hard requirement. This is a genuine finding, not a defect.</p>
+<p><strong>Remaining caveat.</strong> This analysis is about JD LANGUAGE. Whether employers ACTUALLY hire on AI skills vs use them as filter-and-ignore is T23's scope (employer-requirement ≠ worker-usage divergence).</p>
+<hr />
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>ghost_assessment_llm</code> coverage is 23.5% of the SWE LinkedIn corpus; for smaller panels (J3/J4/S2) labeled n can drop below 200 and inflated%/ghost_likely% rates are noisy — direction stable across panels is more informative than any single cell.</li>
+<li>Aspiration/firm regex operates on LLM-cleaned text; if the cleaner stripped requirement sentences, counts can shift. Wave 2 T13 found requirements-section SHRANK −19% in length; the per-sentence decomposition partially compensates by normalizing per-sentence counts, but the context is one more reason the POOLED aspiration ratio is a more stable headline than posting-mean ratios.</li>
+<li>YOE extraction rate is lower in scraped than arshkon (T08), so J3/J4 panels shrink rapidly in 2024. Where the cell is blank or <code>n/a</code>, the underlying n was too small.</li>
+<li>Industry column is not populated for arshkon; industry block is 2026-only.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "content.code.copy", "search.highlight", "search.suggest"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

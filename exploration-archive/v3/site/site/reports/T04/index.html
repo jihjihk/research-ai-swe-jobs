@@ -1,0 +1,3418 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration findings from the SWE labor market restructuring study">
+      
+      
+      
+      
+        <link rel="prev" href="../T03/">
+      
+      
+        <link rel="next" href="../T05/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T04 SWE Classification - SWE Labor Market Exploration</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t04-swe-classification-audit" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T04 SWE Classification
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../slides/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Presentation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../findings/ai-requirements/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../methodology/data-sources/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Methods & Risks
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../T01/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Evidence
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Presentation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Presentation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration Findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/ai-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Requirements Surged +24pp (DiD), Validated as Genuine Hiring Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/ai-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Requirements Surged +24pp (DiD), Validated as Genuine Hiring Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/junior-decline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Junior hiring declined — SWE only
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/domain-recomposition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The market recomposed by domain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/technology-expansion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI expanded tech stacks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What we corrected along the way
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/orthogonality/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The orthogonality puzzle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/claims/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What the paper can claim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the story evolved
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/synthesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods & Risks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methods & Risks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/sensitivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity & robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations & open questions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evidence
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01: Column Coverage Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01: Column Coverage Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-swe-classification-tier-breakdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. SWE Classification Tier Breakdown
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. SWE Classification Tier Breakdown">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#swe-rows-is_swe-true-52327-total" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SWE rows (is_swe = true): 52,327 total
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#swe-adjacent-rows-20210-total" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SWE-adjacent rows: 20,210 total
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-rows-141816-total" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control rows: 141,816 total
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-dual-flag-violations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Dual-Flag Violations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-borderline-swe-sample-audit-title_lookup_llm-tier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Borderline SWE Sample Audit (title_lookup_llm tier)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Borderline SWE Sample Audit (title_lookup_llm tier)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clear-true-positives-correct-swe-classification-50" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clear true positives (correct SWE classification): ~50%
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#borderline-cases-debatable-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Borderline cases (debatable): ~25%
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#likely-false-positives-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Likely false positives: ~15%
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality-estimate-for-title_lookup_llm-tier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality estimate for title_lookup_llm tier:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-borderline-non-swe-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Borderline Non-SWE Audit
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Borderline Non-SWE Audit">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#correctly-excluded-not-swe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Correctly excluded (not SWE):
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#potential-false-negatives-identified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Potential false negatives identified:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#estimated-false-negative-rate-from-this-sample-4-8-2-4-of-50" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estimated false negative rate from this sample: ~4-8% (2-4 of 50)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-false-positive-estimation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. False Positive Estimation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. False Positive Estimation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#method-software-keyword-scan-in-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method: Software keyword scan in description
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suspicious-title-categories-within-swe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suspicious title categories within SWE:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#estimated-false-positive-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estimated false positive rate:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-false-negative-estimation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. False Negative Estimation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. False Negative Estimation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breakdown-by-category" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breakdown by category:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-swe-adjacent-and-control-group-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. SWE-Adjacent and Control Group Profiles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. SWE-Adjacent and Control Group Profiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#swe-adjacent-20210-rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SWE-Adjacent (20,210 rows)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-group-141816-rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Group (141,816 rows)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#distinctiveness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distinctiveness
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-boundary-role-classification-across-periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Boundary Role Classification Across Periods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Boundary Role Classification Across Periods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key findings:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#risk-assessment-for-temporal-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Risk assessment for temporal analysis:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-embedding_high-tier-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Embedding_high Tier Audit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-estimated-overall-classification-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Estimated Overall Classification Quality
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-surprises-and-unexpected-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Surprises and Unexpected Patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Recommendations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Files
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T25/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T25 Interview Artifacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T26/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T26 Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gate Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t04-swe-classification-audit">T04: SWE Classification Audit</h1>
+<p><strong>Task:</strong> Assess SWE classification quality after preprocessing fixes.</p>
+<p><strong>Date:</strong> 2026-04-05
+<strong>Data:</strong> <code>data/unified.parquet</code> (Stage 11 final output, 1.40M rows, 99 columns)
+<strong>Filters:</strong> <code>source_platform='linkedin' AND is_english=true AND date_flag='ok'</code></p>
+<hr />
+<h2 id="1-swe-classification-tier-breakdown">1. SWE Classification Tier Breakdown</h2>
+<h3 id="swe-rows-is_swe-true-52327-total">SWE rows (is_swe = true): 52,327 total</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Count</th>
+<th>% of SWE</th>
+<th>Avg Confidence</th>
+<th>Med Confidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>regex</td>
+<td>47,585</td>
+<td>90.9%</td>
+<td>1.000</td>
+<td>1.000</td>
+</tr>
+<tr>
+<td>title_lookup_llm</td>
+<td>3,948</td>
+<td>7.5%</td>
+<td>0.900</td>
+<td>0.900</td>
+</tr>
+<tr>
+<td>embedding_high</td>
+<td>794</td>
+<td>1.5%</td>
+<td>0.895</td>
+<td>0.890</td>
+</tr>
+</tbody>
+</table>
+<p>The vast majority of SWE classification comes from regex (pattern matching on title). The title_lookup_llm tier contributes ~7.5%, and embedding_high is a small tail (~1.5%).</p>
+<h3 id="by-source">By source</h3>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>regex</th>
+<th>title_lookup_llm</th>
+<th>embedding_high</th>
+<th>Total SWE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kaggle_arshkon</td>
+<td>4,477 (89.2%)</td>
+<td>465 (9.3%)</td>
+<td>77 (1.5%)</td>
+<td>5,019</td>
+</tr>
+<tr>
+<td>kaggle_asaniczka</td>
+<td>20,411 (87.9%)</td>
+<td>2,407 (10.4%)</td>
+<td>395 (1.7%)</td>
+<td>23,213</td>
+</tr>
+<tr>
+<td>scraped</td>
+<td>22,697 (94.2%)</td>
+<td>1,076 (4.5%)</td>
+<td>322 (1.3%)</td>
+<td>24,095</td>
+</tr>
+</tbody>
+</table>
+<p>Scraped data has a higher regex share (94.2%) and lower title_lookup_llm share (4.5%), suggesting scraped postings use more standard SWE title patterns. This likely reflects the scraper's query design targeting explicit SWE titles.</p>
+<h3 id="swe-adjacent-rows-20210-total">SWE-adjacent rows: 20,210 total</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Count</th>
+<th>%</th>
+<th>Avg Confidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>regex</td>
+<td>9,139</td>
+<td>45.2%</td>
+<td>0.820</td>
+</tr>
+<tr>
+<td>embedding_adjacent</td>
+<td>6,503</td>
+<td>32.2%</td>
+<td>0.759</td>
+</tr>
+<tr>
+<td>title_lookup_llm</td>
+<td>4,568</td>
+<td>22.6%</td>
+<td>0.850</td>
+</tr>
+</tbody>
+</table>
+<h3 id="control-rows-141816-total">Control rows: 141,816 total</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Count</th>
+<th>%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>regex</td>
+<td>107,715</td>
+<td>76.0%</td>
+</tr>
+<tr>
+<td>unresolved (catch-all)</td>
+<td>34,101</td>
+<td>24.0%</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-dual-flag-violations">2. Dual-Flag Violations</h2>
+<p><strong>Violations (is_swe + is_swe_adjacent + is_control &gt; 1): 0</strong></p>
+<p>No rows are simultaneously classified as multiple categories. The mutual exclusivity constraint is perfectly enforced.</p>
+<p><strong>Unclassified rows:</strong> 1,061,002 (83.2% of 1,275,355 filtered rows) are neither SWE, SWE-adjacent, nor control. These are expected -- the classification targets specific occupation groups, not the entire job market.</p>
+<hr />
+<h2 id="3-borderline-swe-sample-audit-title_lookup_llm-tier">3. Borderline SWE Sample Audit (title_lookup_llm tier)</h2>
+<p>Reviewed 50 SWE postings from the title_lookup_llm tier (all conf=0.900). Manual quality assessment based on title and description snippet:</p>
+<h3 id="clear-true-positives-correct-swe-classification-50">Clear true positives (correct SWE classification): ~50%</h3>
+<ul>
+<li>"ReactJS Developer" -- frontend software development</li>
+<li>"Principal Firmware Engineer" -- embedded software</li>
+<li>"Senior MLOps Engineer" -- ML infrastructure</li>
+<li>"Angular developer" / "Angular Lead Developer" -- frontend software</li>
+<li>"DevSecOps Engineer" / "Senior DevSecOps Engineer" -- security-aware software development</li>
+<li>"Lead Developer" / "Senior Developer" / "Developer" -- general software development</li>
+<li>"Embedded Engineer" -- embedded software</li>
+<li>"Java Architect" -- software architecture</li>
+<li>"Database Engineer II" -- database software</li>
+<li>"Programmer" / "Senior Programmer Analyst" -- software development</li>
+<li>"Distinguished Engineer, Generative AI Systems" -- senior software/AI</li>
+</ul>
+<h3 id="borderline-cases-debatable-25">Borderline cases (debatable): ~25%</h3>
+<ul>
+<li>"Quality Assurance Engineer" (multiple instances) -- QA roles involving some automation/code but primarily testing</li>
+<li>"Senior Quality Assurance Automation Engineer" -- test automation, borderline SWE</li>
+<li>"QA Lead" (multiple instances) -- QA leadership</li>
+<li>"Automation Test Analyst" -- test automation</li>
+<li>"Software Quality Assurance Engineer" / "Senior Software Quality Engineer" -- software QA</li>
+<li>"QA Automation Lead Engineer" -- test automation leadership</li>
+<li>"Software Engineering Manager" -- management role, arguably should be excluded</li>
+</ul>
+<h3 id="likely-false-positives-15">Likely false positives: ~15%</h3>
+<ul>
+<li>"Senior Automation Engineer" (National Carwash Solutions) -- industrial/manufacturing automation</li>
+<li>"Test Engineer" (description: "safety and performance standards", "sustaining engineering") -- hardware/product testing</li>
+<li>"Staff Systems Test Engineer" (Northrop Grumman) -- defense systems testing</li>
+<li>"Test Development Engineer" -- ambiguous, could be hardware test development</li>
+<li>"Principal Test Engineer" (BAE/defense context) -- defense systems testing</li>
+</ul>
+<h3 id="quality-estimate-for-title_lookup_llm-tier">Quality estimate for title_lookup_llm tier:</h3>
+<ul>
+<li><strong>True SWE:</strong> ~50% (clear software development roles)</li>
+<li><strong>Borderline/debatable:</strong> ~25% (QA/test automation roles involving code)</li>
+<li><strong>Likely false positives:</strong> ~15% (hardware, manufacturing, defense testing roles)</li>
+<li><strong>Management roles that may warrant separate treatment:</strong> ~10%</li>
+</ul>
+<hr />
+<h2 id="4-borderline-non-swe-audit">4. Borderline Non-SWE Audit</h2>
+<p>Reviewed 50 non-SWE rows with "engineer", "developer", or "software" in the title. Assessment:</p>
+<h3 id="correctly-excluded-not-swe">Correctly excluded (not SWE):</h3>
+<ul>
+<li><strong>Hardware/traditional engineering:</strong> Mechanical Engineer, Electrical Engineer, Civil Engineer, Senior Structural Engineer -- correctly excluded</li>
+<li><strong>Network/telecom:</strong> Senior Telecom / Network Engineer, Network Engineer Wired -- correctly classified as non-SWE (these are SWE-adjacent or control)</li>
+<li><strong>Industrial/manufacturing:</strong> Lean Manufacturing Engineer, Industrial Engineer, Process Line Engineer -- correctly excluded</li>
+<li><strong>Non-IC roles:</strong> Engineering Project Manager, Engineer Supervisor -- correctly excluded</li>
+<li><strong>Specialty engineering:</strong> Audio Visual Engineer, Geotechnical Engineer, Traffic Engineer, Water/Wastewater Engineer -- correctly excluded</li>
+<li><strong>Sales-adjacent:</strong> Workday Sales Engineer -- correctly excluded</li>
+</ul>
+<h3 id="potential-false-negatives-identified">Potential false negatives identified:</h3>
+<ul>
+<li>"Ruby on Rails Developer" (conf=0.637, unresolved) -- this appears to be a genuine SWE role that was missed</li>
+<li>"Principal Engineer, YouTube ML Recommendations Systems" (conf=0.601, unresolved) -- strong SWE signals in description</li>
+<li>"Senior Deep Learning Engineer" (conf=0.814, embedding_adjacent) -- classified as adjacent rather than SWE</li>
+<li>"Senior Business Intelligence Developer" (conf=0.605, unresolved) -- borderline SWE/adjacent</li>
+</ul>
+<h3 id="estimated-false-negative-rate-from-this-sample-4-8-2-4-of-50">Estimated false negative rate from this sample: ~4-8% (2-4 of 50)</h3>
+<p>The exclusion rules for non-software engineering disciplines appear robust. Most correctly-excluded rows are hardware engineering, civil/structural, or management roles.</p>
+<hr />
+<h2 id="5-false-positive-estimation">5. False Positive Estimation</h2>
+<h3 id="method-software-keyword-scan-in-description">Method: Software keyword scan in description</h3>
+<p>Checked whether SWE-classified descriptions mention software/code/programming-related terms (software, programming, coding, developer, python, java, javascript, typescript, c++, api, frontend, backend, full-stack, devops, deploy, repository, git, codebase):</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Total</th>
+<th>Has SW Signal</th>
+<th>No SW Signal</th>
+<th>No-SW %</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>regex</td>
+<td>47,585</td>
+<td>45,367</td>
+<td>2,218</td>
+<td>4.7%</td>
+</tr>
+<tr>
+<td>title_lookup_llm</td>
+<td>3,948</td>
+<td>3,482</td>
+<td>466</td>
+<td>11.8%</td>
+</tr>
+<tr>
+<td>embedding_high</td>
+<td>794</td>
+<td>741</td>
+<td>53</td>
+<td>6.7%</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>52,327</strong></td>
+<td><strong>49,590</strong></td>
+<td><strong>2,737</strong></td>
+<td><strong>5.2%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Not all rows without software keywords are false positives -- some postings use domain-specific language. But this provides a reasonable upper bound on false-positive risk.</p>
+<h3 id="suspicious-title-categories-within-swe">Suspicious title categories within SWE:</h3>
+<table>
+<thead>
+<tr>
+<th>Title Pattern</th>
+<th>SWE Count</th>
+<th>Mentions "software"</th>
+<th>Mentions mfg/hardware</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>%automation engineer%</td>
+<td>545</td>
+<td>56%</td>
+<td>44%</td>
+</tr>
+<tr>
+<td>%reliability engineer%</td>
+<td>989</td>
+<td>56%</td>
+<td>32%</td>
+</tr>
+<tr>
+<td>%test engineer%</td>
+<td>699</td>
+<td>73%</td>
+<td>68%</td>
+</tr>
+<tr>
+<td>%quality assurance%</td>
+<td>278</td>
+<td>60%</td>
+<td>41%</td>
+</tr>
+<tr>
+<td>%qa engineer%</td>
+<td>162</td>
+<td>77%</td>
+<td>22%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key findings:</strong>
+- <strong>Test engineer</strong> has the highest manufacturing keyword co-occurrence (68%), meaning nearly 2/3 of SWE-classified test engineers mention manufacturing or hardware in their descriptions. Many of these are likely product/hardware test roles, not software testers.
+- <strong>Automation engineer</strong> has 44% manufacturing overlap, indicating a substantial fraction are industrial automation roles.
+- <strong>Reliability engineer</strong> has 32% manufacturing overlap, lower than test/automation but still indicating meaningful contamination.
+- <strong>QA engineer</strong> is the cleanest of the suspicious categories at 22% manufacturing overlap.</p>
+<h3 id="estimated-false-positive-rate">Estimated false positive rate:</h3>
+<ul>
+<li><strong>Regex tier (90.9% of SWE):</strong> ~3-5% false positives. Regex patterns like "software engineer" are highly precise.</li>
+<li><strong>Title_lookup_llm tier (7.5%):</strong> ~15-25% false positives. This tier includes "automation engineer", "reliability engineer", "test engineer" which conflate software and hardware/manufacturing roles.</li>
+<li><strong>Embedding_high tier (1.5%):</strong> ~7-10% false positives. Slightly elevated but small absolute count.</li>
+<li><strong>Overall weighted estimate:</strong> ~4-6% false positives (~2,100-3,100 rows out of 52,327).</li>
+</ul>
+<hr />
+<h2 id="6-false-negative-estimation">6. False Negative Estimation</h2>
+<p>893 non-SWE rows match strong SWE title patterns (software engineer, software developer, full-stack, backend engineer, frontend engineer, web developer).</p>
+<h3 id="breakdown-by-category">Breakdown by category:</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Count</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Management</td>
+<td>610</td>
+<td>Director/Manager of SW Engineering -- intentional exclusion</td>
+</tr>
+<tr>
+<td>Other</td>
+<td>159</td>
+<td>Mixed -- includes teaching, editor, client technology roles</td>
+</tr>
+<tr>
+<td>Intern</td>
+<td>61</td>
+<td>Internship roles</td>
+</tr>
+<tr>
+<td>Senior IC</td>
+<td>58</td>
+<td>Senior/Staff/Principal-prefixed roles caught by edge cases</td>
+</tr>
+<tr>
+<td>Advisory</td>
+<td>5</td>
+<td>Consultants</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key insight:</strong> 610/893 (68.3%) of potential false negatives are <strong>management roles</strong> (e.g., "Director, Software Engineering - Card Core", "Manager, Software Engineering, Back End"). These are intentionally excluded from SWE because they are not IC development roles. This is a correct design decision for a study of SWE posting requirements.</p>
+<p>Top management false-negative titles are dominated by Capital One's naming convention ("Director, Software Engineering - Card Core", "Senior Director, Software Engineering - Card Authorizations", etc.), which inflates the count due to multi-posting.</p>
+<p>The remaining ~283 potential false negatives include:
+- <strong>Interns (61):</strong> Software engineering internships -- excluded by level, arguably correct
+- <strong>Teaching (21):</strong> "College of IT: FT Instructor - Software Engineering" -- correctly excluded
+- <strong>Senior IC edge cases (58):</strong> Roles with unusual titling that the regex doesn't capture
+- <strong>Other (159):</strong> Titles like "Client Technology - Software Engineering" where the role may or may not be IC development</p>
+<p><strong>Estimated false negative rate:</strong> ~283 genuine misses / ~53,000 target = <strong>~0.5%</strong>, which is negligible.</p>
+<hr />
+<h2 id="7-swe-adjacent-and-control-group-profiles">7. SWE-Adjacent and Control Group Profiles</h2>
+<h3 id="swe-adjacent-20210-rows">SWE-Adjacent (20,210 rows)</h3>
+<p>Top normalized titles:
+1. Network Engineer (1,217)
+2. Quality Engineer (1,114)
+3. Data Scientist (965)
+4. Data Analyst (872)
+5. Architect (537)
+6. Windows Engineer (333)
+7. Solutions Architect (300)
+8. Security Engineer (296)
+9. Systems Administrator (254)
+10. DDI Network Engineer (169)
+11. Data Architect (168)
+12. Database Administrator (166)</p>
+<p><strong>Character:</strong> Technical roles involving technology configuration, data analysis, architecture, or security -- adjacent to software development but not primarily code-writing roles. The boundary with SWE is sharpest at Data Scientist (could involve significant coding) and Security Engineer (could include security software development).</p>
+<h3 id="control-group-141816-rows">Control Group (141,816 rows)</h3>
+<p>Top normalized titles:
+1. Accountant (6,426)
+2. Registered Nurse (3,513)
+3. Electrical Engineer (2,593)
+4. Accounting Manager (1,983)
+5. Mechanical Engineer (1,949)
+6. Financial Analyst (1,932)
+7. Registered Nurse / RN variants (~5,500 combined)
+8. Civil Engineer (916)</p>
+<p><strong>Character:</strong> Professional roles from completely different domains -- healthcare, finance, hardware engineering. These serve as a useful baseline for posting-level trends that affect all occupations, not just SWE. The inclusion of electrical and mechanical engineers provides a direct non-software engineering comparison group.</p>
+<h3 id="distinctiveness">Distinctiveness</h3>
+<p>SWE-adjacent is well-separated from SWE: top titles are infrastructure, data analysis, and architecture roles that use technology but don't primarily write code. Control is maximally distinct -- healthcare and finance roles have no overlap with SWE. The three-category system provides clean comparison groups at different distances from the SWE core.</p>
+<hr />
+<h2 id="8-boundary-role-classification-across-periods">8. Boundary Role Classification Across Periods</h2>
+<p>This is the analytically critical part of the audit: do boundary roles shift classification across periods?</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Arshkon SWE%</th>
+<th>Asaniczka SWE%</th>
+<th>Scraped SWE%</th>
+<th>Stable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data Engineer</td>
+<td>91.6% (359/392)</td>
+<td>85.5% (1,259/1,473)</td>
+<td>92.8% (1,888/2,034)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>ML Engineer</td>
+<td>90.9% (10/11)</td>
+<td>96.7% (29/30)</td>
+<td>93.3% (249/267)</td>
+<td>Yes (small n)</td>
+</tr>
+<tr>
+<td>Machine Learning Eng.</td>
+<td>100% (87/87)</td>
+<td>91.5% (375/410)</td>
+<td>98.3% (738/751)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>DevOps</td>
+<td>97.7% (250/256)</td>
+<td>99.3% (754/759)</td>
+<td>99.1% (994/1,003)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Site Reliability</td>
+<td>100% (91/91)</td>
+<td>99.3% (277/279)</td>
+<td>99.8% (412/413)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Platform Engineer</td>
+<td>90.7% (49/54)</td>
+<td>86.3% (314/364)</td>
+<td>85.0% (340/400)</td>
+<td>Mostly</td>
+</tr>
+<tr>
+<td>Cloud Engineer</td>
+<td>98.1% (105/107)</td>
+<td>96.2% (205/213)</td>
+<td>90.7% (353/389)</td>
+<td>Mild shift</td>
+</tr>
+<tr>
+<td>Security Engineer</td>
+<td>1.6% (4/249)</td>
+<td>0.4% (3/677)</td>
+<td>3.1% (40/1,272)</td>
+<td>Stable (non-SWE)</td>
+</tr>
+<tr>
+<td>QA Engineer</td>
+<td>32.3% (10/31)</td>
+<td>59.5% (72/121)</td>
+<td>42.8% (80/187)</td>
+<td><strong>Unstable</strong></td>
+</tr>
+<tr>
+<td>Test Engineer</td>
+<td>32.3% (54/167)</td>
+<td>33.0% (414/1,256)</td>
+<td>24.5% (231/942)</td>
+<td>Mostly</td>
+</tr>
+<tr>
+<td>Solutions Architect</td>
+<td>2.3% (3/133)</td>
+<td>0.5% (4/754)</td>
+<td>0.1% (1/688)</td>
+<td>Stable (non-SWE)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-findings">Key findings:</h3>
+<ol>
+<li>
+<p><strong>Core SWE roles are stably classified.</strong> Data Engineer, ML Engineer, DevOps, SRE all classify as SWE at &gt;85% across all periods. These are safe to include in SWE analyses.</p>
+</li>
+<li>
+<p><strong>Security Engineer is consistently non-SWE.</strong> 0.4-3.1% SWE classification. The boundary is stable and correctly placed on the SWE-adjacent side. The small uptick in scraped (3.1%) is worth monitoring but not concerning.</p>
+</li>
+<li>
+<p><strong>QA Engineer is the most unstable boundary.</strong> Classification as SWE ranges from 32.3% to 59.5% across sources. This means QA engineers are being classified inconsistently, and any temporal analysis comparing QA inclusion rates could create spurious trends. The low base count (31-187 per source) amplifies the instability.</p>
+</li>
+<li>
+<p><strong>Cloud Engineer shows mild reclassification drift.</strong> From 98.1% SWE (arshkon) to 90.7% SWE (scraped). This 7.4pp shift could reflect real changes in how cloud engineer roles are described (more infrastructure-focused in 2026), or could be a classifier artifact.</p>
+</li>
+<li>
+<p><strong>Platform Engineer is borderline stable</strong> with 85-91% SWE classification. The boundary is placed correctly (mostly SWE), but ~10-15% of platform engineers are classified as adjacent.</p>
+</li>
+<li>
+<p><strong>Test Engineer classification is declining.</strong> From 32-33% SWE (2024) to 24.5% (2026). This 8pp drop could reflect real role evolution (more specialized testing, less code) or title convention changes.</p>
+</li>
+</ol>
+<h3 id="risk-assessment-for-temporal-analysis">Risk assessment for temporal analysis:</h3>
+<p>The unstable QA and drifting test engineer boundaries together affect:
+- QA Engineer: 10-80 SWE rows per source (very small)
+- Test Engineer: 54-414 SWE rows per source (moderate)</p>
+<p>Combined, these represent ~1,000-1,500 rows within SWE, or roughly 2-3% of the 52K SWE sample. A 20-30pp swing in their classification rate could shift SWE counts by ~200-400 rows, which is small relative to total SWE but could matter for compositional analyses within specific role subcategories.</p>
+<p><strong>Recommendation:</strong> For sensitivity analysis, report results with and without QA/test engineer titles.</p>
+<hr />
+<h2 id="9-embedding_high-tier-audit">9. Embedding_high Tier Audit</h2>
+<p>The 794 embedding_high SWE rows show distinctive title patterns:</p>
+<p>Top titles:
+- "ENGINEER SYSTEMS 3" (10), "ENGINEER SOFTWARE 3" (4) -- reversed title formats, likely parsing artifacts
+- "Principal Engineer Software" (7), "Sr Principal Engineer Software" (6) -- valid but unusual formatting
+- "AI Research Engineer" (6), "AI Native Engineer" (5) -- genuine SWE roles with non-standard titles
+- "ML Ops Engineer" (5), "Senior ML Ops Engineer" (4) -- valid MLOps roles
+- "Test Automation Lead" (4), "Software Test Automation Engineer" (4) -- QA/test automation
+- "QA/QC Engineer" (3), "QA Test Lead" (3), "QA Engineer Automated" (3) -- QA roles</p>
+<p><strong>Assessment:</strong> The embedding_high tier contains a mix of:
+- Genuine SWE roles with unusual title formatting (~50-60%)
+- QA/test automation roles (~20-25%)
+- Parsing artifacts with reversed name/title fields (~10-15%)
+- Edge cases (~10%)</p>
+<p>The reversed-title artifacts (e.g., "ENGINEER SYSTEMS 3") suggest a data quality issue upstream of classification. These rows should be audited for title-field swapping.</p>
+<hr />
+<h2 id="10-estimated-overall-classification-quality">10. Estimated Overall Classification Quality</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Estimate</th>
+<th>Confidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>False positive rate</strong></td>
+<td>4-6% (~2,100-3,100 / 52,327)</td>
+<td>Medium -- based on keyword scan and manual audit</td>
+</tr>
+<tr>
+<td><strong>False negative rate</strong></td>
+<td>&lt;0.5% (~283 / ~53,000)</td>
+<td>High -- most "misses" are intentional management exclusions</td>
+</tr>
+<tr>
+<td><strong>Temporal stability</strong></td>
+<td>Good for core roles, unstable for QA/test</td>
+<td>High confidence</td>
+</tr>
+<tr>
+<td><strong>Dual-flag violations</strong></td>
+<td>0</td>
+<td>Verified</td>
+</tr>
+<tr>
+<td><strong>Title overlap SWE/adjacent</strong></td>
+<td>0</td>
+<td>Verified</td>
+</tr>
+</tbody>
+</table>
+<p>The classifier is <strong>conservative</strong> -- it has a low false-negative rate but a moderate false-positive rate. The false positives are concentrated in the title_lookup_llm tier (7.5% of SWE), where industrial automation, reliability, and hardware test engineers bleed in. The regex tier (90.9%) is highly precise.</p>
+<hr />
+<h2 id="11-surprises-and-unexpected-patterns">11. Surprises and Unexpected Patterns</h2>
+<ol>
+<li>
+<p><strong>Test engineer has the highest manufacturing co-occurrence (68%).</strong> Nearly 2/3 of SWE-classified test engineers mention manufacturing or hardware keywords. This is the single highest-risk boundary for false positives and the most compelling case for targeted exclusion rules.</p>
+</li>
+<li>
+<p><strong>"Ruby on Rails Developer" is classified as non-SWE.</strong> This is a clear false negative (conf=0.637, unresolved tier). A dedicated regex pattern for "Rails Developer" would fix this and similar framework-named-developer titles.</p>
+</li>
+<li>
+<p><strong>"Senior Deep Learning Engineer" is SWE-adjacent, not SWE.</strong> Classified via embedding_adjacent (conf=0.814). Given that deep learning engineering is heavily code-based, this seems like a misclassification that an expanded regex could fix.</p>
+</li>
+<li>
+<p><strong>Capital One dominates false negatives.</strong> The management false-negative list is heavily skewed by Capital One's titling convention ("Director, Software Engineering - Card Core", "Manager, Software Engineering, Android"). This is an artifact of Capital One posting many distinctly-titled management roles, not a systemic classifier problem.</p>
+</li>
+<li>
+<p><strong>Embedding_high contains reversed title artifacts.</strong> "ENGINEER SYSTEMS 3" and "ENGINEER SOFTWARE 3" appear to be cases where name/title fields were swapped during ingestion. These 20+ rows have correct classification despite garbled titles, suggesting the embedding classifier is robust to title noise.</p>
+</li>
+<li>
+<p><strong>Scraped data has 94.2% regex purity vs 87.9% for asaniczka.</strong> The scraper's search queries naturally select for postings with explicit SWE title keywords, reducing reliance on noisier classification tiers. This is a beneficial side effect that improves classification quality for the scraped period.</p>
+</li>
+</ol>
+<hr />
+<h2 id="12-recommendations">12. Recommendations</h2>
+<ol>
+<li>
+<p><strong>For primary SWE analyses:</strong> Use <code>is_swe = true</code> with the understanding that 4-6% false positives are present. This is acceptable for most analyses.</p>
+</li>
+<li>
+<p><strong>For precision-sensitive analyses:</strong> Add filter <code>swe_classification_tier = 'regex'</code> to restrict to high-precision titles (90.9% of sample). This drops title_lookup_llm and embedding_high rows.</p>
+</li>
+<li>
+<p><strong>For robustness checks:</strong> Report results with and without:</p>
+</li>
+<li>QA/test engineer titles (unstable boundary)</li>
+<li>Automation/reliability engineer titles (manufacturing contamination)</li>
+<li>
+<p>title_lookup_llm tier rows</p>
+</li>
+<li>
+<p><strong>Pipeline improvement (regex expansion):</strong> Add regex patterns for "firmware engineer", "MLOps engineer", "DevSecOps engineer", "AI engineer", "Rails developer", "deep learning engineer" to promote these from title_lookup_llm/embedding to the more precise regex tier.</p>
+</li>
+<li>
+<p><strong>Pipeline improvement (manufacturing exclusion):</strong> Add manufacturing/hardware exclusion rules for "test engineer", "reliability engineer", and "automation engineer" -- exclude when title lacks software/code qualifiers and description contains manufacturing/hardware signals.</p>
+</li>
+<li>
+<p><strong>Data quality:</strong> Investigate reversed-title artifacts in embedding_high tier (e.g., "ENGINEER SYSTEMS 3"). These likely reflect upstream ingestion issues.</p>
+</li>
+</ol>
+<hr />
+<h2 id="output-files">Output Files</h2>
+<ul>
+<li><strong>Figures:</strong> <code>exploration/figures/T04/</code></li>
+<li><code>swe_tier_by_source.png</code> -- Classification tier distribution by source</li>
+<li><code>boundary_role_classification.png</code> -- Boundary role SWE vs adjacent classification across periods</li>
+<li><code>false_positive_negative_analysis.png</code> -- FP risk by tier and FN category breakdown</li>
+<li><strong>Tables:</strong> <code>exploration/tables/T04/</code></li>
+<li><code>swe_classification_tiers.csv</code> -- Full tier breakdown by source</li>
+<li><code>boundary_role_classification.csv</code> -- Boundary role counts by source and title</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

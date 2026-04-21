@@ -1,0 +1,1341 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration findings package and audit trail">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T01 Data Profile & Column Coverage - SWE labor market restructuring</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../stylesheets/site.css">
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t01-data-profile-column-coverage" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="SWE labor market restructuring" class="md-header__button md-logo" aria-label="SWE labor market restructuring" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE labor market restructuring
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T01 Data Profile &amp; Column Coverage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Story
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../findings/" class="md-tabs__link">
+          
+  
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../methods/" class="md-tabs__link">
+          
+  
+  
+  Methods
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../" class="md-tabs__link">
+          
+  
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="SWE labor market restructuring" class="md-nav__button md-logo" aria-label="SWE labor market restructuring" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE labor market restructuring
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Story
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/domain-recomposition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain recomposition and AI/LLM ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/credential-stacking-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirement stacking and scope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/template-drift/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Posting-template drift and AI-authorship hypothesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/company-strategies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Returning employer recomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/cross-occupation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-occupation densification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/seniority/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority and orchestration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/junior-measurement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Junior measurement asymmetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/ghost-aspiration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ghost and aspiration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/divergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark-sensitive divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing and schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/evidence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence and sensitivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw archive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#headline-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline finding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#methodology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methodology
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key counts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coverage-that-matters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage that matters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Coverage that matters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clean-text-coverage-on-swe-rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clean-text coverage on SWE rows
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-semantic-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source-semantic differences
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#surprises-and-unexpected-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surprises and unexpected patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-quality-caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data quality caveats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#downstream-action-items" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downstream action items
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#artifact-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifact paths
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t01-data-profile-column-coverage">T01 Data Profile &amp; Column Coverage<a class="headerlink" href="#t01-data-profile-column-coverage" title="Permanent link">&para;</a></h1>
+<h2 id="headline-finding">Headline finding<a class="headerlink" href="#headline-finding" title="Permanent link">&para;</a></h2>
+<p>The primary LinkedIn analysis frame is large enough for the project, but the usable surface is uneven. In the current <code>data/unified.parquet</code>, the primary frame contains 1,186,281 LinkedIn rows, including 59,972 SWE rows. The main binding constraints for later waves are text coverage in the scraped SWE slice, the source-specific nature of several company fields, and the fact that <code>seniority_native</code> is not a reliable entry-level cross-source baseline.</p>
+<h2 id="methodology">Methodology<a class="headerlink" href="#methodology" title="Permanent link">&para;</a></h2>
+<p>I profiled the primary analysis frame (<code>source_platform = 'linkedin' AND is_english = true AND date_flag = 'ok'</code>) and also checked the full source/platform mix to keep the scraped Indeed tail visible. For each column, I computed non-null rate and distinct count by source, with a second pass restricted to SWE rows. I also checked <code>llm_extraction_coverage</code> for SWE rows, because <code>description_core_llm</code> is the only cleaned-text column.</p>
+<h2 id="key-counts">Key counts<a class="headerlink" href="#key-counts" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>frame</th>
+<th style="text-align: right;">group</th>
+<th style="text-align: right;">total rows</th>
+<th style="text-align: right;">SWE</th>
+<th style="text-align: right;">SWE-adjacent</th>
+<th style="text-align: right;">control</th>
+<th style="text-align: right;">unclassified</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>primary LinkedIn</td>
+<td style="text-align: right;">kaggle_arshkon</td>
+<td style="text-align: right;">110,360</td>
+<td style="text-align: right;">4,691</td>
+<td style="text-align: right;">2,396</td>
+<td style="text-align: right;">8,614</td>
+<td style="text-align: right;">94,659</td>
+</tr>
+<tr>
+<td>primary LinkedIn</td>
+<td style="text-align: right;">kaggle_asaniczka</td>
+<td style="text-align: right;">847,526</td>
+<td style="text-align: right;">18,129</td>
+<td style="text-align: right;">9,420</td>
+<td style="text-align: right;">105,341</td>
+<td style="text-align: right;">714,636</td>
+</tr>
+<tr>
+<td>primary LinkedIn</td>
+<td style="text-align: right;">scraped</td>
+<td style="text-align: right;">228,395</td>
+<td style="text-align: right;">37,152</td>
+<td style="text-align: right;">10,463</td>
+<td style="text-align: right;">37,312</td>
+<td style="text-align: right;">143,468</td>
+</tr>
+</tbody>
+</table>
+<p>The full file also contains a nontrivial Indeed tail inside <code>scraped</code>:</p>
+<table>
+<thead>
+<tr>
+<th>frame</th>
+<th style="text-align: right;">group</th>
+<th style="text-align: right;">total rows</th>
+<th style="text-align: right;">SWE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>full dataset</td>
+<td style="text-align: right;">indeed</td>
+<td style="text-align: right;">123,700</td>
+<td style="text-align: right;">10,466</td>
+</tr>
+<tr>
+<td>full dataset</td>
+<td style="text-align: right;">linkedin</td>
+<td style="text-align: right;">1,231,688</td>
+<td style="text-align: right;">60,888</td>
+</tr>
+</tbody>
+</table>
+<h2 id="coverage-that-matters">Coverage that matters<a class="headerlink" href="#coverage-that-matters" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>analysis family</th>
+<th>binding constraint</th>
+<th>severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>text</td>
+<td><code>description_core_llm</code> coverage is very thin in scraped SWE (16.1% labeled) and only moderate in asaniczka SWE (85.8% labeled)</td>
+<td>severe for scraped, moderate overall</td>
+</tr>
+<tr>
+<td>seniority</td>
+<td><code>seniority_final</code> is fully populated, but <code>seniority_native</code> is diagnostic only and asaniczka has zero native entry labels</td>
+<td>severe for native-label validation, low for <code>seniority_final</code> use</td>
+</tr>
+<tr>
+<td>geography</td>
+<td><code>state_normalized</code> is reasonably strong; <code>metro_area</code> is only moderate</td>
+<td>moderate for metro work, mild for state-level work</td>
+</tr>
+<tr>
+<td>company</td>
+<td><code>company_size</code> and <code>company_size_category</code> are arshkon-only; <code>company_industry</code> is missing in asaniczka</td>
+<td>severe for pooled company analysis</td>
+</tr>
+<tr>
+<td>requirements</td>
+<td><code>yoe_extracted</code> is present in 62%-71% of SWE rows, depending on source</td>
+<td>moderate</td>
+</tr>
+</tbody>
+</table>
+<h3 id="clean-text-coverage-on-swe-rows">Clean-text coverage on SWE rows<a class="headerlink" href="#clean-text-coverage-on-swe-rows" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>source</th>
+<th style="text-align: right;">labeled</th>
+<th style="text-align: right;">deferred</th>
+<th style="text-align: right;">not_selected</th>
+<th style="text-align: right;">skipped_short</th>
+<th style="text-align: right;">labeled share</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kaggle_arshkon</td>
+<td style="text-align: right;">4,679</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">99.7%</td>
+</tr>
+<tr>
+<td>kaggle_asaniczka</td>
+<td style="text-align: right;">15,574</td>
+<td style="text-align: right;">99</td>
+<td style="text-align: right;">2,452</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">85.9%</td>
+</tr>
+<tr>
+<td>scraped</td>
+<td style="text-align: right;">5,966</td>
+<td style="text-align: right;">1,100</td>
+<td style="text-align: right;">30,084</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">16.1%</td>
+</tr>
+</tbody>
+</table>
+<h2 id="source-semantic-differences">Source-semantic differences<a class="headerlink" href="#source-semantic-differences" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th>what changes across sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>company_industry</code></td>
+<td>present in arshkon and scraped, absent in asaniczka; scraped values are much more compound-like (14.3% contain separators vs 3.4% in arshkon)</td>
+</tr>
+<tr>
+<td><code>company_size</code> / <code>company_size_category</code></td>
+<td>arshkon-only companion fields; absent in asaniczka and scraped</td>
+</tr>
+<tr>
+<td><code>company_id_kaggle</code></td>
+<td>arshkon-only identifier from the companion file</td>
+</tr>
+<tr>
+<td><code>seniority_native</code></td>
+<td>asaniczka has no native entry labels, so it cannot support entry-level validation there</td>
+</tr>
+<tr>
+<td><code>metro_area</code> / <code>state_normalized</code></td>
+<td>same field names, but the scraped source has different location coverage and only 26 distinct metro values because the scrape frame is narrower geographically</td>
+</tr>
+</tbody>
+</table>
+<h2 id="surprises-and-unexpected-patterns">Surprises and unexpected patterns<a class="headerlink" href="#surprises-and-unexpected-patterns" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>metro_area</code> is more usable than I expected: 59.2% non-null in arshkon SWE, 71.1% in asaniczka SWE, and 74.7% in scraped SWE.</li>
+<li><code>company_industry</code> is almost complete in scraped LinkedIn, but completely missing in asaniczka. That makes industry analysis asymmetric across the 2024 baselines.</li>
+<li><code>description_core_llm</code> is excellent in arshkon SWE and still decent in asaniczka SWE, but scraped SWE text is thin enough that later text work will need explicit coverage thresholds.</li>
+<li><code>seniority_final</code> is the stable seniority column, but the diagnostic <code>seniority_native</code> frame is already visibly lopsided across sources.</li>
+</ul>
+<h2 id="data-quality-caveats">Data quality caveats<a class="headerlink" href="#data-quality-caveats" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The scraped Indeed tail is real and large, but it is outside the primary LinkedIn frame and should stay out of cross-period comparisons unless the analysis is explicitly about platform mix.</li>
+<li>Many zero-coverage columns in arshkon are source-specific fields from Kaggle companions or scrape metadata. They are not missing by accident; they are absent by design.</li>
+<li><code>seniority_final</code> is usable directly. <code>seniority_native</code> is not a pooled cross-source entry baseline because asaniczka has zero native entry labels.</li>
+<li><code>description_core_llm</code> is the only cleaned text column. The retired rule-based cleaned-text fields should not be revived downstream.</li>
+</ul>
+<h2 id="downstream-action-items">Downstream action items<a class="headerlink" href="#downstream-action-items" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Use <code>description_core_llm</code> only on rows with <code>llm_extraction_coverage = 'labeled'</code>, and treat scraped text work as coverage-limited.</li>
+<li>Use <code>seniority_final</code> for the main analyses, then validate entry-level claims with the YOE proxy and arshkon-only <code>seniority_native</code>.</li>
+<li>Treat company-size work as arshkon-only and company-industry work as source-asymmetric.</li>
+<li>Prefer <code>state_normalized</code> over <code>metro_area</code> when a geography analysis needs breadth rather than fine location detail.</li>
+<li>Keep the scraped Indeed tail out of the core narrative unless a later task shows platform composition is itself a result.</li>
+</ol>
+<h2 id="artifact-paths">Artifact paths<a class="headerlink" href="#artifact-paths" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Coverage heatmap: <code>../../../assets/figures/T01/T01_coverage_heatmap.png</code></li>
+<li>Coverage table: <code>../../../assets/tables/T01/T01_column_coverage_long.csv</code></li>
+<li>SWE text coverage table: <code>../../../assets/tables/T01/T01_llm_extraction_coverage_swe.csv</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "toc.follow", "content.code.copy"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

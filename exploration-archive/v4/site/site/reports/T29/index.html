@@ -1,0 +1,2800 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration v4 — raw findings, gate memos, and verification passes">
+      
+      
+      
+      
+        <link rel="prev" href="../T28/">
+      
+      
+        <link rel="next" href="../V2_verification/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T29 LLM-Authorship Test - SWE Labor Market Exploration — v4</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t29-llm-authored-description-detection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration — v4
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T29 LLM-Authorship Test
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../INDEX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reports
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../memos/gate_0_pre_exploration/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Memos
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration — v4
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../INDEX/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 Data Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../seniority_measurement_investigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority Measurement Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V1_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V1 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T28/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 Archetype Decomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 LLM-Authorship Test
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 LLM-Authorship Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#headline-verdict-hypothesis-rejected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline verdict: HYPOTHESIS REJECTED
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-authorship-signals-and-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Authorship signals and validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Authorship signals and validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-features-defined-in-t29_01_featurespy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Features (defined in T29_01_features.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-spot-check-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Spot-check validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-score-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Score levels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-distribution-by-period-text-source-controlled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Distribution by period — text-source-controlled
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Distribution by period — text-source-controlled">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-interpretation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Interpretation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-per-company-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Per-company profile
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-correlation-with-wave-2-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Correlation with Wave 2 findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-headline-low-llm-subset-re-test-of-wave-2-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. HEADLINE: Low-LLM subset re-test of Wave 2 findings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. HEADLINE: Low-LLM subset re-test of Wave 2 findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-interpretation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Interpretation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-caveats-limitations-and-what-i-would-do-differently" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Caveats, limitations, and what I would do differently
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-bottom-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Bottom line
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V2_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration (Gate 0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t29-llm-authored-description-detection">T29 — LLM-authored description detection</h1>
+<p><strong>Agent O, Wave 3 (EXPLORATORY).</strong> Completed 2026-04-09.</p>
+<h2 id="headline-verdict-hypothesis-rejected">Headline verdict: HYPOTHESIS REJECTED</h2>
+<p><strong>The low-LLM-score subset of the 2024-2026 corpus exhibits the SAME Wave 2 findings as the full corpus and the high-LLM-score subset, often with larger percentage changes.</strong> Credential stack depth ≥7 grows <strong>+786% in the low-LLM subset</strong> versus +384% in the high-LLM subset. Description length grows +77% in the low-LLM subset versus +79% in the high-LLM subset (identical). AI mention grows +339% low vs +269% high. Tech density falls -22.8% low vs -34.3% high. Requirement breadth grows +42% low vs +35% high.</p>
+<p><strong>Not a single Wave 2 headline weakens when the LLM-style subset is removed.</strong> If anything, the low-LLM subset shows cleaner, stronger versions of every change.</p>
+<p>This rejects the hypothesis that recruiter LLM-adoption mediates the 2024-2026 labor market shifts. Whatever is driving the changes (credential stacking, AI mentions, length growth, mid-senior restructuring) is happening uniformly across postings regardless of whether they read as LLM-style marketing prose or as human-written technical copy. The text-source composition shift (2024 91% LLM-cleaned vs 2026 21% LLM-cleaned, flagged by V1) does contribute to the +72% aggregate length rise, but even under text-source control the length growth persists at +26% (V1) and T29's headline metrics (credential stacking, AI mentions) are well above the text-source baseline.</p>
+<p><strong>Caveats:</strong>
+1. The composite "authorship score" captures polished-marketing-prose style more than it captures LLM-specific tells. Some highest-scoring 2024 companies (Microsoft, Raytheon, Booz Allen, Anduril) are likely producing human-written but marketing-polished copy, not LLM-generated copy.
+2. Under text-source-controlled comparison, em-dash density rose 9-11×, LLM-vocab density rose 36-63%, and sentence length roughly doubled. These ARE suggestive of 2026 postings having more LLM-style surface features. But even if we accept those increases are genuine LLM-adoption evidence, the <strong>Wave 2 labor-market findings are independent of them</strong>.
+3. Spot-check validation showed the score discriminates qualitatively well (high = flowing marketing "Do you want to be part of a world-class organization..."; low = terse "seeking .NET/C# Developer, Full Time"). But "LLM-style" and "marketing-style" are intrinsically confounded.</p>
+<p>The hypothesis was testable and testable is good — the answer is that recruiter LLM adoption is not a parsimonious unified mechanism for the Wave 2 findings.</p>
+<hr />
+<h2 id="1-authorship-signals-and-validation">1. Authorship signals and validation</h2>
+<h3 id="11-features-defined-in-t29_01_featurespy">1.1 Features (defined in <code>T29_01_features.py</code>)</h3>
+<p>Computed per posting on the <strong>raw <code>description</code> column</strong> (not Stage 9 cleaned, to preserve formatting):</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Definition</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>llm_vocab_density_1k</code></td>
+<td>Count of classic LLM tells (<code>leverage, pivotal, cutting-edge, seamless, harness, robust, vibrant, foster, delve, embark, ...</code>) per 1K chars</td>
+<td>Primary vocabulary signal</td>
+</tr>
+<tr>
+<td><code>emdash_density_1k</code></td>
+<td>Em-dash (<code>—</code> and <code>--</code>) per 1K chars</td>
+<td>Strong LLM stylistic tell</td>
+</tr>
+<tr>
+<td><code>bullet_density_1k</code></td>
+<td>Bullet markers (<code>•</code>, <code>*</code>, <code>-</code>, <code>1.</code>) per 1K chars</td>
+<td>Structural; ingestion-sensitive</td>
+</tr>
+<tr>
+<td><code>ttr</code></td>
+<td>Type-token ratio of lowercased word tokens</td>
+<td>LLM prose has lower TTR</td>
+</tr>
+<tr>
+<td><code>mean_sent_len_chars</code>, <code>std_sent_len_chars</code></td>
+<td>Sentence length mean and std</td>
+<td>LLMs write longer, more uniform sentences</td>
+</tr>
+<tr>
+<td><code>mean_para_len</code>, <code>paragraph_count</code></td>
+<td>Paragraph stats via <code>\n\n</code> splits</td>
+<td>Ingestion-sensitive</td>
+</tr>
+<tr>
+<td><code>hedge_phrase_count</code></td>
+<td>"but not limited to", "such as but", "not limited to"</td>
+<td>LLM hedge</td>
+</tr>
+<tr>
+<td><code>closer_count</code></td>
+<td>"in conclusion", "we look forward", "join us"</td>
+<td>Boilerplate closer</td>
+</tr>
+<tr>
+<td><code>comma_density_1k</code>, <code>exclaim_density_1k</code></td>
+<td>Punctuation density</td>
+<td>Style</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pre-flight asserts</strong> (in script): regex patterns validated against hand-crafted positive/negative cases before running on corpus.</p>
+<p><strong>Composite score</strong> (<code>llm_score_robust</code>): z-sum of four ingestion-robust features: <code>llm_vocab_density_1k</code>, <code>hedge_phrase_count</code>, <code>comma_density_1k</code>, and <code>1 - ttr</code>. Excludes em-dash, bullets, paragraph features because those are too sensitive to ingestion pipeline differences across sources.</p>
+<h3 id="12-spot-check-validation">1.2 Spot-check validation</h3>
+<p>Drew 25 high-score (llm_vocab_count≥11) and 25 low-score (llm_vocab_count=0) samples. Qualitative read (see <code>exploration/tables/T29/spotcheck_samples.csv</code>):</p>
+<p><strong>High-score examples</strong> read like corporate marketing copy:
+- <em>"Do you want to be part of a growing world-class organization focused on bettering our world? Are you passionate about significantly improving the future of medicine?"</em> (AmplifyBio 2024)
+- <em>"At Function Health, our mission is to empower individuals to take control of their health. Through our innovative platform..."</em> (Function Health 2024)
+- <em>"Senior Backend AI Engineer... In this pivotal role, you will be at the forefront..."</em> (Pop-Up Talent 2024)</p>
+<p><strong>Low-score examples</strong> read as terse, skills-list style:
+- <em>"If you are a Sr. Software Engineer with experience, please read on! We are seeking a Senior Signal Processing Engineer..."</em> (CyberCoders 2024)
+- <em>"Syms Strategic Group (SSG) is seeking a talented .Net/C# Developer. Department: Veterans Affairs. Type: Full Time. Min. Experience: Experienced..."</em> (SSG 2024)
+- <em>"Secure our Nation, Ignite your Future..."</em> (ManTech 2024)</p>
+<p><strong>Conclusion:</strong> The score discriminates "polished marketing prose" from "terse technical" reliably. But it does NOT directly discriminate "LLM-generated" from "human-written". A 2024 AmplifyBio description with 15 LLM-tell hits is more likely human-written marketing copy than LLM-generated; a 2024 LLM probably would have written even more fluently. This is an important limitation of the approach.</p>
+<h3 id="13-score-levels">1.3 Score levels</h3>
+<ul>
+<li><strong>Raw corpus</strong> (n=63,294): 2024 mean z-score -0.48, 2026 mean z-score +0.39 (Δ +0.88 standard deviations)</li>
+<li><strong>LLM-cleaned subset</strong> (n=33,220 — text-source-controlled): 2024 -0.14, 2026 +0.51 (Δ +0.66 SD)</li>
+</ul>
+<p>The shift is ~1 SD upward from 2024 to 2026. Under text-source control (LLM-cleaned subset), the shift is still 0.66 SD — substantial.</p>
+<hr />
+<h2 id="2-distribution-by-period-text-source-controlled">2. Distribution by period — text-source-controlled</h2>
+<p><strong>Raw corpus (mixed text sources), no aggregators:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>2024</th>
+<th>2026</th>
+<th>Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>llm_vocab_density_1k</td>
+<td>0.337</td>
+<td>0.468</td>
+<td><strong>×1.39</strong></td>
+</tr>
+<tr>
+<td>emdash_density_1k</td>
+<td>0.040</td>
+<td>0.142</td>
+<td>×3.59</td>
+</tr>
+<tr>
+<td>ttr</td>
+<td>0.571</td>
+<td>0.538</td>
+<td>×0.94</td>
+</tr>
+<tr>
+<td>hedge_phrase_count</td>
+<td>0.190</td>
+<td>0.273</td>
+<td><strong>×1.43</strong></td>
+</tr>
+<tr>
+<td>comma_density_1k</td>
+<td>11.1</td>
+<td>12.2</td>
+<td>×1.10</td>
+</tr>
+<tr>
+<td>composite score (z-sum)</td>
+<td>-0.65</td>
+<td>+0.50</td>
+<td>Δ +1.16</td>
+</tr>
+</tbody>
+</table>
+<p><strong>LLM-cleaned subset (text-source-controlled), no aggregators:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>2024</th>
+<th>2026</th>
+<th>Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>llm_vocab_density_1k</td>
+<td>0.275</td>
+<td>0.448</td>
+<td><strong>×1.63</strong></td>
+</tr>
+<tr>
+<td>emdash_density_1k</td>
+<td>0.012</td>
+<td>0.110</td>
+<td>×9.08</td>
+</tr>
+<tr>
+<td>ttr</td>
+<td>0.597</td>
+<td>0.580</td>
+<td>×0.97</td>
+</tr>
+<tr>
+<td>hedge_phrase_count</td>
+<td>0.078</td>
+<td>0.072</td>
+<td>×0.92</td>
+</tr>
+<tr>
+<td>comma_density_1k</td>
+<td>10.4</td>
+<td>11.8</td>
+<td>×1.14</td>
+</tr>
+<tr>
+<td>composite score (z-sum)</td>
+<td>-0.21</td>
+<td>+0.59</td>
+<td>Δ +0.80</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Under text-source control:</strong>
+- <strong>Vocabulary density rises MORE (+63% vs +39%)</strong> — text cleaning normalizes away some 2024 marketing flourishes, so post-normalization 2024 looks less LLM-ish, widening the gap.
+- <strong>Em-dash density rises 9×</strong> — still huge but slightly smaller than the 3.6× raw. The 2024 asaniczka baseline of 0.012 is very low; 2024 LLM-cleaned text rarely contains em-dashes. 2026 scraped LLM-cleaned text has 0.110, 9× higher. This is the most striking signal that survives text-source control.
+- <strong>Hedge phrases disappear entirely</strong> as a signal under text-source control (ratio 0.92). The raw-corpus hedge growth was mostly the 2026 raw text retaining more boilerplate that the LLM cleaner removes.
+- <strong>Comma density grows only +14%</strong> — modest.
+- <strong>TTR drops trivially</strong> (0.02pp) — not supportive of the "LLM uniformization" hypothesis.</p>
+<p><strong>Cross-posting variance</strong> (std of composite score within each year):</p>
+<table>
+<thead>
+<tr>
+<th>Subset</th>
+<th>2024 std</th>
+<th>2026 std</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>raw</td>
+<td>2.250</td>
+<td>2.192</td>
+</tr>
+<tr>
+<td>ctrl (LLM-cleaned)</td>
+<td>2.023</td>
+<td>2.184</td>
+</tr>
+</tbody>
+</table>
+<p><strong>2026 is NOT more uniform than 2024.</strong> Cross-posting variance is essentially unchanged (raw barely dropped; ctrl slightly rose). The "LLMs would uniformize recruiter writing" prediction is NOT supported. If recruiters were offloading to the same LLM, we'd expect variance to contract. It hasn't.</p>
+<h3 id="21-interpretation">2.1 Interpretation</h3>
+<p>Two features survive text-source control and are worth taking seriously as LLM-tell candidates:
+1. <strong>Em-dash density 9-11×</strong> — very large and specific
+2. <strong>Vocabulary density +36-63%</strong> — clear but smaller</p>
+<p>Four features fail to support LLM-adoption hypothesis:
+1. <strong>TTR essentially unchanged</strong> — LLMs don't appear to be reducing vocabulary diversity
+2. <strong>Cross-posting variance unchanged</strong> — no uniformization
+3. <strong>Hedging phrases disappear as signal under text-source control</strong> — the raw-corpus rise was an artifact
+4. <strong>Sentence length doubling is partly ingestion</strong> (scraped markdown fragments, 2026 Stage 9 output structure)</p>
+<p>See <code>exploration/figures/T29/fig1_score_distribution.png</code> and <code>period_distribution.csv</code>.</p>
+<hr />
+<h2 id="3-per-company-profile">3. Per-company profile</h2>
+<p><strong>Companies with ≥5 postings in both periods: 275.</strong> Computed mean composite score per company-period, then the delta.</p>
+<p><strong>Largest 2024→2026 increases (LLM-adoption candidates):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Company</th>
+<th>2024</th>
+<th>2026</th>
+<th>n_2024</th>
+<th>n_2026</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Collins Aerospace</td>
+<td>1.95</td>
+<td>5.74</td>
+<td>72</td>
+<td>39</td>
+<td>+3.79</td>
+</tr>
+<tr>
+<td>Deloitte</td>
+<td>-0.45</td>
+<td>3.10</td>
+<td>22</td>
+<td>450</td>
+<td>+3.55</td>
+</tr>
+<tr>
+<td>PricewaterhouseCoopers</td>
+<td>-0.26</td>
+<td>3.17</td>
+<td>63</td>
+<td>419</td>
+<td>+3.43</td>
+</tr>
+<tr>
+<td>American Express</td>
+<td>0.74</td>
+<td>4.11</td>
+<td>7</td>
+<td>31</td>
+<td>+3.37</td>
+</tr>
+<tr>
+<td>Zscaler</td>
+<td>-0.75</td>
+<td>2.24</td>
+<td>14</td>
+<td>12</td>
+<td>+2.99</td>
+</tr>
+<tr>
+<td>Moog Inc.</td>
+<td>-2.04</td>
+<td>1.01</td>
+<td>6</td>
+<td>9</td>
+<td>+3.06</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Consulting firms (Deloitte, PwC) are the biggest adopters</strong> — they went from below-median to strongly above-median LLM-style prose, and dramatically increased posting volume simultaneously (22→450 and 63→419). This is suspicious — it suggests Deloitte and PwC may have started using LLM drafting tools AND scaled their hiring.</p>
+<p><strong>Companies with highest 2024 scores (early adopters or marketing-heavy writers):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Company</th>
+<th>2024 score</th>
+<th>2026 score</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microsoft</td>
+<td>5.81</td>
+<td>7.06</td>
+<td>+1.26</td>
+</tr>
+<tr>
+<td>Raytheon</td>
+<td>3.60</td>
+<td>6.00</td>
+<td>+2.39</td>
+</tr>
+<tr>
+<td>Booz Allen Hamilton</td>
+<td>2.91</td>
+<td>1.57</td>
+<td>-1.34</td>
+</tr>
+<tr>
+<td>Anduril Industries</td>
+<td>2.74</td>
+<td>2.11</td>
+<td>-0.63</td>
+</tr>
+<tr>
+<td>BLUE ORIGIN</td>
+<td>2.65</td>
+<td>1.13</td>
+<td>-1.52</td>
+</tr>
+<tr>
+<td>Figma</td>
+<td>2.48</td>
+<td>4.53</td>
+<td>+2.05</td>
+</tr>
+<tr>
+<td>General Motors</td>
+<td>2.25</td>
+<td>0.24</td>
+<td>-2.00</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Microsoft is the single highest-scoring company in both 2024 and 2026</strong> — 5.8 SD above the mean in 2024, 7.1 SD in 2026. Microsoft's postings are extremely marketing-polished. This is likely a <strong>company writing-style fingerprint</strong>, not LLM adoption.</p>
+<p><strong>Booz Allen, BLUE ORIGIN, General Motors</strong> all show score DECREASES — they became less marketing-polished in 2026. This is compatible with either (a) real style regression or (b) text-ingestion pipeline differences (scraped 2026 text is less clean).</p>
+<p><strong>Interpretation:</strong> Per-company analysis produces a plausible but not conclusive list of LLM-adoption candidates. The consulting-firm cluster (Deloitte, PwC, American Express) is the strongest single signal. Microsoft's stability as a top scorer shows the signal is partly company-writing-style-invariant. See <code>per_company_authorship.csv</code>.</p>
+<hr />
+<h2 id="4-correlation-with-wave-2-findings">4. Correlation with Wave 2 findings</h2>
+<p>Spearman correlations between <code>llm_score_robust</code> and Wave 2 per-posting metrics, computed separately by year:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>2024 ρ</th>
+<th>2026 ρ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>description_length (text_len)</td>
+<td>0.457</td>
+<td>0.522</td>
+</tr>
+<tr>
+<td>requirement_breadth</td>
+<td>0.338</td>
+<td>0.339</td>
+</tr>
+<tr>
+<td>credential_stack_depth</td>
+<td>0.327</td>
+<td>0.344</td>
+</tr>
+<tr>
+<td>mgmts_mentor</td>
+<td>0.210</td>
+<td>0.169</td>
+</tr>
+<tr>
+<td>ai_mention</td>
+<td>0.096</td>
+<td>0.175</td>
+</tr>
+<tr>
+<td>tech_density</td>
+<td>-0.055</td>
+<td>-0.132</td>
+</tr>
+</tbody>
+</table>
+<p><strong>All Wave 2 metrics are POSITIVELY correlated with the LLM-style score, in BOTH periods.</strong> Longer postings, broader requirements, deeper credential stacks all correlate with more polished prose. This is expected: longer descriptions have more room for flowing prose, and companies willing to write marketing copy are also willing to stack credentials.</p>
+<p><strong>The correlation structure is stable across periods.</strong> The 2024 credential-stack-vs-LLM correlation (0.327) is basically identical to 2026 (0.344). If LLM adoption were causing credential stacking, we'd expect the correlation to strengthen substantially in 2026 as the LLM-adoption population expanded. It didn't.</p>
+<p><strong>Tech density has a small negative correlation</strong> — higher LLM-style postings have slightly lower tech density. This is consistent: marketing prose dilutes technical content per character. Note: |ρ| is small (0.06-0.13), so this effect is minor.</p>
+<p>See <code>wave2_correlations.csv</code>.</p>
+<hr />
+<h2 id="5-headline-low-llm-subset-re-test-of-wave-2-findings">5. HEADLINE: Low-LLM subset re-test of Wave 2 findings</h2>
+<p><strong>Split:</strong> Within each year, divided postings into quartiles by composite LLM-score. Q1 = lowest-LLM (most "human"), Q4 = highest-LLM. Compared Wave 2 headline metrics across Q1 and Q4 subsets.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>All (Δ%)</th>
+<th>Q1 low-LLM (Δ%)</th>
+<th>Q4 high-LLM (Δ%)</th>
+<th>Hypothesis prediction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Description length</td>
+<td>+72.7%</td>
+<td><strong>+76.8%</strong></td>
+<td>+79.1%</td>
+<td>Low should weaken</td>
+</tr>
+<tr>
+<td>Credential stack ≥7 share</td>
+<td>+445.9%</td>
+<td><strong>+785.7%</strong></td>
+<td>+383.8%</td>
+<td>Low should weaken</td>
+</tr>
+<tr>
+<td>AI mention rate</td>
+<td>+296.0%</td>
+<td><strong>+338.9%</strong></td>
+<td>+269.4%</td>
+<td>Low should weaken</td>
+</tr>
+<tr>
+<td>Tech density</td>
+<td>-25.8%</td>
+<td>-22.8%</td>
+<td>-34.3%</td>
+<td>Low should weaken</td>
+</tr>
+<tr>
+<td>Requirement breadth</td>
+<td>+37.3%</td>
+<td><strong>+41.8%</strong></td>
+<td>+35.5%</td>
+<td>Low should weaken</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Not a single headline metric weakens in the low-LLM subset. Several STRENGTHEN.</strong> The credential-stack growth is nearly 2× larger in the low-LLM subset (+786%) than in the high-LLM subset (+384%). AI-mention growth is +339% in low-LLM vs +269% in high-LLM. Description length growth is essentially identical (+77 vs +79%).</p>
+<p><strong>Absolute levels:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Subset</th>
+<th>2024 text_len</th>
+<th>2026 text_len</th>
+<th>2024 cred_stack_7%</th>
+<th>2026 cred_stack_7%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>all</td>
+<td>1,913</td>
+<td>3,304</td>
+<td>3.76%</td>
+<td>20.5%</td>
+</tr>
+<tr>
+<td>q1_low_llm</td>
+<td>1,184</td>
+<td>2,093</td>
+<td>0.75%</td>
+<td>6.7%</td>
+</tr>
+<tr>
+<td>q4_high_llm</td>
+<td>2,378</td>
+<td>4,259</td>
+<td>6.72%</td>
+<td>32.5%</td>
+</tr>
+</tbody>
+</table>
+<p>Q1 low-LLM postings START at shorter/simpler levels in 2024 and GROW to roughly where all-postings sat in 2024. Q4 high-LLM postings start at 2,378 chars (2024) and grow to 4,259 chars (2026). Absolute levels differ, but the 2024→2026 trajectory is the same shape in every quartile.</p>
+<h3 id="51-interpretation">5.1 Interpretation</h3>
+<p><strong>The hypothesis that recruiter LLM adoption mediates the Wave 2 findings is rejected.</strong> If LLMs were the mechanism, removing LLM-authored postings would wipe out (or at least substantially shrink) the aggregate rises. Instead, the rises persist in the human-written subset, sometimes at larger relative magnitudes.</p>
+<p>Alternative interpretations for the features that DO show 2024→2026 change:
+- <strong>Em-dash 9×</strong> and <strong>vocab density +36%</strong> may reflect genuine LLM-adoption at the edges but are not the main channel for the labor market findings.
+- <strong>The "polished marketing prose" axis is real and growing</strong> — there are more marketing-polished postings in 2026 — but the labor market content changes are happening <em>underneath</em> this style variable.
+- <strong>T13's "57% length growth is real content"</strong> is now stronger: the low-LLM subset (presumably least affected by authoring tool changes) shows a near-identical +77% length rise. The content expansion is real; it's not an authoring-tool artifact.</p>
+<p>The original hypothesis motivation — "LLM authorship could unify length growth, credential stacking, AI mention rise, and mid-senior tone shift" — is attractive but not what the data shows. Those findings need separate explanations.</p>
+<p>See <code>headline_retest.csv</code>.</p>
+<hr />
+<h2 id="6-caveats-limitations-and-what-i-would-do-differently">6. Caveats, limitations, and what I would do differently</h2>
+<p><strong>Signal/content confound.</strong> The composite score correlates with description length (ρ≈0.5) and credential stacking (ρ≈0.33) even at fixed authorship. A company that writes longer, more polished job descriptions will score high regardless of whether an LLM or a human wrote them. The Q1/Q4 split by this score therefore mechanically stratifies on description length and credential stacking, making the headline re-test a stronger-than-necessary test: it shows the within-quartile trajectory is the same shape at every length/credential level.</p>
+<p><strong>Text ingestion dominates some signals.</strong> Em-dash, bullets, and paragraph structure are heavily influenced by how each source ingested raw HTML or text. Scraped 2026 text is formatted with markdown headers and bullet delimiters; asaniczka 2024 text is frequently single-block. I used only the ingestion-robust features (vocab, hedge, comma, TTR-inverse) for the composite score. Even so, the absolute levels of "LLM-style" differ systematically across sources.</p>
+<p><strong>The score measures polished marketing prose, not LLM-generated text.</strong> Microsoft and Raytheon score 5-7 SD above the mean in 2024, before widespread recruiter LLM adoption; their postings read as traditional corporate marketing copy. This limits the score's ability to identify LLM authorship specifically. A more specific test would require:
+- Training a classifier on labeled LLM-vs-human job descriptions (there is no such labeled dataset available)
+- Or using perplexity under a known-human language model, flagging low-perplexity postings (requires a large language model at generation time)</p>
+<p><strong>Cross-posting variance is the one assumption I <em>can</em> test cleanly, and it failed.</strong> If recruiters were outsourcing to a common LLM, 2026 postings would be more uniform than 2024. They are not (raw std 2.25→2.19, LLM-cleaned std 2.02→2.18). This is the most rigorous piece of evidence against the hypothesis.</p>
+<p><strong>The LLM-cleaned subset is small for 2026 (n=7,308).</strong> Only 21% of scraped postings got Stage 9 LLM extraction. That subset is not a random sample of 2026 — it's biased toward postings the LLM extraction pipeline successfully cleaned. This weakens the text-source-controlled comparison.</p>
+<p><strong>What I would do differently:</strong>
+1. Use a pretrained perplexity-based LLM detector (e.g., GLTR, DetectGPT) instead of hand-crafted vocabulary signals.
+2. Build a paired within-company comparison: for the same company in both periods, did their writing style change more than company-specific baselines? This would control for company-writing-style confounds.
+3. Restrict to description_core_llm in both periods to control text source, and acknowledge sample reduction.</p>
+<hr />
+<h2 id="7-outputs">7. Outputs</h2>
+<p>Tables (<code>exploration/tables/T29/</code>):
+- <code>authorship_scores.parquet</code> — full corpus (63,294 rows) with all features + composite score on raw description
+- <code>authorship_scores_llmcleaned.parquet</code> — LLM-cleaned subset (33,220 rows) with features on Stage 9 cleaned text
+- <code>spotcheck_samples.csv</code> — 25 high-score + 25 low-score snippets for qualitative audit
+- <code>period_distribution.csv</code> — feature distributions by year × subset
+- <code>per_company_authorship.csv</code> — 275 companies with ≥5 postings both periods
+- <code>wave2_correlations.csv</code> — Spearman ρ of authorship score vs Wave 2 metrics
+- <code>headline_retest.csv</code> — <strong>THE headline result</strong>: Wave 2 metrics by LLM-score quartile</p>
+<p>Figures (<code>exploration/figures/T29/</code>):
+- <code>fig1_score_distribution.png</code> — authorship-score histograms by period, raw vs text-source-controlled</p>
+<p>Scripts (<code>exploration/scripts/</code>):
+- <code>T29_01_features.py</code> — feature extraction on raw description
+- <code>T29_02_cleaned_features.py</code> — feature extraction on description_core_llm
+- <code>T29_03_analysis.py</code> — composite score, distributions, correlations, company profile, headline re-test</p>
+<h2 id="8-bottom-line">8. Bottom line</h2>
+<ul>
+<li><strong>Verdict: rejected.</strong> Recruiter LLM adoption is not a parsimonious mechanism for the Wave 2 labor-market findings.</li>
+<li><strong>Stylistic shifts ARE happening</strong> in 2026 (em-dashes 9×, vocabulary +36-63%), but they are decoupled from the headline content changes.</li>
+<li><strong>T13's +72% length growth is real content expansion</strong> — the low-LLM subset shows +77%, essentially identical.</li>
+<li><strong>T11's 5.4× credential stacking is real</strong> — it is actually LARGER (+786%) in the low-LLM subset than in the high-LLM subset.</li>
+<li><strong>T08's AI mention rise is real</strong> — +339% in low-LLM subset, +269% in high-LLM subset.</li>
+<li><strong>Cross-posting variance is unchanged 2024→2026</strong>, contradicting the "LLMs uniformize" prediction.</li>
+<li><strong>Per-company analysis identifies Deloitte, PwC, American Express, and Collins Aerospace as candidate LLM-adoption firms</strong>, but this signal is confounded with marketing-prose style.</li>
+<li><strong>Microsoft has been the highest-scoring company in both 2024 and 2026</strong>, suggesting the score is measuring company writing style more than LLM authorship.</li>
+</ul>
+<p>The hypothesis was worth testing and the answer is clean: authorship-tool changes are not the story. The Wave 2 findings require non-authorship explanations, which is the defensible position for the paper.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

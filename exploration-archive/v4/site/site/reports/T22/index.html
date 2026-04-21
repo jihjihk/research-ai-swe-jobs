@@ -1,0 +1,3082 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration v4 — raw findings, gate memos, and verification passes">
+      
+      
+      
+      
+        <link rel="prev" href="../T21/">
+      
+      
+        <link rel="next" href="../T23/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T22 Ghost Forensics - SWE Labor Market Exploration — v4</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t22-ghost-aspirational-requirements-forensics" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration — v4
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T22 Ghost Forensics
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../INDEX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reports
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../memos/gate_0_pre_exploration/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Memos
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration — v4
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../INDEX/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 Data Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../seniority_measurement_investigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority Measurement Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V1_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V1 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TL;DR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-and-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data and method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-pattern-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Pattern validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 1 — Pattern validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern inventory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precision-review-50-sample-manual-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Precision review (50-sample manual assessment)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#section-context-qualitative-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Section context (qualitative review)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validated-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validated artifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-ghost-indicators-per-posting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Ghost indicators per posting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-prevalence-by-period-seniority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Prevalence by period × seniority
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 3 — Prevalence by period × seniority">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#combined-best-available-column-primary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combined best-available column (primary)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#yoe-proxy-label-independent-co-equal-validator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        YOE proxy (label-independent co-equal validator)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#seniority_final-and-seniority_native" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        seniority_final and seniority_native
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-ai-ghostiness-test-high-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — AI ghostiness test (HIGH PRIORITY)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 4 — AI ghostiness test (HIGH PRIORITY)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#finding-1-ai-proximity-hedge-to-firm-ratio-is-101-far-above-global-baseline-of-151" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding 1: AI-proximity hedge-to-firm ratio is ~10:1, far above global baseline of ~1.5:1
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#finding-2-ai-ghostiness-is-a-composition-effect-not-a-within-posting-escalation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding 2: AI ghostiness is a composition effect, not a within-posting escalation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-top-20-ghost-like-entry-level-postings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Top-20 ghost-like entry-level postings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 5 — Top-20 ghost-like entry-level postings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#combined-column-entry-top-20-mostly-real-new-gradintern-postings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combined-column entry top-20 (mostly REAL new-grad/intern postings)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#yoe-proxy-entry-top-20-mostly-senior-roles-mis-caught-by-yoe-proxy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        YOE-proxy entry top-20 (mostly SENIOR roles mis-caught by YOE proxy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-implication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key implication
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-aggregator-vs-direct" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6 — Aggregator vs direct
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-7-template-saturation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7 — Template saturation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 7 — Template saturation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dedup-impact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedup impact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-dedup-by-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-dedup by period
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-8-industry-patterns-direct-employers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8 — Industry patterns (direct employers)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-9-connection-to-llm-authorship-cross-link-to-t29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 9 — Connection to LLM authorship (cross-link to T29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#robustness-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Robustness summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommendations-for-downstream-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommendations for downstream tasks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#artifacts-produced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifacts produced
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T28/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 Archetype Decomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T29/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 LLM-Authorship Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V2_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration (Gate 0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t22-ghost-aspirational-requirements-forensics">T22 — Ghost &amp; Aspirational Requirements Forensics</h1>
+<p><strong>Agent M, Wave 3</strong></p>
+<h2 id="tldr">TL;DR</h2>
+<ul>
+<li><strong>Aspiration ratio rose across the board</strong>, entry postings from mean 1.4 → 1.8 global; share with hedge/firm ratio &gt; 1 rose from 23.7% → 33.6% for combined-column entry (+10pp) and from 16.4% → 26.8% for mid-senior.</li>
+<li><strong>Kitchen-sink score tripled</strong> at every seniority. Entry combined 3.7% → 12.6% (3.4×) with score ≥ 12; mid-senior 7.7% → 27.3% (3.5×).</li>
+<li><strong>AI is 10× more hedged than anything else.</strong> Within posts that mention an AI term, hedging language appears within an 80-char window at 11.5% per AI-term occurrence; firm language appears at only 1.1% per occurrence. That's a <strong>10:1 hedge:firm ratio near AI terms</strong> in both 2024 and 2026, vs a global hedge:firm ratio of ~1.4-1.8. The AI ghostiness is a composition effect: AI-mention prevalence quintupled from 14.3% → 51.2% of postings, and AI is structurally hedged — so as AI took over postings, average posting aspiration ratio mechanically rose.</li>
+<li><strong>Template saturation (copy-paste intra-company) rose 2024 → 2026</strong> (mean pairwise cosine 0.604 → 0.669 after exact <code>description_hash</code> dedup). The 6 known exact-dup companies (Affirm, Canonical, Epic, Google, SkillStorm, Uber) contribute a ~5pp shift in the share of companies saturating above 0.8 (11.9% before dedup → 5.8% after).</li>
+<li><strong>YOE-scope mismatch is concentrated in the native/final seniority labels</strong>, not in the combined column. Under arshkon's <code>seniority_native</code> 25.5% of entry postings have YOE≥5 (the known measurement artifact); under combined column only 2.9% do. This reconfirms Gate 1's warning that native-label entry comparisons are biased.</li>
+<li><strong>Top-20 ghost-like entry postings have zero overlap between combined-column and YOE-proxy entry definitions.</strong> The two operationalizations identify completely different "most ghost-like" posts. Combined column surfaces genuine intern/new-grad roles with high tech breadth; YOE proxy surfaces senior-titled roles that happen to say "2+ years" somewhere in their minimum qualifications (mostly YOE-proxy false positives). <strong>Finding: the YOE proxy is a clean entry-volume measure but a NOISY entry-content measure; qualitative ghost analysis should use the combined column.</strong></li>
+<li><strong>Aggregators have systematically LOWER ghost scores</strong> than direct employers for kitchen-sink and template saturation. The naive assumption "aggregators are more ghost-like" is wrong for these measures — direct employers have more everything-including-kitchen-sink postings, because aggregator postings are often terser reposts with less fluff.</li>
+<li><strong>Credential contradictions are vanishingly rare</strong> (&lt; 0.1% of postings) under both operationalizations. Not a useful ghost marker in this corpus.</li>
+</ul>
+<h2 id="data-and-method">Data and method</h2>
+<ul>
+<li><strong>Frame:</strong> 63,294 SWE LinkedIn postings (default filter); 28,232 in 2024 (arshkon + asaniczka), 35,062 in 2026 (scraped).</li>
+<li><strong>Text:</strong> <code>COALESCE(description_core_llm, description_core, description)</code>, lowercased. Aggregators retained as a category but run separately for every indicator (core sensitivity).</li>
+<li><strong>Seniority:</strong> <code>seniority_best_available</code> (combined LLM+rule routing column) is primary; we also report YOE-proxy (yoe_extracted ≤ 2), <code>seniority_final</code>, and <code>seniority_native</code> as a sensitivity set per the Gate 1 recommendation.</li>
+<li><strong>Tech count correction:</strong> The shared <code>swe_tech_matrix.parquet</code> has a known broken regex for <code>c_cpp</code> and <code>csharp</code> (V1 bug report). T22's <code>n_distinct_tech</code> removes the broken columns and re-extracts C++/C# from raw text with <code>c\+\+|\bcpp\b</code> and <code>\bc#|\bc-sharp\b|\bcsharp\b</code>.</li>
+</ul>
+<h2 id="step-1-pattern-validation">Step 1 — Pattern validation</h2>
+<h3 id="pattern-inventory">Pattern inventory</h3>
+<p>See <code>exploration/tables/T22/pattern_validation_counts.csv</code> and <code>pattern_validation_samples.txt</code> (50 samples per pattern, 25 per period) for full details. Below are the per-period hit counts.</p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Category</th>
+<th style="text-align: right;">2024 hits</th>
+<th style="text-align: right;">2026 hits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nice_to_have</td>
+<td>hedge</td>
+<td style="text-align: right;">1,373</td>
+<td style="text-align: right;">2,677</td>
+</tr>
+<tr>
+<td>preferred_hedge (skills/exp...preferred)</td>
+<td>hedge</td>
+<td style="text-align: right;">2,943</td>
+<td style="text-align: right;">2,988</td>
+</tr>
+<tr>
+<td>preferred_alt (preferred...skills/exp)</td>
+<td>hedge</td>
+<td style="text-align: right;">6,773</td>
+<td style="text-align: right;">11,062</td>
+</tr>
+<tr>
+<td>bonus_plus ("a plus"/"is a plus")</td>
+<td>hedge</td>
+<td style="text-align: right;">4,251</td>
+<td style="text-align: right;">4,660</td>
+</tr>
+<tr>
+<td>ideally</td>
+<td>hedge</td>
+<td style="text-align: right;">456</td>
+<td style="text-align: right;">1,099</td>
+</tr>
+<tr>
+<td>bonus_points/bonus if</td>
+<td>hedge</td>
+<td style="text-align: right;">581</td>
+<td style="text-align: right;">747</td>
+</tr>
+<tr>
+<td>familiarity_with</td>
+<td>hedge</td>
+<td style="text-align: right;">4,979</td>
+<td style="text-align: right;">12,997</td>
+</tr>
+<tr>
+<td>exposure_to</td>
+<td>hedge</td>
+<td style="text-align: right;">1,035</td>
+<td style="text-align: right;">4,114</td>
+</tr>
+<tr>
+<td>must_have</td>
+<td>firm</td>
+<td style="text-align: right;">3,477</td>
+<td style="text-align: right;">3,575</td>
+</tr>
+<tr>
+<td>required_req (context-gated)</td>
+<td>firm</td>
+<td style="text-align: right;">4,924</td>
+<td style="text-align: right;">8,591</td>
+</tr>
+<tr>
+<td>minimum_req</td>
+<td>firm</td>
+<td style="text-align: right;">3,425</td>
+<td style="text-align: right;">5,430</td>
+</tr>
+<tr>
+<td>mandatory_req</td>
+<td>firm</td>
+<td style="text-align: right;">431</td>
+<td style="text-align: right;">646</td>
+</tr>
+<tr>
+<td>strict_mentor</td>
+<td>mgmt</td>
+<td style="text-align: right;">1,230</td>
+<td style="text-align: right;">3,637</td>
+</tr>
+<tr>
+<td>strict_people_mgr</td>
+<td>mgmt</td>
+<td style="text-align: right;">753</td>
+<td style="text-align: right;">386</td>
+</tr>
+<tr>
+<td>strict_hire_mgmt</td>
+<td>mgmt</td>
+<td style="text-align: right;">483</td>
+<td style="text-align: right;">320</td>
+</tr>
+<tr>
+<td>strict_headcount / budget_resp</td>
+<td>mgmt</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">57</td>
+</tr>
+<tr>
+<td>architecture_scope</td>
+<td>scope</td>
+<td style="text-align: right;">3,670</td>
+<td style="text-align: right;">9,026</td>
+</tr>
+<tr>
+<td>ownership_scope</td>
+<td>scope</td>
+<td style="text-align: right;">2,651</td>
+<td style="text-align: right;">7,930</td>
+</tr>
+<tr>
+<td>agentic</td>
+<td>ai_tool</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">2,805</td>
+</tr>
+<tr>
+<td>ai_agent_phrase</td>
+<td>ai_tool</td>
+<td style="text-align: right;">28</td>
+<td style="text-align: right;">3,213</td>
+</tr>
+<tr>
+<td>rag_phrase</td>
+<td>ai_tool</td>
+<td style="text-align: right;">26</td>
+<td style="text-align: right;">1,979</td>
+</tr>
+<tr>
+<td>ai_tool union</td>
+<td>ai_tool</td>
+<td style="text-align: right;">483</td>
+<td style="text-align: right;">6,319</td>
+</tr>
+<tr>
+<td>ai_domain</td>
+<td>ai_domain</td>
+<td style="text-align: right;">3,072</td>
+<td style="text-align: right;">7,986</td>
+</tr>
+<tr>
+<td>ai_general (\bai\b</td>
+<td>AI)</td>
+<td style="text-align: right;">ai_general</td>
+<td style="text-align: right;">2,244</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precision-review-50-sample-manual-assessment">Precision review (50-sample manual assessment)</h3>
+<ul>
+<li><strong><code>preferred_hedge</code> / <code>preferred_alt</code>:</strong> ≥ 95% precision. All samples were genuine hedged qualifications ("experience with X preferred", "Y skills are a plus"). The context gates (<code>skills/experience/knowledge/familiarity/qualification/background</code> within 30 chars) successfully exclude "preferred customer", "preferred vendor".</li>
+<li><strong><code>required_req</code>:</strong> ≥ 95% precision. The context gate successfully excludes "required field", "required credit". All 50 samples were genuine firm requirements.</li>
+<li><strong><code>must_have</code> / <code>minimum_req</code> / <code>mandatory_req</code>:</strong> ≥ 90%. <code>mandatory_req</code> has a small false positive rate from "mandatory access control" (security terminology); &lt; 10% of matches.</li>
+<li><strong><code>strict_mentor</code>:</strong> ≥ 95% (matches "mentor junior engineers", "mentor team members", "coach engineers"). All 50 samples were genuine mentoring responsibility language. Consistent with V1's reproduction of T11's mentoring finding.</li>
+<li><strong><code>strict_people_mgr</code>:</strong> ≥ 95% ("people management", "direct reports", "performance reviews"). All 50 samples were genuine people-management responsibility language.</li>
+<li><strong><code>strict_hire_mgmt</code>:</strong> ≥ 90% ("lead a team of N engineers", "hire engineers", "build the team"). A few matches are "lead a team of developers on a specific project" which is ambiguous between technical leadership and people management; we keep them because they still describe a scope-extension responsibility.</li>
+<li><strong><code>agentic</code>:</strong> ~95% (V1 already confirmed this). A few matches are "agentic network management" (robotics autonomy terminology from 2024 arshkon) — still technically AI-adjacent.</li>
+<li><strong><code>ai_general</code> (<code>\bai\b</code>|<code>artificial intelligence</code>):</strong> ~90% clean. The <code>\bai\b</code> token mostly matches genuine AI contexts ("ai-driven", "ai tools", "ai/ml", "ai chatbots"); false positives are &lt; 10%. Not the high-noise indicator that bare <code>agent</code> is.</li>
+<li><strong><code>ai_tool</code>:</strong> <code>\bmcp\b</code> was a failure mode — it matched Microsoft Certified Professional and Cisco MCP network management, inflating 2024 2026 counts. <strong>Removed <code>mcp</code> from the final <code>ai_tool</code> union</strong> and replaced with the phrase <code>model context protocol</code> (2024: 0, 2026: 380). Other tokens (<code>copilot</code>, <code>cursor</code>, <code>llm</code>, <code>langchain</code>, <code>prompt engineering</code>) are ≥ 98% clean.</li>
+<li><strong><code>familiarity_with</code>, <code>exposure_to</code>:</strong> ≥ 95% as hedge markers — they almost always precede a capability/technology the employer is flexible about.</li>
+<li><strong><code>bonus_plus</code>:</strong> ≥ 95%. All 50 samples were genuine "is a plus"/"would be a plus" hedging.</li>
+</ul>
+<h3 id="section-context-qualitative-review">Section context (qualitative review)</h3>
+<p>Per Gate-2 recommendation we sanity-checked which sections the matches come from by reviewing the 50-sample snippets per pattern. Broadly: hedge and firm markers cluster in "requirements" and "qualifications" sentences. The surrounding 400-char windows consistently include phrasing like "Preferred qualifications", "Minimum qualifications", "Required skills" — i.e., the ghost indicators fire inside the substantive sections. <code>strict_mentor</code> fires inside responsibilities ("Mentor junior engineers..."), which is the expected section. We did not systematically run T13's section classifier on the matches (deferred to V2), but the manual review did not find cases where the ghost patterns were dominated by benefits/legal/EEO boilerplate. The previously-flagged V1 failure mode (naive <code>hire/recruit</code> firing in HR-process boilerplate inside substantive sections) does NOT apply to the <code>strict_hire_mgmt</code> variant because it gates on "lead a team of N", "grow the team", etc., not bare "hire".</p>
+<h3 id="validated-artifact">Validated artifact</h3>
+<p>Saved to <code>exploration/artifacts/shared/validated_mgmt_patterns.json</code> (schema_version 2) for downstream use (T16, T21, T28/T29). Includes:</p>
+<ul>
+<li>All hedge / firm / mgmt strict / senior scope / AI patterns as regex strings</li>
+<li>A <code>precision_review</code> field with the 50-sample estimate per pattern</li>
+<li>A <code>note</code> field documenting the MCP removal and other decisions</li>
+</ul>
+<h2 id="step-2-ghost-indicators-per-posting">Step 2 — Ghost indicators per posting</h2>
+<p>Per-posting feature parquet saved at <code>exploration/artifacts/T22/ghost_indicators_per_posting.parquet</code> (63,294 rows, 50 columns). Keys: <code>uid</code>, <code>period2</code>, <code>is_aggregator</code>, <code>seniority_best_available</code>, <code>yoe_extracted</code>, plus ghost scores.</p>
+<p>Computed scores:</p>
+<ul>
+<li><code>hedge_count</code>, <code>firm_count</code> — number of distinct hedge/firm pattern hits (0..K)</li>
+<li><code>hedge_any</code>, <code>firm_any</code> — binary</li>
+<li><code>aspiration_ratio = hedge_count / max(firm_count, 1)</code></li>
+<li><code>n_distinct_tech</code> — corrected count from tech matrix (C++/C# re-extracted)</li>
+<li><code>scope_count</code> — number of senior-scope pattern hits</li>
+<li><code>kitchen_sink_score = n_distinct_tech * scope_count</code></li>
+<li><code>yoe_scope_mismatch_combined</code> — 1 if (entry under combined col) AND (<code>yoe_extracted</code> ≥ 5 OR <code>senior_scope_n</code> ≥ 3)</li>
+<li><code>yoe_scope_mismatch_yoe</code> — same but under YOE proxy for entry</li>
+<li><code>credential_contradiction</code> — 1 if (entry under combined col) AND <code>yoe_extracted</code> ≥ 10 OR (<code>no_degree_phrase</code> AND <code>ms_required_phrase</code>)</li>
+<li><code>ai_prox_hedge</code>, <code>ai_prox_firm</code> — hedge/firm hits within 80 chars of an AI term</li>
+<li><code>mgmt_strict_count</code>, <code>mgmt_strict_any</code></li>
+</ul>
+<h2 id="step-3-prevalence-by-period-seniority">Step 3 — Prevalence by period × seniority</h2>
+<p>See <code>exploration/tables/T22/prevalence_by_period_seniority.csv</code> for the full table.</p>
+<h3 id="combined-best-available-column-primary">Combined best-available column (primary)</h3>
+<table>
+<thead>
+<tr>
+<th>Indicator</th>
+<th style="text-align: right;">2024 entry</th>
+<th style="text-align: right;">2026 entry</th>
+<th style="text-align: right;">2024 mid-sen</th>
+<th style="text-align: right;">2026 mid-sen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hedge_any</td>
+<td style="text-align: right;">51.9%</td>
+<td style="text-align: right;">67.7%</td>
+<td style="text-align: right;">57.5%</td>
+<td style="text-align: right;">66.3%</td>
+</tr>
+<tr>
+<td>firm_any</td>
+<td style="text-align: right;">37.8%</td>
+<td style="text-align: right;">42.1%</td>
+<td style="text-align: right;">36.4%</td>
+<td style="text-align: right;">38.8%</td>
+</tr>
+<tr>
+<td>aspiration_ratio &gt; 1</td>
+<td style="text-align: right;">23.7%</td>
+<td style="text-align: right;">33.6%</td>
+<td style="text-align: right;">16.4%</td>
+<td style="text-align: right;">26.8%</td>
+</tr>
+<tr>
+<td>aspiration_ratio &gt; 2</td>
+<td style="text-align: right;">5.0%</td>
+<td style="text-align: right;">13.3%</td>
+<td style="text-align: right;">3.3%</td>
+<td style="text-align: right;">8.6%</td>
+</tr>
+<tr>
+<td>kitchen_sink ≥ 12</td>
+<td style="text-align: right;">3.7%</td>
+<td style="text-align: right;">12.6%</td>
+<td style="text-align: right;">7.7%</td>
+<td style="text-align: right;">27.3%</td>
+</tr>
+<tr>
+<td>kitchen_sink ≥ 20</td>
+<td style="text-align: right;">1.2%</td>
+<td style="text-align: right;">3.6%</td>
+<td style="text-align: right;">3.5%</td>
+<td style="text-align: right;">13.2%</td>
+</tr>
+<tr>
+<td>any_ai (≥1 cat)</td>
+<td style="text-align: right;">17.0%</td>
+<td style="text-align: right;">43.6%</td>
+<td style="text-align: right;">14.4%</td>
+<td style="text-align: right;">43.4%</td>
+</tr>
+<tr>
+<td>agentic</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">2.8%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">7.3%</td>
+</tr>
+<tr>
+<td>ai_tool</td>
+<td style="text-align: right;">2.5%</td>
+<td style="text-align: right;">13.1%</td>
+<td style="text-align: right;">1.6%</td>
+<td style="text-align: right;">17.0%</td>
+</tr>
+<tr>
+<td>ai_domain</td>
+<td style="text-align: right;">12.4%</td>
+<td style="text-align: right;">29.7%</td>
+<td style="text-align: right;">11.5%</td>
+<td style="text-align: right;">18.5%</td>
+</tr>
+<tr>
+<td>yoe_scope_mismatch</td>
+<td style="text-align: right;">3.3%</td>
+<td style="text-align: right;">2.3%</td>
+<td style="text-align: right;">0%</td>
+<td style="text-align: right;">0%</td>
+</tr>
+<tr>
+<td>credential_contradiction</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Observations:</strong></p>
+<ol>
+<li><strong>Ghost-like postings grew more under entry than mid-senior.</strong> Aspiration ratio &gt; 1 rose +10pp for entry (23.7 → 33.6) and +10pp for mid-senior. Aspiration ratio &gt; 2 grew +8.3pp for entry (nearly 3×) and +5.3pp for mid-senior (2.6×). The <em>rate of growth</em> is similar across tiers but the <em>level</em> remains higher at entry.</li>
+<li><strong>Kitchen-sink growth is larger at mid-senior</strong> (ge-12: 7.7% → 27.3%, +19.6pp) than entry (+8.9pp). When employers demand more tech × more scope simultaneously, they do it to mid-senior postings more aggressively. This is consistent with T11's finding that credential stack depth jumped most at entry, but the <em>kitchen-sink effect is broader</em>.</li>
+<li><strong>YOE-scope mismatch is NOT a growing problem under the combined column.</strong> Entry 2024 3.3% → 2026 2.3% (slight decline). This means the combined column is not labeling senior-sized jobs as entry more often in 2026; it's cleaner than the native labels. The Gate 1 concern (that entry postings are secretly senior) is not reproduced under the best-available column in 2026.</li>
+</ol>
+<h3 id="yoe-proxy-label-independent-co-equal-validator">YOE proxy (label-independent co-equal validator)</h3>
+<p>See <code>prevalence_by_period_seniority_yoe.csv</code>. Under YOE proxy, 2024 entry n=2,047 and 2026 entry n=4,022. The YOE-proxy entry pool shows similar growth patterns but is smaller for aspiration signals (because it's harder to score aspirational when the only qualifying attribute is a YOE ≤ 2 minimum).</p>
+<ul>
+<li>aspiration_ratio &gt; 1: 2024 13.4% → 2026 23.8% (+10.4pp)</li>
+<li>any_ai: 2024 18.4% → 2026 50.0% (+31.6pp)</li>
+<li>ai_tool: 2024 1.2% → 2026 15.3% (+14.1pp)</li>
+</ul>
+<p><strong>No direction disagreement with the combined column.</strong> Both operationalizations agree: ghost-like indicators are rising at entry, and AI explosion is the biggest driver.</p>
+<h3 id="seniority_final-and-seniority_native">seniority_final and seniority_native</h3>
+<p><code>seniority_final</code> agrees with combined on direction but is noisier at entry. <code>seniority_native</code> (arshkon only for 2024) produces the contaminated 25.5% YOE≥5 rate at entry in 2024 — matching the Gate 1 deep-dive. We do NOT use native as the primary entry operationalization; we report it as a known-contaminated reference.</p>
+<h2 id="step-4-ai-ghostiness-test-high-priority">Step 4 — AI ghostiness test (HIGH PRIORITY)</h2>
+<h3 id="finding-1-ai-proximity-hedge-to-firm-ratio-is-101-far-above-global-baseline-of-151">Finding 1: AI-proximity hedge-to-firm ratio is ~10:1, far above global baseline of ~1.5:1</h3>
+<p>Within postings that mention AI (ai_windows &gt; 0):</p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">N posts with AI</th>
+<th style="text-align: right;">AI-prox hedge rate</th>
+<th style="text-align: right;">AI-prox firm rate</th>
+<th style="text-align: right;">AI-window aspiration ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">3,234</td>
+<td style="text-align: right;">11.5%</td>
+<td style="text-align: right;">1.1%</td>
+<td style="text-align: right;"><strong>10.3</strong></td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">12,534</td>
+<td style="text-align: right;">11.5%</td>
+<td style="text-align: right;">1.1%</td>
+<td style="text-align: right;"><strong>10.1</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Global per-posting hedge/firm rates (for comparison):</p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">hedge_any</th>
+<th style="text-align: right;">firm_any</th>
+<th style="text-align: right;">Global aspiration ratio (any)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">53.4%</td>
+<td style="text-align: right;">40.2%</td>
+<td style="text-align: right;">1.33</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">66.9%</td>
+<td style="text-align: right;">41.7%</td>
+<td style="text-align: right;">1.60</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The ratio of hedge-near-AI to firm-near-AI is an order of magnitude higher than the global hedge-to-firm ratio.</strong> When employers write about AI, they use "familiarity with X", "experience with Y is a plus", "exposure to Z", "ideally" dramatically more than they use "must have", "required", "mandatory". This pattern is identical in 2024 and 2026 — it's a structural property of how AI gets written about, not a temporal shift.</p>
+<h3 id="finding-2-ai-ghostiness-is-a-composition-effect-not-a-within-posting-escalation">Finding 2: AI ghostiness is a composition effect, not a within-posting escalation</h3>
+<p>Because AI is more hedged by ~10× and AI mentions grew from 14.3% → 51.2% of postings, the headline aggregate "posts are more aspirational" is partially explained by the AI takeover. Stratifying by whether a posting mentions any AI term:</p>
+<table>
+<thead>
+<tr>
+<th>Subset</th>
+<th style="text-align: right;">2024 hedge_any</th>
+<th style="text-align: right;">2026 hedge_any</th>
+<th style="text-align: right;">2024 firm_any</th>
+<th style="text-align: right;">2026 firm_any</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No AI terms</td>
+<td style="text-align: right;">52.9%</td>
+<td style="text-align: right;">63.8%</td>
+<td style="text-align: right;">37.8%</td>
+<td style="text-align: right;">46.0%</td>
+</tr>
+<tr>
+<td>Contains AI</td>
+<td style="text-align: right;">66.0%</td>
+<td style="text-align: right;">73.5%</td>
+<td style="text-align: right;">27.1%</td>
+<td style="text-align: right;">44.5%</td>
+</tr>
+</tbody>
+</table>
+<p>AI-containing postings have systematically <em>higher hedge rates</em> AND <em>lower firm rates</em> than non-AI postings — the "ghost" pattern is baked into AI posting content. Both subsets' hedge rates rose over time, but AI-containing postings start ~13pp higher on hedges.</p>
+<p><strong>Interpretation:</strong> "AI restructuring is partially aspirational employer signaling" is supported. Employers talk about AI in hedged, wishlist, "nice to have" language at 10× the rate they use firm requirement language. They're far more confident demanding traditional skills than they are demanding AI skills.</p>
+<p><strong>Important caveat from T29 (Agent O, parallel).</strong> T29 rejected the LLM-authorship hypothesis for the headline Wave 2 findings: length, credential stack, and AI mention growth all survive in the low-LLM-authorship subset. So the ghost/hedge pattern around AI is NOT merely downstream of recruiters using LLMs to draft JDs — it's a real employer behavior even in posts that don't look LLM-written. The "AI is hedged" pattern is genuine employer uncertainty about demanding AI skills.</p>
+<h2 id="step-5-top-20-ghost-like-entry-level-postings">Step 5 — Top-20 ghost-like entry-level postings</h2>
+<p>Composite score: <code>0.4 * z(kitchen_sink) + 0.3 * z(aspiration_ratio) + 0.3 * yoe_scope_mismatch</code>. 2026 entry-level subset.</p>
+<h3 id="combined-column-entry-top-20-mostly-real-new-gradintern-postings">Combined-column entry top-20 (mostly REAL new-grad/intern postings)</h3>
+<p>Full list: <code>exploration/tables/T22/top20_ghost_entry_combined.csv</code>. Examples:</p>
+<ul>
+<li>Nue.io — Full-Stack Software Engineer (New Grad): kitchen_sink=48, 16 techs, scope=3</li>
+<li>CACI International — Software Engineer Skill Level 0: kitchen_sink=50, 25 techs</li>
+<li>General Motors — 2026 Summer Intern AI/ML Software Engineer (duplicated in feed)</li>
+<li>IBM — Data Engineer Intern, Client Innovation Center</li>
+<li>Scowtt — Software Engineer I</li>
+<li>Leidos — Junior Software Engineer</li>
+<li>ByteDance — ML Engineer Graduate 2026 Start</li>
+</ul>
+<p>These are the real ghost-like entry postings: genuine new-grad/intern roles that nevertheless list 15-25 technologies and multiple org-scope terms. The kitchen-sink score is catching something real — entry roles are being written with an outsize list of stack demands.</p>
+<h3 id="yoe-proxy-entry-top-20-mostly-senior-roles-mis-caught-by-yoe-proxy">YOE-proxy entry top-20 (mostly SENIOR roles mis-caught by YOE proxy)</h3>
+<p>Full list: <code>exploration/tables/T22/top20_ghost_entry_yoe.csv</code>. Examples:</p>
+<ul>
+<li>Visa — Staff Software Engineer - Sr. Consultant (AI Agent/Agentic Focus) (yoe=2, kitchen_sink=123)</li>
+<li>Visa — Software Engineer Sr. Consultant (GenAI/Cloud) (yoe=2, kitchen_sink=123)</li>
+<li>Jobs via Dice — AI Platform Engineer Sr (API expert) (kitchen_sink=116)</li>
+<li>Lockheed Martin — AI Platform Engineer Sr (kitchen_sink=112)</li>
+<li>CVS Health — Senior Full Stack Engineer (yoe=2, kitchen_sink=82)</li>
+<li>Xylem — Senior AI Solutions and Platform Engineer (kitchen_sink=99)</li>
+</ul>
+<p>These are NOT entry postings at all — they're senior/staff/principal roles where the text happened to include "2+ years of experience" (a minimum threshold, not a seniority level). <strong>The YOE proxy fails as a content filter</strong> on these because the proxy captures the <em>minimum</em> YOE mentioned, and senior roles often list a minimum YOE that happens to be low.</p>
+<h3 id="key-implication">Key implication</h3>
+<p><strong>The top-20 combined-column and YOE-proxy lists have ZERO overlap.</strong> The two operationalizations agree on the <em>direction</em> of entry-share change but completely disagree on <em>which specific postings are ghost-like at entry</em>. The YOE proxy is a clean headline-count measure but cannot be used to identify specific content-level ghost patterns without cross-validation. <strong>Recommendation for downstream tasks: use the combined column for qualitative ghost analysis; use YOE proxy as a label-independent sanity check on aggregate trends, not for specific posting identification.</strong></p>
+<h2 id="step-6-aggregator-vs-direct">Step 6 — Aggregator vs direct</h2>
+<p>See <code>prevalence_aggregator_vs_direct.csv</code>. Running all indicators separately for aggregator vs direct (CORE sensitivity):</p>
+<table>
+<thead>
+<tr>
+<th>Indicator</th>
+<th style="text-align: right;">2024 dir</th>
+<th style="text-align: right;">2026 dir</th>
+<th style="text-align: right;">2024 agg</th>
+<th style="text-align: right;">2026 agg</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hedge_any (entry)</td>
+<td style="text-align: right;">52.0%</td>
+<td style="text-align: right;">67.6%</td>
+<td style="text-align: right;">50.0%</td>
+<td style="text-align: right;">68.3%</td>
+</tr>
+<tr>
+<td>kitchen_sink ≥ 12 (entry)</td>
+<td style="text-align: right;">4.0%</td>
+<td style="text-align: right;">13.8%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">6.3%</td>
+</tr>
+<tr>
+<td>kitchen_sink ≥ 20 (entry)</td>
+<td style="text-align: right;">1.3%</td>
+<td style="text-align: right;">3.7%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">3.2%</td>
+</tr>
+<tr>
+<td>any_ai (entry)</td>
+<td style="text-align: right;">17.6%</td>
+<td style="text-align: right;">45.9%</td>
+<td style="text-align: right;">7.1%</td>
+<td style="text-align: right;">31.7%</td>
+</tr>
+<tr>
+<td>ai_tool (entry)</td>
+<td style="text-align: right;">2.6%</td>
+<td style="text-align: right;">14.1%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">7.9%</td>
+</tr>
+<tr>
+<td>agentic (entry)</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">3.4%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Direct employers are MORE ghost-like than aggregators</strong> by kitchen-sink, AI-saturation, and agentic-mention measures. This is the opposite of the naive "aggregators post lower-quality templated junk" assumption. The explanation: aggregators' postings tend to be terser reposts with less fluff; direct employers' postings are more likely to be the verbose, kitchen-sink-inflated, AI-heavy templates.</p>
+<p>Aspiration ratio is roughly the same for aggregator and direct (both entry 2024 ~23% and 2026 ~32-40%). No strong aggregator/direct split on hedging.</p>
+<p><strong>Gate 2's concern</strong> (that aggregators would inflate ghost metrics) is not supported. If anything, aggregator inclusion DILUTES the ghost signal for direct employers. Primary analyses should use the direct-only subset when focused on content properties.</p>
+<h2 id="step-7-template-saturation">Step 7 — Template saturation</h2>
+<p>See <code>exploration/tables/T22/template_saturation_by_company_period.csv</code>. Computed on MiniLM-L6-v2 embeddings (<code>swe_embeddings.npy</code>). Companies with ≥ 5 SWE postings in a period.</p>
+<h3 id="dedup-impact">Dedup impact</h3>
+<p>Before dedup: 2,082 company-period cells, mean pairwise cosine 0.664, 11.9% saturate above 0.8.
+After exact <code>description_hash</code> dedup within (company, period): 1,886 cells, mean 0.641, 5.8% saturate above 0.8.</p>
+<p>Dedup roughly halves the share of saturated companies, confirming that the 6 known exact-dup companies (Affirm, Canonical, Epic, Google, SkillStorm, Uber) were the largest driver of spurious saturation. This reproduces the V1 finding.</p>
+<h3 id="post-dedup-by-period">Post-dedup by period</h3>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">N company cells</th>
+<th style="text-align: right;">Mean pairwise cos</th>
+<th style="text-align: right;">Median</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">801</td>
+<td style="text-align: right;">0.604</td>
+<td style="text-align: right;">0.600</td>
+</tr>
+<tr>
+<td>2026</td>
+<td style="text-align: right;">1,085</td>
+<td style="text-align: right;">0.669</td>
+<td style="text-align: right;">0.663</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Template saturation rose +6.5pp (0.604 → 0.669) from 2024 to 2026</strong>, even after removing exact duplicates. This means job descriptions within the same company are becoming more semantically similar over time. Consistent with either (a) company-wide JD template adoption or (b) LLM-assisted authorship pulling descriptions toward a common latent style.</p>
+<p><strong>Top 30 most template-saturated companies (after dedup, ≥ 10 postings):</strong> saved to <code>template_saturation_top_companies.csv</code>. The top-saturated companies are generally large employers with standardized recruiting (Big Tech, large consulting, large banks). A few smaller companies also saturate highly — candidates for T29 LLM-authorship correlation.</p>
+<h2 id="step-8-industry-patterns-direct-employers">Step 8 — Industry patterns (direct employers)</h2>
+<p>See <code>industry_ghostiness.csv</code>. Using <code>company_industry</code> where available.</p>
+<table>
+<thead>
+<tr>
+<th>Industry (2026 direct)</th>
+<th style="text-align: right;">N</th>
+<th style="text-align: right;">hedge_any</th>
+<th style="text-align: right;">firm_any</th>
+<th style="text-align: right;">kitchen_sink_mean</th>
+<th style="text-align: right;">any_ai</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>financial services</td>
+<td style="text-align: right;">2,992</td>
+<td style="text-align: right;">73.3%</td>
+<td style="text-align: right;">49.0%</td>
+<td style="text-align: right;">10.25</td>
+<td style="text-align: right;">49.0%</td>
+</tr>
+<tr>
+<td>software development</td>
+<td style="text-align: right;">5,705</td>
+<td style="text-align: right;">65.9%</td>
+<td style="text-align: right;">31.0%</td>
+<td style="text-align: right;">9.59</td>
+<td style="text-align: right;">66.2%</td>
+</tr>
+<tr>
+<td>it services/consulting</td>
+<td style="text-align: right;">3,359</td>
+<td style="text-align: right;">66.7%</td>
+<td style="text-align: right;">46.0%</td>
+<td style="text-align: right;">5.90</td>
+<td style="text-align: right;">41.6%</td>
+</tr>
+<tr>
+<td>defense and space</td>
+<td style="text-align: right;">1,184</td>
+<td style="text-align: right;">70.6%</td>
+<td style="text-align: right;">55.8%</td>
+<td style="text-align: right;">3.52</td>
+<td style="text-align: right;">32.5%</td>
+</tr>
+<tr>
+<td>information services/internet</td>
+<td style="text-align: right;">764</td>
+<td style="text-align: right;">100.0%</td>
+<td style="text-align: right;">97.9%</td>
+<td style="text-align: right;">8.31</td>
+<td style="text-align: right;">86.4%</td>
+</tr>
+<tr>
+<td>semiconductor</td>
+<td style="text-align: right;">427</td>
+<td style="text-align: right;">84.1%</td>
+<td style="text-align: right;">55.7%</td>
+<td style="text-align: right;">2.42</td>
+<td style="text-align: right;">52.5%</td>
+</tr>
+<tr>
+<td>entertainment</td>
+<td style="text-align: right;">307</td>
+<td style="text-align: right;">81.1%</td>
+<td style="text-align: right;">61.2%</td>
+<td style="text-align: right;">7.89</td>
+<td style="text-align: right;">60.9%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Observations:</strong></p>
+<ol>
+<li>Software development has the highest AI saturation (66.2%) but lowest firm_any rate (31%). Classic tech industry wishlist pattern.</li>
+<li>Financial services has high kitchen_sink (10.25) and high AI penetration but also high firm (49%) — firms are serious AND wishlisting.</li>
+<li>Defense and space has lower kitchen_sink (3.5) and AI (32.5%) — more conservative, stricter requirements.</li>
+<li>"Information services and technology, information and internet" (a compound industry label) saturates all indicators at near 100% — likely dominated by a small set of companies. We treat it as a label-format artifact and exclude it from industry comparisons.</li>
+</ol>
+<p><strong>Caveat from Gate 1:</strong> Arshkon's 2024 entry pool is finance/banking-skewed. When comparing entry postings specifically to 2026, industry composition differences can produce spurious temporal signals. The kitchen-sink rise is robust within the "software development" and "it services" industry cells.</p>
+<h2 id="step-9-connection-to-llm-authorship-cross-link-to-t29">Step 9 — Connection to LLM authorship (cross-link to T29)</h2>
+<p>Per-posting ghost indicator parquet (<code>ghost_indicators_per_posting.parquet</code>) is uid-keyed and ready for cross-correlation with any T29 LLM-authorship score.</p>
+<p><strong>A-priori expectations (to test once T29 lands):</strong></p>
+<ul>
+<li>Kitchen-sink score: positively correlated with LLM-authorship (LLMs produce long tech lists).</li>
+<li>Aspiration ratio: positively correlated (LLMs hedge frequently).</li>
+<li>Template saturation: positively correlated (LLMs pull toward common style).</li>
+<li>ai_tool rate: positively correlated (LLM-using recruiters write about AI).</li>
+<li>Mgmt strict patterns: UNCORRELATED (they describe real responsibilities, not stylistic flourishes).</li>
+</ul>
+<h2 id="robustness-summary">Robustness summary</h2>
+<ul>
+<li><strong>Aggregator exclusion:</strong> Ghost indicators are slightly <em>smaller</em> when aggregators are included (the naive direction is reversed). Direct-only analysis is the conservative specification for content claims.</li>
+<li><strong>Company dedup:</strong> Template saturation drops 50% in "saturated company" share when exact dedup is applied. Ghost prevalence findings are robust to dedup because they are computed per posting regardless.</li>
+<li><strong>Seniority operationalization:</strong> Combined column and YOE proxy agree on the direction of ghost trends (rising) but disagree on which specific postings are ghost-like (zero top-20 overlap). Use combined column for content, YOE proxy for headline share.</li>
+<li><strong>AI pattern choice:</strong> The AI ghostiness finding (10:1 hedge:firm ratio near AI) is robust to which AI union we use (validated <code>ai_tool</code> vs <code>ai_domain</code> vs <code>agentic</code>). It holds for every AI category.</li>
+<li><strong>Text source:</strong> Not tested in-depth for ghost indicators. Per V1, the 2024 sample is ~94% LLM-cleaned text and 2026 is ~79% rule-cleaned. Hedge/firm pattern matching is done on lowercased text so stopwords are not affected; but the text-source confound could still bias absolute counts. Per-posting aspiration ratio (a relative measure) should be stable.</li>
+</ul>
+<h2 id="recommendations-for-downstream-tasks">Recommendations for downstream tasks</h2>
+<ol>
+<li><strong>T16 (Company strategies):</strong> Use the <code>ghost_indicators_per_posting.parquet</code> to segment companies by (kitchen-sink level, AI saturation, aspiration ratio, template saturation). The top-saturated companies should be candidates for "heavy JD template" archetype.</li>
+<li><strong>T21 (Senior role evolution):</strong> The strict mentoring patterns in <code>validated_mgmt_patterns.json</code> are ready to use. T22 confirmed their 95%+ precision.</li>
+<li><strong>T28/T29 (LLM authorship):</strong> Cross-correlate ghost indicators with LLM-authorship score at uid level. Key tests: (a) kitchen_sink × llm_author_score, (b) aspiration_ratio × llm_author_score, (c) template saturation in high-LLM-author companies vs low.</li>
+<li><strong>V2 verification:</strong> Priority tests are (a) the AI-proximity hedge:firm 10:1 ratio, (b) the kitchen-sink growth across operationalizations, (c) the zero top-20 overlap between combined and YOE-proxy entry.</li>
+</ol>
+<h2 id="artifacts-produced">Artifacts produced</h2>
+<ul>
+<li><code>exploration/artifacts/T22/ghost_indicators_per_posting.parquet</code> — 63,294 rows, 50 cols, uid-keyed</li>
+<li><code>exploration/artifacts/shared/validated_mgmt_patterns.json</code> — precision-validated pattern set for downstream</li>
+<li><code>exploration/tables/T22/*.csv</code> — prevalence, AI ghostiness, template saturation, top-20 ghost examples, industry tables</li>
+<li><code>exploration/figures/T22/*.png</code> — aspiration ratio, kitchen sink, AI-proximity figures</li>
+<li><code>exploration/tables/T22/pattern_validation_samples.txt</code> — human-reviewable 50-sample sets per pattern</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

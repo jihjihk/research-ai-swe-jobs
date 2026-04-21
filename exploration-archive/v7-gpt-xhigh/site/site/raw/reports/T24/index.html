@@ -1,0 +1,1421 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Evidence package for Wave 5 Task T27">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T24: Hypothesis Generation For Formal Analysis - SWE Labor Market Exploration</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CIBM+Plex+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"IBM Plex Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/site.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t24-hypothesis-generation-for-formal-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="SWE Labor Market Exploration" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T24: Hypothesis Generation For Formal Analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../.." class="md-tabs__link">
+          
+  
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../findings/within-company-ai-tool-expansion/" class="md-tabs__link">
+          
+  
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../methods/preprocessing-pipeline/" class="md-tabs__link">
+          
+  
+  
+  Methods
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../evidence/" class="md-tabs__link">
+          
+  
+  
+  Evidence Trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="SWE Labor Market Exploration" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slide Deck
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/within-company-ai-tool-expansion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Within-Company AI/Tool Expansion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/adjacent-parallel-expansion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SWE-Amplified Adjacent-Parallel Expansion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/geographic-diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geographic Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/requirement-tech-breadth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirement and Tech Breadth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/seniority-label-yoe-divergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority Label vs YOE Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/domain-technology-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain and Technology Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/claims-and-caveats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Claims and Caveats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methods/preprocessing-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methods/can-and-cannot-claim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What We Can and Cannot Claim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence Trail
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evidence Trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../evidence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw Evidence Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis Handoff
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1 Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2 Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3 Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-hypotheses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Hypotheses
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Recommended Hypotheses">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#h1-returning-company-aitool-expansion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H1. Returning-company AI/tool expansion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h2-technical-work-skill-surface-expansion-not-swe-only-restructuring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H2. Technical-work skill-surface expansion, not SWE-only restructuring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h3-geographic-diffusion-rather-than-tech-hub-concentration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H3. Geographic diffusion rather than tech-hub concentration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h4-requirement-and-technology-breadth-expansion-across-seniority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H4. Requirement and technology breadth expansion across seniority
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h5-ai-is-integrating-into-existing-stacks-rather-than-replacing-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H5. AI is integrating into existing stacks rather than replacing them
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h6-seniority-labels-and-yoe-floors-are-diverging-labor-market-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H6. Seniority labels and YOE floors are diverging labor-market signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h7-junior-role-collapse-is-not-the-expected-lead-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H7. Junior-role collapse is not the expected lead result
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h8-the-market-structure-is-domaintechnology-first-seniority-second" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H8. The market structure is domain/technology-first, seniority-second
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h9-senior-roles-are-broadening-not-simply-moving-away-from-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H9. Senior roles are broadening, not simply moving away from management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h10-a-nontrivial-share-of-aiplatform-requirements-may-be-aspirational-or-template-driven" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H10. A nontrivial share of AI/platform requirements may be aspirational or template-driven
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h11-employer-requirement-worker-usage-divergence-remains-a-hypothesis-not-a-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H11. Employer-requirement / worker-usage divergence remains a hypothesis, not a result
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#formal-analysis-priorities-implied-by-the-hypotheses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formal Analysis Priorities Implied By The Hypotheses
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t24-hypothesis-generation-for-formal-analysis">T24: Hypothesis Generation For Formal Analysis<a class="headerlink" href="#t24-hypothesis-generation-for-formal-analysis" title="Permanent link">&para;</a></h1>
+<h2 id="scope">Scope<a class="headerlink" href="#scope" title="Permanent link">&para;</a></h2>
+<p>This report synthesizes existing exploration reports and gate memos only. No new data analysis, preprocessing, parquet inspection, or LLM calls were run for T24.</p>
+<p>The hypotheses below are designed for the formal analysis phase. Each separates the construct from the expected empirical direction, the current exploratory evidence, required robustness checks, and falsification conditions. Several hypotheses intentionally contradict the original junior-collapse framing because the completed evidence does not support that as the lead story.</p>
+<h2 id="recommended-hypotheses">Recommended Hypotheses<a class="headerlink" href="#recommended-hypotheses" title="Permanent link">&para;</a></h2>
+<h3 id="h1-returning-company-aitool-expansion">H1. Returning-company AI/tool expansion<a class="headerlink" href="#h1-returning-company-aitool-expansion" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Within-company change in employer posting language for broad AI and specific AI tools.</p>
+<p><strong>Expected direction:</strong> AI/tool prevalence increases substantially from 2024 to 2026 within returning SWE employers, with most of the absolute change attributable to within-company change rather than reweighting toward different companies.</p>
+<p><strong>Current evidence:</strong> T16 reports that 240 arshkon-to-scraped overlap companies moved from 3.74% to 23.23% broad-AI prevalence and from 2.23% to 19.80% AI-tool-specific prevalence. The midpoint decomposition assigns 91-92% of the AI/tool change to within-company movement. V1 verified the broad-AI prevalence jump in the shared tech matrix.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>Company fixed effects or common-company decomposition, with company-clustered uncertainty.</li>
+<li>Exclusion of aggregators and capped-company row weights.</li>
+<li>Arshkon-only versus pooled-2024 baseline, reported separately.</li>
+<li>Broad AI, AI-tool-specific, and AI-domain specifications separated.</li>
+<li>Ambiguous terms excluded or shown separately, especially <code>mcp</code>.</li>
+<li>Sensitivity to company-name canonicalization and subsidiaries.</li>
+<li>Requirement-force parsing once T22-style evidence exists.</li>
+</ul>
+<p><strong>Would falsify:</strong> The AI/tool increase disappears or becomes small under company fixed effects; the within-company component falls below the between-company component; the effect depends on ambiguous broad-AI terms; or manual/section validation shows the increase is mostly company background rather than role requirement language.</p>
+<h3 id="h2-technical-work-skill-surface-expansion-not-swe-only-restructuring">H2. Technical-work skill-surface expansion, not SWE-only restructuring<a class="headerlink" href="#h2-technical-work-skill-surface-expansion-not-swe-only-restructuring" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Differential expansion of AI/tool, technology, and requirement breadth in SWE, SWE-adjacent technical roles, and controls.</p>
+<p><strong>Expected direction:</strong> SWE and SWE-adjacent roles both show large increases, while controls rise only modestly. SWE may be amplified relative to controls but should not be treated as uniquely transformed relative to adjacent technical work.</p>
+<p><strong>Current evidence:</strong> T18 finds broad-AI growth of +27.2 pp for SWE, +27.0 pp for adjacent roles, and +2.6 pp for controls. AI-tool growth is +21.8 pp for SWE, +19.1 pp for adjacent roles, and +0.8 pp for controls. Requirement breadth rises +2.56 for SWE, +2.93 for adjacent roles, and +0.70 for controls in the LLM-labeled subset.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>Occupation-group definitions audited, especially QA/test, data engineering, ML, solutions, and support roles.</li>
+<li>Exclude fragile SWE <code>title_lookup_llm</code> tier.</li>
+<li>Company cap and aggregator exclusion.</li>
+<li>Alternative adjacent groupings: data scientist/ML, data engineering, product/solutions/support, QA/test.</li>
+<li>LLM-cleaned subset reporting for text-sensitive outcomes.</li>
+<li>Within-2024 calibration for cross-source occupation differences.</li>
+</ul>
+<p><strong>Would falsify:</strong> Controls show expansion of similar magnitude after classification and source controls; adjacent movement disappears under stricter definitions; or the SWE-control difference is driven by classification drift rather than posting content.</p>
+<h3 id="h3-geographic-diffusion-rather-than-tech-hub-concentration">H3. Geographic diffusion rather than tech-hub concentration<a class="headerlink" href="#h3-geographic-diffusion-rather-than-tech-hub-concentration" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Metro-level change in AI/tool prevalence and requirement breadth.</p>
+<p><strong>Expected direction:</strong> AI/tool prevalence increases in nearly all eligible metros, with tech hubs somewhat larger but not the only source of movement. Metro AI growth should travel more with requirement-breadth growth than with junior-share decline.</p>
+<p><strong>Current evidence:</strong> T17 reports broad-AI and AI-tool-specific increases in all 26 eligible metros. Mean broad-AI change is +17.6 pp; mean AI-tool-specific change is +16.1 pp. Broad-AI growth correlates with requirement-breadth growth (r = 0.44, p = 0.026) but not with J1 or J3 junior-share change.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>Metro threshold sensitivity, especially &gt;=50 versus &gt;=100 per period.</li>
+<li>Exclude multi-location postings and report excluded denominators.</li>
+<li>Company cap within metro-period.</li>
+<li>Aggregator exclusion.</li>
+<li>Arshkon-only historical baseline.</li>
+<li>Metro fixed effects and domain/archetype-mix controls where coverage allows.</li>
+<li>Explicit exclusion of remote-work claims until remote fields are audited.</li>
+</ul>
+<p><strong>Would falsify:</strong> A substantial subset of metros becomes flat or negative after company/source controls; the apparent diffusion is mostly a few high-volume employers replicated across metros; or metro changes are explained almost entirely by source composition.</p>
+<h3 id="h4-requirement-and-technology-breadth-expansion-across-seniority">H4. Requirement and technology breadth expansion across seniority<a class="headerlink" href="#h4-requirement-and-technology-breadth-expansion-across-seniority" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Breadth of required technologies, AI-specific terms, organizational-scope language, and credential-stack categories across junior and senior definitions.</p>
+<p><strong>Expected direction:</strong> Requirement breadth and technology breadth rise across J1-J4 and S1/S4 definitions. The effect should be interpreted as broader listed stacks in longer/richer postings, not automatically as denser requirements per character.</p>
+<p><strong>Current evidence:</strong> T11 reports all-SWE requirement breadth rising from 7.23 to 9.39 (+2.16) in LLM-cleaned SWE rows. V1 independently verifies a similar result, 7.46 to 9.67 (+2.20). T11 reports junior breadth changes of J1 +1.74, J2 +1.84, J3 +1.75, J4 +2.08, and senior changes of S1 +2.40 and S4 +2.61. T14 finds technology-count increases across all junior and senior definitions.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>T30 seniority panel for every seniority claim.</li>
+<li>LLM-cleaned denominator reporting, with coverage caveats.</li>
+<li>Length controls and section-filtered text.</li>
+<li>Aggregator exclusion, company cap, entry-specialist exclusion.</li>
+<li>Arshkon-only and pooled-2024 baselines.</li>
+<li>Source and SWE-tier sensitivity.</li>
+<li>Manual validation for any new requirement families.</li>
+</ul>
+<p><strong>Would falsify:</strong> The breadth increase vanishes after length, section, source, and company controls; it appears only in raw fallback text; or the direction fails for both J1 and J3 or for both S1 and S4.</p>
+<h3 id="h5-ai-is-integrating-into-existing-stacks-rather-than-replacing-them">H5. AI is integrating into existing stacks rather than replacing them<a class="headerlink" href="#h5-ai-is-integrating-into-existing-stacks-rather-than-replacing-them" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Co-occurrence of AI-tool/LLM terms with non-AI technologies and platform practices.</p>
+<p><strong>Expected direction:</strong> AI-tool/LLM postings mention more non-AI technologies and platform practices than non-AI postings, especially Python, API design, observability, cloud, and ML frameworks. Density may not rise after accounting for longer descriptions.</p>
+<p><strong>Current evidence:</strong> T14 reports that in 2026 AI-tool/LLM postings have mean non-AI tech count 7.63 versus 6.60 for non-AI postings. Among 2026 AI-tool/LLM rows, the largest traditional co-occurrence lifts include Python (+22.3 pp), API design (+18.2 pp), PyTorch (+12.3 pp), observability (+12.3 pp), and AWS (+10.4 pp). The 2026 network places Python, LLM, generative AI, RAG, PyTorch, Claude, TensorFlow, and MLOps in a coherent cluster.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>Length-normalized models and density outcomes.</li>
+<li>Company-capped co-occurrence networks.</li>
+<li>Broad AI-tool versus AI-domain separation.</li>
+<li>Exclusion of ambiguous tokens.</li>
+<li>Sensitivity to LLM-cleaned versus raw fallback text for binary tech screens.</li>
+<li>Validation against asaniczka structured skills where possible.</li>
+</ul>
+<p><strong>Would falsify:</strong> AI-tool postings no longer have higher non-AI stack breadth after length and company controls; the AI/Python/platform cluster disappears under company spread thresholds; or AI terms appear mainly in company descriptions rather than role requirements.</p>
+<h3 id="h6-seniority-labels-and-yoe-floors-are-diverging-labor-market-signals">H6. Seniority labels and YOE floors are diverging labor-market signals<a class="headerlink" href="#h6-seniority-labels-and-yoe-floors-are-diverging-labor-market-signals" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Agreement and divergence among employer labels, <code>seniority_final</code>, low-YOE requirements, and semantic neighborhood structure.</p>
+<p><strong>Expected direction:</strong> Explicit entry labels and low-YOE floors identify different populations. Low-YOE postings should be frequently unknown or mid-senior by label, and label-based and YOE-based junior trends may move in different directions in common-company panels.</p>
+<p><strong>Current evidence:</strong> T08 reports that in scraped 2026, 72.4% of <code>yoe_extracted &lt;= 2</code> rows are <code>seniority_final = unknown</code>, 21.5% are mid-senior, and only 5.5% are J1 entry. T16 reports common-company J1 entry share falling -0.44 pp while J3 low-YOE share rises +6.63 pp. T15 rejects generic junior-senior convergence but finds low-YOE J3/J4 rows are more senior-neighbor-heavy than label-based J1 rows.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>Explicit unknown-seniority profiling.</li>
+<li>T30 J1-J4 and all/known denominators.</li>
+<li>Title-level-code audit for L2/L3/L4/L5 under-labeling.</li>
+<li>Company weighting and entry-specialist exclusion.</li>
+<li>Arshkon-only versus pooled-2024 source restriction.</li>
+<li>T20-style boundary model recovery, if possible.</li>
+</ul>
+<p><strong>Would falsify:</strong> J1 and J3/J4 have high overlap and move together under source and company controls; low-YOE rows are mostly entry-labeled after seniority audit; or semantic diagnostics show no difference between label-based entry and low-YOE rows.</p>
+<h3 id="h7-junior-role-collapse-is-not-the-expected-lead-result">H7. Junior-role collapse is not the expected lead result<a class="headerlink" href="#h7-junior-role-collapse-is-not-the-expected-lead-result" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Junior share and volume under employer-label and low-YOE definitions.</p>
+<p><strong>Expected direction:</strong> No robust aggregate junior decline. If decline appears, it should be limited to specific label/source/company-panel estimands. The formal paper should test for boundary ambiguity and scope expansion, not assume junior disappearance.</p>
+<p><strong>Current evidence:</strong> T30 finds J1-J4 all rise from pooled 2024 to scraped 2026. T17 pooled geography mostly shows junior/low-YOE shares up across metros. T18 finds SWE J1-J4 all up. T16 finds arshkon-only common-company J1/J2 down but J3/J4 up, showing construct dependence.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>Report J1-J4 separately, not as one junior measure.</li>
+<li>Source restriction: arshkon-only versus pooled 2024.</li>
+<li>Row-weighted, company-weighted, and common-company estimands.</li>
+<li>Entry-specialist and aggregator exclusion.</li>
+<li>Volume and share outcomes separated.</li>
+<li>Temporal stability once T19-style checks exist.</li>
+</ul>
+<p><strong>Would falsify:</strong> J1, J3, and J4 all decline across pooled, arshkon-only, common-company, company-weighted, and geography specifications, with effects above within-2024 calibration.</p>
+<h3 id="h8-the-market-structure-is-domaintechnology-first-seniority-second">H8. The market structure is domain/technology-first, seniority-second<a class="headerlink" href="#h8-the-market-structure-is-domaintechnology-first-seniority-second" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Relative explanatory power of domain/archetype versus seniority for posting representations.</p>
+<p><strong>Expected direction:</strong> Technology/domain structure explains much more text and embedding variation than seniority. Formal models should include domain/archetype structure rather than treating junior/senior as the primary organizing axis.</p>
+<p><strong>Current evidence:</strong> T09's NMF archetypes align with <code>tech_domain</code> at NMI 0.205 and with seniority at only 0.0069. T15 finds archetype eta-squared of 0.111 in embeddings and 0.132 in TF-IDF/SVD, compared with seniority eta-squared of about 0.007. V1 verifies the domain-over-seniority pattern.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>LLM-cleaned coverage reporting and expansion if possible.</li>
+<li>Alternative representations: embeddings, TF-IDF/SVD, NMF labels.</li>
+<li>Company cap and source controls.</li>
+<li>Domain-stratified breadth and AI models.</li>
+<li>Do not use NMF labels as causal treatments.</li>
+</ul>
+<p><strong>Would falsify:</strong> Seniority explains representation variance at similar or greater magnitude than archetype/domain after source and company controls; or domain effects collapse when scraped LLM coverage is expanded.</p>
+<h3 id="h9-senior-roles-are-broadening-not-simply-moving-away-from-management">H9. Senior roles are broadening, not simply moving away from management<a class="headerlink" href="#h9-senior-roles-are-broadening-not-simply-moving-away-from-management" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Senior-role requirement breadth, mentorship/coordination language, direct-report management language, and top-ladder labels.</p>
+<p><strong>Expected direction:</strong> Senior roles show greater requirement breadth and stack depth. Mentorship and coordination language rises or remains common, while direct-report management remains rare. A simple "senior management language declined" hypothesis is not supported.</p>
+<p><strong>Current evidence:</strong> T11 reports senior requirement breadth rising for S1 (+2.40) and S4 (+2.61). Strong-management indicators rise under S1/S3/S4, and T11 notes the top triggers are mentorship-heavy: <code>mentor</code> rises from 10.3% to 12.7%, while direct reports, performance reviews, hiring, and headcount remain rare. T30/T08 show broad senior labels and YOE-senior shares decline while director-only labels rise.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>Separate direct-report management, hiring/headcount, mentorship, coordination, architecture, review, and ownership.</li>
+<li>Use S1 and S4 as primary senior definitions; treat S2 as sparse top-ladder evidence.</li>
+<li>Avoid current normalized-title S3 as a standalone senior-title measure.</li>
+<li>T21-style senior deep dive before paper-grade claims.</li>
+<li>Manual validation of management and mentorship contexts.</li>
+</ul>
+<p><strong>Would falsify:</strong> Senior breadth does not rise under S1/S4 after company/source controls; mentorship/coordination language declines under validated patterns; or director-only growth is a source artifact with no top-ladder content signal.</p>
+<h3 id="h10-a-nontrivial-share-of-aiplatform-requirements-may-be-aspirational-or-template-driven">H10. A nontrivial share of AI/platform requirements may be aspirational or template-driven<a class="headerlink" href="#h10-a-nontrivial-share-of-aiplatform-requirements-may-be-aspirational-or-template-driven" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Requirement force: screened must-have, preferred/nice-to-have, aspirational, template/default language, or employer branding.</p>
+<p><strong>Expected direction:</strong> Unknown from completed quantitative reports. The working hypothesis should be that some AI/tool/platform language reflects real screening and some reflects templates or anticipatory signaling. This is a validity hypothesis, not a demonstrated finding.</p>
+<p><strong>Current evidence:</strong> T22 failed and provides no direct evidence. T13, V1, and T16 reduce the probability that all movement is simple boilerplate or new-company mix, but they do not establish screened requirement force. T11 and V1 explicitly caution that regex features measure mentions, not required proficiency or screening intensity.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>Recover T22 or equivalent sentence-level force classification.</li>
+<li>Distinguish required, preferred, responsibility, company background, and benefits/about sections.</li>
+<li>Manual context validation for AI/tool/platform terms.</li>
+<li>Compare hiring-manager rubrics and recruiter screens through interviews.</li>
+<li>Employer-template and ATS-language provenance checks.</li>
+</ul>
+<p><strong>Would falsify:</strong> Nearly all validated AI/tool/platform mentions are in hard requirements and are screened in interviews; or, conversely, nearly all are company/background/template mentions and not role requirements, which would falsify a real hiring-bar interpretation.</p>
+<h3 id="h11-employer-requirement-worker-usage-divergence-remains-a-hypothesis-not-a-result">H11. Employer-requirement / worker-usage divergence remains a hypothesis, not a result<a class="headerlink" href="#h11-employer-requirement-worker-usage-divergence-remains-a-hypothesis-not-a-result" title="Permanent link">&para;</a></h3>
+<p><strong>Construct:</strong> Gap between employer-side posting AI/tool requirements and external worker-side AI usage or exposure benchmarks.</p>
+<p><strong>Expected direction:</strong> Posting-side AI-tool and agentic-workflow requirements may outpace measured worker usage, especially for specific coding tools and agent workflows. This should be tested as a divergence index, not a causal treatment effect.</p>
+<p><strong>Current evidence:</strong> T23 failed. Completed reports establish a strong posting-side numerator for AI/tool requirements but do not compare it to worker usage. Gate 3 says RQ3 cannot be a lead claim yet.</p>
+<p><strong>Required robustness checks:</strong></p>
+<ul>
+<li>External usage benchmark choice documented and occupation-aligned.</li>
+<li>Tool-specific, AI-domain, and generic AI measures kept separate.</li>
+<li>Timing alignment between postings and usage data.</li>
+<li>Sensitivity to occupational crosswalks and adjacent technical roles.</li>
+<li>Report divergence as comparison of different objects, not direct unmet demand.</li>
+</ul>
+<p><strong>Would falsify:</strong> Worker usage is similar to or higher than employer AI-tool requirement prevalence on a comparable occupation/time basis; benchmarks are too coarse to support inference; or posting-side measures are mostly aspirational/template language.</p>
+<h2 id="formal-analysis-priorities-implied-by-the-hypotheses">Formal Analysis Priorities Implied By The Hypotheses<a class="headerlink" href="#formal-analysis-priorities-implied-by-the-hypotheses" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Estimate company fixed-effect and common-company models for broad AI, AI-tool, tech breadth, and requirement breadth.</li>
+<li>Estimate cross-occupation DiD models for SWE, adjacent technical roles, and controls.</li>
+<li>Model metro diffusion as supporting evidence, not the main mechanism.</li>
+<li>Keep seniority hypotheses split across J1/J3 and S1/S4.</li>
+<li>Recover requirement-force evidence before making claims about actual hiring bars.</li>
+<li>Treat employer-worker divergence as a later-stage test unless T23-equivalent evidence is produced.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "toc.follow", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3036 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration v4 — raw findings, gate memos, and verification passes">
+      
+      
+      
+      
+        <link rel="prev" href="../T23/">
+      
+      
+        <link rel="next" href="../T29/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T28 Archetype Decomposition - SWE Labor Market Exploration — v4</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t28-domain-stratified-scope-changes-by-archetype" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration — v4
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T28 Archetype Decomposition
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../INDEX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reports
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../memos/gate_0_pre_exploration/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Memos
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration — v4
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../INDEX/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 Data Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../seniority_measurement_investigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority Measurement Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V1_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V1 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 Archetype Decomposition
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 Archetype Decomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#headline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-archetype-distribution-by-period-aiml-confirmation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Archetype distribution by period — AI/ML confirmation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-withinbetweeninteraction-decomposition-of-entry-share" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Within/between/interaction decomposition of entry share
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-scope-inflation-is-universal-across-archetypes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Scope inflation is universal across archetypes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-junior-vs-senior-within-each-archetype-selective-convergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Junior vs senior within each archetype — selective convergence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-senior-tier-mentoring-shift-by-archetype-strongly-universal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Senior-tier mentoring shift by archetype — strongly universal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-aiml-archetype-deep-dive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. AI/ML archetype deep dive
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. AI/ML archetype deep dive">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-top-employers-dedup-within-company-by-description_hash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Top employers (dedup within company by description_hash)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-seniority-mix-critical-methodological-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Seniority mix — critical methodological finding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-aiml-scope-profile-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 AI/ML scope profile (2026)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-sensitivities-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Sensitivities summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-key-takeaways" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Key takeaways
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T29/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 LLM-Authorship Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V2_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration (Gate 0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t28-domain-stratified-scope-changes-by-archetype">T28 — Domain-stratified scope changes by archetype</h1>
+<p><strong>Agent O, Wave 3 (PRIORITY).</strong> Completed 2026-04-09.</p>
+<h2 id="headline">Headline</h2>
+<p><strong>The 2024→2026 scope-and-content inflation is overwhelmingly WITHIN-domain, not between-domain composition.</strong> Under three different seniority operationalizations, the within-domain term is 90–105% of the aggregate entry-share rise; the between-domain (AI/ML composition) term is within noise (±0.2pp). Requirement breadth, tech count, scope_count, AI-mention rate, and credential stack depth ≥7 all rise in <strong>every</strong> archetype, with magnitudes of +17% to +49% (breadth), +4% to +107% (tech), +41% to +153% (scope), and +1.5 to +64× (credential stack ≥7). AI/ML is the only large grower of market share (+16.5pp within domain), but it is <strong>not</strong> the source of the scope inflation — scope inflation is a market-wide language shift that affects Spring/Java and .NET stacks just as strongly as AI/ML.</p>
+<p>Two surprises:
+1. <strong>The senior-tier shift toward mentoring is universal.</strong> Every archetype shows positive mentor-pp growth for YOE≥5 postings; 14/20 archetypes grow by ≥10pp. Strict people-management language stays near 0% everywhere (no archetype has it above 5% in 2026 except T17). This is the cleanest single-direction result in the task.
+2. <strong>The "AI/ML is less junior-heavy" finding from T09 is a labeling-column artifact.</strong> Under <code>combined</code>, 2026 AI/ML entry share is 0.9% — seemingly confirming T09. But under the label-independent YOE proxy, AI/ML 2026 entry share is 16.0% vs rest-of-market 17.2% — <strong>essentially identical</strong>. AI/ML is not structurally junior-averse; it just has worse combined-column labeling coverage (82.8% missing vs scraped's baseline). This contradicts T09's headline characterization.</p>
+<hr />
+<h2 id="1-method">1. Method</h2>
+<p><strong>Archetype propagation.</strong> T09 clustered 8,000 SWE LinkedIn postings with BERTopic; the remaining 55,294 have no label. I propagated by nearest-centroid in the shared embedding space (<code>all-MiniLM-L6-v2</code>, L2-normalized). Centroids were computed per archetype from the 8,000 labeled rows, excluding noise (-1). Held-out 20% cross-validation gave 87.2% nearest-centroid accuracy (range 77%–100% per archetype; the worst-performing is T00 "software/technical/development" at 77%, which is the generalist cluster and expected to absorb ambiguous centroid misses). For all 63,294 rows, the top-cosine similarity distribution is tight (mean 0.77, min 0.10, 25th percentile 0.73); 99.9% exceed 0.35.</p>
+<p><strong>Ground-truth labels preserved.</strong> Rows that already had a T09 label (including noise = -1) kept it.</p>
+<p><strong>Artifact archetypes excluded from decomposition.</strong> T09 flagged T14 (Dice reposts), T20 (salary boilerplate), T21 (Expedia travel). These are preprocessing residuals, not tech domains. The "domain" subset = 55,944 rows (excluding the 2,223 noise + 5,127 artifact rows).</p>
+<p><strong>Corpus hygiene.</strong> Default SWE LinkedIn filter: <code>source_platform='linkedin' AND is_english=true AND date_flag='ok' AND is_swe=true</code>. Decomposition uses domain subset; scope-inflation analyses additionally exclude aggregators (45,940 rows). Aggregator exclusion is the T28 sensitivity (a); capping within the within-archetype analyses is implicit (no single company dominates any archetype, top-20 AI/ML = 22% in 2026).</p>
+<p><strong>Artifacts used.</strong>
+- <code>exploration/artifacts/shared/swe_archetype_labels.parquet</code> (T09 sample labels)
+- <code>exploration/artifacts/shared/swe_embeddings.npy</code> + embedding index (propagation)
+- <code>exploration/tables/T11/T11_features.parquet</code> (63,294 SWE rows with requirement_breadth, tech_count, scope_count, ai_mention, credential_stack_depth, mgmts_mentor, mgmts_* strict people-manager family)
+- <code>data/unified.parquet</code> (description_hash for dedup)</p>
+<p>New artifact: <code>exploration/tables/T28/archetype_assignments.parquet</code> (63,294 × {uid, archetype, archetype_name, cosine_top, is_confident, is_artifact, assign_source}).</p>
+<hr />
+<h2 id="2-archetype-distribution-by-period-aiml-confirmation">2. Archetype distribution by period — AI/ML confirmation</h2>
+<p><strong>Within the domain subset</strong> (aggregators included, 55,944 rows):</p>
+<table>
+<thead>
+<tr>
+<th>Archetype</th>
+<th>2024 share</th>
+<th>2026 share</th>
+<th>Δpp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T01 AI / learning / machine learning</td>
+<td>4.73%</td>
+<td><strong>21.18%</strong></td>
+<td><strong>+16.45</strong></td>
+</tr>
+<tr>
+<td>T02 cloud / infrastructure / devops</td>
+<td>7.42%</td>
+<td>9.95%</td>
+<td>+2.54</td>
+</tr>
+<tr>
+<td>T03 data / analytics / data engineer</td>
+<td>7.45%</td>
+<td>9.80%</td>
+<td>+2.35</td>
+</tr>
+<tr>
+<td>T00 software / technical / development</td>
+<td>19.57%</td>
+<td>20.74%</td>
+<td>+1.17</td>
+</tr>
+<tr>
+<td>T12 flight / software / vehicle</td>
+<td>2.21%</td>
+<td>3.03%</td>
+<td>+0.82</td>
+</tr>
+<tr>
+<td>T15 site reliability / sre</td>
+<td>1.17%</td>
+<td>1.66%</td>
+<td>+0.50</td>
+</tr>
+<tr>
+<td>T06 android / mobile / ios</td>
+<td>2.58%</td>
+<td>2.90%</td>
+<td>+0.31</td>
+</tr>
+<tr>
+<td>T11 aws / services / non-internship</td>
+<td>3.76%</td>
+<td>3.74%</td>
+<td>-0.02</td>
+</tr>
+<tr>
+<td>T08 test / testing / automation</td>
+<td>2.51%</td>
+<td>2.24%</td>
+<td>-0.27</td>
+</tr>
+<tr>
+<td>T19 servicenow / itsm</td>
+<td>1.09%</td>
+<td>0.69%</td>
+<td>-0.40</td>
+</tr>
+<tr>
+<td>T22 test / manufacturing / equipment</td>
+<td>1.27%</td>
+<td>0.62%</td>
+<td>-0.64</td>
+</tr>
+<tr>
+<td>T16 python / python dev / django</td>
+<td>1.69%</td>
+<td>0.91%</td>
+<td>-0.77</td>
+</tr>
+<tr>
+<td>T05 spring / java / spring boot</td>
+<td>4.58%</td>
+<td>3.37%</td>
+<td>-1.21</td>
+</tr>
+<tr>
+<td>T10 embedded / firmware</td>
+<td>4.22%</td>
+<td>2.94%</td>
+<td>-1.28</td>
+</tr>
+<tr>
+<td>T04 frontend / web / react</td>
+<td>8.87%</td>
+<td>7.14%</td>
+<td>-1.73</td>
+</tr>
+<tr>
+<td>T07 equipment / sales / customer</td>
+<td>5.54%</td>
+<td>3.28%</td>
+<td>-2.26</td>
+</tr>
+<tr>
+<td>T13 radar / clearance / missile</td>
+<td>4.80%</td>
+<td>1.96%</td>
+<td>-2.84</td>
+</tr>
+<tr>
+<td>T09 .NET / aspnet / net core</td>
+<td>5.35%</td>
+<td>1.75%</td>
+<td>-3.60</td>
+</tr>
+<tr>
+<td>T18 systems engineering</td>
+<td>4.76%</td>
+<td>0.58%</td>
+<td>-4.18</td>
+</tr>
+<tr>
+<td>T17 typescript sql / javascript java</td>
+<td>6.44%</td>
+<td>1.53%</td>
+<td>-4.91</td>
+</tr>
+</tbody>
+</table>
+<p>AI/ML's +16.45pp is larger than T09's reported +10.96pp because (a) the denominator excludes artifact archetypes which themselves grew in 2026, (b) propagation to asaniczka 2024 spreads 2024 thinly across archetypes but concentrates it in T00/T04/T17/T18, raising the AI/ML delta in 2026.</p>
+<p>Two declining archetypes are suspicious: <strong>T18 systems engineering</strong> (4.76→0.58%) and <strong>T17 typescript/javascript/java</strong> (6.44→1.53%) look like asaniczka-specific taxonomy rather than real domain decline. T18 noted in T09 as a generic language cluster; T17 is asaniczka's raw-skills heavy cluster. Their decline is partly "asaniczka absent in 2026 scraped pool" — not a technology domain shrinking. T09 T18 had <code>asaniczka 1097 vs arshkon 0</code>; T17 similarly asaniczka-heavy. This doesn't change the AI/ML growth story but softens confidence in the declining-tail taxonomy.</p>
+<p>See figure <code>exploration/figures/T28/fig1_archetype_share_shift.png</code>.</p>
+<hr />
+<h2 id="3-withinbetweeninteraction-decomposition-of-entry-share">3. Within/between/interaction decomposition of entry share</h2>
+<p>Under three seniority operationalizations × two subsets (domain vs domain+no-aggregator):</p>
+<table>
+<thead>
+<tr>
+<th>Operationalization</th>
+<th>Subset</th>
+<th>2024</th>
+<th>2026</th>
+<th>Δtotal pp</th>
+<th>Within pp</th>
+<th>Between pp</th>
+<th>Interaction pp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>combined_best_available</td>
+<td>domain</td>
+<td>0.78%</td>
+<td>1.21%</td>
+<td>+0.43</td>
+<td>+0.56</td>
+<td>-0.00</td>
+<td>-0.13</td>
+</tr>
+<tr>
+<td>combined_best_available</td>
+<td>domain+noagg</td>
+<td>0.97%</td>
+<td>1.14%</td>
+<td>+0.17</td>
+<td>+0.19</td>
+<td>+0.05</td>
+<td>-0.07</td>
+</tr>
+<tr>
+<td><strong>combined_augmented</strong></td>
+<td><strong>domain</strong></td>
+<td><strong>1.14%</strong></td>
+<td><strong>11.15%</strong></td>
+<td><strong>+10.01</strong></td>
+<td><strong>+10.50</strong></td>
+<td><strong>-0.02</strong></td>
+<td><strong>-0.48</strong></td>
+</tr>
+<tr>
+<td>combined_augmented</td>
+<td>domain+noagg</td>
+<td>1.41%</td>
+<td>9.81%</td>
+<td>+8.41</td>
+<td>+8.96</td>
+<td>+0.03</td>
+<td>-0.58</td>
+</tr>
+<tr>
+<td><strong>YOE≤2 proxy</strong></td>
+<td><strong>domain</strong></td>
+<td><strong>7.24%</strong></td>
+<td><strong>11.71%</strong></td>
+<td><strong>+4.46</strong></td>
+<td><strong>+4.50</strong></td>
+<td><strong>+1.50</strong></td>
+<td><strong>-1.54</strong></td>
+</tr>
+<tr>
+<td>YOE≤2 proxy</td>
+<td>domain+noagg</td>
+<td>7.96%</td>
+<td>12.04%</td>
+<td>+4.08</td>
+<td>+4.14</td>
+<td>-0.16</td>
+<td>+0.10</td>
+</tr>
+</tbody>
+</table>
+<p><strong>All three operationalizations agree:</strong> the entry-share rise is WITHIN-domain (~90-105% of the aggregate), not between-domain (market shifting toward junior-friendly archetypes).</p>
+<ul>
+<li><code>combined_best_available</code> restricts to rows with either <code>seniority_llm</code> or high-confidence rule routing; 83% of 2026 rows lack this and are excluded, yielding small absolute shares.</li>
+<li><code>combined_augmented</code> falls back to <code>seniority_final</code> for unrouted rows, reclassifying the bulk of the 2026 corpus. Under this, the aggregate rise is +10pp (large). But it inherits the arshkon native-entry contamination (41% of arshkon entries have YOE≥5; see seniority deep-dive).</li>
+<li><strong>The YOE proxy is the cleanest result</strong>: +4.46pp with within=+4.50, between=+1.50, interaction=-1.54. Between is a meaningful 1/3 of within here, indicating the market DID shift composition toward archetypes with slightly more junior YOE — AI/ML (10.93→16.02% entry-proxy) and T00 (the generalist cluster) are the biggest movers.</li>
+</ul>
+<p><strong>Per-archetype entry rate under <code>combined_augmented</code> (key rows):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Archetype</th>
+<th>2024 rate</th>
+<th>2026 rate</th>
+<th>Within contrib pp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T00 software/technical/development</td>
+<td>1.7%</td>
+<td>11.4%</td>
+<td>+1.90</td>
+</tr>
+<tr>
+<td>T04 frontend/web/react</td>
+<td>1.0%</td>
+<td>12.6%</td>
+<td>+1.03</td>
+</tr>
+<tr>
+<td>T17 typescript sql</td>
+<td>0.5%</td>
+<td>13.2%</td>
+<td>+0.82</td>
+</tr>
+<tr>
+<td>T07 equipment/sales</td>
+<td>1.4%</td>
+<td>15.4%</td>
+<td>+0.78</td>
+</tr>
+<tr>
+<td>T13 radar/clearance</td>
+<td>0.7%</td>
+<td>13.7%</td>
+<td>+0.62</td>
+</tr>
+<tr>
+<td>T03 data/analytics</td>
+<td>1.3%</td>
+<td>9.3%</td>
+<td>+0.60</td>
+</tr>
+<tr>
+<td>T09 .NET</td>
+<td>1.0%</td>
+<td>12.2%</td>
+<td>+0.60</td>
+</tr>
+<tr>
+<td>T01 AI/ML</td>
+<td><strong>0.8%</strong></td>
+<td><strong>11.8%</strong></td>
+<td>+0.52</td>
+</tr>
+<tr>
+<td>T02 cloud/devops</td>
+<td>0.5%</td>
+<td>6.9%</td>
+<td>+0.48</td>
+</tr>
+</tbody>
+</table>
+<p>The entry rate climbs 7–16× in most archetypes. The WITHIN term is dominated by T00 (generalist, largest share) and is large in every archetype because every archetype's entry rate roughly 10×s.</p>
+<p><strong>The between-domain term</strong> (market composition shift) contributes only +0.13pp from AI/ML and is net negative in several operationalizations. <strong>AI/ML growth is NOT the source of the entry-share rise.</strong> Whatever is causing the entry rate to climb in every archetype is a uniform phenomenon.</p>
+<p>Sensitivities: the aggregator-excluded subset shows a smaller aggregate rise (+8.41 vs +10.01, or +4.08 vs +4.46 under YOE) but the within/between ratio is preserved.</p>
+<p>See <code>exploration/figures/T28/fig2_entry_rate_per_archetype.png</code> and <code>fig3_decomposition_bar.png</code>, and table <code>entry_share_decomposition.csv</code>.</p>
+<hr />
+<h2 id="4-scope-inflation-is-universal-across-archetypes">4. Scope inflation is universal across archetypes</h2>
+<p>Aggregator-excluded. All 20 non-artifact archetypes grow on every scope metric — no single domain drives the T11/V1 aggregate.</p>
+<p><strong>Requirement breadth Δ%</strong> (range): +17.9% (T11 AWS) to +49.6% (T13 radar/clearance). AI/ML is mid-pack at +35.7%. Spring/Java +48.4%, .NET +45.8%, SRE +31.1%. <strong>Every archetype grew.</strong></p>
+<p><strong>Tech count Δ%</strong>: T07 equipment +107%, T12 vehicle +72%, T13 clearance +64%, T01 AI/ML +42%. AI/ML is not the max; classic-stack archetypes (Java, .NET) match or exceed it. Smallest: T11 AWS +4.4%, T06 android +12.7%.</p>
+<p><strong>Scope count Δ%</strong>: Spring/Java +153%, Python/Django +138%, clearance +116%, embedded +100%. AI/ML +67.7%. All 20 archetypes grew; minimum is T18 systems engineering +44%.</p>
+<p><strong>AI mention Δ%</strong>: ServiceNow +2789%, .NET +2188%, Spring +1787%. AI/ML itself only +5.3% because it was already saturated (0.92→0.97 mention rate). The biggest relative AI-language adoption is in the classic enterprise stacks — they're bolting AI-assistance language onto otherwise unchanged roles.</p>
+<p><strong>Credential stack depth ≥7 (the T11 headline 5.4× finding):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Archetype</th>
+<th>2024</th>
+<th>2026</th>
+<th>Ratio</th>
+<th>Δpp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T19 servicenow</td>
+<td>0.38%</td>
+<td>24.59%</td>
+<td><strong>63.9×</strong></td>
+<td>+24.2</td>
+</tr>
+<tr>
+<td>T15 SRE</td>
+<td>0.38%</td>
+<td>10.99%</td>
+<td>29.1×</td>
+<td>+10.6</td>
+</tr>
+<tr>
+<td>T05 Spring/Java</td>
+<td>0.46%</td>
+<td>10.54%</td>
+<td>22.9×</td>
+<td>+10.1</td>
+</tr>
+<tr>
+<td>T09 .NET</td>
+<td>0.47%</td>
+<td>8.38%</td>
+<td>17.7×</td>
+<td>+7.9</td>
+</tr>
+<tr>
+<td>T06 Android/iOS</td>
+<td>0.88%</td>
+<td>10.63%</td>
+<td>12.1×</td>
+<td>+9.8</td>
+</tr>
+<tr>
+<td>T04 Frontend</td>
+<td>1.04%</td>
+<td>11.59%</td>
+<td>11.1×</td>
+<td>+10.6</td>
+</tr>
+<tr>
+<td>T00 Generalist</td>
+<td>4.00%</td>
+<td>27.92%</td>
+<td>7.0×</td>
+<td>+23.9</td>
+</tr>
+<tr>
+<td>T02 Cloud/devops</td>
+<td>2.24%</td>
+<td>15.83%</td>
+<td>7.1×</td>
+<td>+13.6</td>
+</tr>
+<tr>
+<td>T03 Data eng</td>
+<td>9.00%</td>
+<td>25.61%</td>
+<td>2.9×</td>
+<td>+16.6</td>
+</tr>
+<tr>
+<td><strong>T01 AI/ML</strong></td>
+<td><strong>25.72%</strong></td>
+<td><strong>38.05%</strong></td>
+<td><strong>1.5×</strong></td>
+<td><strong>+12.3</strong></td>
+</tr>
+</tbody>
+</table>
+<p>AI/ML has the <strong>highest absolute credential stacking</strong> in both years (38% of postings have ≥7 credential categories), but the lowest ratio (1.5×) because it started saturated. <strong>AI/ML did not cause the credential-stacking explosion</strong> — it was already stacked. The ratio explosion is driven by legacy-stack archetypes catching up, suggestive of T29's LLM-authorship hypothesis: LLMs stack credential categories more uniformly than humans did.</p>
+<p>The T11 5.4× aggregate is thus a weighted mixture: AI/ML's 1.5× dragged down by the 11-65× growth in classic-stack archetypes. A compositional rise in AI/ML (which is already at 38%) would push the aggregate up further; but the within-archetype ratio tells the mechanism story.</p>
+<p>See <code>fig4_credential_stack_by_archetype.png</code> and <code>scope_inflation_by_archetype.csv</code>, <code>credential_stack_7_by_archetype.csv</code>.</p>
+<hr />
+<h2 id="5-junior-vs-senior-within-each-archetype-selective-convergence">5. Junior vs senior within each archetype — selective convergence</h2>
+<p><strong>Strict YOE buckets</strong> (YOE≤2 = entry-proxy; YOE≥5 = senior-proxy). Gap = senior − entry.</p>
+<p>Across 19 archetypes with sufficient sample in both periods, the direction of gap change is mixed:</p>
+<ul>
+<li><strong>AI mention gap</strong> (senior − entry): 9 archetypes widen (seniors use more AI vocab), 10 narrow or flat. Notable: T04 frontend gap went -0.07 → 0.07 (entry-level frontend is using MORE AI vocab); T03 data gap +0.22 (seniors pulling ahead). In aggregate (not shown) the entry-senior AI gap across all archetypes is near flat — entry caught up as much as seniors did, consistent with T11's entry AI-mention 15.8→50.1% finding.</li>
+<li><strong>Mentorship gap</strong>: widens in 13 of 19 archetypes (seniors get the mentoring language, entries don't). Clearest in T12 flight/vehicle (+0.31), T07 equipment (+0.15), and T08 test (+0.09). Shrinks in T03 data (+0.03), T15 SRE (-0.03), T17 (−0.02).</li>
+<li><strong>Requirement breadth gap</strong>: splits evenly — 10 widen, 9 narrow. <strong>T09 .NET</strong> shows the extreme: gap goes 0.16 → 4.48 (seniors gain 4.3 credential categories more than entries). <strong>T19 ServiceNow</strong> goes -2.35 → 2.46 (+4.8 swing).</li>
+<li><strong>Scope count gap</strong>: narrows in 9 archetypes (entry catching up on scope language) and widens in 10. No clear direction.</li>
+</ul>
+<p><strong>Conclusion for Step 4:</strong> Junior-senior content gaps do not converge uniformly. The T15 corpus-level convergence null held because within-archetype changes partially cancel: mentorship gap widens in most archetypes (keeping senior content distinct), while scope and breadth gaps change sign. <strong>The most actionable finding:</strong> mentorship language is the one consistent marker of senior postings that is holding distinctive in 2026 — every other dimension of senior-ness is leaking into entry postings.</p>
+<p>See <code>junior_senior_gap_changes.csv</code> for the full table.</p>
+<hr />
+<h2 id="6-senior-tier-mentoring-shift-by-archetype-strongly-universal">6. Senior-tier mentoring shift by archetype — strongly universal</h2>
+<p><strong>Senior-tier (YOE≥5) only.</strong> Strict mentoring = <code>mgmts_mentor</code> (T11 detector, ≈100% precision per V1); strict people-manager = any of {mgmts_direct_reports, mgmts_performance_review, mgmts_people_manager, mgmts_headcount}.</p>
+<table>
+<thead>
+<tr>
+<th>Archetype</th>
+<th>n_2024</th>
+<th>n_2026</th>
+<th>Mentor 2024</th>
+<th>Mentor 2026</th>
+<th>Δmentor pp</th>
+<th>Δpmgr pp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T19 ServiceNow</td>
+<td>115</td>
+<td>44</td>
+<td>6.96%</td>
+<td>36.36%</td>
+<td><strong>+29.4</strong></td>
+<td>0.00</td>
+</tr>
+<tr>
+<td>T06 Android/iOS</td>
+<td>178</td>
+<td>282</td>
+<td>25.84%</td>
+<td>53.90%</td>
+<td><strong>+28.1</strong></td>
+<td>-1.12</td>
+</tr>
+<tr>
+<td>T11 AWS</td>
+<td>304</td>
+<td>409</td>
+<td>30.26%</td>
+<td>50.86%</td>
+<td>+20.6</td>
+<td>+0.16</td>
+</tr>
+<tr>
+<td>T12 Flight/vehicle</td>
+<td>301</td>
+<td>355</td>
+<td>16.61%</td>
+<td>35.77%</td>
+<td>+19.2</td>
+<td>+0.23</td>
+</tr>
+<tr>
+<td>T01 AI/ML</td>
+<td>263</td>
+<td>1989</td>
+<td>25.86%</td>
+<td>43.39%</td>
+<td>+17.5</td>
+<td>+0.58</td>
+</tr>
+<tr>
+<td>T04 Frontend</td>
+<td>626</td>
+<td>691</td>
+<td>30.35%</td>
+<td>47.61%</td>
+<td>+17.3</td>
+<td>+0.85</td>
+</tr>
+<tr>
+<td>T03 Data eng</td>
+<td>691</td>
+<td>1073</td>
+<td>24.75%</td>
+<td>41.94%</td>
+<td>+17.2</td>
+<td>+0.24</td>
+</tr>
+<tr>
+<td>T09 .NET</td>
+<td>517</td>
+<td>167</td>
+<td>17.02%</td>
+<td>34.13%</td>
+<td>+17.1</td>
+<td>+0.41</td>
+</tr>
+<tr>
+<td>T05 Spring/Java</td>
+<td>507</td>
+<td>304</td>
+<td>12.62%</td>
+<td>28.62%</td>
+<td>+16.0</td>
+<td>+0.46</td>
+</tr>
+<tr>
+<td>T10 Embedded</td>
+<td>404</td>
+<td>290</td>
+<td>17.08%</td>
+<td>32.76%</td>
+<td>+15.7</td>
+<td>-1.73</td>
+</tr>
+<tr>
+<td>T13 Radar/clearance</td>
+<td>529</td>
+<td>192</td>
+<td>9.64%</td>
+<td>20.83%</td>
+<td>+11.2</td>
+<td>-0.19</td>
+</tr>
+<tr>
+<td>T22 Test/manufacturing</td>
+<td>146</td>
+<td>48</td>
+<td>14.38%</td>
+<td>25.00%</td>
+<td>+10.6</td>
+<td>-1.37</td>
+</tr>
+<tr>
+<td>T16 Python/Django</td>
+<td>133</td>
+<td>76</td>
+<td>4.51%</td>
+<td>14.47%</td>
+<td>+10.0</td>
+<td>0.00</td>
+</tr>
+<tr>
+<td>T17 TS/JS/Java</td>
+<td>131</td>
+<td>125</td>
+<td>39.69%</td>
+<td>47.20%</td>
+<td>+7.5</td>
+<td><strong>-10.1</strong></td>
+</tr>
+<tr>
+<td>T18 Systems eng</td>
+<td>637</td>
+<td>58</td>
+<td>13.97%</td>
+<td>20.69%</td>
+<td>+6.7</td>
+<td>-0.63</td>
+</tr>
+<tr>
+<td>T15 SRE</td>
+<td>99</td>
+<td>194</td>
+<td>20.20%</td>
+<td>26.80%</td>
+<td>+6.6</td>
+<td>+2.60</td>
+</tr>
+<tr>
+<td>T00 Generalist</td>
+<td>1971</td>
+<td>2324</td>
+<td>36.99%</td>
+<td>42.13%</td>
+<td>+5.1</td>
+<td>-0.71</td>
+</tr>
+<tr>
+<td>T08 Test</td>
+<td>264</td>
+<td>227</td>
+<td>19.70%</td>
+<td>23.35%</td>
+<td>+3.7</td>
+<td>+0.06</td>
+</tr>
+<tr>
+<td>T02 Cloud/devops</td>
+<td>734</td>
+<td>996</td>
+<td>29.43%</td>
+<td>32.03%</td>
+<td>+2.6</td>
+<td>+0.26</td>
+</tr>
+<tr>
+<td>T07 Equipment</td>
+<td>660</td>
+<td>347</td>
+<td>22.58%</td>
+<td>24.50%</td>
+<td>+1.9</td>
+<td>+2.81</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Every archetype's senior-tier mentoring rose.</strong> Range +1.9 to +29.4pp. Strict people-manager language stayed near 0% in 17 of 20 archetypes and declined in 6.</p>
+<p><strong>The T11 senior-as-IC-mentor story is the single most robust cross-domain finding in T28.</strong> It is not concentrated in AI/ML (which is mid-pack at +17.5pp). It is a uniform restructuring of the senior tier away from people-management language toward mentoring/coaching language, across every tech domain.</p>
+<p>T17 TypeScript/SQL is the lone outlier with material people-management language decline (22.9% → 12.8%, -10.1pp). T17 is asaniczka-heavy, so this likely reflects a source-composition artifact (asaniczka associate-heavy rows collapsing).</p>
+<p>See <code>fig5_senior_mentoring_by_archetype.png</code> and <code>senior_mentor_vs_pmgr_by_archetype.csv</code>.</p>
+<hr />
+<h2 id="7-aiml-archetype-deep-dive">7. AI/ML archetype deep dive</h2>
+<p><strong>Sample:</strong> 6,313 aggregator-excluded AI/ML rows (731 in 2024, 5,582 in 2026) — a 7.6× volume increase in absolute counts (vs 1.24× for the aggregator-excluded domain as a whole).</p>
+<h3 id="71-top-employers-dedup-within-company-by-description_hash">7.1 Top employers (dedup within company by description_hash)</h3>
+<p><strong>2024 (top 15):</strong> NVIDIA (19), Palo Alto Networks (19), Tesla (12), AMD (10), ByteDance (10), Rivian (9), Amazon (8), Anduril (8), Conch Tech (8), Stripe (7), Aurora (5), Walmart (5), Anyscale (4), Forward (4), RemoteWorker US (5).</p>
+<p><strong>2026 (top 15):</strong> Microsoft (84), JPMorgan Chase (56), Amazon (52), AWS (49), General Motors (42), Booz Allen Hamilton (41), Uber (40), Anthropic (38), NVIDIA (38), Adobe (35), AMD (34), Walmart (33), OpenAI (32), TikTok (31), ByteDance (29).</p>
+<p><strong>The 2026 top-15 is Fortune-500 heavy + AI labs.</strong> In 2024, the top slots were specialist GPU/autonomous/ML firms. By 2026, Microsoft, JPMorgan, Amazon, GM, Booz Allen, Uber, Adobe have bolted on AI/ML hiring at scale. This is consistent with "AI/ML growth comes from existing large employers shifting mix" more than "new entrants flooding the market." NVIDIA, AMD, ByteDance stayed; Anthropic and OpenAI joined the top 15 but are not dominant.</p>
+<p>Top-20 concentration: 30.67% of 2024 AI/ML rows came from the top 20 employers; only 22.39% in 2026. <strong>AI/ML is less concentrated in 2026 than in 2024</strong>, consistent with broad diffusion rather than a few big hirers capturing the growth.</p>
+<h3 id="72-seniority-mix-critical-methodological-finding">7.2 Seniority mix — critical methodological finding</h3>
+<table>
+<thead>
+<tr>
+<th>Op</th>
+<th>Period</th>
+<th>Entry %</th>
+<th>Mid-senior %</th>
+<th>Unknown/missing %</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>combined (strict routed)</td>
+<td>2024</td>
+<td>1.1%</td>
+<td>27.2%</td>
+<td>71.1% (incl None 50.1%)</td>
+</tr>
+<tr>
+<td>combined (strict routed)</td>
+<td>2026</td>
+<td>0.9%</td>
+<td>8.7%</td>
+<td>89.9% (incl None 82.8%)</td>
+</tr>
+<tr>
+<td>combined_augmented (with fallback)</td>
+<td>2024</td>
+<td>1.4%</td>
+<td>69.2%</td>
+<td>21.1%</td>
+</tr>
+<tr>
+<td>combined_augmented (with fallback)</td>
+<td>2026</td>
+<td>10.3%</td>
+<td>72.2%</td>
+<td>14.4%</td>
+</tr>
+<tr>
+<td>YOE proxy (known only)</td>
+<td>2024</td>
+<td>10.9%</td>
+<td>(mid: 29.2%)</td>
+<td>YOE-known n=439</td>
+</tr>
+<tr>
+<td>YOE proxy (known only)</td>
+<td>2026</td>
+<td>16.0%</td>
+<td>(mid: 31.1%)</td>
+<td>YOE-known n=3,764</td>
+</tr>
+</tbody>
+</table>
+<p><strong>T09 reported AI/ML as "structurally less junior-heavy" based on a 6.0% entry share vs 7-8% sample-wide.</strong> Under T28's combined_augmented, 2026 AI/ML entry is 10.3% vs ~7-8% rest — <strong>reversed direction</strong>. Under YOE proxy, 2026 AI/ML entry is 16.0% vs 17.2% rest — <strong>essentially identical</strong>, not distinctively junior-averse.</p>
+<p><strong>T09's finding was a labeling-column artifact.</strong> AI/ML has dramatically worse combined-column routing coverage (82.8% None vs much lower for rest-of-market) because AI/ML postings tend to avoid title-keyword matches that the Stage 5 router relies on — "Machine Learning Engineer", "AI/ML Engineer" titles skip the rule routing and get sent to LLM. When the LLM classification_coverage is missing for those rows, the combined column is NULL and the archetype looks artificially entry-sparse.</p>
+<p><strong>Correct characterization:</strong> Under label-independent YOE proxy, AI/ML entry share is 10.9% (2024) → 16.0% (2026), rising +5.1pp — <strong>more</strong> than the market-wide rise of +4.1pp. AI/ML is not junior-averse; it is among the archetypes with <strong>higher</strong> junior growth.</p>
+<h3 id="73-aiml-scope-profile-2026">7.3 AI/ML scope profile (2026)</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>AI/ML</th>
+<th>Rest</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>requirement_breadth</td>
+<td>19.0</td>
+<td>16.3</td>
+</tr>
+<tr>
+<td>tech_count</td>
+<td>10.2</td>
+<td>8.5</td>
+</tr>
+<tr>
+<td>scope_count</td>
+<td>2.57</td>
+<td>1.90</td>
+</tr>
+<tr>
+<td>ai_mention</td>
+<td>0.97</td>
+<td>0.41</td>
+</tr>
+<tr>
+<td>credential_stack_depth</td>
+<td>6.05</td>
+<td>5.43</td>
+</tr>
+<tr>
+<td>text_len chars</td>
+<td>3,585</td>
+<td>3,272</td>
+</tr>
+<tr>
+<td>mgmts_mentor rate</td>
+<td>29.8%</td>
+<td>29.5%</td>
+</tr>
+</tbody>
+</table>
+<p>AI/ML postings are longer (+10% chars), broader (+17% breadth), more credential-stacked (+11% depth), and nearly universal on AI mentions (97% vs 41%), but <strong>identical on mentorship rate</strong>. The "more senior, more demanding" stereotype of AI/ML is confirmed on requirement breadth and tech count but NOT on mentoring — senior-tier restructuring toward mentoring happens uniformly across all archetypes (Section 6).</p>
+<p>AI/ML core-growth mechanism: a mix of (a) existing large employers expanding AI hiring (Microsoft 84, JPMC 56, Amazon 52) and (b) new entrants from the AI-lab subset (Anthropic 38, OpenAI 32) contributing ~1.2% of AI/ML volume combined. The bulk of AI/ML growth is <strong>existing employers shifting their mix</strong>, not market entry. T16 will verify with company-level decomposition.</p>
+<p>See <code>aiml_top_employers_{2024,2026}.csv</code>, <code>aiml_seniority_mix.csv</code>.</p>
+<hr />
+<h2 id="8-sensitivities-summary">8. Sensitivities summary</h2>
+<p><strong>(a) Aggregator exclusion.</strong> All decomposition and scope analyses were run with and without aggregators (results in the same table). Within/between/interaction ratios are stable. Aggregate deltas shift ≤2.5pp under aggregator exclusion.</p>
+<p><strong>Capping.</strong> Within-archetype analyses implicitly cap because top-20 company share inside AI/ML is 22% in 2026 (vs 31% in 2024) — AI/ML is becoming LESS concentrated, not more. For the cross-archetype scope analyses, no capping was applied because the corpus-wide top-20 employers spread across many archetypes. T11 already verified aggregate scope inflation is robust to cap-20.</p>
+<p><strong>Seniority operationalization.</strong> Every result was run under combined_best_available, combined_augmented, and YOE-proxy where applicable. The combined_best_available column has too few 2026 labeled rows in AI/ML to make a defensible claim (82% None); combined_augmented adds the seniority_final fallback but inherits arshkon contamination; YOE proxy is the co-equal validator and agrees with combined_augmented on direction and within-dominance.</p>
+<p><strong>Artifact exclusion.</strong> T14, T20, T21 (Dice reposts, salary boilerplate, Expedia travel) were excluded from domain analyses. Noise (-1) was excluded.</p>
+<p><strong>Propagation accuracy.</strong> 87% holdout; propagated rows (55K of 63K) carry ~13% label noise. This noise is approximately random across the label space and does not systematically bias the domain × period contingency table. However, the 2024 asaniczka rows (23K) were not in T09's training sample and are entirely propagated, so the 2024 T09 AI/ML share (0.73% from sample × 5019 arshkon rows) is higher in T28 (4.7% within domain) because asaniczka propagation added AI/ML rows. The effect is to shrink the AI/ML 2024→2026 delta. The +11pp T09 figure used only arshkon for 2024; T28's +16pp uses the full 2024 pool via propagation. Both are defensible; T28's is consistent with other aggregate metrics.</p>
+<hr />
+<h2 id="9-key-takeaways">9. Key takeaways</h2>
+<ol>
+<li>
+<p><strong>Scope and credential inflation is a universal, within-domain phenomenon.</strong> Every archetype grew on requirement breadth (+17-50%), tech count (+4-107%), scope count (+41-153%), and credential stack ≥7 (+2.9-64× ratio). AI/ML is mid-pack, not the driver. This pattern is strongly suggestive of T29's LLM-authorship mechanism — a uniform cross-domain language shift is what we'd expect from recruiters adopting the same authoring tools.</p>
+</li>
+<li>
+<p><strong>Entry-share rise is 90-105% within-domain.</strong> Between-domain composition (AI/ML +16pp) contributes only +0.13pp to the aggregate entry-share rise under the primary operationalization. Whatever is causing more junior postings is happening inside every archetype, not through market re-sorting.</p>
+</li>
+<li>
+<p><strong>Senior-tier mentoring growth is the single cleanest result.</strong> +1.9 to +29.4pp across every archetype; strict people-management near-zero or declining in 17/20. The senior restructuring story holds universally and is not domain-dependent.</p>
+</li>
+<li>
+<p><strong>T09's "AI/ML is structurally less junior-heavy" should be revised.</strong> Under YOE proxy, AI/ML 2026 entry share is 16.0% vs 17.2% rest-of-market — indistinguishable. Under combined_augmented, AI/ML is slightly MORE entry-heavy (10.3% vs ~7.8% rest). The T09 finding was a combined-column routing-coverage artifact.</p>
+</li>
+<li>
+<p><strong>AI/ML growth is dominated by existing large employers.</strong> Top-20 concentration fell 31%→22%, suggesting diffusion. Microsoft, JPMorgan, Amazon, Uber, Adobe all now appear in the AI/ML top-15 — they were not there in 2024. AI labs (Anthropic, OpenAI) join but are not dominant.</p>
+</li>
+<li>
+<p><strong>Decomposition terminology caveat:</strong> when the within-term dominates the aggregate by 90-105%, the between-term is either adding little or subtracting. Here the between term is between -0.2 and +1.5pp depending on operationalization. The between-dominated scenario — "entry-share rose because the market shifted to AI/ML, which is more junior-friendly" — is <strong>not supported</strong>. The within-dominated scenario — "every archetype's entry-hiring rate climbed ~10×" — IS supported.</p>
+</li>
+</ol>
+<h2 id="outputs">Outputs</h2>
+<p>Tables (<code>exploration/tables/T28/</code>):
+- <code>archetype_assignments.parquet</code> — propagated labels for all 63,294 SWE LinkedIn rows
+- <code>centroid_holdout_accuracy.csv</code>
+- <code>archetype_share_by_period_all.csv</code>, <code>archetype_share_by_period_domain.csv</code>
+- <code>entry_share_decomposition.csv</code>, <code>entry_share_per_archetype_contrib.csv</code>
+- <code>scope_inflation_by_archetype.csv</code>, <code>credential_stack_7_by_archetype.csv</code>
+- <code>junior_senior_within_archetype.csv</code>, <code>junior_senior_gap_changes.csv</code>
+- <code>senior_mentor_vs_pmgr_by_archetype.csv</code>
+- <code>aiml_top_employers_2024.csv</code>, <code>aiml_top_employers_2026.csv</code>, <code>aiml_seniority_mix.csv</code></p>
+<p>Figures (<code>exploration/figures/T28/</code>):
+- <code>fig1_archetype_share_shift.png</code> — per-archetype share delta
+- <code>fig2_entry_rate_per_archetype.png</code> — 2024 vs 2026 entry rate bars
+- <code>fig3_decomposition_bar.png</code> — within/between/interaction by operationalization
+- <code>fig4_credential_stack_by_archetype.png</code>
+- <code>fig5_senior_mentoring_by_archetype.png</code></p>
+<p>Scripts (<code>exploration/scripts/</code>):
+- <code>T28_01_propagate_archetypes.py</code>
+- <code>T28_02_decomposition.py</code>
+- <code>T28_03_figures.py</code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

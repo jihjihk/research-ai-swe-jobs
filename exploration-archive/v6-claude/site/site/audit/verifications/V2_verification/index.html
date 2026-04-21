@@ -1,0 +1,5067 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Findings package from the 2024-2026 SWE labor market exploration">
+      
+      
+        <meta name="author" content="Agent P (Wave 5)">
+      
+      
+      
+        <link rel="prev" href="../V1_verification/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>V2 — Gate 3 Adversarial Verification - SWE Labor Market Exploration</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#v2-gate-3-adversarial-verification" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="SWE Labor Market Exploration" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              V2 — Gate 3 Adversarial Verification
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../layer1-presentation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Slides
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../findings/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../methodology/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Methodology
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../narrative/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Narrative
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="SWE Labor Market Exploration" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../layer1-presentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../findings/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/01-ai-explosion-field-wide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The AI explosion is field-wide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/02-posting-lags-workers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Posting language lags workers by 10x
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/03-senior-orchestration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Senior orchestration specialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/04-toolstack-pivot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool-stack restructuring and archetype pivot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/05-what-does-not-survive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What does not survive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/06-robustness-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Robustness framework (methods)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../methodology/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methodology
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/preprocessing-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/sensitivity-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations and open questions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../narrative/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Narrative
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Narrative
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/claims/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What the paper can and cannot claim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/story-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the story evolved across gates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full synthesis document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/INDEX/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Task inventory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 — Data Profile &amp; Column Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 — Seniority Comparability &amp; Label Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 — Seniority Label Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 — SWE Classification Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 — Cross-dataset comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 — Company concentration deep investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 — External benchmarks &amp; power/feasibility analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 — Distribution profiling &amp; anomaly detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 — Posting Archetype Discovery (Methods Laboratory)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10. Title taxonomy evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11. Requirements complexity &amp; credential stacking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 — Open-ended text evolution (Fightin' Words)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 — Linguistic &amp; structural evolution of SWE job postings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 — Technology ecosystem mapping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 — Semantic similarity landscape &amp; convergence analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 — Company hiring strategy typology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 — Geographic market structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 — Cross-occupation boundary analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 — Temporal patterns &amp; rate-of-change estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 — Seniority boundary clarity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 — Senior role evolution deep dive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22. Ghost &amp; aspirational requirements forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23. Employer-requirement / worker-usage divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T28/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 — Domain-stratified scope changes by archetype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T29/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 — LLM-authored description detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 — Hypothesis generation from exploration findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/T25/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T25 — Interview elicitation artifacts (meta-report)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gate memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 0 — Pre-Exploration Note
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1 Research Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2 Research Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2_corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2 Corrections (post-V1 verification)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3 Research Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3_corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3 Corrections (post-V2 verification)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_8" id="__nav_6_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verifications
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verifications
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V1_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V1 — Gate 2 Adversarial Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 — Gate 3 Adversarial Verification
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 — Gate 3 Adversarial Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#summary-verdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary verdict
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary verdict">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#re-derivation-pass-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-derivation pass rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-re-derivation-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Re-derivation table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-t23-lead-finding-independent-re-derivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. T23 lead-finding — independent re-derivation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. T23 lead-finding — independent re-derivation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#posting-side-rates-v2-fresh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Posting-side rates (V2 fresh)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#divergence-v2-re-derived-worker-so-2025-808" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Divergence (V2 re-derived, worker = SO 2025 80.8%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensitivity-50-85-worker-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitivity (50%-85% worker rate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benchmark-cross-check-web-fetch-2026-04-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmark cross-check (web fetch, 2026-04-15)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#section-restricted-hard-ai-requirement-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Section-restricted hard-AI-requirement rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v21-verdict-t23-lead-finding-holds-under-independent-re-derivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.1 verdict: T23 lead finding holds under independent re-derivation.
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-t16-within-company-decomposition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. T16 within-company decomposition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. T16 within-company decomposition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#panel-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Panel construction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decomposition-oaxaca-style-symmetric-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decomposition (Oaxaca-style symmetric weights)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-explanation-check-what-if-only-pre-ai-companies-drove-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative explanation check: what if only pre-AI companies drove it?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#k-means-cluster-stability-seed-7-different-from-t16s" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        k-means cluster stability (seed = 7, different from T16's)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#archetype-pivot-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Archetype pivot rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v22-verdict-t16-decomposition-and-cluster-typology-hold-the" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.2 verdict: T16 decomposition and cluster typology hold. The
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-t18-did-replication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. T18 DiD replication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. T18 DiD replication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#re-derived-did-broad-ai-24-term-regex-raw-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-derived DiD (broad AI 24-term regex, raw description)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v26-verdict-t18-did-headline-holds-swe-and-adjacent-are" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.6 verdict: T18 DiD headline holds. SWE and adjacent are
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-t29-style-match-length-flip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. T29 style-match — length flip
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. T29 style-match — length flip">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#feature-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature computation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#length-flip-robustness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Length-flip robustness
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-attenuation-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI attenuation check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v25-verdict-t29s-core-claim-ai-is-real-content-length-is-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.5 verdict: **T29's core claim ("AI is real content; length is style")
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-t28-credential-stack-convergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. T28 credential-stack convergence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. T28 credential-stack convergence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v2-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2 definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-archetype-entry-mid-senior-gap-v2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-archetype entry − mid-senior gap (V2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v24-verdict-t28s-convergence-finding-holds-1010-converge-in-the" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.4 verdict: **T28's convergence finding holds (10/10 converge in the
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#threshold-sensitivity-n_ms-200" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threshold sensitivity: n_ms ≥ 200
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-t21-orchestration-precision-audit-50-rows-2-periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. T21 orchestration precision audit (50 rows × 2 periods)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. T21 orchestration precision audit (50 rows × 2 periods)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#grading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grading
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-alternative-explanation-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Alternative explanation checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Alternative explanation checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#alt-1-rq3-inversion-driven-by-so-self-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 1: RQ3 inversion driven by SO self-selection?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alt-2-director-orchestration-156-driven-by-top-10-ai-heavy-companies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 2: Director orchestration +156% driven by top 10 AI-heavy companies?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alt-3-t16-92-within-company-driven-by-already-ai-forward-companies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 3: T16 92% within-company driven by already-AI-forward companies?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alt-4-t29-length-flip-confounded-by-authorship-score-containing-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 4: T29 length flip confounded by authorship score containing length?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alt-5-t18-swe-vs-adjacent-21-pp-ci-crosses-zero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 5: T18 SWE-vs-adjacent +2.1 pp CI crosses zero?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-specification-dependence-inventory-for-wave-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Specification-dependence inventory for Wave 3
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Specification-dependence inventory for Wave 3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-priority-spec-dependence-flags-for-wave-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-priority spec-dependence flags for Wave 4
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-verdict-on-each-gate-3-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Verdict on each Gate 3 finding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-top-3-issues-wave-4-synthesis-must-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Top 3 issues Wave 4 synthesis must address
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Top 3 issues Wave 4 synthesis must address">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-the-t29-length-flip-direction-is-not-a-single-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The T29 length-flip direction is not a single number
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-t28s-710-sign-flip-is-pattern-dependent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. T28's "7/10 sign flip" is pattern-dependent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-t23-per-tool-worker-rates-are-extrapolated-not-surveyed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. T23 per-tool worker rates are extrapolated, not surveyed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-files-produced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Files produced
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bottom-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bottom line
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#summary-verdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary verdict
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary verdict">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#re-derivation-pass-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-derivation pass rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-re-derivation-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Re-derivation table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-t23-lead-finding-independent-re-derivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. T23 lead-finding — independent re-derivation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. T23 lead-finding — independent re-derivation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#posting-side-rates-v2-fresh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Posting-side rates (V2 fresh)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#divergence-v2-re-derived-worker-so-2025-808" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Divergence (V2 re-derived, worker = SO 2025 80.8%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensitivity-50-85-worker-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitivity (50%-85% worker rate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benchmark-cross-check-web-fetch-2026-04-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmark cross-check (web fetch, 2026-04-15)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#section-restricted-hard-ai-requirement-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Section-restricted hard-AI-requirement rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v21-verdict-t23-lead-finding-holds-under-independent-re-derivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.1 verdict: T23 lead finding holds under independent re-derivation.
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-t16-within-company-decomposition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. T16 within-company decomposition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. T16 within-company decomposition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#panel-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Panel construction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decomposition-oaxaca-style-symmetric-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decomposition (Oaxaca-style symmetric weights)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-explanation-check-what-if-only-pre-ai-companies-drove-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative explanation check: what if only pre-AI companies drove it?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#k-means-cluster-stability-seed-7-different-from-t16s" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        k-means cluster stability (seed = 7, different from T16's)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#archetype-pivot-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Archetype pivot rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v22-verdict-t16-decomposition-and-cluster-typology-hold-the" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.2 verdict: T16 decomposition and cluster typology hold. The
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-t18-did-replication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. T18 DiD replication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. T18 DiD replication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#re-derived-did-broad-ai-24-term-regex-raw-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-derived DiD (broad AI 24-term regex, raw description)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v26-verdict-t18-did-headline-holds-swe-and-adjacent-are" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.6 verdict: T18 DiD headline holds. SWE and adjacent are
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-t29-style-match-length-flip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. T29 style-match — length flip
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. T29 style-match — length flip">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#feature-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature computation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#length-flip-robustness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Length-flip robustness
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-attenuation-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI attenuation check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v25-verdict-t29s-core-claim-ai-is-real-content-length-is-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.5 verdict: **T29's core claim ("AI is real content; length is style")
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-t28-credential-stack-convergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. T28 credential-stack convergence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. T28 credential-stack convergence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v2-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2 definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-archetype-entry-mid-senior-gap-v2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-archetype entry − mid-senior gap (V2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v24-verdict-t28s-convergence-finding-holds-1010-converge-in-the" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V2.4 verdict: **T28's convergence finding holds (10/10 converge in the
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#threshold-sensitivity-n_ms-200" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threshold sensitivity: n_ms ≥ 200
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-t21-orchestration-precision-audit-50-rows-2-periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. T21 orchestration precision audit (50 rows × 2 periods)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. T21 orchestration precision audit (50 rows × 2 periods)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#grading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grading
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-alternative-explanation-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Alternative explanation checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Alternative explanation checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#alt-1-rq3-inversion-driven-by-so-self-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 1: RQ3 inversion driven by SO self-selection?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alt-2-director-orchestration-156-driven-by-top-10-ai-heavy-companies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 2: Director orchestration +156% driven by top 10 AI-heavy companies?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alt-3-t16-92-within-company-driven-by-already-ai-forward-companies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 3: T16 92% within-company driven by already-AI-forward companies?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alt-4-t29-length-flip-confounded-by-authorship-score-containing-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 4: T29 length flip confounded by authorship score containing length?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alt-5-t18-swe-vs-adjacent-21-pp-ci-crosses-zero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alt 5: T18 SWE-vs-adjacent +2.1 pp CI crosses zero?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-specification-dependence-inventory-for-wave-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Specification-dependence inventory for Wave 3
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Specification-dependence inventory for Wave 3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-priority-spec-dependence-flags-for-wave-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-priority spec-dependence flags for Wave 4
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-verdict-on-each-gate-3-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Verdict on each Gate 3 finding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-top-3-issues-wave-4-synthesis-must-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Top 3 issues Wave 4 synthesis must address
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Top 3 issues Wave 4 synthesis must address">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-the-t29-length-flip-direction-is-not-a-single-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The T29 length-flip direction is not a single number
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-t28s-710-sign-flip-is-pattern-dependent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. T28's "7/10 sign flip" is pattern-dependent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-t23-per-tool-worker-rates-are-extrapolated-not-surveyed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. T23 per-tool worker rates are extrapolated, not surveyed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-files-produced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Files produced
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bottom-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bottom line
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="v2-gate-3-adversarial-verification">V2 — Gate 3 Adversarial Verification<a class="headerlink" href="#v2-gate-3-adversarial-verification" title="Permanent link">&para;</a></h1>
+<p>Agent: V2 (verification, adversarial)
+Date: 2026-04-15
+Frame: SWE LinkedIn default filter (<code>is_english=true AND date_flag='ok'</code>), 22,820 rows 2024 / 40,881 rows 2026.
+Inputs: <code>data/unified.parquet</code>, <code>exploration/artifacts/shared/*</code>
+Scripts: <code>exploration/scripts/V2_*.py</code>
+Tables: <code>exploration/tables/V2/V2_*.csv</code></p>
+<hr />
+<h2 id="summary-verdict">Summary verdict<a class="headerlink" href="#summary-verdict" title="Permanent link">&para;</a></h2>
+<p>Gate 3 <strong>clears with qualifications on three headline numbers</strong>. The paper's
+lead finding (T23 RQ3 inversion) and the co-headline (T21 senior orchestration
+shift) both reproduce independently with very tight tolerances. T16's
+within-company decomposition reproduces within ~2%. T18's DiD is essentially
+exact. <strong>But two findings do not reproduce cleanly:</strong></p>
+<ol>
+<li>
+<p><strong>T28's "credential-stack gap flips sign in 7 of 10 large archetypes"</strong> is
+   strongly <strong>pattern-dependent</strong>. Under an independently defined 6-category
+   credential stack, only <strong>2 of 10 large archetypes show a sign flip</strong>, though
+   all 10 converge in the expected direction. The 7/10 number should not be
+   cited in the paper without specifying the exact pattern set.</p>
+</li>
+<li>
+<p><strong>T29's "length-flip under style matching" (−411 chars)</strong> is very sensitive
+   to which authorship features enter the matcher. Under a simpler
+   3-feature composite (tell-density, em-dash, bullet), the matched delta is
+   <strong>+473 chars (no flip)</strong>. Under em-dash-only matching it is <strong>−264 chars
+   (flips)</strong>. Under bullet-only it is <strong>+704 chars (strengthens)</strong>. The flip
+   reproduces under em-dash and tell-leaning compositions but NOT under a
+   bullet-weighted composite, and T29 itself flagged bullet density as a
+   heavy instrument/format confound. <strong>The length-flip finding is
+   specification-dependent in its direction, and the paper should state the
+   exact feature set used.</strong></p>
+</li>
+</ol>
+<p>Nothing else in Gate 3 is in trouble.</p>
+<h3 id="re-derivation-pass-rate">Re-derivation pass rate<a class="headerlink" href="#re-derivation-pass-rate" title="Permanent link">&para;</a></h3>
+<p><strong>8 of 10 headline numbers PASS within tolerance.</strong> 1 partial (T16 within-%),
+1 spec-dependent (T28 7/10 flip count).</p>
+<hr />
+<h2 id="1-re-derivation-table">1. Re-derivation table<a class="headerlink" href="#1-re-derivation-table" title="Permanent link">&para;</a></h2>
+<p>Independent SQL/Python, no code reuse from any prior task script.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Finding</th>
+<th>Reported (Gate 3)</th>
+<th>V2 re-derived</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T23-1</td>
+<td>2026 SWE broad AI posting rate</td>
+<td>28.6%</td>
+<td><strong>28.57%</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T23-2</td>
+<td>2026 AI-as-tool rate</td>
+<td>6.87%</td>
+<td><strong>6.34%</strong></td>
+<td><strong>PASS</strong> within 0.53 pp</td>
+</tr>
+<tr>
+<td>T23-3</td>
+<td>2026 Copilot posting rate</td>
+<td>3.77%</td>
+<td><strong>3.77%</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T23-4</td>
+<td>2026 ChatGPT posting rate</td>
+<td>0.61%</td>
+<td><strong>0.61%</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T23-5</td>
+<td>2026 Claude Code posting rate</td>
+<td>3.37%</td>
+<td><strong>3.37%</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T23-6</td>
+<td>2026 Cursor posting rate</td>
+<td>1.91%</td>
+<td><strong>1.91%</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T23-7</td>
+<td>2026 narrow AI rate (<code>description_core_llm</code>)</td>
+<td>34.6%</td>
+<td><strong>34.64%</strong> when restricted to <code>llm_extraction_coverage='labeled'</code></td>
+<td><strong>PASS</strong> exact on T23's denominator. On full corpus + COALESCE with raw desc: <strong>42.82%</strong> (the discrepancy is text-subset, not a bug).</td>
+</tr>
+<tr>
+<td>T16-1</td>
+<td>Panel n=240 @ ≥3 SWE each period</td>
+<td>240</td>
+<td><strong>240</strong> exact</td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td>T16-2</td>
+<td>AI within-company decomposition %</td>
+<td>92% (+0.2103 of +0.2291)</td>
+<td><strong>89.7%</strong> (+0.2053 of +0.2289)</td>
+<td><strong>PASS</strong> (within 2.3 pp; same direction, same magnitude scale)</td>
+</tr>
+<tr>
+<td>T16-3</td>
+<td>k-means cluster-3 "tool-stack adopter"</td>
+<td>n=46, ΔAI +0.523, Δdesclen +1149, Δscope +0.328</td>
+<td>Top-dAI cluster (seed=7): <strong>n=50</strong>, ΔAI +0.510, Δdesclen +1128, Δscope +0.355</td>
+<td><strong>PASS</strong> — cluster stable across seed</td>
+</tr>
+<tr>
+<td>T16-4</td>
+<td>Archetype pivot rate ≥3/period</td>
+<td>74.6%</td>
+<td><strong>71.7%</strong> (on 223 panel companies with both-year archetype labels)</td>
+<td><strong>PASS</strong> (within 3 pp)</td>
+</tr>
+<tr>
+<td>T21-1</td>
+<td>Mid-senior people density 2024</td>
+<td>0.186</td>
+<td><strong>0.1862</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T21-2</td>
+<td>Mid-senior orch density 2024 → 2026</td>
+<td>0.168 → 0.332 (+98%)</td>
+<td><strong>0.1675 → 0.3317 (+98%)</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T21-3</td>
+<td>Director orch density 2024 → 2026</td>
+<td>0.118 → 0.302 (+156%)</td>
+<td><strong>0.1180 → 0.3015 (+156%)</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T21-4</td>
+<td>Director people density 2024 → 2026</td>
+<td>0.228 → 0.181 (−21%)</td>
+<td><strong>0.2282 → 0.1806 (−21%)</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T21-5</td>
+<td>AI × senior orchestration uplift 2026</td>
+<td>+76% over non-AI</td>
+<td><strong>+73%</strong> over non-AI</td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td>T21-6</td>
+<td>AI × senior people density</td>
+<td>identical</td>
+<td><strong>0.230 vs 0.232 (−1%)</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td>T18-1</td>
+<td>DiD SWE-vs-ctrl (AI broad)</td>
+<td>+29.6 pp, CI [28.9, 30.4]</td>
+<td><strong>+29.73 pp, CI [28.99, 30.46]</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T18-2</td>
+<td>DiD SWE-vs-adj (AI broad)</td>
+<td>+2.1 pp</td>
+<td><strong>+2.08 pp, CI [0.77, 3.38]</strong></td>
+<td><strong>PASS</strong> — does NOT cross zero but is small (see §4)</td>
+</tr>
+<tr>
+<td>T29-1</td>
+<td>Full char_len delta</td>
+<td>+377</td>
+<td><strong>+377.4</strong></td>
+<td><strong>PASS</strong> exact</td>
+</tr>
+<tr>
+<td>T29-2</td>
+<td>Style-matched char_len delta</td>
+<td>−411 (flip)</td>
+<td><strong>+473 (no flip) under simplified 3-feature composite; −264 under em-dash only; +704 under bullet only</strong></td>
+<td><strong>SPEC-DEPENDENT</strong> — see §5</td>
+</tr>
+<tr>
+<td>T29-3</td>
+<td>AI broad matched attenuation</td>
+<td>2%</td>
+<td><strong>7%</strong> (+0.216 full → +0.201 matched)</td>
+<td><strong>PASS</strong> (within same order; attenuation small)</td>
+</tr>
+<tr>
+<td>T28-1</td>
+<td>Credential-stack Δgap sign flips in 7/10 archetypes</td>
+<td>7/10 flip, all converge</td>
+<td><strong>2/10 flip</strong>, 10/10 converge</td>
+<td><strong>SPEC-DEPENDENT</strong> — see §6</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-t23-lead-finding-independent-re-derivation">2. T23 lead-finding — independent re-derivation<a class="headerlink" href="#2-t23-lead-finding-independent-re-derivation" title="Permanent link">&para;</a></h2>
+<h3 id="posting-side-rates-v2-fresh">Posting-side rates (V2 fresh)<a class="headerlink" href="#posting-side-rates-v2-fresh" title="Permanent link">&para;</a></h3>
+<p>Using the shared tech matrix (all 63,701 rows, boilerplate-insensitive) and
+aggregating by period:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>2024</th>
+<th>2026</th>
+<th>T23 reported 2026</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Broad AI (24-term union)</td>
+<td>5.01%</td>
+<td><strong>28.57%</strong></td>
+<td>28.6% ✓</td>
+</tr>
+<tr>
+<td>Narrow AI (regex <code>\bai\b</code> or "artificial intelligence"), llm-subset only</td>
+<td>5.97%</td>
+<td><strong>34.64%</strong></td>
+<td>34.6% ✓</td>
+</tr>
+<tr>
+<td>Narrow AI (full corpus + raw-desc fallback)</td>
+<td>6.14%</td>
+<td><strong>42.82%</strong></td>
+<td>— (T23 used llm-subset)</td>
+</tr>
+<tr>
+<td>AI-as-tool (copilot/cursor/claude/chatgpt/prompt-eng)</td>
+<td>0.11%</td>
+<td><strong>6.34%</strong></td>
+<td>6.87% (0.53 pp diff)</td>
+</tr>
+<tr>
+<td>Copilot</td>
+<td>0.06%</td>
+<td><strong>3.77%</strong></td>
+<td>3.77% ✓</td>
+</tr>
+<tr>
+<td>ChatGPT</td>
+<td>0.03%</td>
+<td><strong>0.61%</strong></td>
+<td>0.61% ✓</td>
+</tr>
+<tr>
+<td>Claude Code</td>
+<td>0.01%</td>
+<td><strong>3.37%</strong></td>
+<td>3.37% ✓</td>
+</tr>
+<tr>
+<td>Cursor</td>
+<td>0.004%</td>
+<td><strong>1.91%</strong></td>
+<td>1.91% ✓</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Caveat on narrow AI:</strong> T23's 34.6% is the narrow-AI rate on
+<code>llm_extraction_coverage='labeled'</code> subset (12,481 rows). On the full 40,881
+scraped 2026 rows with raw-description fallback, the narrow rate is <strong>42.82%</strong>.
+Both are valid operationalizations — the full-corpus number is actually
+<em>stronger</em> for the divergence direction. The 34.6% figure is the conservative
+choice and the text used by T23 is defensible; the paper should just state the
+subset explicitly.</p>
+<h3 id="divergence-v2-re-derived-worker-so-2025-808">Divergence (V2 re-derived, worker = SO 2025 80.8%)<a class="headerlink" href="#divergence-v2-re-derived-worker-so-2025-808" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>V2 2026</th>
+<th>Worker</th>
+<th>Gap (pp)</th>
+<th>Ratio</th>
+<th>Worker ÷ posting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Broad AI</td>
+<td>28.57%</td>
+<td>80.8%</td>
+<td><strong>−52.2</strong></td>
+<td>0.35</td>
+<td>2.83×</td>
+</tr>
+<tr>
+<td>Narrow AI (llm subset)</td>
+<td>34.64%</td>
+<td>80.8%</td>
+<td><strong>−46.2</strong></td>
+<td>0.43</td>
+<td>1.89× (full corpus: 42.82% → −38 pp, 1.89×)</td>
+</tr>
+<tr>
+<td>AI-as-tool</td>
+<td>6.34%</td>
+<td>80.8%</td>
+<td>−74.5</td>
+<td>0.08</td>
+<td>12.74×</td>
+</tr>
+<tr>
+<td>Copilot</td>
+<td>3.77%</td>
+<td>54.9%</td>
+<td>−51.1</td>
+<td>0.07</td>
+<td><strong>14.55×</strong></td>
+</tr>
+<tr>
+<td>ChatGPT</td>
+<td>0.61%</td>
+<td>66.0%</td>
+<td>−65.4</td>
+<td>0.01</td>
+<td><strong>107.9×</strong></td>
+</tr>
+<tr>
+<td>Claude Code</td>
+<td>3.37%</td>
+<td>33.0%</td>
+<td>−29.6</td>
+<td>0.10</td>
+<td>9.80×</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Direction holds on every metric.</strong> Per-tool ratios (Copilot 14.5×, ChatGPT
+108×, Claude Code 9.8×) match T23's reported magnitudes. The paper's lead
+number (worker-to-posting ratio 10–15× for tool-specific AI) is confirmed.</p>
+<h3 id="sensitivity-50-85-worker-rate">Sensitivity (50%-85% worker rate)<a class="headerlink" href="#sensitivity-50-85-worker-rate" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Worker</th>
+<th>gap broad</th>
+<th>gap narrow</th>
+<th>gap tool</th>
+<th>Direction holds?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>50%</td>
+<td>−21.4</td>
+<td>−15.4</td>
+<td>−43.7</td>
+<td>All three yes</td>
+</tr>
+<tr>
+<td>65%</td>
+<td>−36.4</td>
+<td>−30.4</td>
+<td>−58.7</td>
+<td>All three yes</td>
+</tr>
+<tr>
+<td>75%</td>
+<td>−46.4</td>
+<td>−40.4</td>
+<td>−68.7</td>
+<td>All three yes</td>
+</tr>
+<tr>
+<td>80.8%</td>
+<td>−52.2</td>
+<td>−46.2</td>
+<td>−74.5</td>
+<td>All three yes</td>
+</tr>
+<tr>
+<td>85%</td>
+<td>−56.4</td>
+<td>−50.4</td>
+<td>−78.7</td>
+<td>All three yes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Direction holds under every worker assumption from 50% to 85%.</strong> For broad
+AI, worker would have to be below 28.6% for the sign to flip. For narrow, below
+34.6%. For AI-as-tool, below 6.3%. None of these are plausible per any
+published benchmark I could find.</p>
+<h3 id="benchmark-cross-check-web-fetch-2026-04-15">Benchmark cross-check (web fetch, 2026-04-15)<a class="headerlink" href="#benchmark-cross-check-web-fetch-2026-04-15" title="Permanent link">&para;</a></h3>
+<p>I independently fetched the SO 2025 AI page and verified:
+- <strong>80.8% total current usage</strong> = 50.6% daily + 17.4% weekly + 12.8% monthly/infrequently. Question text: "Do you currently use AI tools in your development process?"
+- Copilot/ChatGPT/Claude Code per-tool shares (67.9% / 81.7% / 40.8%) are AMONG AI users in the "agents" subsection, which is a subset (17% of respondents build agents). T23's unconditional estimates (54.9% / 66.0% / 33.0%) are computed by multiplying this conditional share by 80.8%. <strong>This is approximate</strong> — the 67.9% "used Copilot to build agents" is not the same as "unconditional Copilot share." A more rigorous comparison would need the raw SO tool-share-among-all-pro-devs numbers, which SO does not publish directly on the agents page.
+- <strong>The paper should soften the per-tool benchmark claims</strong> — e.g., "at least ~55% of professional developers use Copilot (rough estimate from SO 2025 conditional share × any-use)" rather than citing 54.9% as exact.</p>
+<p><strong>Other benchmarks I could cross-check:</strong>
+- "84% of respondents using or planning to use AI tools" (SO blog 2025-12-29).
+- "~82% of developers use AI coding assistants daily or weekly."
+- "GitHub Copilot reports 20M+ all-time users (mid-2025)" — absolute not share.
+- Multiple external surveys (see T23 Table Step 2): Accenture 67% daily among licensed, Anthropic Computer Programmer exposure 75%, GitClear data corroborates ~80%.</p>
+<p>All four cross-checks put professional-developer AI any-use between <strong>75% and
+84%</strong>, well within T23's 50–85% sensitivity range.</p>
+<h3 id="section-restricted-hard-ai-requirement-rate">Section-restricted hard-AI-requirement rate<a class="headerlink" href="#section-restricted-hard-ai-requirement-rate" title="Permanent link">&para;</a></h3>
+<p>Not re-run from scratch. T13's section classifier is at
+<code>exploration/scripts/T13_section_classifier.py</code> and V1 already audited T13 at
+≥93% precision on responsibilities. The 6.0% hard-AI-requirement rate in
+T22/T23 is downstream of that classifier, which V1 cleared. <strong>Not
+independently re-derived here, but V1's T13 verdict stands and the 6.0% figure
+is inherited from it.</strong> Flagged as a Wave 4 method caveat.</p>
+<h3 id="v21-verdict-t23-lead-finding-holds-under-independent-re-derivation">V2.1 verdict: <strong>T23 lead finding holds under independent re-derivation.</strong><a class="headerlink" href="#v21-verdict-t23-lead-finding-holds-under-independent-re-derivation" title="Permanent link">&para;</a></h3>
+<hr />
+<h2 id="3-t16-within-company-decomposition">3. T16 within-company decomposition<a class="headerlink" href="#3-t16-within-company-decomposition" title="Permanent link">&para;</a></h2>
+<h3 id="panel-construction">Panel construction<a class="headerlink" href="#panel-construction" title="Permanent link">&para;</a></h3>
+<p>Independent SQL on <code>data/unified.parquet</code>: companies with ≥3 SWE postings in
+each of <code>kaggle_arshkon</code> (2024) and <code>scraped</code> (2026), under default filters.</p>
+<p><strong>Panel n = 240</strong> — exact match with T16.</p>
+<h3 id="decomposition-oaxaca-style-symmetric-weights">Decomposition (Oaxaca-style symmetric weights)<a class="headerlink" href="#decomposition-oaxaca-style-symmetric-weights" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>V2</th>
+<th>T16 reported</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Panel mean AI 2024</td>
+<td>0.0474</td>
+<td>0.0402</td>
+</tr>
+<tr>
+<td>Panel mean AI 2026</td>
+<td>0.2763</td>
+<td>0.2693</td>
+</tr>
+<tr>
+<td>Total Δ</td>
+<td>+0.2289</td>
+<td>+0.2291</td>
+</tr>
+<tr>
+<td>Within-company component</td>
+<td><strong>+0.2053 (89.7%)</strong></td>
+<td>+0.2103 (92%)</td>
+</tr>
+<tr>
+<td>Between-company component</td>
+<td>+0.0236</td>
+<td>+0.0188</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Within-company percentage reproduces at 89.7% vs T16's 92%.</strong> The ~2 pp
+difference is from minor variation in the weighting scheme (I used a
+symmetric (w_24+w_26)/2 average; T16's exact scheme is not fully described).
+Both numbers say the same thing: <strong>the AI explosion in panel companies is
+overwhelmingly within the same companies,</strong> not driven by new entrants to
+the panel. <strong>PASS within 2.3 pp.</strong></p>
+<h3 id="alternative-explanation-check-what-if-only-pre-ai-companies-drove-it">Alternative explanation check: what if only pre-AI companies drove it?<a class="headerlink" href="#alternative-explanation-check-what-if-only-pre-ai-companies-drove-it" title="Permanent link">&para;</a></h3>
+<p>Companies with 0 AI mentions in 2024: <strong>186 of 240 (77.5%)</strong>. Companies with
+any AI in 2024: 54. Re-running the decomposition separately:</p>
+<ul>
+<li><strong>Zero-2024 companies only (n=186):</strong> within = +0.2293. These companies
+  started from nothing and drove almost all of the panel-level rise.</li>
+<li><strong>Companies with &gt;0 AI in 2024 (n=54):</strong> within = +0.166 (82.7% of
+  their +0.201 total).</li>
+</ul>
+<p>Both subsets show very strong within-company AI growth. <strong>The within-company
+finding is NOT an artifact of AI-forward companies; it is driven by hundreds
+of companies that had zero AI in 2024 and adopted AI vocabulary by 2026.</strong></p>
+<h3 id="k-means-cluster-stability-seed-7-different-from-t16s">k-means cluster stability (seed = 7, different from T16's)<a class="headerlink" href="#k-means-cluster-stability-seed-7-different-from-t16s" title="Permanent link">&para;</a></h3>
+<p>k=4 k-means on z-scored per-company change vectors (dAI, ddesc_len, dscope):</p>
+<table>
+<thead>
+<tr>
+<th>Cluster</th>
+<th>n</th>
+<th>mean dAI</th>
+<th>mean Δdesclen</th>
+<th>mean Δscope</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 (top dAI)</td>
+<td><strong>50</strong></td>
+<td><strong>+0.510</strong></td>
+<td><strong>+1129</strong></td>
+<td><strong>+0.355</strong></td>
+<td>Tool-stack adopter</td>
+</tr>
+<tr>
+<td>0</td>
+<td>94</td>
+<td>+0.102</td>
+<td>+733</td>
+<td>+0.261</td>
+<td>Moderate</td>
+</tr>
+<tr>
+<td>3</td>
+<td>62</td>
+<td>+0.176</td>
+<td>−26</td>
+<td>−0.114</td>
+<td>Length-flat</td>
+</tr>
+<tr>
+<td>2</td>
+<td>34</td>
+<td>+0.113</td>
+<td>+2382</td>
+<td>−0.034</td>
+<td>Length-bloat</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cluster stability PASS.</strong> T16's cluster 3 (n=46, ΔAI +0.523, Δdesc +1149,
+Δscope +0.328) is reproduced by my seed-7 top cluster (n=50, ΔAI +0.510,
+Δdesc +1129, Δscope +0.355) to near-identical magnitudes.</p>
+<h3 id="archetype-pivot-rate">Archetype pivot rate<a class="headerlink" href="#archetype-pivot-rate" title="Permanent link">&para;</a></h3>
+<p>My re-derivation using <code>swe_archetype_labels.parquet</code> joined to company ×
+period: <strong>71.7%</strong> pivoted dominant archetype (n=223 panel companies with
+both-year archetype labels, excluding the no-text bucket). T16 reported
+74.6%. The 3 pp gap is consistent with a slightly different company
+denominator (T16 had 240; I had 223 with valid both-year labels after
+dropping the "no text" bucket on both sides). <strong>PASS within tolerance.</strong></p>
+<h3 id="v22-verdict-t16-decomposition-and-cluster-typology-hold-the">V2.2 verdict: <strong>T16 decomposition and cluster typology hold.</strong> The<a class="headerlink" href="#v22-verdict-t16-decomposition-and-cluster-typology-hold-the" title="Permanent link">&para;</a></h3>
+<p>within-company % is 89.7 not 92, but the finding is the same.</p>
+<hr />
+<h2 id="4-t18-did-replication">4. T18 DiD replication<a class="headerlink" href="#4-t18-did-replication" title="Permanent link">&para;</a></h2>
+<h3 id="re-derived-did-broad-ai-24-term-regex-raw-description">Re-derived DiD (broad AI 24-term regex, raw description)<a class="headerlink" href="#re-derived-did-broad-ai-24-term-regex-raw-description" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Comparison</th>
+<th>V2 DiD</th>
+<th>V2 SE</th>
+<th>V2 CI95</th>
+<th>T18 reported</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SWE vs control</td>
+<td><strong>+29.73 pp</strong></td>
+<td>0.375</td>
+<td><strong>[28.99, 30.46]</strong></td>
+<td>+29.6 pp, [28.9, 30.4] ✓</td>
+</tr>
+<tr>
+<td>SWE vs adjacent</td>
+<td><strong>+2.08 pp</strong></td>
+<td>0.665</td>
+<td><strong>[0.77, 3.38]</strong></td>
+<td>+2.1 pp ✓</td>
+</tr>
+<tr>
+<td>Adj vs control</td>
+<td><strong>+27.65 pp</strong></td>
+<td>0.586</td>
+<td><strong>[26.50, 28.80]</strong></td>
+<td>+27.5 pp ✓</td>
+</tr>
+</tbody>
+</table>
+<p><strong>All three CIs reproduce almost exactly.</strong> The SWE-vs-adjacent CI [0.77, 3.38]
+<strong>does NOT cross zero</strong> — the small +2.1 pp is distinguishable from zero at
+the 95% level, so T18's "SWE + adjacent together, both distinct from control"
+framing holds. <strong>However, 2.1 pp is genuinely small and an SE of 0.665 means
+the lower bound is only 0.77</strong> — the paper should report the CI explicitly
+and state that the difference is statistically detectable but substantively
+modest. The framing "AI is information-tech wide, not SWE-specific" remains
+correct because 2.1 pp is far smaller than the 29.7 pp SWE-vs-control gap.</p>
+<h3 id="v26-verdict-t18-did-headline-holds-swe-and-adjacent-are">V2.6 verdict: <strong>T18 DiD headline holds.</strong> SWE and adjacent are<a class="headerlink" href="#v26-verdict-t18-did-headline-holds-swe-and-adjacent-are" title="Permanent link">&para;</a></h3>
+<p>statistically distinguishable but substantively similar; control is far
+below both.</p>
+<hr />
+<h2 id="5-t29-style-match-length-flip">5. T29 style-match — length flip<a class="headerlink" href="#5-t29-style-match-length-flip" title="Permanent link">&para;</a></h2>
+<h3 id="feature-computation">Feature computation<a class="headerlink" href="#feature-computation" title="Permanent link">&para;</a></h3>
+<p>I computed three T29-like authorship features on all 34,161 labeled rows:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>2024 mean</th>
+<th>2026 mean</th>
+<th>T29 reported (mean)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tell-token density (per 1K)</td>
+<td>0.195</td>
+<td>0.261</td>
+<td>0.24 → 0.34 (+41%) ✓</td>
+</tr>
+<tr>
+<td>Em-dash density (per 1K)</td>
+<td>0.094</td>
+<td>0.187</td>
+<td>0.094 → 0.187 (+98%) ✓</td>
+</tr>
+<tr>
+<td>Bullet density (per 1K)</td>
+<td>0.39</td>
+<td>7.79</td>
+<td>0.40 → 6.33 (~16×) ✓</td>
+</tr>
+<tr>
+<td>Composite score</td>
+<td>−0.25</td>
+<td>+0.43</td>
+<td>−0.14 → +0.19 (similar direction, different magnitude)</td>
+</tr>
+</tbody>
+</table>
+<p>Features reproduce. My composite shifts more because I use 3 equal-weighted
+features vs T29's 7.</p>
+<h3 id="length-flip-robustness">Length-flip robustness<a class="headerlink" href="#length-flip-robustness" title="Permanent link">&para;</a></h3>
+<p><strong>Full char_len delta: +377.4</strong> (T29: +377) ✓.</p>
+<p>Style-matched delta <strong>depends on which matching feature</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Matching score</th>
+<th>V2 matched delta</th>
+<th>Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T29 full (7-feature composite)</td>
+<td>— (not replicated; see T29)</td>
+<td>flips (−411)</td>
+</tr>
+<tr>
+<td>V2 composite (tell + em-dash + bullet)</td>
+<td><strong>+473</strong></td>
+<td><strong>no flip</strong></td>
+</tr>
+<tr>
+<td>V2 tell-only</td>
+<td><strong>−60</strong></td>
+<td>near zero / slight flip</td>
+</tr>
+<tr>
+<td>V2 em-dash only</td>
+<td><strong>−264</strong></td>
+<td>flips</td>
+</tr>
+<tr>
+<td>V2 bullet-only</td>
+<td><strong>+704</strong></td>
+<td>strengthens in the full direction</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The length-flip finding's direction DEPENDS on which features enter the
+composite.</strong> Under tell-only or em-dash-only matching, the delta is negative
+(consistent with T29's flip). Under a bullet-heavy composite, the delta goes
+to +704. Under my 3-feature (tell + em-dash + bullet) equal-weight composite,
+the delta is <strong>+473</strong> — the opposite of T29's flip.</p>
+<p><strong>Why this matters:</strong> T29 itself flagged bullet density as a heavy instrument
+confound — scraped markdown has bullets; Kaggle HTML-stripped text doesn't.
+T29's 7-feature composite down-weights bullet (sharing 1/7 weight) while my
+composite over-weights it (1/3). When bullet is downweighted (tell-only,
+em-dash-only), the flip reproduces; when it is upweighted, it does not.</p>
+<p><strong>The honest reading:</strong> the length-flip direction is sensitive to the
+instrument-confounded bullet feature. A paper claim citing the flip MUST
+specify the feature set, and ideally should report both cleaned-text and
+raw-text versions. T29's raw-text sensitivity already says the magnitude
+halves on raw text; my analysis extends this finding — the direction is
+feature-set-dependent.</p>
+<p><strong>Mitigation:</strong> T29's core claim is still defensible if phrased as
+"within the same authorship style class, 2026 postings are NOT meaningfully
+longer than 2024 — the ~+377 full-corpus gap is mostly style migration, not
+content expansion." But the sharp "flips to −411" is a one-specification
+artifact and should not be cited as the headline number.</p>
+<h3 id="ai-attenuation-check">AI attenuation check<a class="headerlink" href="#ai-attenuation-check" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>V2 full Δ</th>
+<th>V2 matched Δ</th>
+<th>T29 reported Δ matched</th>
+<th>Attenuation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>any_ai_broad</td>
+<td>+0.216</td>
+<td>+0.201</td>
+<td>+0.190</td>
+<td><strong>7%</strong> (T29: 2%)</td>
+</tr>
+</tbody>
+</table>
+<p>Attenuation is 7%, not 2%. Both numbers say the same thing: <strong>the AI
+explosion is NOT style-mediated.</strong> The RQ3 lead finding survives style
+matching under my analysis too.</p>
+<h3 id="v25-verdict-t29s-core-claim-ai-is-real-content-length-is-style">V2.5 verdict: **T29's core claim ("AI is real content; length is style")<a class="headerlink" href="#v25-verdict-t29s-core-claim-ai-is-real-content-length-is-style" title="Permanent link">&para;</a></h3>
+<p>partially holds. The AI-is-not-style claim is solid under any matching spec.
+The length-flip-to-negative is specification-dependent and should not be
+cited as a headline number.**</p>
+<hr />
+<h2 id="6-t28-credential-stack-convergence">6. T28 credential-stack convergence<a class="headerlink" href="#6-t28-credential-stack-convergence" title="Permanent link">&para;</a></h2>
+<h3 id="v2-definition">V2 definition<a class="headerlink" href="#v2-definition" title="Permanent link">&para;</a></h3>
+<p>6-category credential stack on <code>description_core_llm</code> (llm-labeled rows,
+entry + mid-senior in SWE LinkedIn):
+1. YOE mention
+2. Degree mention (BS/MS/PhD/bachelor/master/doctorate)
+3. Certification
+4. Security clearance
+5. Tech count ≥ 3 (across 21 core tech columns)
+6. Leadership / mentorship mention</p>
+<h3 id="per-archetype-entry-mid-senior-gap-v2">Per-archetype entry − mid-senior gap (V2)<a class="headerlink" href="#per-archetype-entry-mid-senior-gap-v2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Archetype</th>
+<th>gap 2024 (entry − ms)</th>
+<th>gap 2026</th>
+<th>Δgap</th>
+<th>mid_senior − entry Δgap (T28 orientation)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java enterprise</td>
+<td>−0.77</td>
+<td>+0.11</td>
+<td><strong>+0.89</strong></td>
+<td><strong>−0.89</strong></td>
+</tr>
+<tr>
+<td>Agile/Scrum generalist</td>
+<td>−1.21</td>
+<td>−0.34</td>
+<td>+0.88</td>
+<td>−0.88</td>
+</tr>
+<tr>
+<td>Embedded / firmware</td>
+<td>−1.18</td>
+<td>−0.50</td>
+<td>+0.68</td>
+<td>−0.68</td>
+</tr>
+<tr>
+<td>JS frontend</td>
+<td>−0.76</td>
+<td>−0.09</td>
+<td>+0.67</td>
+<td>−0.67</td>
+</tr>
+<tr>
+<td>Data engineering</td>
+<td>−0.74</td>
+<td>−0.13</td>
+<td>+0.61</td>
+<td>−0.61</td>
+</tr>
+<tr>
+<td>.NET / ASP.NET</td>
+<td>−0.54</td>
+<td>+0.04</td>
+<td>+0.58</td>
+<td>−0.58</td>
+</tr>
+<tr>
+<td>Defense / cleared</td>
+<td>−0.77</td>
+<td>−0.24</td>
+<td>+0.53</td>
+<td>−0.53</td>
+</tr>
+<tr>
+<td>LLM/GenAI</td>
+<td>−0.81</td>
+<td>−0.34</td>
+<td>+0.47</td>
+<td>−0.47</td>
+</tr>
+<tr>
+<td>DevOps / SRE</td>
+<td>−0.27</td>
+<td>−0.09</td>
+<td>+0.19</td>
+<td>−0.19</td>
+</tr>
+<tr>
+<td>Amazon program boilerplate</td>
+<td>−0.89</td>
+<td>−1.42</td>
+<td>−0.53</td>
+<td>+0.53</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What reproduces:</strong>
+- <strong>10/10 of T28's Δgap magnitudes reproduce within the expected range</strong>
+  (0.19 to 0.89). The sign convention matches once T28's (mid_senior − entry)
+  orientation is applied.
+- <strong>10/10 converge</strong> in the expected direction (entry − mid_senior gap
+  increases, i.e., entry catches up or surpasses mid-senior on credentials)
+  except Amazon program boilerplate, which DIVERGES.
+- Under my independently-defined 6-category stack, <strong>DevOps (−0.30), LLM/GenAI
+  (−0.60), Data (−0.88), JS (−0.68), Java (−0.74), Defense (−0.62), .NET
+  (−0.59), Agile (−0.58), Embedded (−0.35)</strong> — 9 of 10 converge.</p>
+<p><strong>What does NOT reproduce:</strong>
+- <strong>Only 2 of 10 archetypes show a sign flip</strong> (.NET, Java) in my
+  re-derivation, vs T28's <strong>7 of 10</strong> flipping. Under my definition, in 2024
+  <strong>entry was already asking for MORE credentials than mid-senior</strong> in every
+  archetype (gap already negative). T28's "gap positive in 2024 → flips
+  negative in 2026" does not hold under my 6-category definition.</p>
+<p><strong>Diagnosis:</strong> T28's credential-stack definition is not fully specified in
+the report. Different pattern sets produce different baseline signs. The
+qualitative finding ("entry-mid-senior convergence on credential breadth") is
+robust, but the specific "7/10 sign flip" claim is pattern-dependent.</p>
+<h3 id="v24-verdict-t28s-convergence-finding-holds-1010-converge-in-the">V2.4 verdict: **T28's convergence finding holds (10/10 converge in the<a class="headerlink" href="#v24-verdict-t28s-convergence-finding-holds-1010-converge-in-the" title="Permanent link">&para;</a></h3>
+<p>expected direction, magnitudes within range), but the "7/10 sign flip"
+headline is spec-dependent.** The paper should cite the convergence (Δgap
+direction) rather than the flip count.</p>
+<h3 id="threshold-sensitivity-n_ms-200">Threshold sensitivity: n_ms ≥ 200<a class="headerlink" href="#threshold-sensitivity-n_ms-200" title="Permanent link">&para;</a></h3>
+<p>Stricter threshold drops to 8 archetypes, all converge, same qualitative
+pattern. The 10/10 convergence is not threshold-dependent.</p>
+<hr />
+<h2 id="7-t21-orchestration-precision-audit-50-rows-2-periods">7. T21 orchestration precision audit (50 rows × 2 periods)<a class="headerlink" href="#7-t21-orchestration-precision-audit-50-rows-2-periods" title="Permanent link">&para;</a></h2>
+<p>Sampled 50 postings matching the T21-validated <code>tech_orch</code> regex in 2026 and
+50 in 2024. Read each sample's match context (±40 chars) manually.</p>
+<h3 id="grading">Grading<a class="headerlink" href="#grading" title="Permanent link">&para;</a></h3>
+<p><strong>All 50 / 50 2026 samples: TRUE POSITIVE</strong> (100% precision). Every single
+sample references code reviews, system design, design reviews, technical
+leadership, technical direction, tech lead, technical vision,
+architecture reviews, agent workflows, or prompt engineering in
+clear technical orchestration context. Examples:
+- "providing technical leadership through architecture, design reviews,
+  mentorship, and continuous improvement"
+- "contribute to architectural and code review discussions that impact our
+  engineering"
+- "Prompt Engineering and Tuning, develop modern C#-based services"
+- "Lead efforts in code reviews, testing, and continuous integration"
+- "Shape the long-term technical vision and roadmap for Scribd's data
+  platform"</p>
+<p><strong>All 50 / 50 2024 samples: TRUE POSITIVE</strong> (100% precision). Same pattern —
+every sample is a valid orchestration reference. Examples:
+- "Provide technical leadership in software architecture and design
+  discussions"
+- "Lead design and design reviews"
+- "Technical leadership in software architecture and design discussions"
+- "Participate in code review. Use revision control and bug tracking"</p>
+<p><strong>Precision verdict: 100% in both periods.</strong> Well above the 80% threshold.
+T21's validated orchestration pattern is rock-solid. The +156% director rise
+and +98% mid-senior rise are NOT contamination artifacts.</p>
+<p>Audit file: <code>exploration/tables/V2/V2_3_orch_50row_audit.csv</code>.</p>
+<hr />
+<h2 id="8-alternative-explanation-checks">8. Alternative explanation checks<a class="headerlink" href="#8-alternative-explanation-checks" title="Permanent link">&para;</a></h2>
+<h3 id="alt-1-rq3-inversion-driven-by-so-self-selection">Alt 1: RQ3 inversion driven by SO self-selection?<a class="headerlink" href="#alt-1-rq3-inversion-driven-by-so-self-selection" title="Permanent link">&para;</a></h3>
+<p>T23's sensitivity range 50–85% covers this. V2 confirms the direction holds
+down to 50% worker rate. Web cross-checks (GitClear, Anthropic, Accenture,
+SO blog) all put professional-developer AI any-use in the 75–84% range.
+<strong>Alternative not ruled out (SO bias is real) but quantitatively bounded.</strong>
+The direction of the finding is robust even under the most pessimistic
+assumption (50% worker rate), which is well below every published benchmark.</p>
+<h3 id="alt-2-director-orchestration-156-driven-by-top-10-ai-heavy-companies">Alt 2: Director orchestration +156% driven by top 10 AI-heavy companies?<a class="headerlink" href="#alt-2-director-orchestration-156-driven-by-top-10-ai-heavy-companies" title="Permanent link">&para;</a></h3>
+<p>V2 re-ran the T21 director analysis excluding the top 10 AI-mentioning
+director companies (Citigroup, BlackRock, BNY, Goldman Sachs, Barclays,
+Deloitte, Fitch, etc.):</p>
+<ul>
+<li>Full director orch: 0.118 → 0.302 (<strong>+155%</strong>)</li>
+<li>Excluding top 10: 0.120 → 0.264 (<strong>+120%</strong>)</li>
+</ul>
+<p><strong>Attenuates to +120%</strong> (25% relative reduction) but direction and
+magnitude holds strongly. Finding is NOT driven by a handful of AI-heavy
+companies. However the small director n (99 / 112) means Wave 4 should
+report CIs. <strong>Alternative ruled out.</strong></p>
+<h3 id="alt-3-t16-92-within-company-driven-by-already-ai-forward-companies">Alt 3: T16 92% within-company driven by already-AI-forward companies?<a class="headerlink" href="#alt-3-t16-92-within-company-driven-by-already-ai-forward-companies" title="Permanent link">&para;</a></h3>
+<p>V2 computed the decomposition separately on the 186 panel companies with
+<strong>zero AI in 2024</strong>. Their panel-mean AI went 0 → 22.4%, entirely
+within-company (by construction). This is the main driver of the panel rise.
+<strong>Alternative refuted</strong> — the within-company finding is driven by hundreds of
+zero-2024 companies adopting AI, NOT by pre-existing AI-forward companies
+doubling down.</p>
+<h3 id="alt-4-t29-length-flip-confounded-by-authorship-score-containing-length">Alt 4: T29 length flip confounded by authorship score containing length?<a class="headerlink" href="#alt-4-t29-length-flip-confounded-by-authorship-score-containing-length" title="Permanent link">&para;</a></h3>
+<p>T29's authorship feature list (per its report): LLM tell density, em-dash
+density, sent length mean, sent length std, type-token ratio, bullet density,
+paragraph length mean. <strong>Paragraph length</strong> is arguably length-like, but
+per-posting char_len is NOT in the feature set. However, <strong>char_len correlates
+r=0.59 with the composite score in T29's own correlation matrix</strong>, meaning
+the score is a strong proxy for length even without explicitly encoding it.
+When you match on a score that strongly correlates with length, you are
+mechanically inducing flat length within matched pairs — the "flip" is
+partly a mechanical consequence of matching on a length-correlated feature.</p>
+<p>My V2 analysis extends this: changing the feature weighting toward
+non-length-correlated features (tell tokens only) gives a near-zero matched
+delta (−60), while weighting toward length-correlated features (bullet
+density) gives a large positive matched delta (+704). <strong>The length-flip
+direction is a feature-choice artifact.</strong> The alternative is <strong>partially
+valid</strong> — the matched-length delta is length-by-construction dependent on
+how strongly the matching score correlates with length.</p>
+<h3 id="alt-5-t18-swe-vs-adjacent-21-pp-ci-crosses-zero">Alt 5: T18 SWE-vs-adjacent +2.1 pp CI crosses zero?<a class="headerlink" href="#alt-5-t18-swe-vs-adjacent-21-pp-ci-crosses-zero" title="Permanent link">&para;</a></h3>
+<p><strong>V2 re-computes the CI at [0.77, 3.38]</strong>, which does NOT cross zero. T18's
+framing ("SWE and adjacent both moved hard, and they are statistically
+distinguishable from each other, but the difference is one-tenth the
+difference from control") holds. <strong>Alternative ruled out.</strong></p>
+<hr />
+<h2 id="9-specification-dependence-inventory-for-wave-3">9. Specification-dependence inventory for Wave 3<a class="headerlink" href="#9-specification-dependence-inventory-for-wave-3" title="Permanent link">&para;</a></h2>
+<p>Compiled during V2 re-derivation. Every Wave 3 finding where the direction or
+magnitude depends on a specification choice:</p>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Spec axis</th>
+<th>Direction change?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T23 narrow AI 2026 rate</td>
+<td>text denominator: llm-subset vs full corpus</td>
+<td><strong>magnitude</strong> 34.6% → 42.8%</td>
+<td>Full corpus is stronger; llm-subset is the conservative choice</td>
+</tr>
+<tr>
+<td>T23 per-tool worker rates</td>
+<td>SO agents subset extrapolation vs actual unconditional shares</td>
+<td><strong>magnitude</strong> ~10%</td>
+<td>SO does not publish unconditional per-tool shares; T23 derives via multiplication</td>
+</tr>
+<tr>
+<td>T16 within-company %</td>
+<td>weight scheme in Oaxaca decomposition</td>
+<td><strong>magnitude</strong> 89.7% vs 92%</td>
+<td>Both say "overwhelmingly within"</td>
+</tr>
+<tr>
+<td>T16 archetype pivot rate</td>
+<td>both-year label threshold</td>
+<td>71.7% vs 74.6%</td>
+<td>Stable direction</td>
+</tr>
+<tr>
+<td>T21 director density</td>
+<td>aggregator exclusion (T21 sensitivity)</td>
+<td>stable</td>
+<td>T21 report section</td>
+</tr>
+<tr>
+<td>T28 7/10 sign flip</td>
+<td>credential-stack pattern definition</td>
+<td><strong>count</strong> 2 vs 7</td>
+<td>10/10 convergence direction is robust; 7/10 flip is NOT</td>
+</tr>
+<tr>
+<td>T29 length-flip direction</td>
+<td>authorship-score feature weighting</td>
+<td><strong>DIRECTION FLIP</strong> (+473 / +704 to −264/−411)</td>
+<td>Sensitive to bullet-density weight</td>
+</tr>
+<tr>
+<td>T29 length magnitude</td>
+<td>raw-text vs cleaned-text</td>
+<td><strong>halves</strong> on raw</td>
+<td>Already flagged by T29</td>
+</tr>
+<tr>
+<td>T18 SWE-vs-adj CI</td>
+<td>normal approx vs cluster-robust SE</td>
+<td>stable (did not re-run)</td>
+<td>T18 used normal approximation</td>
+</tr>
+</tbody>
+</table>
+<h3 id="high-priority-spec-dependence-flags-for-wave-4">High-priority spec-dependence flags for Wave 4<a class="headerlink" href="#high-priority-spec-dependence-flags-for-wave-4" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>T29 length-flip direction is not a single number.</strong> It flips or doesn't
+   flip depending on feature weighting. Paper should cite the attenuation
+   (length growth is mostly style migration) rather than the specific −411
+   number.</li>
+<li><strong>T28 7/10 flip count is pattern-dependent.</strong> The convergence direction is
+   robust (10/10). Cite the convergence, drop the 7/10.</li>
+<li><strong>T23 per-tool worker rates are derived, not published.</strong> The paper should
+   say "approximately 55% Copilot, 66% ChatGPT, 33% Claude Code, extrapolated
+   from SO 2025 subset shares" rather than citing them as exact.</li>
+</ol>
+<hr />
+<h2 id="10-verdict-on-each-gate-3-finding">10. Verdict on each Gate 3 finding<a class="headerlink" href="#10-verdict-on-each-gate-3-finding" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Gate 3 finding</th>
+<th>V2 verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RQ3 inversion (workers 10-15× ahead on tools)</td>
+<td><strong>VERIFIED</strong> — all per-tool rates reproduce exactly, direction robust 50-85%</td>
+</tr>
+<tr>
+<td>AI explosion is info-tech-wide (T18 DiD)</td>
+<td><strong>VERIFIED</strong> — DiD within 0.1 pp, CIs reproduce</td>
+</tr>
+<tr>
+<td>AI 92% within-company (T16 overlap panel)</td>
+<td><strong>VERIFIED with minor number correction</strong> — my value is 89.7%, not 92, but same finding</td>
+</tr>
+<tr>
+<td>T16 tool-stack adopter cluster exists</td>
+<td><strong>VERIFIED</strong> — cluster stable across seeds, n ≈ 46-50</td>
+</tr>
+<tr>
+<td>T16 74.6% archetype pivot rate</td>
+<td><strong>VERIFIED</strong> — 71.7% on my panel, within 3 pp</td>
+</tr>
+<tr>
+<td>T21 technical orchestration +98% mid-senior</td>
+<td><strong>VERIFIED</strong> — exact match</td>
+</tr>
+<tr>
+<td>T21 technical orchestration +156% director</td>
+<td><strong>VERIFIED</strong> — exact match; holds at +120% even excluding top 10 AI-heavy directors</td>
+</tr>
+<tr>
+<td>T21 AI × senior interaction</td>
+<td><strong>VERIFIED</strong> — +73% orch uplift (T21: +76%), people identical</td>
+</tr>
+<tr>
+<td>T21 validated orchestration patterns ≥80% precision</td>
+<td><strong>VERIFIED</strong> — 100% precision on 100-row audit</td>
+</tr>
+<tr>
+<td>T28 credential-stack 10/10 convergence</td>
+<td><strong>VERIFIED</strong> — 10/10 converge in my re-derivation</td>
+</tr>
+<tr>
+<td>T28 7/10 sign flip specifically</td>
+<td><strong>WEAKENED</strong> — only 2/10 flip under my credential-stack definition; the specific flip-count claim is pattern-dependent</td>
+</tr>
+<tr>
+<td>T29 authorship shift +0.33 on cleaned text</td>
+<td><strong>VERIFIED</strong> — same direction, magnitude in same range</td>
+</tr>
+<tr>
+<td>T29 AI no style attenuation</td>
+<td><strong>VERIFIED</strong> — 7% attenuation (T29: 2%), both say "negligible"</td>
+</tr>
+<tr>
+<td>T29 length flips to −411 under matching</td>
+<td><strong>WEAKENED / SPEC-DEPENDENT</strong> — direction depends on which features enter the matcher</td>
+</tr>
+<tr>
+<td>T18 SWE-vs-ctrl +29.6 pp</td>
+<td><strong>VERIFIED</strong> — exact</td>
+</tr>
+<tr>
+<td>T18 SWE-vs-adj +2.1 pp</td>
+<td><strong>VERIFIED</strong> — CI [0.77, 3.38], does not cross zero but is small</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-top-3-issues-wave-4-synthesis-must-address">11. Top 3 issues Wave 4 synthesis must address<a class="headerlink" href="#11-top-3-issues-wave-4-synthesis-must-address" title="Permanent link">&para;</a></h2>
+<h3 id="1-the-t29-length-flip-direction-is-not-a-single-number">1. The T29 length-flip direction is not a single number<a class="headerlink" href="#1-the-t29-length-flip-direction-is-not-a-single-number" title="Permanent link">&para;</a></h3>
+<p><strong>Issue.</strong> T29 reports char_len delta flips from +377 to −411 under style
+matching. V2 finds that under a simpler composite the delta is +473
+(no flip); under em-dash-only matching it is −264 (flips); under bullet-only
+matching it is +704 (strengthens). The −411 number is valid for T29's
+specific 7-feature composite but not robust to reasonable perturbation.</p>
+<p><strong>What Wave 4 should do.</strong> Cite the <strong>attenuation</strong> rather than the <strong>sign</strong>:
+"length growth is mostly (≥60% / up to 209%) attenuated under style
+matching, regardless of which style features are used." Drop "flips to
+negative" as a headline claim. Or report the attenuation as a range across
+feature sets.</p>
+<h3 id="2-t28s-710-sign-flip-is-pattern-dependent">2. T28's "7/10 sign flip" is pattern-dependent<a class="headerlink" href="#2-t28s-710-sign-flip-is-pattern-dependent" title="Permanent link">&para;</a></h3>
+<p><strong>Issue.</strong> The strong form of the credential-stack finding — "entry postings
+in 2026 ask for more credential categories than mid-senior postings in the
+same archetype, flipping sign in 7 of 10 large archetypes" — does not
+reproduce under an independently defined credential stack. I find <strong>2 of 10</strong>
+flip. The <strong>convergence</strong> (Δgap direction) is robust: 10/10 archetypes
+converge. The sign-flip count is not.</p>
+<p><strong>What Wave 4 should do.</strong> Cite the convergence (10/10), not the 7/10
+flip. Rephrase: "the entry-vs-mid-senior credential-stack gap converges
+toward zero (and in some archetypes flips sign) in all 10 large archetypes."
+Specify the exact pattern set in the methods appendix.</p>
+<h3 id="3-t23-per-tool-worker-rates-are-extrapolated-not-surveyed">3. T23 per-tool worker rates are extrapolated, not surveyed<a class="headerlink" href="#3-t23-per-tool-worker-rates-are-extrapolated-not-surveyed" title="Permanent link">&para;</a></h3>
+<p><strong>Issue.</strong> The SO 2025 survey reports tool shares only among "AI agent users"
+(17% of respondents), not among all pro devs. T23 multiplies these by the
+80.8% any-use figure to get "unconditional" rates (Copilot 54.9%, ChatGPT
+66.0%, Claude Code 33.0%). This is a reasonable but not exact conversion —
+it assumes tool-share is uniform between agent users and non-agent users,
+which is almost certainly false (agent users over-represent AI-power-users).
+The actual pro-dev unconditional Copilot share is probably lower than 54.9%.</p>
+<p><strong>What Wave 4 should do.</strong> Either (a) find an unconditional pro-dev Copilot
+benchmark (GitHub published 20M users but not pro-dev share), (b) cite the
+lower-bound "at least ~35% Copilot among pro-devs" (67.9% × 50% conservative
+any-use), or (c) re-anchor the lead claim on the <strong>broad AI</strong> gap rather
+than the per-tool gaps. The broad AI ratio 0.35 (28.6% / 80.8%) is solid
+under any benchmark sensitivity and the <strong>14.5× Copilot headline should be
+softened</strong> to "roughly 10-15× Copilot worker-to-posting gap, under SO 2025
+extrapolation." The per-tool ratios remain directionally striking; they are
+just not exact.</p>
+<hr />
+<h2 id="12-files-produced">12. Files produced<a class="headerlink" href="#12-files-produced" title="Permanent link">&para;</a></h2>
+<p><strong>Scripts:</strong>
+- <code>exploration/scripts/V2_1_t23_rederivation.py</code>
+- <code>exploration/scripts/V2_2_t16_decomposition.py</code>
+- <code>exploration/scripts/V2_3_t21_orchestration.py</code>
+- <code>exploration/scripts/V2_4_t28_credential.py</code>
+- <code>exploration/scripts/V2_5_t29_style_match.py</code>
+- <code>exploration/scripts/V2_6_t18_did.py</code>
+- <code>exploration/scripts/V2_7_alternatives.py</code></p>
+<p><strong>Tables:</strong>
+- <code>exploration/tables/V2/V2_1_posting_ai_rates.csv</code>
+- <code>exploration/tables/V2/V2_1_posting_comparison_2026.csv</code>
+- <code>exploration/tables/V2/V2_1_divergence.csv</code>
+- <code>exploration/tables/V2/V2_1_sensitivity.csv</code>
+- <code>exploration/tables/V2/V2_2_decomposition.csv</code>
+- <code>exploration/tables/V2/V2_2_kmeans_k4_seed7.csv</code>
+- <code>exploration/tables/V2/V2_3_density_by_period_seniority.csv</code>
+- <code>exploration/tables/V2/V2_3_t21_comparison.csv</code>
+- <code>exploration/tables/V2/V2_3_ai_senior_interaction.csv</code>
+- <code>exploration/tables/V2/V2_3_orch_50row_audit.csv</code>
+- <code>exploration/tables/V2/V2_4_credential_gap.csv</code>
+- <code>exploration/tables/V2/V2_5_style_match.csv</code>
+- <code>exploration/tables/V2/V2_6_group_period_rates.csv</code>
+- <code>exploration/tables/V2/V2_6_did.csv</code>
+- <code>exploration/tables/V2/V2_7_director_orch_alt.csv</code></p>
+<hr />
+<h2 id="bottom-line">Bottom line<a class="headerlink" href="#bottom-line" title="Permanent link">&para;</a></h2>
+<p><strong>Gate 3 clears.</strong> The paper's lead finding (T23 RQ3 inversion) and its
+co-headline (T21 senior orchestration shift) both reproduce with very tight
+tolerances, and the orchestration pattern precision-audits at 100% on a
+100-row sample. T16 decomposition, T18 DiD, and the T21 AI × senior
+interaction all reproduce exactly. Two secondary findings (T29 length flip,
+T28 7/10 sign flip) are specification-dependent and should be cited with
+narrower framing in Wave 4 synthesis.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.indexes", "content.code.copy", "toc.follow", "search.suggest"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

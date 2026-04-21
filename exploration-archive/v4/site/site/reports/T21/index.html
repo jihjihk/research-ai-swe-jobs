@@ -1,0 +1,3120 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration v4 — raw findings, gate memos, and verification passes">
+      
+      
+      
+      
+        <link rel="prev" href="../T20/">
+      
+      
+        <link rel="next" href="../T22/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T21 Senior Evolution - SWE Labor Market Exploration — v4</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t21-senior-role-evolution-deep-dive" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration — v4
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T21 Senior Evolution
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../INDEX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reports
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../memos/gate_0_pre_exploration/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Memos
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration — v4
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../INDEX/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 Data Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../seniority_measurement_investigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority Measurement Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V1_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V1 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#scope-and-rationale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope and rationale
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-headline-senior-densities-move-as-t11-predicted-only-more-sharply-under-strict-detectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Headline: senior densities move as T11 predicted, only more sharply under strict detectors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-term-level-breakdown-reveals-which-specific-patterns-drove-each-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Term-level breakdown reveals which specific patterns drove each profile
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Term-level breakdown reveals which specific patterns drove each profile">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#people-management-strict-every-term-declined-or-stayed-noise-floor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        People management (strict) — every term declined or stayed noise-floor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mentoring-strict-mentor-engineers-nearly-doubled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mentoring (strict) — mentor engineers nearly doubled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#technical-orchestration-code-review-system-design-automation-all-grew-ai-orchestration-emerged-from-zero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technical orchestration — code review, system design, automation all grew; AI-orchestration emerged from zero
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategic-scope-stakeholder-and-cross-functional-grew-strongest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategic scope — stakeholder and cross-functional grew strongest
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-senior-sub-archetype-clustering-k-means" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Senior sub-archetype clustering (k-means)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-ai-mentioning-senior-postings-are-disproportionately-tech-orchestration-heavy-not-mentor-heavy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. AI-mentioning senior postings are disproportionately tech-orchestration-heavy, not mentor-heavy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-directors-specifically" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Directors specifically
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-cross-seniority-comparison-senior-vs-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Cross-seniority comparison: senior vs entry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-domain-stratification-via-t09-archetype-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Domain stratification (via T09 archetype labels)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-credential-stripping-correlation-t12-follow-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Credential-stripping correlation (T12 follow-up)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-precision-validation-of-detectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Precision validation of detectors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#headline-findings-for-downstream-reporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline findings for downstream reporting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T28/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 Archetype Decomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T29/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 LLM-Authorship Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V2_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration (Gate 0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t21-senior-role-evolution-deep-dive">T21 — Senior role evolution deep dive</h1>
+<p><strong>Status:</strong> complete (2026-04-09)
+<strong>Script:</strong> <code>exploration/scripts/T21_senior_role_evolution.py</code>
+<strong>Tables:</strong> <code>exploration/tables/T21/</code>
+<strong>Figures:</strong> <code>exploration/figures/T21/</code></p>
+<h2 id="scope-and-rationale">Scope and rationale</h2>
+<p>T11 found a critical reframing of the senior-tier story: senior SWE roles are shifting toward <strong>IC + mentoring</strong>, not toward people-management. The naive <code>hire/recruit</code> pattern that initially suggested a "senior → people manager" trajectory turned out to be ~85% boilerplate per V1 verification. Under the strict-detector approach (V1-verified at ~100% precision), people-management terms all <em>declined</em> at senior while strict mentoring grew 4.2% → 10.0%. T21 validates, characterizes, and extends this finding using strict detectors from the start across four language profiles.</p>
+<ul>
+<li>Default filter: LinkedIn, English, <code>date_flag='ok'</code>, <code>is_swe=true</code>.</li>
+<li>Senior frame: <code>seniority_final ∈ {mid-senior, director}</code>. n = 51,735 (24,579 in 2024; 27,156 in 2026). Mid-senior/director 2026 split: 26,805 / 351.</li>
+<li>Text source for detection: <code>description_cleaned</code> where ≥50 chars, else raw <code>description</code> fallback.</li>
+<li>Four language profiles, all strict patterns validated in-script with asserts:</li>
+<li><strong>People management (strict):</strong> <code>people manager</code>, <code>people management</code>, <code>direct reports</code>, <code>performance review</code>, <code>headcount</code>, <code>manage/lead a team of</code>, <code>interview/hire engineers</code>, <code>team building</code> (10 sub-patterns).</li>
+<li><strong>Mentoring (strict):</strong> <code>mentor engineers/junior/team</code>, <code>coach engineers/junior</code>, <code>mentor and develop</code>, <code>mentorship</code> (4 sub-patterns).</li>
+<li><strong>Technical orchestration:</strong> <code>architecture review</code>, <code>code review</code>, <code>system design</code>, <code>technical direction</code>, <code>ai orchestration</code>, <code>agentic</code>, <code>multi-agent</code>, <code>automation</code>, <code>evaluation</code>, <code>prompt engineering</code>, <code>tool selection</code>, <code>quality gate</code>, <code>guardrails</code> (13 sub-patterns).</li>
+<li><strong>Strategic scope:</strong> <code>stakeholder</code>, <code>business impact</code>, <code>revenue</code>, <code>product strategy</code>, <code>roadmap</code>, <code>prioritization</code>, <code>resource allocation</code>, <code>cross-functional</code> (8 sub-patterns).</li>
+<li>AI detection uses validated patterns only (<code>agentic</code>, <code>ai agent</code>, <code>llm</code>, <code>rag</code>, <code>copilot</code>, <code>claude</code>, <code>langchain</code>, etc.) — <strong>never bare <code>agent</code></strong> (contaminated per V1).</li>
+<li>Sensitivities: raw, company-capped-20 (primary for corpus term frequencies), aggregator-excluded.</li>
+</ul>
+<h2 id="1-headline-senior-densities-move-as-t11-predicted-only-more-sharply-under-strict-detectors">1. Headline: senior densities move as T11 predicted, only more sharply under strict detectors</h2>
+<p>Senior (mid-senior + director) mean density per 1K chars, all raw (n = 24,579 → 27,156):</p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>2024 density</th>
+<th>2026 density</th>
+<th>Δ rel</th>
+<th>2024 any-share</th>
+<th>2026 any-share</th>
+<th>Δ pp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>People management (strict)</td>
+<td>0.0271</td>
+<td>0.0114</td>
+<td><strong>−58%</strong></td>
+<td>4.2%</td>
+<td>3.5%</td>
+<td>−0.7pp</td>
+</tr>
+<tr>
+<td>Mentoring (strict)</td>
+<td>0.0646</td>
+<td>0.0857</td>
+<td><strong>+33%</strong></td>
+<td>11.0%</td>
+<td>21.9%</td>
+<td><strong>+10.9pp</strong></td>
+</tr>
+<tr>
+<td>Technical orchestration</td>
+<td>0.3400</td>
+<td>0.4995</td>
+<td><strong>+47%</strong></td>
+<td>37.2%</td>
+<td>62.1%</td>
+<td><strong>+25.0pp</strong></td>
+</tr>
+<tr>
+<td>Strategic scope</td>
+<td>0.2589</td>
+<td>0.2855</td>
+<td>+10%</td>
+<td>32.9%</td>
+<td>53.0%</td>
+<td><strong>+20.1pp</strong></td>
+</tr>
+<tr>
+<td>AI mention (validated)</td>
+<td>0.0388</td>
+<td>0.3515</td>
+<td><strong>+807%</strong></td>
+<td>2.9%</td>
+<td>24.3%</td>
+<td><strong>+21.4pp</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>The T11 reframing holds and sharpens under strict-detector reruns:</strong>
+- People-management density fell 58% in aggregate and the any-share dropped 0.7pp. There is no support for the "senior → people manager" story at any level.
+- Mentoring density grew 33% and any-share doubled (11.0% → 21.9%). Senior postings mentioning mentorship language roughly doubled in share.
+- Tech orchestration (code review, system design, automation, and the new AI-orchestration sub-patterns) grew 47% in density and 25pp in any-share. This is the <strong>biggest absolute shift</strong> in senior language.
+- Strategic scope grew modestly in density (+10%) but strongly in any-share (+20pp) — more postings mention strategic scope, but per-posting mentions didn't grow.
+- AI mention exploded as expected (senior AI mention rose from ~3% to ~24% of postings, a structural signal the entire senior tier absorbed).</p>
+<p>The company-capped-20 sensitivity (primary for corpus-level term frequency per the essential sensitivities rule) shows the same directions, slightly muted for tech orchestration (+0.44 → +0.51 density) and slightly amplified for the ai mention and mentoring signals. Both tables are reported.</p>
+<p>Tables: <code>senior_density_by_period_raw.csv</code>, <code>senior_density_by_period_capped20.csv</code>. Figure: <code>senior_profile_scatter.png</code>.</p>
+<h2 id="2-term-level-breakdown-reveals-which-specific-patterns-drove-each-profile">2. Term-level breakdown reveals which specific patterns drove each profile</h2>
+<p>Under company-capped-20 (n_senior 2024 = 15,137; 2026 = 17,994):</p>
+<h3 id="people-management-strict-every-term-declined-or-stayed-noise-floor">People management (strict) — every term declined or stayed noise-floor</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>2024 postings-with-match%</th>
+<th>2026 postings-with-match%</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>people manager</code></td>
+<td>0.01%</td>
+<td>0.09%</td>
+<td>+0.08pp (still ~noise)</td>
+</tr>
+<tr>
+<td><code>people management</code></td>
+<td>0.38%</td>
+<td>0.46%</td>
+<td>+0.08pp</td>
+</tr>
+<tr>
+<td><code>direct reports</code></td>
+<td>0.57%</td>
+<td>0.41%</td>
+<td>−0.17pp</td>
+</tr>
+<tr>
+<td><code>performance review</code></td>
+<td>0.16%</td>
+<td>0.18%</td>
+<td>≈0</td>
+</tr>
+<tr>
+<td><code>headcount</code></td>
+<td>0.02%</td>
+<td>0.23%</td>
+<td>+0.21pp (small abs)</td>
+</tr>
+<tr>
+<td><code>manage team of</code></td>
+<td>0%</td>
+<td>0%</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>lead team of</code></td>
+<td>0.01%</td>
+<td>0%</td>
+<td>≈0</td>
+</tr>
+<tr>
+<td><code>interview engineers</code></td>
+<td>0%</td>
+<td>0.16%</td>
+<td>+0.16pp</td>
+</tr>
+<tr>
+<td><code>hire engineers</code></td>
+<td>0.03%</td>
+<td>0.18%</td>
+<td>+0.16pp</td>
+</tr>
+<tr>
+<td><code>team building</code></td>
+<td>0.92%</td>
+<td>1.98%</td>
+<td>+1.06pp</td>
+</tr>
+</tbody>
+</table>
+<p>Two interesting exceptions: <code>team building</code> grew from 0.9% to 2.0% of senior postings, and <code>interview engineers</code> / <code>hire engineers</code> both grew from near-zero to 0.16-0.18%. These are small absolute magnitudes but they suggest that the "team building" frame and the "engineering interviewing" frame did survive in senior postings even as the harder people-management indicators (<code>direct reports</code>, <code>performance review</code>) stagnated or declined.</p>
+<p>The robust interpretation is: <strong>formal people-management language (the core "direct reports / performance review" cluster) stayed flat or declined slightly. Ambient team-involvement language (<code>team building</code>) grew.</strong> This is consistent with the IC+mentoring story — senior roles still involve <em>people</em>, but not <em>people-manager formalisms</em>.</p>
+<h3 id="mentoring-strict-mentor-engineers-nearly-doubled">Mentoring (strict) — <code>mentor engineers</code> nearly doubled</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>2024 %</th>
+<th>2026 %</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mentor engineers/junior/team</code></td>
+<td>7.8%</td>
+<td><strong>15.1%</strong></td>
+<td><strong>+7.3pp</strong></td>
+</tr>
+<tr>
+<td><code>coach engineers</code></td>
+<td>1.1%</td>
+<td>1.1%</td>
+<td>≈0</td>
+</tr>
+<tr>
+<td><code>mentorship</code></td>
+<td>3.9%</td>
+<td>8.3%</td>
+<td><strong>+4.5pp</strong></td>
+</tr>
+<tr>
+<td><code>mentor and develop</code></td>
+<td>0%</td>
+<td>0%</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>mentor engineers</code> canonical pattern nearly doubled in posting-level coverage. <code>mentorship</code> more than doubled. These are the cleanest V1-verified high-precision patterns and their growth is substantial. 25 sampled matches per period confirmed ~100% precision in both years (see <code>samples_mentoring.csv</code>).</p>
+<h3 id="technical-orchestration-code-review-system-design-automation-all-grew-ai-orchestration-emerged-from-zero">Technical orchestration — code review, system design, automation all grew; AI-orchestration emerged from zero</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>2024 %</th>
+<th>2026 %</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code review</code></td>
+<td>11.5%</td>
+<td>19.1%</td>
+<td><strong>+7.5pp</strong></td>
+</tr>
+<tr>
+<td><code>system design</code></td>
+<td>5.8%</td>
+<td>8.3%</td>
+<td>+2.5pp</td>
+</tr>
+<tr>
+<td><code>technical direction</code></td>
+<td>1.8%</td>
+<td>6.1%</td>
+<td><strong>+4.2pp</strong></td>
+</tr>
+<tr>
+<td><code>automation</code></td>
+<td>20.0%</td>
+<td>31.9%</td>
+<td><strong>+11.9pp</strong></td>
+</tr>
+<tr>
+<td><code>evaluation</code></td>
+<td>5.6%</td>
+<td>9.3%</td>
+<td>+3.7pp</td>
+</tr>
+<tr>
+<td><code>prompt engineering</code></td>
+<td>0.19%</td>
+<td>3.7%</td>
+<td><strong>+3.5pp (20×)</strong></td>
+</tr>
+<tr>
+<td><code>agentic</code></td>
+<td>0.02%</td>
+<td><strong>8.3%</strong></td>
+<td><strong>+8.3pp (415×)</strong></td>
+</tr>
+<tr>
+<td><code>multi-agent</code></td>
+<td>0.05%</td>
+<td>2.1%</td>
+<td>+2.1pp</td>
+</tr>
+<tr>
+<td><code>ai orchestration</code></td>
+<td>0%</td>
+<td>0.38%</td>
+<td>+0.38pp</td>
+</tr>
+<tr>
+<td><code>quality gate</code></td>
+<td>0.06%</td>
+<td>0.86%</td>
+<td>+0.80pp</td>
+</tr>
+<tr>
+<td><code>guardrails</code></td>
+<td>0.19%</td>
+<td>2.85%</td>
+<td>+2.66pp</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>agentic</code> went from 0.02% → 8.3% of senior postings</strong> (a 415× lift), and <code>guardrails</code>, <code>prompt engineering</code>, <code>quality gate</code>, <code>multi-agent</code>, and <code>ai orchestration</code> all emerged from near-zero. Alongside the growth in traditional <code>code review</code> (+7.5pp) and <code>automation</code> (+11.9pp), the tech-orchestration profile mixes classic senior SWE duties with a <strong>new family of AI-orchestration responsibilities</strong> that did not exist in the 2024 senior vocabulary.</p>
+<h3 id="strategic-scope-stakeholder-and-cross-functional-grew-strongest">Strategic scope — stakeholder and cross-functional grew strongest</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>2024 %</th>
+<th>2026 %</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stakeholder</code></td>
+<td>16.9%</td>
+<td><strong>26.0%</strong></td>
+<td><strong>+9.0pp</strong></td>
+</tr>
+<tr>
+<td><code>cross-functional</code></td>
+<td>15.5%</td>
+<td><strong>26.4%</strong></td>
+<td><strong>+10.9pp</strong></td>
+</tr>
+<tr>
+<td><code>business impact</code></td>
+<td>0.69%</td>
+<td>2.10%</td>
+<td>+1.42pp</td>
+</tr>
+<tr>
+<td><code>revenue</code></td>
+<td>0.79%</td>
+<td>3.48%</td>
+<td>+2.68pp</td>
+</tr>
+<tr>
+<td><code>roadmap</code></td>
+<td>3.90%</td>
+<td>6.92%</td>
+<td>+3.03pp</td>
+</tr>
+<tr>
+<td><code>prioritization</code></td>
+<td>6.04%</td>
+<td>7.19%</td>
+<td>+1.15pp</td>
+</tr>
+<tr>
+<td><code>resource allocation</code></td>
+<td>0.30%</td>
+<td>0.28%</td>
+<td>≈0</td>
+</tr>
+<tr>
+<td><code>product strategy</code></td>
+<td>0.30%</td>
+<td>0.61%</td>
+<td>+0.31pp</td>
+</tr>
+</tbody>
+</table>
+<p><code>stakeholder</code> and <code>cross-functional</code> both grew roughly +10pp. <code>roadmap</code> and <code>revenue</code> grew meaningfully. This is a senior tier that is <strong>taking on more explicit cross-functional/stakeholder-management responsibilities</strong> in 2026 — and importantly, it is doing so <em>without</em> gaining people-management responsibilities. The division matches the T11 reading: senior SWEs are more cross-functional, more mentorship-oriented, more tech-orchestration-focused, but <em>not</em> becoming people managers.</p>
+<p>Tables: <code>senior_term_level_counts_raw.csv</code>, <code>senior_term_level_counts_capped20.csv</code>.</p>
+<h2 id="3-senior-sub-archetype-clustering-k-means">3. Senior sub-archetype clustering (k-means)</h2>
+<p>K-means with k=5 on the density-4-vector (people_mgmt, mentor, tech_orch, strategic) over all senior postings (n = 51,735) produced 5 clusters that I label by dominant profile:</p>
+<table>
+<thead>
+<tr>
+<th>Cluster</th>
+<th>Label</th>
+<th>n</th>
+<th>people_mgmt</th>
+<th>mentor</th>
+<th>tech_orch</th>
+<th>strategic</th>
+<th>2024 share</th>
+<th>2026 share</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Generic-TechOrch (low-density)</td>
+<td>34,614</td>
+<td>0.003</td>
+<td>0.015</td>
+<td>0.256</td>
+<td>0.108</td>
+<td>67.6%</td>
+<td>66.3%</td>
+<td>−1.4pp</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Strategic-heavy</td>
+<td>7,566</td>
+<td>0.004</td>
+<td>0.030</td>
+<td>0.305</td>
+<td><strong>1.042</strong></td>
+<td>15.1%</td>
+<td>14.2%</td>
+<td>−0.9pp</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>People-Manager</strong></td>
+<td>1,208</td>
+<td><strong>0.659</strong></td>
+<td>0.064</td>
+<td>0.258</td>
+<td>0.160</td>
+<td><strong>3.7%</strong></td>
+<td><strong>1.1%</strong></td>
+<td><strong>−2.6pp</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Mentor-heavy</td>
+<td>5,060</td>
+<td>0.005</td>
+<td><strong>0.587</strong></td>
+<td>0.450</td>
+<td>0.339</td>
+<td>8.6%</td>
+<td>10.8%</td>
+<td><strong>+2.2pp</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>TechOrch-heavy (incl. AI orchestration)</strong></td>
+<td>3,287</td>
+<td>0.002</td>
+<td>0.033</td>
+<td><strong>2.488</strong></td>
+<td>0.179</td>
+<td>5.0%</td>
+<td><strong>7.6%</strong></td>
+<td><strong>+2.6pp</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key findings:</strong>
+- The <strong>People-Manager cluster shrank by 70% in share</strong> (3.7% → 1.1%). This is the archetype that historically encoded the formal people-management senior role, and it is disappearing in the 2026 corpus.
+- The <strong>Mentor-heavy cluster grew +2.2pp</strong> and the <strong>TechOrch-heavy cluster grew +2.6pp</strong>. Combined, the two IC-plus-leadership archetypes grew +4.8pp — reabsorbing the collapse of the people-manager cluster and then some.
+- The generic-TechOrch bulk cluster (#0) slightly declined, and the strategic-heavy cluster (#1) also declined a small amount. The dominant reorganization is <strong>out of People-Manager, into Mentor-heavy and TechOrch-heavy</strong>.</p>
+<p><strong>The "new senior" archetype:</strong> Cluster #4 (TechOrch-heavy) is the closest candidate for a "new senior" archetype. Its mean tech-orchestration density is 2.49 per 1K chars — nearly 5× the overall senior mean — and it contains most of the postings where <code>agentic</code>, <code>prompt engineering</code>, <code>guardrails</code>, <code>multi-agent</code>, and <code>ai orchestration</code> appear. Its share grew from 5.0% to 7.6% in just two years, a +52% relative lift. This is the cluster that looks like an emerging AI-orchestration-heavy senior IC archetype. It did not dominate in 2024 and is not dominating in 2026 either, but it is growing at the expense of the classic People-Manager cluster.</p>
+<p>Tables: <code>senior_kmeans_clusters.csv</code>, <code>senior_kmeans_shares_by_period.csv</code>. Figure: <code>senior_cluster_shares.png</code>.</p>
+<h2 id="4-ai-mentioning-senior-postings-are-disproportionately-tech-orchestration-heavy-not-mentor-heavy">4. AI-mentioning senior postings are disproportionately tech-orchestration-heavy, not mentor-heavy</h2>
+<p>Subset-comparison (raw senior pool):</p>
+<table>
+<thead>
+<tr>
+<th>Subset</th>
+<th>n</th>
+<th>people_mgmt</th>
+<th>mentor</th>
+<th>tech_orch</th>
+<th>strategic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024 ai_mentioning</td>
+<td>724</td>
+<td>0.012</td>
+<td><strong>0.224</strong></td>
+<td>0.394</td>
+<td>0.270</td>
+</tr>
+<tr>
+<td>2024 non_ai_mentioning</td>
+<td>23,855</td>
+<td>0.028</td>
+<td>0.060</td>
+<td>0.338</td>
+<td>0.259</td>
+</tr>
+<tr>
+<td>2026 ai_mentioning</td>
+<td>6,607</td>
+<td>0.013</td>
+<td>0.092</td>
+<td><strong>0.849</strong></td>
+<td>0.308</td>
+</tr>
+<tr>
+<td>2026 non_ai_mentioning</td>
+<td>20,549</td>
+<td>0.011</td>
+<td>0.084</td>
+<td>0.387</td>
+<td>0.278</td>
+</tr>
+</tbody>
+</table>
+<p><strong>In 2024, the small AI-mentioning senior subset (n=724) was mentor-heavy</strong> (mentor density 0.22 vs 0.06 in non-AI — 3.7× higher). These were a small set of roles that combined AI language with explicit mentoring duties, probably AI research leads in 2024.</p>
+<p><strong>In 2026, the AI-mentioning senior subset (n=6,607) is tech-orchestration-heavy</strong> (0.85 vs 0.39 in non-AI — 2.2× higher), and mentoring density is <em>the same</em> as the non-AI subset (0.092 vs 0.084). The profile flipped: 2024 AI-mentioning seniors were mentor-heavy; 2026 AI-mentioning seniors are tech-orchestration-heavy.</p>
+<p>This is substantively interesting: the 2024 small AI-mentioning cohort looked like research managers. The 2026 large AI-mentioning cohort looks like <strong>IC tech-orchestration builders</strong> who are writing <code>agentic</code>/<code>guardrails</code>/<code>prompt engineering</code> code. AI mention is no longer correlated with mentoring at senior level; it is correlated with building AI systems.</p>
+<p>Table: <code>senior_ai_mentioning_comparison.csv</code>.</p>
+<h2 id="5-directors-specifically">5. Directors specifically</h2>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>seniority</th>
+<th>n</th>
+<th>people_mgmt</th>
+<th>mentor</th>
+<th>tech_orch</th>
+<th>strat</th>
+<th>ai</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td>mid-senior</td>
+<td>24,466</td>
+<td>0.027</td>
+<td>0.065</td>
+<td>0.340</td>
+<td>0.258</td>
+<td>0.039</td>
+</tr>
+<tr>
+<td>2024</td>
+<td>director</td>
+<td>113</td>
+<td><strong>0.079</strong></td>
+<td>0.038</td>
+<td>0.299</td>
+<td>0.449</td>
+<td>0.004</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>mid-senior</td>
+<td>26,805</td>
+<td>0.011</td>
+<td>0.086</td>
+<td>0.500</td>
+<td>0.284</td>
+<td>0.351</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>director</td>
+<td>351</td>
+<td>0.011</td>
+<td>0.066</td>
+<td>0.472</td>
+<td><strong>0.425</strong></td>
+<td>0.354</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Directors in 2024:</strong> people-management density was ~3× the mid-senior mean (0.079 vs 0.027), mentoring was <em>below</em> mid-senior (0.038 vs 0.065), strategic scope was higher (0.449 vs 0.258), and AI mention was essentially zero (0.004).</p>
+<p><strong>Directors in 2026:</strong> people-management density <em>crashed to the mid-senior level</em> (0.011 vs 0.011 — identical!), mentoring fell slightly below mid-senior (0.066 vs 0.086), strategic scope stayed high (0.425 vs 0.284), and AI mention rose to the mid-senior level (0.354 vs 0.351).</p>
+<p><strong>This is a dramatic finding:</strong> directors in 2026 are essentially indistinguishable from mid-senior on people-management, mentoring, and AI mention. The only density where directors retain a clear lead is strategic scope (0.425 vs 0.284, ~50% above mid-senior), which is the closest thing to a "director-defining" language signal left.</p>
+<p>This directly explains T20's finding that the <strong>mid-senior↔director boundary was the one that meaningfully blurred</strong> (AUC 0.75 → 0.69 under seniority_final). The director tier stopped carrying the people-management signal that used to distinguish it from mid-senior. The only remaining director-specific signal is strategic scope, and even that is only 50% elevated.</p>
+<p>Directors n is small (113 → 351), so director-specific estimates carry wider uncertainty than mid-senior estimates. But the direction is clear and holds across every density metric except strategic scope.</p>
+<p>Table: <code>director_vs_midsenior.csv</code>.</p>
+<h2 id="6-cross-seniority-comparison-senior-vs-entry">6. Cross-seniority comparison: senior vs entry</h2>
+<p>Is the people-management decline a senior-specific shift or a field-wide template change?</p>
+<table>
+<thead>
+<tr>
+<th>Seniority</th>
+<th>Period</th>
+<th>n</th>
+<th>people_mgmt</th>
+<th>mentor</th>
+<th>tech_orch</th>
+<th>ai</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>senior</td>
+<td>2024</td>
+<td>24,579</td>
+<td>0.027</td>
+<td>0.065</td>
+<td>0.340</td>
+<td>0.039</td>
+</tr>
+<tr>
+<td>senior</td>
+<td>2026</td>
+<td>27,156</td>
+<td>0.011</td>
+<td>0.086</td>
+<td>0.500</td>
+<td>0.351</td>
+</tr>
+<tr>
+<td>entry</td>
+<td>2024</td>
+<td>977</td>
+<td>0.005</td>
+<td>0.022</td>
+<td>0.399</td>
+<td>0.038</td>
+</tr>
+<tr>
+<td>entry</td>
+<td>2026</td>
+<td>4,656</td>
+<td>0.009</td>
+<td>0.029</td>
+<td>0.405</td>
+<td>0.338</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Senior people-management density fell −58% (0.027 → 0.011). Entry people-management density <em>rose</em> +71% (0.005 → 0.009).</strong> But both are starting from near-zero in entry; the absolute change is 0.003 vs the senior absolute decline of 0.016. The senior decline is 5× larger in absolute magnitude.</p>
+<p>The cleaner read is: <strong>people-management language decline is concentrated at senior</strong>, not field-wide. Entry postings barely contained people-management language to begin with, and the tiny rise at entry is noise-level. The senior tier lost a meaningful amount of people-management language; the entry tier did not.</p>
+<p>Mentor density grew at both tiers but much more at senior (+33% vs +30% relative, but 0.021 absolute at senior vs 0.007 absolute at entry). Tech orchestration density grew at senior (+47%) but was nearly flat at entry (+1.6%). AI mention rose roughly 9× at both tiers.</p>
+<p><strong>This is a senior-specific rebranding, not a field-wide template shift.</strong> The entry tier adopted AI language and stayed essentially flat on people-management, mentoring, and tech orchestration. The senior tier is where the IC+mentoring+tech-orchestration reorientation is concentrated.</p>
+<p>Table: <code>cross_seniority_comparison.csv</code>.</p>
+<h2 id="7-domain-stratification-via-t09-archetype-labels">7. Domain stratification (via T09 archetype labels)</h2>
+<p>Using the 8,000 archetype-labeled sample joined to the senior pool:</p>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Period</th>
+<th>n</th>
+<th>people_mgmt</th>
+<th>mentor</th>
+<th>tech_orch</th>
+<th>strat</th>
+<th>ai</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI/ML</td>
+<td>2024</td>
+<td>78</td>
+<td>0.007</td>
+<td><strong>0.126</strong></td>
+<td>0.277</td>
+<td>0.522</td>
+<td>1.054</td>
+</tr>
+<tr>
+<td>AI/ML</td>
+<td>2026</td>
+<td>579</td>
+<td>0.013</td>
+<td>0.072</td>
+<td><strong>0.972</strong></td>
+<td>0.342</td>
+<td><strong>1.689</strong></td>
+</tr>
+<tr>
+<td>Frontend/Web</td>
+<td>2024</td>
+<td>133</td>
+<td>0.008</td>
+<td>0.064</td>
+<td>0.204</td>
+<td>0.319</td>
+<td>0.019</td>
+</tr>
+<tr>
+<td>Frontend/Web</td>
+<td>2026</td>
+<td>213</td>
+<td>0.009</td>
+<td>0.092</td>
+<td>0.407</td>
+<td>0.362</td>
+<td>0.286</td>
+</tr>
+<tr>
+<td>Cloud/Infra</td>
+<td>2024</td>
+<td>176</td>
+<td>0.014</td>
+<td>0.048</td>
+<td>0.563</td>
+<td>0.252</td>
+<td>0.004</td>
+</tr>
+<tr>
+<td>Cloud/Infra</td>
+<td>2026</td>
+<td>373</td>
+<td>0.012</td>
+<td>0.058</td>
+<td><strong>0.820</strong></td>
+<td>0.194</td>
+<td>0.116</td>
+</tr>
+<tr>
+<td>Data</td>
+<td>2024</td>
+<td>141</td>
+<td>0.002</td>
+<td>0.069</td>
+<td>0.199</td>
+<td>0.391</td>
+<td>0.016</td>
+</tr>
+<tr>
+<td>Data</td>
+<td>2026</td>
+<td>317</td>
+<td>0.004</td>
+<td>0.057</td>
+<td>0.272</td>
+<td>0.353</td>
+<td>0.163</td>
+</tr>
+<tr>
+<td>Backend/Enterprise</td>
+<td>2024</td>
+<td>189</td>
+<td>0.028</td>
+<td>0.056</td>
+<td>0.179</td>
+<td>0.129</td>
+<td>0.003</td>
+</tr>
+<tr>
+<td>Backend/Enterprise</td>
+<td>2026</td>
+<td>183</td>
+<td>0.041</td>
+<td>0.080</td>
+<td>0.415</td>
+<td>0.235</td>
+<td>0.170</td>
+</tr>
+<tr>
+<td>Embedded/Systems</td>
+<td>2024</td>
+<td>45</td>
+<td>0.000</td>
+<td>0.045</td>
+<td>0.236</td>
+<td>0.225</td>
+<td>0.000</td>
+</tr>
+<tr>
+<td>Embedded/Systems</td>
+<td>2026</td>
+<td>174</td>
+<td>0.012</td>
+<td>0.050</td>
+<td>0.196</td>
+<td>0.226</td>
+<td>0.012</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Observations:</strong></p>
+<ul>
+<li><strong>AI/ML senior postings show the strongest tech-orchestration growth</strong> (0.28 → 0.97, +251%) and the strongest AI density (1.054 → 1.689). Interestingly, AI/ML senior mentoring density <em>declined</em> (0.126 → 0.072), suggesting the AI/ML senior tier absorbed tech-orchestration responsibilities faster than it absorbed mentoring. The 2024 AI/ML senior tier was already mentor-heavy (0.126 vs overall 0.065); the 2026 AI/ML tier specialized into tech-orchestration.</li>
+<li><strong>Cloud/Infra senior postings are the most tech-orchestration-dense in 2026</strong> (0.820) — consistent with this domain's historical emphasis on CI/CD, automation, and system design.</li>
+<li><strong>Backend/Enterprise is the only domain where people-management density <em>rose</em></strong> (0.028 → 0.041). This is the one domain where the senior-tier people-management decline story does NOT hold. Backend/Enterprise is where legacy team-lead templates appear to be sticky. Small n (189 / 183), treat as directional.</li>
+<li><strong>Embedded/Systems tech-orchestration was flat or slightly down</strong> (0.236 → 0.196) — the only domain where tech-orchestration did not grow.</li>
+<li><strong>Mentoring growth at senior is NOT uniform across domains.</strong> It grew in Frontend/Web (+44%), Backend/Enterprise (+43%), and Cloud/Infra (+21%), but <em>fell</em> in AI/ML (−43%) and Data (−17%). The "senior mentoring shift" is actually concentrated in the non-AI-heavy domains; the AI/ML senior tier is specializing into tech-orchestration instead.</li>
+</ul>
+<p>This is a substantive refinement of the T11 story: <strong>the IC+mentoring shift is real, but it is concentrated in non-AI/ML domains</strong>. Within AI/ML, the senior shift is more IC+tech-orchestration. This domain heterogeneity has not been reported before and is a specific contribution of T21.</p>
+<p>Table: <code>senior_by_domain.csv</code>.</p>
+<h2 id="8-credential-stripping-correlation-t12-follow-up">8. Credential-stripping correlation (T12 follow-up)</h2>
+<p>T12 / V1 found that mid-senior 2026 postings actively lose <code>qualifications</code>, <code>required</code>, <code>requirements</code>, <code>degree</code>, <code>bachelor</code>. T21 tests whether this credential-stripping correlates at the posting level with the mentoring/orchestration profile.</p>
+<p>Spearman rank correlation between <code>cred_density</code> and each language profile density, within senior postings:</p>
+<table>
+<thead>
+<tr>
+<th>Correlation</th>
+<th>2024</th>
+<th>2026</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cred_density ↔ mentor_density</td>
+<td>−0.07</td>
+<td>−0.05</td>
+</tr>
+<tr>
+<td>cred_density ↔ tech_orch_density</td>
+<td>−0.01</td>
+<td>−0.06</td>
+</tr>
+<tr>
+<td>cred_density ↔ people_mgmt_density</td>
+<td>+0.08</td>
+<td>−0.04</td>
+</tr>
+<tr>
+<td>cred_density ↔ ai_density</td>
+<td>−0.10</td>
+<td><strong>−0.15</strong></td>
+</tr>
+</tbody>
+</table>
+<p>All correlations are weak (|ρ| &lt; 0.15). The strongest signal is the AI↔credential anti-correlation: <strong>senior postings with more AI mentions have lower credential vocabulary density</strong>, and this anti-correlation strengthened from −0.10 in 2024 to −0.15 in 2026. Mentoring and tech-orchestration are essentially uncorrelated with credential vocabulary at the posting level.</p>
+<p><strong>Interpretation:</strong> the credential-stripping story is <strong>not a coherent posting-level rebranding co-occurring with the IC+mentoring profile</strong>. It is a separate, parallel phenomenon — credential vocabulary is being stripped out <em>alongside</em> the IC+mentoring rise but not within the same postings in any strong way. The one exception is AI mention, where AI-mentioning postings tend to be the ones stripping credential vocabulary, and this association grew modestly from 2024 to 2026. The interpretation is that AI-forward postings are also the ones dropping <code>bachelor's/degree/required</code> language — perhaps reflecting a 2026 hiring pattern where AI teams lower formal credential requirements while raising technical expectations.</p>
+<p>Tables: <code>credential_stripping_correlation.csv</code>, <code>credential_stripping_correlation_2024.csv</code>.</p>
+<h2 id="9-precision-validation-of-detectors">9. Precision validation of detectors</h2>
+<p>25 matches sampled per (pattern × period) and spot-checked:</p>
+<ul>
+<li><strong>People management (250 samples, 2024+2026):</strong> ~95-100% precision. The <code>people management</code> pattern hits "Y+ years of people management experience" — unambiguously accurate. The <code>direct reports</code> pattern hits statements like "you will have 5 direct reports." The <code>people manager</code> pattern hits role descriptors. <code>team building</code> has the lowest precision (~85%) since some matches are generic "help with team building activities" boilerplate — noted but retained.</li>
+<li><strong>Mentoring (100 samples, 2024+2026):</strong> ~100% precision. Every spot-checked match is a real mentoring responsibility ("mentor junior engineers", "provide mentorship to team members"). Matches the T11/V1 ~100% precision finding.</li>
+<li><strong>Technical orchestration (325 samples, 2024+2026):</strong> ~95% precision. <code>code review</code>, <code>system design</code>, <code>architecture review</code>, <code>agentic</code>, <code>guardrails</code>, <code>prompt engineering</code> all landed cleanly. <code>automation</code> is broader and sometimes matches non-technical automation ("automation of HR processes") — estimated ~85% precision.</li>
+<li><strong>Strategic scope (200 samples, 2024+2026):</strong> ~90-100% precision. <code>stakeholder</code>, <code>cross-functional</code>, <code>roadmap</code>, <code>revenue</code> land cleanly. <code>prioritization</code> occasionally matches abstract priorities talk but usually work-scoping language.</li>
+</ul>
+<p>Sample files: <code>samples_people_mgmt.csv</code>, <code>samples_mentoring.csv</code>, <code>samples_tech_orch.csv</code>, <code>samples_strategic.csv</code>.</p>
+<p>All precision levels are high enough to report the density and any-share numbers with confidence. The strict-detector approach reproduces T11 / V1 precision claims.</p>
+<h2 id="headline-findings-for-downstream-reporting">Headline findings for downstream reporting</h2>
+<ol>
+<li>
+<p><strong>The T11 "IC + mentoring, not people-management" reframing is confirmed and sharpened under strict-detector re-runs.</strong> Senior people-management density fell 58%; mentoring density grew 33%; mentoring any-share doubled (11% → 22%); tech-orchestration any-share grew from 37% to 62%.</p>
+</li>
+<li>
+<p><strong>The biggest shift in senior language is tech orchestration, not mentoring.</strong> Tech-orchestration density grew +47%, any-share grew +25pp (the largest any-share shift of any profile). Mentoring grew meaningfully but tech-orchestration grew <em>more</em>. The "senior → IC + mentoring" frame undersells the tech-orchestration growth; the fuller frame is <strong>senior → IC + mentoring + tech-orchestration (especially AI orchestration)</strong>.</p>
+</li>
+<li>
+<p><strong>A new AI-orchestration language has emerged in the senior tier:</strong> <code>agentic</code> went 0.02% → 8.3% (415×), <code>prompt engineering</code> 0.19% → 3.7% (20×), <code>guardrails</code> 0.19% → 2.85% (15×), <code>multi-agent</code> 0.05% → 2.1% (40×), <code>ai orchestration</code> 0% → 0.38%. These did not exist in 2024 senior postings and are now material components of the senior profile. The term-level lift is dramatic and specific.</p>
+</li>
+<li>
+<p><strong>K-means clustering confirms an emerging AI-orchestration archetype.</strong> The TechOrch-heavy cluster (cluster #4, mean tech_orch density 2.49 per 1K chars) grew from 5.0% to 7.6% share (+52% relative). Meanwhile the People-Manager cluster (cluster #2) shrank from 3.7% to 1.1% (−70% relative). The Mentor-heavy cluster grew from 8.6% to 10.8% (+26%). The rebalancing is clear: People-Manager → Mentor + TechOrch-heavy.</p>
+</li>
+<li>
+<p><strong>Directors in 2026 are no longer distinguishable from mid-senior on people-management, mentoring, or AI mention</strong> (all three densities collapse to essentially the mid-senior mean). The only density where directors retain a clear lead is strategic scope (0.425 vs 0.284). This directly explains T20's finding that the mid-senior↔director boundary is the one that blurred on structured features.</p>
+</li>
+<li>
+<p><strong>The 2026 AI-mentioning senior subset is tech-orchestration-heavy, not mentor-heavy.</strong> In 2024 AI-mentioning seniors were disproportionately mentor-heavy (0.22 vs 0.06 for non-AI, a 3.7× lift). In 2026 they are tech-orchestration-heavy (0.85 vs 0.39, a 2.2× lift) and mentoring is flat between the AI and non-AI subsets. <strong>The AI-mentioning senior profile flipped</strong> from research-mentor-like to IC-builder-like.</p>
+</li>
+<li>
+<p><strong>The IC+mentoring shift is NOT uniform across domains.</strong> Mentoring grew at senior in Frontend/Web, Backend/Enterprise, and Cloud/Infra, but <em>declined</em> in AI/ML and Data. The AI/ML senior tier is specializing into tech-orchestration instead of mentoring. Backend/Enterprise is the one domain where people-management density <em>rose</em>, making it the outlier where the decline story does not hold.</p>
+</li>
+<li>
+<p><strong>People-management decline is senior-specific, not field-wide.</strong> Senior people-management density fell 0.016 absolute; entry people-management density rose 0.003 (starting from near-zero). The senior rebranding is a specific phenomenon, not a template shift contaminating the whole corpus.</p>
+</li>
+<li>
+<p><strong>Credential-stripping does not correlate strongly with the IC+mentoring profile at the posting level.</strong> All correlations are |ρ| &lt; 0.15. The only notable trend is that AI-mentioning senior postings also tend to be the ones stripping credential vocabulary (ρ = −0.15 in 2026, up from −0.10). Credential stripping is a separate parallel trend, not a coherent posting-level rebranding.</p>
+</li>
+</ol>
+<h2 id="outputs">Outputs</h2>
+<p>Tables:
+- <code>senior_density_by_period_raw.csv</code> — raw density by period × senior subgroup
+- <code>senior_density_by_period_capped20.csv</code> — company-capped (primary for corpus aggregates)
+- <code>senior_density_no_aggregators.csv</code> — aggregator-exclusion sensitivity
+- <code>senior_term_level_counts_raw.csv</code> / <code>senior_term_level_counts_capped20.csv</code> — term-level frequencies for every sub-pattern
+- <code>senior_kmeans_clusters.csv</code> — 5-cluster profile means with labels
+- <code>senior_kmeans_shares_by_period.csv</code> — cluster shares by period
+- <code>senior_ai_mentioning_comparison.csv</code> — AI-mentioning vs non-AI senior comparison
+- <code>director_vs_midsenior.csv</code> — director-specific analysis
+- <code>cross_seniority_comparison.csv</code> — senior vs entry cross-comparison
+- <code>credential_stripping_correlation.csv</code> / <code>credential_stripping_correlation_2024.csv</code>
+- <code>senior_by_domain.csv</code> — domain-stratified senior language evolution
+- <code>samples_people_mgmt.csv</code> / <code>samples_mentoring.csv</code> / <code>samples_tech_orch.csv</code> / <code>samples_strategic.csv</code> — 50 samples/profile for precision audit
+- <code>T21_summary.json</code></p>
+<p>Figures:
+- <code>senior_profile_scatter.png</code> — 2×1 scatter: people-mgmt vs mentor, mentor vs tech-orch, by period
+- <code>senior_cluster_shares.png</code> — cluster share bar chart by period</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

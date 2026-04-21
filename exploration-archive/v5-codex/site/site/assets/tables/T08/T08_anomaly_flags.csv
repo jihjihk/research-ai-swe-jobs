@@ -1,0 +1,9 @@
+anomaly,evidence,severity,type
+description_length_expansion,Mean description length rises from 3306 in arshkon to 4936 in scraped LinkedIn; p95 jumps from 7210 to 8753.,high,right-skew / long-tail expansion
+seniority_conservative_explicit_entry,"Explicit entry share is only 0.022 in 2026-04, while YOE<=2 is 0.115.",high,label/YOE divergence
+native_entry_temporal_instability,Arshkon native entry rows average 4.18 YOE and only 28.6% are <=2 YOE.,high,label stability concern
+metro_coverage_fragmentation,Metro missingness is 24.5%-40.8% and distinct metros collapse to 27 in scraped 2026 versus 74-87 in 2024 sources.,high,geography coverage / concentration
+industry_label_explosion,"Scraped 2026 contains ~1000 distinct industry strings versus 163 in arshkon, suggesting label semantics are not stable across sources.",moderate,categorical semantics drift
+company_size_missing_outside_arshkon,"Company size is 99% present in arshkon but absent in asaniczka and scraped, so it is a single-source diagnostic rather than a cross-period control.",high,coverage asymmetry
+seniority_unknown_dominance,"Unknown seniority rises to 54%-55% in scraped 2026 and dominates the 3-level collapse, so `seniority_3level` is too coarse for junior analysis.",high,measurement limitation
+llm_text_coverage_thin_scraped,"Only 16.1% of scraped SWE rows carry LLM-cleaned text, so text-heavy 2026 estimates are coverage-limited.",high,text coverage limitation

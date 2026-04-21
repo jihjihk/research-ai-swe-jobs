@@ -1,0 +1,2004 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="2024-2026 US LinkedIn software-engineering postings - exploration findings">
+      
+      
+        <meta name="author" content="Wave 5 Presentation Agent P">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T24 — Hypothesis Generation Beyond RQ1–RQ4 - SWE Labor Market Exploration</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t24-hypothesis-generation-beyond-rq1rq4" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="SWE Labor Market Exploration" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T24 — Hypothesis Generation Beyond RQ1–RQ4
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../.." class="md-tabs__link">
+          
+  
+  
+  Presentation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../findings/" class="md-tabs__link">
+          
+  
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../methodology/overview/" class="md-tabs__link">
+          
+  
+  
+  Methodology
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../narrative/synthesis/" class="md-tabs__link">
+          
+  
+  
+  Narrative
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="SWE Labor Market Exploration" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Presentation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Presentation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SWE Labor Market Exploration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/ai-rewriting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. AI-vocabulary rewriting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/scope-broadening/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Within-company scope broadening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/senior-shift/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Senior-specific role shift
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/rq3-inversion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Employers under-specify AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/boundary-sharpening/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Seniority boundaries sharpened
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../findings/what-didnt-change/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What did not change
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methodology
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/sensitivity-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../methodology/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Narrative
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Narrative
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/synthesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/rq-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research question evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/paper-positioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper positioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../narrative/interview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interview elicitation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-1-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 (data foundation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-2-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 (structural discovery)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-3-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 (market dynamics)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../verification-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../wave-4-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 (synthesis)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate memos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Purpose
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#confirmation-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Confirmation inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#surprise-inventory-findings-that-contradicted-pre-exploration-priors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surprise inventory (findings that contradicted pre-exploration priors)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#method-suitability-per-rq-post-exploration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method suitability per RQ (post-exploration)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-tensions-to-resolve-in-analysis-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key tensions to resolve in analysis phase
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-gaps-for-the-analysis-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data gaps for the analysis phase
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#new-hypotheses-h_a-through-h_j" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New hypotheses (H_A through H_J)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="New hypotheses (H_A through H_J)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#h_a-cross-occupation-employer-under-specification-of-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_A — Cross-occupation employer under-specification of AI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_b-requirement-section-contraction-as-hidden-hiring-bar-signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_B — Requirement-section contraction as hidden hiring-bar signal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_c-ai-enabled-tech-lead-as-emergent-senior-role-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_C — "AI-enabled tech lead" as emergent senior role type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_d-senior-specific-mentor-rise-reflects-team-multiplier-repositioning-not-management-ladder-promotion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_D — Senior-specific mentor rise reflects team-multiplier repositioning, not management-ladder promotion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_e-same-company-j1-label-drop-same-company-j3-yoe-rise-hiring-juniors-by-yoe-but-not-labeling-them-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_E — Same-company J1 label drop + same-company J3 YOE rise = hiring juniors by YOE but not labeling them entry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_f-sunbelt-ai-surge-is-late-adopter-catch-up-tech-hub-ai-surge-is-baseline-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_F — Sunbelt AI surge is late-adopter catch-up; tech-hub AI surge is baseline-approach
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_g-staff-title-doubling-reflects-senior-tier-internal-redistribution-not-growth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_G — Staff-title doubling reflects senior-tier internal redistribution, not growth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_h-2026-linkedin-swe-corpus-reflects-a-different-firm-population-than-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_H — 2026 LinkedIn SWE corpus reflects a different firm population than 2024
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_i-ai-rewriting-is-a-coordination-signal-not-a-skill-demand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_I — AI rewriting is a "coordination signal," not a "skill demand"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#h_j-recruiter-llm-adoption-is-senior-biased-because-hr-tooling-defaults-to-mid-senior-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H_J — Recruiter-LLM adoption is senior-biased because HR tooling defaults to mid-senior templates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ranked-priority-list-for-analysis-phase-effort-allocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ranked priority list (for analysis-phase effort allocation)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-references
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t24-hypothesis-generation-beyond-rq1rq4">T24 — Hypothesis Generation Beyond RQ1–RQ4<a class="headerlink" href="#t24-hypothesis-generation-beyond-rq1rq4" title="Permanent link">&para;</a></h1>
+<p>Agent N · Wave 4 · 2026-04-17
+Upstream: Gate 3 memo, V1/V2 verification, T01–T23, T28, T29, T30.
+Downstream: SYNTHESIS.md (T26) analysis-phase priority list, T25 interview prompts.</p>
+<hr />
+<h2 id="purpose">Purpose<a class="headerlink" href="#purpose" title="Permanent link">&para;</a></h2>
+<p>The pre-registered research questions (junior scope inflation, senior archetype shift,
+employer/worker divergence, mechanisms) have been either <strong>confirmed, inverted, or
+decomposed</strong> by the exploration. What the exploration surfaced is a harder problem:
+the 2024→2026 rewriting has specific structural features (SWE-specificity, senior-
+disproportion, within-company persistence, requirement-section shrinkage while breadth
+rises) that cry out for explanation beyond the original RQs. This report generates <strong>10
+new hypotheses</strong> that use the exploration artifacts as jumping-off points and can be
+tested in the analysis phase with the data already available.</p>
+<p>Hypotheses are ordered by <strong>priority = novelty × evidence strength × testability</strong>
+(high / medium / low on each axis; top-line ranking at the end).</p>
+<hr />
+<h2 id="confirmation-inventory">Confirmation inventory<a class="headerlink" href="#confirmation-inventory" title="Permanent link">&para;</a></h2>
+<p>For completeness before the new hypotheses, here is what the RQ1–RQ4 framings now look like:</p>
+<table>
+<thead>
+<tr>
+<th>Original RQ claim</th>
+<th>Verdict</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RQ1a: Junior scope inflation (narrower junior rung, more senior-flavored requirements in entry postings)</td>
+<td><strong>REJECTED as stated; DECOMPOSED</strong></td>
+<td>T05 (SNR &lt;1 junior-share); T16 (within-company breadth +1.43 residualized but equal at entry vs senior); T20 (boundaries SHARPENED not blurred)</td>
+</tr>
+<tr>
+<td>RQ1b: Senior archetype shift to mentor/orchestration/review</td>
+<td><strong>CONFIRMED, senior-disproportionate</strong></td>
+<td>T21 (mid-senior mentor ratio 1.46–1.73× vs entry 1.07×); T28 (senior mentor Δ +4 to +26pp across 20 archetypes, median ~+12pp); mgmt+orch+strat+AI sub-archetype 97%-2026</td>
+</tr>
+<tr>
+<td>RQ2: Task/requirement migration (downward, upward, or cross-stratified)</td>
+<td><strong>DIFFUSE CROSS-SENIORITY, not migration</strong></td>
+<td>T08 (AI +34pp junior / +35pp senior ≈ equal); T16 (within-company AI-strict 102%); T28 (20/22 archetypes positive, 6/22 ≥+10pp strict)</td>
+</tr>
+<tr>
+<td>RQ3: Employer AI-requirement outpaces worker usage (anticipatory restructuring)</td>
+<td><strong>DIRECTION INVERTED</strong></td>
+<td>T23 (broad 46.8% &lt; 50/65/75/85% band); V2 confirmed; seniors MORE specified than juniors (rules out junior-filter interpretation)</td>
+</tr>
+<tr>
+<td>RQ4: Mechanisms (interview-grade)</td>
+<td><strong>STRENGTHENED, with quantitative priors</strong></td>
+<td>T29 (authorship score +1.14 SDs; AI retention 77%, mentor 72%, breadth 71% under primary cut); T17 (geographic null r=−0.11); T28 (AI/ML 81% new-entrant-driven)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="surprise-inventory-findings-that-contradicted-pre-exploration-priors">Surprise inventory (findings that contradicted pre-exploration priors)<a class="headerlink" href="#surprise-inventory-findings-that-contradicted-pre-exploration-priors" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Requirements section SHRANK −19% chars pooled-2024 → 2026 (T13), with senior falling −22%.</strong> Pre-exploration framing assumed scope inflation in requirements. Instead, responsibilities (+67%), benefits (+87%), about_company (+71%), preferred (+152%), role_summary (+75%) expanded while requirements shrank. Pre-exploration intuition failed.</li>
+<li><strong>Seniors changed MORE than juniors 2024→2026 (T12, T21).</strong> Cosine shift senior 0.942 vs entry 0.953. Mentor rate ratio mid-senior 1.73× vs entry 1.07×. Original RQ1 was framed around the junior rung as the dynamic cell; the data says seniors moved first.</li>
+<li><strong>Seniority boundaries SHARPENED, not blurred (T20).</strong> All three adjacent boundaries (+0.054, +0.084, +0.003) gained AUC; J3-vs-S4 yoe panel gained +0.134 AUC. "Junior/senior convergence under AI" hypothesis cleanly rejected.</li>
+<li><strong>Employers UNDER-specify AI vs developer usage (T23).</strong> Every published worker benchmark (SO 2024 62%, Octoverse 73%, Anthropic 75%) exceeds employer ai_broad (46.8%). Direction opposite to pre-exploration.</li>
+<li><strong>Domain dominates seniority by 8.6× in NMI (T09 + V1).</strong> Pre-exploration organizing axis was seniority; actual organizing axis is tech domain archetype.</li>
+<li><strong>AI/ML archetype growth is 81% new-entrant-driven (T28).</strong> Existing firms pivoting into AI/ML contribute only ~19%; 935 companies appear in the AI/ML archetype only in 2026. "Firms pivoting to AI" narrative is the minor story; "new firms post AI roles" is the major one.</li>
+<li><strong>AI surge is geographically uniform: 26/26 metros positive, r(ΔAI, ΔJ2)=−0.11 null (T17).</strong> Top 3 AI-surge metros are Tampa Bay / Atlanta / Charlotte — not tech hubs. Spatial "AI exposure → junior displacement" story is rejected.</li>
+<li><strong><code>manage</code> has 14% semantic precision in SWE JDs (T11).</strong> Previous "management language rose" claims were regex-dominated by non-managerial uses ("manage data," "manage state"). Refined pattern landed on <code>mentor</code> as the single driving term.</li>
+<li><strong>Staff title doubled 2.6% → 6.3% while senior share flat (T10 + T21).</strong> The senior tier is redistributing internally, not growing.</li>
+<li><strong>AI-mentioning senior postings have MORE management and orchestration language in 2026, not less (T21).</strong> In 2024 AI was in IC/research roles; by 2026 AI is alongside managerial/orchestration content. The emergent mgmt+orch+strat+AI sub-archetype (97%-2026, n=860) is a new senior role type.</li>
+</ol>
+<hr />
+<h2 id="method-suitability-per-rq-post-exploration">Method suitability per RQ (post-exploration)<a class="headerlink" href="#method-suitability-per-rq-post-exploration" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>RQ</th>
+<th>Best methods for analysis phase</th>
+<th>Cautions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RQ1a SWE-specific AI rewriting</td>
+<td>T18 DiD (primary), T16 within-company Oaxaca (robustness), T28 cross-archetype coverage</td>
+<td>V1-refined strict pattern primary; length-residualize any composite</td>
+</tr>
+<tr>
+<td>RQ1b Within-company scope broadening</td>
+<td>T16 240-co overlap panel, length-residualized breadth; sensitivity across 5 ablations</td>
+<td>Must cite 71% content / 29% length split; cap-50 sensitivity</td>
+</tr>
+<tr>
+<td>RQ1c Seniority boundary sharpening</td>
+<td>T20 per-boundary AUC, J3/S4 yoe-excluded panel</td>
+<td>Associate cell small (39/51) — report as directional; per-boundary 5-fold CV</td>
+</tr>
+<tr>
+<td>RQ2 Task migration narrowed</td>
+<td>T28 archetype stratification, T21 senior-vs-junior mentor ratios</td>
+<td>Equal magnitude junior vs senior = diffuse, not migration</td>
+</tr>
+<tr>
+<td>RQ3 Inverted: employer under-specification</td>
+<td>T23 benchmark comparison across 50/65/75/85% bands; V2 alternative-framing check</td>
+<td>Posting ≠ worker units; report qualitative gap not precise pp</td>
+</tr>
+<tr>
+<td>RQ4 Mechanisms</td>
+<td>T29 authorship score; T17 geographic null; T28 new-entrant decomposition</td>
+<td>Mentor effect most LLM-sensitive; AI-strict most robust to score cut</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="key-tensions-to-resolve-in-analysis-phase">Key tensions to resolve in analysis phase<a class="headerlink" href="#key-tensions-to-resolve-in-analysis-phase" title="Permanent link">&para;</a></h2>
+<p><strong>Tension 1 — T11 breadth rises +39% vs T13 requirements shrinks −19%.</strong> Both are real.
+- <code>requirement_breadth</code> = count of distinct requirement <em>types</em> mentioned anywhere in cleaned description (tech + scope + soft + cred + mgmt + AI + YOE + edu).
+- <code>requirements section chars</code> = character length of text classified into the requirements section.
+- The 2026 posting mentions more <em>kinds</em> of things across responsibilities, role_summary, and about_company while the formal requirements section contracted. The mechanism is section reallocation + breadth diversification.
+- The paper must explain this explicitly — it is not a contradiction but is guaranteed to be raised by a reviewer.</p>
+<p><strong>Tension 2 — T06 says J3 rise is 95% between-company vs T09/T28 say J2 rise is 84% within-archetype.</strong> Compatible: J3 uses a YOE-based proxy that is dominated by new-entrant tech-giant intern pipelines (compositional); J2 uses label-based entry+associate which within-archetype rose via LLM-labeling shift plus content labeling drift. Different operational variables.</p>
+<p><strong>Tension 3 — Seniors changed more than juniors (T12) but boundary sharpened most in ML/AI (T20).</strong> Seniors changed more <em>in absolute cosine distance</em>; ML/AI gained the most <em>boundary clarity</em> because its junior-vs-senior gap widened. Both true; the paper should separate "who changed how much" from "who became easiest to tell apart."</p>
+<p><strong>Tension 4 — T16 breadth residualized +1.43 within 240 companies vs T13 requirements-section-chars shrank.</strong> Breadth measures types across the whole posting; requirements-section measures chars in one section. Both can rise or fall independently.</p>
+<p><strong>Tension 5 — T29 AI-strict retention 77% (low40 within-period) vs T29 mentor retention 72% (within-period) vs V2 3-feature score gives mentor retention 105%.</strong> The AI-strict estimate is robust across score variants; the mentor estimate is method-sensitive. Analysis phase should cite AI as "15-30% mediated" and mentor as "mediation uncertain, possibly 0-30%."</p>
+<hr />
+<h2 id="data-gaps-for-the-analysis-phase">Data gaps for the analysis phase<a class="headerlink" href="#data-gaps-for-the-analysis-phase" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong><code>is_remote_inferred</code> is 100% False (T17).</strong> Preprocessing pipeline bug. Blocks any remote-work/hybrid analysis. Needs a preprocessing fix before the paper can contain any hybrid claim.</li>
+<li><strong>No T13 classifier re-run on full 63,701 corpus.</strong> T29 could not adjudicate the section-anatomy finding under the low-LLM subset; a full-corpus classifier run would close this.</li>
+<li><strong>No ground-truth "LLM-authored" labels.</strong> T29's authorship score is corpus-internal; a labeled calibration set (e.g., 100 postings with manually-verified "recruiter-LLM-drafted" vs "human-written") would sharpen mediation estimates.</li>
+<li><strong>No pre-2023 baseline.</strong> 2024-01 asaniczka is already post-ChatGPT (Nov-2022). Every attenuation estimate in T29 is a lower bound. An archived pre-2022 SWE JD set (e.g., OSS job-postings corpus, internet archive snapshots) would let us compute a clean baseline.</li>
+<li><strong>Indeed cross-validation only at end-of-pipeline levels (T05).</strong> Cannot diagnose LinkedIn native-label semantic drift over time without a period-matched Indeed labeled panel.</li>
+<li><strong>Worker-usage benchmarks are self-reported.</strong> Direct observational measures (e.g., GitHub copilot telemetry, IDE plugin counts) would be more authoritative than SO Developer Survey but are not public at the population-weighted scale.</li>
+</ol>
+<hr />
+<h2 id="new-hypotheses-h_a-through-h_j">New hypotheses (H_A through H_J)<a class="headerlink" href="#new-hypotheses-h_a-through-h_j" title="Permanent link">&para;</a></h2>
+<p>Each hypothesis is stated precisely, then: (a) exploration evidence that motivates it,
+(b) specific analysis-phase test with data already in hand, (c) novelty / publishability
+assessment. Hypotheses flagged by the orchestrator (H_A–H_H) retained; new H_I and H_J added.</p>
+<hr />
+<h3 id="h_a-cross-occupation-employer-under-specification-of-ai"><strong>H_A — Cross-occupation employer under-specification of AI</strong><a class="headerlink" href="#h_a-cross-occupation-employer-under-specification-of-ai" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The employer/worker AI-requirement gap (−28pp broad at the central benchmark)
+observed in SWE (T23) is a general feature of AI-exposed occupations, not a SWE-specific
+phenomenon. In occupations with high AI-task exposure (per Anthropic 2025 Economic Index),
+the employer posting-level AI-mention rate trails worker-survey usage rates by a similar
+or larger margin.</p>
+<p><strong>Motivating evidence.</strong>
+- T23 SWE AI-broad 46.8% vs SO 2024 workers 62% (−15pp at the most permissive benchmark; −28pp at central).
+- T18 DiD shows SWE-adjacent (ML eng, data sci, data eng, security eng) ALSO show substantial AI-strict rise (ml_eng +54pp, data_sci +15pp) and rise 95% of SWE-only change on tech_count.
+- Anthropic 2025 Labor Market Impacts study: 75% of Computer &amp; Math TASKS are covered by Claude — task-weighted coverage is large across occupations.</p>
+<p><strong>Testable in analysis phase.</strong>
+- Use the existing unified.parquet AI-mention features stratified by <code>is_swe</code> / <code>is_swe_adjacent</code> / <code>is_control</code> × ONET-coded occupation (derivable from title regex).
+- For each occupation bucket with n≥500 in both 2024 and 2026, compute ai_strict / ai_broad rates and compare against published AI-usage benchmarks from the same occupation (e.g., accountants ~22% AI use per 2024 surveys; nurses ~8%; marketers ~30–40%).
+- Expected result: employer/worker gap persists across all high-exposure occupations with a similar direction as SWE.
+- Alternative result: SWE is uniquely under-specified because of its tech-savvy hiring audience, in which case the gap should close in occupations with less-expert hiring audiences.</p>
+<p><strong>Novelty / publishability.</strong> <strong>High.</strong> RQ3's inversion is already the paper's most novel single finding. Generalizing to cross-occupation extends the contribution from "SWE labor dynamics" to "employer-side AI signaling in general." Appropriate for labor-economics venues (ILR Review, BE Journal of Economic Analysis &amp; Policy) or science/management venues where cross-occupation framing is welcomed.</p>
+<p><strong>Priority: 1</strong> (novelty high, evidence direct, test feasible with existing data).</p>
+<hr />
+<h3 id="h_b-requirement-section-contraction-as-hidden-hiring-bar-signal"><strong>H_B — Requirement-section contraction as hidden hiring-bar signal</strong><a class="headerlink" href="#h_b-requirement-section-contraction-as-hidden-hiring-bar-signal" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The SWE-specific shrinkage of the formal requirements section (T13 −19% chars,
+T18 −10.7pp share vs control +0.9pp) reflects an <em>implicit hiring-bar lowering</em> that is
+masked by the simultaneous expansion of narrative sections (responsibilities +67%,
+role_summary +75%, about_company +71%, preferred +152%). Employers are removing hard
+requirements while expanding the "who we are / what you'll do" frame, which signals
+hiring-bar softening without an explicit announcement.</p>
+<p><strong>Motivating evidence.</strong>
+- T13 SWE requirements section fell −19% absolute chars, while responsibilities +67%, role_summary +75%, preferred +152%.
+- T18: SWE requirements-share fell −10.7pp; adjacent −10.9pp; control +0.9pp (opposite direction).
+- V2.9b verified on 500 non-SWE postings: classifier works on control (has_req_rate 73-86%); the divergence is real.
+- Meanwhile <code>lieu degree</code> emerged as a 2026 bigram (T12) — credential loosening is in the text.
+- T28 cross-archetype: universally positive desc_len_chars Δ (+85 to +594) but universally negative requirements-section pattern implied in the diffuse rise of benefits/preferred.</p>
+<p><strong>Testable in analysis phase.</strong>
+- Regression on the 34,102 LLM-labeled corpus: dependent = requirements-share (T13 classifier), independent = period × seniority × archetype × is_aggregator × posting_length.
+- Sub-analysis: do postings with shrunken requirements-section have higher yoe_extracted distributions or lower? If lower, hiring bar is literally lowering.
+- Qualitative: within the 240-co overlap panel, do companies with the largest requirements-section contraction also have the largest J3 (yoe≤2) rise?</p>
+<p><strong>Novelty / publishability.</strong> <strong>Medium-high.</strong> Connects a substantive finding (section restructuring) to a policy-relevant interpretation (hidden bar softening). Candidates for CSCW or CHI: JD-as-signaling literature is active.</p>
+<p><strong>Priority: 2.</strong></p>
+<hr />
+<h3 id="h_c-ai-enabled-tech-lead-as-emergent-senior-role-type"><strong>H_C — "AI-enabled tech lead" as emergent senior role type</strong><a class="headerlink" href="#h_c-ai-enabled-tech-lead-as-emergent-senior-role-type" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The mgmt+orch+strat+AI sub-archetype observed in T21 (97% 2026, n=860) is
+not an artifact of clustering but a genuinely new senior role: an individual contributor
+or team lead whose mandate is to <em>deploy AI tooling across a team's workflow</em>. This role
+bundles: mentorship (39% mentor-binary in cluster), orchestration (85% density), AI
+deployment (100% AI-mention), and moderate management (25%). It is distinct from both
+the traditional "manager-track director" and the "IC-track staff engineer."</p>
+<p><strong>Motivating evidence.</strong>
+- T21 k-means cluster 2: n=860, 97% are 2026, AI 100%, orch 0.85, mgmt 0.25, mentor 0.39.
+- Staff title doubled 2.6% → 6.3% (T10); 2026 staff postings have +16pp mgmt, +11pp strat, +16pp mentor, +5pp AI vs non-staff seniors (T21).
+- T20: management_density jumped to |0.42| coefficient at mid-senior-vs-associate boundary in 2026 (from |0.20| in 2024) — managerial language is diffusing downward.
+- T16 cluster 4 "consolidating giants" (Google, Microsoft, AWS) shrank breadth but ramped entry-share — consistent with seniors-do-more, juniors-get-hired-in-batches.</p>
+<p><strong>Testable in analysis phase.</strong>
+- Within the 860 cluster-2 postings, stratify by title — what fraction are "staff engineer," "tech lead," "principal," "ML lead," "AI engineer"? Is the emergent role labelled?
+- Within-company trajectory: do the 62 "consolidating giants" (T16 cluster 4) disproportionately post cluster-2 profile postings in 2026?
+- Cross-tab with T28 archetypes: does cluster 2 concentrate in specific domain archetypes (AI/ML, cloud_devops, backend_platform)?</p>
+<p><strong>Novelty / publishability.</strong> <strong>High.</strong> "AI-enabled tech lead" is a qualitative management-literature concept; quantifying its emergence via clustering is novel. Useful for HBR/MIT Sloan style outlets and for RQ4 interviews.</p>
+<p><strong>Priority: 3.</strong></p>
+<hr />
+<h3 id="h_d-senior-specific-mentor-rise-reflects-team-multiplier-repositioning-not-management-ladder-promotion"><strong>H_D — Senior-specific mentor rise reflects team-multiplier repositioning, not management-ladder promotion</strong><a class="headerlink" href="#h_d-senior-specific-mentor-rise-reflects-team-multiplier-repositioning-not-management-ladder-promotion" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The 1.46–1.73× rise in mid-senior mentor-binary rate (T21) reflects a shift
+from "individual contributor senior" to "team-multiplier senior" driven by AI automating IC
+tasks, NOT a conventional management-ladder promotion shift. This predicts: (a) IC titles
+with "senior/staff" grew faster than manager titles, (b) mentor language diffused more
+strongly in archetypes most affected by AI tooling (per T28 mentor Δ), and (c) within-
+company senior headcount didn't shift toward manager titles.</p>
+<p><strong>Motivating evidence.</strong>
+- T21 mentor senior-disproportionate: mid-senior 1.73×, entry 1.07× — NOT a corpus-wide shift.
+- Staff title doubled but director share essentially flat (T10, T30 S2=0.3% → 0.7%).
+- T20: management-density diffused from director-only to mid-senior (|mgmt_z| 2024 director 0.18 → 2026 mid-senior 0.18) — downward diffusion, not upward promotion.
+- T28 senior mentor Δ highest in qa_test_automation (+26pp), azure_dotnet_web (+20pp), dotnet_web_sql (+18pp), ai_ml (+17pp) — diverse archetype pattern consistent with "senior is now a reviewer role across the stack."</p>
+<p><strong>Testable in analysis phase.</strong>
+- On the 17,713 scraped senior (S1) postings, classify each title as IC / manager via regex (IC = "engineer," "developer," "architect," "staff," "principal" without "manager"; manager = contains "manager," "director," "lead"). Compute mentor-rate separately.
+- Expected: IC senior postings carry MORE mentor than 2024; manager postings carry mentor at a SIMILAR rate to 2024. The shift is in IC senior content, not in manager headcount.
+- T16 240-co overlap: do companies with falling IC headcount (cluster 0 entry-contracting retreat) also carry more mentor at IC senior level in 2026?</p>
+<p><strong>Novelty / publishability.</strong> <strong>Medium.</strong> The IC-senior-as-team-multiplier narrative is a corporate-management staple but has not been quantitatively demonstrated at scale on JD data. Could anchor a Management Science submission.</p>
+<p><strong>Priority: 4.</strong></p>
+<hr />
+<h3 id="h_e-same-company-j1-label-drop-same-company-j3-yoe-rise-hiring-juniors-by-yoe-but-not-labeling-them-entry"><strong>H_E — Same-company J1 label drop + same-company J3 YOE rise = hiring juniors by YOE but not labeling them entry</strong><a class="headerlink" href="#h_e-same-company-j1-label-drop-same-company-j3-yoe-rise-hiring-juniors-by-yoe-but-not-labeling-them-entry" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> Companies like Google, Walmart, Microsoft are running large new-grad pipelines
+(high J3 yoe≤2 share) but are NOT labeling those postings as <code>seniority_native='entry'</code> on
+LinkedIn. This is a platform-taxonomy/labeling convention — not a real hiring change — that
+makes J1 label-based entry share appear to shrink while YOE-based J3 rises. The paper must
+treat this as a measurement-regime shift: "employers label 'entry' differently on 2026
+LinkedIn than on 2024 Kaggle snapshots."</p>
+<p><strong>Motivating evidence.</strong>
+- T06: Google J3=52% / J1=0.9%; Walmart J3=74% / J1=0%; Microsoft J3=39%. 48% of entry-specialist postings come from 11 tech giants with essentially zero <code>seniority_native='entry'</code> labels.
+- T05: bare "developer" lost 61pp native-entry share arshkon vs scraped.
+- Gate 1 T30: arshkon-only J1/J2 DOWN −0.6pp; J3/J4 UP +2.3pp/+3.4pp. Split direction = measurement-regime difference.
+- T16 Cluster 4 "consolidating giants" has d_J2 +4pp (label entry rising within cluster) but the corpus J1/J2 under arshkon-only goes DOWN — compatible only if the 2026 entry-labeled cohort in cluster-4 cos is a smaller fraction of their overall entry-hire intake (T06's intern pipelines).</p>
+<p><strong>Testable in analysis phase.</strong>
+- Within the 240-co panel, for each cos stratify postings by seniority_native (NULL / entry / associate / ...) × yoe_extracted bucket (0-1 / 2 / 3-4 / 5+). Compute 2024→2026 shift in the joint distribution.
+- Expected: 2024 postings have stronger alignment (entry label → yoe≤2); 2026 postings have weaker alignment (many yoe≤2 postings labelled unknown or mid-senior).
+- Cross-check with Indeed labels (T05): does Indeed still align labels tightly with YOE in 2026? If yes, it's a LinkedIn-specific drift.</p>
+<p><strong>Novelty / publishability.</strong> <strong>Medium.</strong> Methodological contribution about cross-period longitudinal JD data. Important caveat for the paper; worth a dedicated methods section.</p>
+<p><strong>Priority: 5.</strong></p>
+<hr />
+<h3 id="h_f-sunbelt-ai-surge-is-late-adopter-catch-up-tech-hub-ai-surge-is-baseline-approach"><strong>H_F — Sunbelt AI surge is late-adopter catch-up; tech-hub AI surge is baseline-approach</strong><a class="headerlink" href="#h_f-sunbelt-ai-surge-is-late-adopter-catch-up-tech-hub-ai-surge-is-baseline-approach" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The top AI-surge metros (Tampa Bay +20pp, Atlanta +18.6pp, Charlotte +17.2pp)
+are late-adopter financial-services / healthcare / aerospace clusters whose 2024 baseline
+was ~0-1% and whose 2026 level is 17-21%. The top "baseline" metros (SF Bay, Seattle) had
+2024 baselines of 1.3-2.7% and 2026 levels of 16.2-17.7% — essentially the same 2026 level
+but different 2024 starts. Both groups are converging on ~17% ai_strict — the Sunbelt
+closed the gap from 0, tech hubs closed the last mile from elevated-but-not-saturated.</p>
+<p><strong>Motivating evidence.</strong>
+- T17: 26/26 metros positive ai_strict Δ; mean +12.8pp, CV 0.29. Tech-hub Δ +13.1pp; non-hub Δ +12.7pp — essentially equal.
+- Top AI-surge: Tampa Bay (2024 1.4% → 2026 21.4%), Atlanta (0.5% → 19.1%), Charlotte (0.0% → 17.2%).
+- Top baseline 2026: SF Bay 16.2%, Seattle 16.4%, NYC 16.7%. All three sit at the national-mean level.</p>
+<p><strong>Testable in analysis phase.</strong>
+- Per-metro, compute 2026 ai_strict level (not Δ). Plot against 2024 baseline. If convergence hypothesis holds, the 2026 level should be nearly constant across metros (~17%) while 2024 varies.
+- Within Sunbelt metros, stratify by industry (financial, healthcare, defense) — is the AI surge concentrated in financial-services cos?
+- Within tech hubs, stratify by archetype — is ML/AI archetype share carrying the residual baseline-approach? (T17 reports SF Bay 32%, Seattle 29% — consistent with ML-archetype saturation explaining the national-mean 2026 level.)</p>
+<p><strong>Novelty / publishability.</strong> <strong>Medium.</strong> Geographic convergence interpretation for a technology-diffusion phenomenon. Interesting for economic geography; less central to the lead paper.</p>
+<p><strong>Priority: 8.</strong></p>
+<hr />
+<h3 id="h_g-staff-title-doubling-reflects-senior-tier-internal-redistribution-not-growth"><strong>H_G — Staff-title doubling reflects senior-tier internal redistribution, not growth</strong><a class="headerlink" href="#h_g-staff-title-doubling-reflects-senior-tier-internal-redistribution-not-growth" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The staff-title share doubling (2.6% → 6.3%, T10 + T21) alongside a flat
+overall senior share (S1 43.3% → 43.3% in arshkon-only-vs-scraped) reflects the senior
+tier redistributing internally: mid-senior postings are being renamed "staff" at a higher
+rate. This is a title-inflation signal within the senior tier that does not correspond to
+real expansion of the senior workforce.</p>
+<p><strong>Motivating evidence.</strong>
+- T10 title concentration stable: 554 → 507 → 533 unique titles per 1K.
+- T30 S1 share: arshkon 44.3% / pooled 59.6% / scraped 43.3% (near-flat under arshkon-only).
+- T21 staff-title 2026 profile: mgmt-binary 0.48 (+16pp over non-staff), mentor 0.47 (+16pp), AI 0.18 (+5pp). Staff-title concentrates the senior-archetype shift.
+- T10 disappearing titles: <code>java architect</code>, <code>drupal developer</code>, <code>devops architect</code>, <code>senior php developer</code>, <code>sr. .net developer</code> — legacy-stack consolidation.</p>
+<p><strong>Testable in analysis phase.</strong>
+- Within the 240-co overlap panel, for each company: count of mid-senior postings in 2024 vs staff-labelled postings in 2026. If hypothesis holds, the per-company mid-senior count should be stable while staff count rose.
+- Compare the content (T21 density features) of "senior X" postings in 2024 vs "staff X" postings at the same company in 2026. If the staff profile just takes the 2024 senior content + more orch/AI, it's title inflation.</p>
+<p><strong>Novelty / publishability.</strong> <strong>Medium.</strong> Connects to broader "job title inflation" literature (Eisfeldt-Falato-Xiaolan 2023); useful color but not a paper-lead.</p>
+<p><strong>Priority: 9.</strong></p>
+<hr />
+<h3 id="h_h-2026-linkedin-swe-corpus-reflects-a-different-firm-population-than-2024"><strong>H_H — 2026 LinkedIn SWE corpus reflects a different firm population than 2024</strong><a class="headerlink" href="#h_h-2026-linkedin-swe-corpus-reflects-a-different-firm-population-than-2024" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The 81% new-entrant share of AI/ML archetype growth (T28) means the 2026
+LinkedIn SWE corpus is sampling a substantively different employer population than 2024 —
+more startups, more AI-native firms, more tech-giant coverage, more aggregators. The paper's
+longitudinal claims are partly a <strong>sampling-frame artifact</strong>: the within-company
+decomposition (T16 102% on AI) corrects for this, but any corpus-level metric has an
+implicit "which companies are posting" confound.</p>
+<p><strong>Motivating evidence.</strong>
+- T28: 935 AI/ML cos only-in-2026 vs 83 both-period; new-entrant volume 1,634 / 2,014 = 81%.
+- T06: 74.5% of scraped cos are new entrants; aggregator share 9.2% → 16.6%.
+- T17: Seattle ML-archetype share 4.3% → 29.1% (+25pp); SF Bay 11.6% → 31.8% (+20pp) — compositional shifts are large.
+- T16 within-vs-between: AI-strict 102% within (same cos changing); J3 only 4% within (new cos entering).</p>
+<p><strong>Testable in analysis phase.</strong>
+- Restrict 2026 analysis to the 2,024 returning companies (co in both periods). Recompute every headline.
+- If the restricted-panel Δ matches the full-corpus Δ within 20%, the sampling-frame artifact is minor. If it differs by &gt;50%, the longitudinal claim needs a sampling caveat.
+- Expected (from T16): AI-mention rise survives restriction (102% within); J3-based junior rise attenuates (96% between); AI/ML archetype share rise may halve under restriction.</p>
+<p><strong>Novelty / publishability.</strong> <strong>High.</strong> Methodological contribution about longitudinal posting data. Important for the paper to address explicitly; a clean sample-frame sensitivity table makes the paper bulletproof to reviewer objections.</p>
+<p><strong>Priority: 6.</strong></p>
+<hr />
+<h3 id="h_i-ai-rewriting-is-a-coordination-signal-not-a-skill-demand"><strong>H_I — AI rewriting is a "coordination signal," not a "skill demand"</strong><a class="headerlink" href="#h_i-ai-rewriting-is-a-coordination-signal-not-a-skill-demand" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The SWE-specific AI-vocabulary rewriting (T18 DiD 99% SWE-specific) is not
+primarily communicating "we need workers with AI skills" (since T23 shows employers
+under-specify vs worker usage); it is communicating "we are an AI-using firm" — a
+coordination signal to other stakeholders (investors, candidates considering offers,
+competitors). This predicts that AI-mention rates correlate with firm-level AI-adoption
+signals (funding rounds tagged "AI," public AI strategy announcements) more than with
+actual AI-use-on-the-job indicators.</p>
+<p><strong>Motivating evidence.</strong>
+- T23 RQ3 inversion: employer ai_broad 46.8% &lt; SO 2024 worker usage 62-76%. If postings were communicating skill demand, they would track usage.
+- T22 AI-ghostiness: AI-sentences are modestly more aspirational (matched-share +0.24) but posting-level ghost rate is NOT elevated — postings are realistic as documents but individual AI requirements are hedged.
+- T17 correlation: Δ_ai_strict × Δ_entry_j2 null (r=−0.11). If AI-mention were tracking actual hiring-demand shifts, we'd expect non-zero correlation.
+- T16 "Consolidating giants" (Google, Microsoft, AWS): d_ai_strict +9.4pp — below panel mean. The firms most likely to use AI tools internally post it LEAST. Consulting firms with AI practice lines (cluster 1 "AI-forward tech-stacking" +41pp) post it most.</p>
+<p><strong>Testable in analysis phase.</strong>
+- Cross-reference the 240-co overlap panel with public AI-adoption signals: Does AI-mention rate correlate with (a) count of AI patents filed 2023-2025, (b) count of "AI strategy" announcements in earnings calls, (c) press-release AI mentions? If r is high, the coordination-signaling hypothesis is supported.
+- Compare intra-company posting consistency: do companies that mention AI in some postings mention it in ALL postings (template-wide signal) or only in AI-flavored roles (demand-specific)? If template-wide, coordination-signaling wins.</p>
+<p><strong>Novelty / publishability.</strong> <strong>High.</strong> Bridges labor-economics (hiring signals) with information-economics (firm-level coordination games). Publishable in a management/info-systems venue. The paper could add a sentence in the discussion noting this as a mechanism hypothesis.</p>
+<p><strong>Priority: 7.</strong></p>
+<hr />
+<h3 id="h_j-recruiter-llm-adoption-is-senior-biased-because-hr-tooling-defaults-to-mid-senior-templates"><strong>H_J — Recruiter-LLM adoption is senior-biased because HR tooling defaults to mid-senior templates</strong><a class="headerlink" href="#h_j-recruiter-llm-adoption-is-senior-biased-because-hr-tooling-defaults-to-mid-senior-templates" title="Permanent link">&para;</a></h3>
+<p><strong>Statement.</strong> The observation that seniors changed more than juniors (T12: senior cosine
+shift 0.942 vs entry 0.953) combined with T29's finding that mentor-rate Δ is the most
+LLM-sensitive of the headline findings (attenuates most under the global cut, 14%
+retention) suggests: recruiter-LLM tooling preferentially drafts mid-senior JDs because
+that's the default template in HR software (ATS systems default to mid-senior roles for
+re-use). Junior postings are more often direct recruiter text (intern pipelines, new-grad
+programs) while senior postings are LLM-augmented templates.</p>
+<p><strong>Motivating evidence.</strong>
+- T12: senior 2026-vs-2024 cosine 0.942 &lt; entry 0.953 (seniors changed more).
+- T29: mentor-rate Δ retention under global cut = 14% (most attenuated); AI-strict 71% (robust); senior-only mentor attenuation matches the "seniors more LLM-drafted" prediction.
+- T29 top-LLM companies: Harvey (AI law startup, ~60-70% senior), Alignerr (ML startup, 80% senior), Anthropic (tech giant, 85% senior by T30 headline). These are companies with mostly senior postings.
+- T29 bottom-LLM companies: India-based staffing firms (Bright Sol, PRIMUS, Allagi). Staffing firms have more generic (often yoe-leaning-low) postings with less LLM augmentation.</p>
+<p><strong>Testable in analysis phase.</strong>
+- Within the 63,701 corpus, compute T29 authorship score × seniority_final. If hypothesis holds, senior mean score should be higher than junior mean within each period.
+- Intra-company analysis: for each co with ≥5 senior + ≥5 junior postings, compute score-gap (senior − junior). If hypothesis holds, the senior &gt; junior gap should widen 2024 → 2026.
+- Behavioral test: interview 3-5 recruiters; ask "when you draft a new JD from scratch vs edit an existing template, which is it for senior vs junior roles?"</p>
+<p><strong>Novelty / publishability.</strong> <strong>Medium-high.</strong> Connects the LLM-authorship mechanism (T29) to a specific behavioral/tooling driver. Directly actionable for RQ4 interviews.</p>
+<p><strong>Priority: 10.</strong></p>
+<hr />
+<h2 id="ranked-priority-list-for-analysis-phase-effort-allocation">Ranked priority list (for analysis-phase effort allocation)<a class="headerlink" href="#ranked-priority-list-for-analysis-phase-effort-allocation" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Rank</th>
+<th>Hypothesis</th>
+<th>Why priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td><strong>H_A — Cross-occupation employer under-specification</strong></td>
+<td>Extends lead novel finding (RQ3 inversion) to a broader class. Direct test with existing control-occupation data.</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td><strong>H_B — Requirement-section contraction as hidden hiring-bar signal</strong></td>
+<td>Explains the T13 shrinkage substantively; connects to policy. Testable with existing T13 classifier outputs.</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td><strong>H_C — "AI-enabled tech lead" as emergent senior role</strong></td>
+<td>Names the 97%-2026 cluster 2; directly informs RQ4 interview guide.</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td><strong>H_D — Senior IC-as-team-multiplier vs promotion shift</strong></td>
+<td>Resolves "seniors changed more" finding into an IC/manager title split.</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td><strong>H_E — Same-company J1 drop + J3 rise = labeling regime shift</strong></td>
+<td>Critical methods caveat; paper cannot cite J1 headlines without addressing.</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td><strong>H_H — 2026 corpus samples different firm population</strong></td>
+<td>Sampling-frame robustness check; required for longitudinal claim defensibility.</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td><strong>H_I — AI as coordination signal, not skill demand</strong></td>
+<td>Explains RQ3 inversion mechanism; publishable on its own.</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td><strong>H_F — Sunbelt/tech-hub convergence on AI baseline</strong></td>
+<td>Geographic color; less central to lead.</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td><strong>H_G — Staff-title doubling as senior-tier redistribution</strong></td>
+<td>Title inflation; useful but secondary.</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td><strong>H_J — Recruiter-LLM adoption is senior-biased by tooling defaults</strong></td>
+<td>Mechanism for T12 "seniors changed more"; actionable for interviews.</td>
+</tr>
+</tbody>
+</table>
+<p>Top three (H_A, H_B, H_C) are candidates for the paper's "additional findings" section.
+H_E and H_H should be treated as methodological robustness checks and folded into the
+"limitations / robustness" section. H_D, H_I, H_J are good interview seeds for RQ4.</p>
+<hr />
+<h2 id="cross-references">Cross-references<a class="headerlink" href="#cross-references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Gate 3 memo (<code>exploration/memos/gate_3.md</code>) ranked findings table.</li>
+<li>V1 verification (<code>exploration/reports/V1_verification.md</code>) for pattern precision and length-residualization rules.</li>
+<li>V2 verification (<code>exploration/reports/V2_verification.md</code>) for DiD CI, T29 method-sensitivity, T28 strict/broad correction.</li>
+<li>T21 (senior role evolution) + T28 (archetype stratification) for H_C, H_D mechanism tests.</li>
+<li>T16 company clusters for H_E, H_H within-company decomposition.</li>
+<li>T17 geographic null + T23 benchmarks for H_F, H_I.</li>
+<li>T29 authorship score + company rankings for H_J.</li>
+</ul>
+<p>End T24.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "content.code.copy", "search.highlight", "search.suggest"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

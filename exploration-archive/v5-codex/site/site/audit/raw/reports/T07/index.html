@@ -1,0 +1,1260 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration findings package and audit trail">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T07 External Benchmarks & Power Analysis - SWE labor market restructuring</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../stylesheets/site.css">
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t07-external-benchmarks-power-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="SWE labor market restructuring" class="md-header__button md-logo" aria-label="SWE labor market restructuring" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE labor market restructuring
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T07 External Benchmarks &amp; Power Analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Story
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../findings/" class="md-tabs__link">
+          
+  
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../methods/" class="md-tabs__link">
+          
+  
+  
+  Methods
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../" class="md-tabs__link">
+          
+  
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="SWE labor market restructuring" class="md-nav__button md-logo" aria-label="SWE labor market restructuring" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE labor market restructuring
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Story
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/domain-recomposition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain recomposition and AI/LLM ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/credential-stacking-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirement stacking and scope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/template-drift/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Posting-template drift and AI-authorship hypothesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/company-strategies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Returning employer recomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/cross-occupation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-occupation densification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/seniority/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority and orchestration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/junior-measurement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Junior measurement asymmetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/ghost-aspiration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ghost and aspiration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/divergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark-sensitive divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing and schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/evidence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence and sensitivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw archive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#headline-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline finding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-we-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What we learned
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-surprised-us" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What surprised us
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence assessment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#external-benchmark-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External benchmark context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmark-caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmark caveats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#emerging-narrative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emerging narrative
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#direction-for-next-wave" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direction for next wave
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-paper-positioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current paper positioning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t07-external-benchmarks-power-analysis">T07 External Benchmarks &amp; Power Analysis<a class="headerlink" href="#t07-external-benchmarks-power-analysis" title="Permanent link">&para;</a></h1>
+<h2 id="headline-finding">Headline finding<a class="headerlink" href="#headline-finding" title="Permanent link">&para;</a></h2>
+<p>Most of the planned cross-period analyses are statistically feasible, but not all are equally strong. The clear binding constraint is the entry-level comparison: <code>175</code> arshkon entry postings versus <code>1,042</code> scraped entry postings gives a standardized binary MDE of <code>0.229</code>, which I would treat as marginal. By contrast, mid-senior, senior, all-SWE, and pooled-2024 comparisons are well-powered by the same 80% / 0.05 standard. The geographic benchmark is also reassuring: our state-level SWE distribution is very close to BLS software-developer employment geography, with Pearson <code>r ≈ 0.97</code> in every slice I could benchmark locally.</p>
+<h2 id="what-we-learned">What we learned<a class="headerlink" href="#what-we-learned" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The current default-filter LinkedIn corpus contains <code>1,186,281</code> rows and <code>59,972</code> SWE rows. The SWE sample is split into <code>4,691</code> arshkon, <code>18,129</code> asaniczka, and <code>37,152</code> scraped SWE postings.</li>
+<li>Entry-level work is the tightest sample. <code>175</code> arshkon entry postings versus <code>1,042</code> scraped entry postings yields <code>MDE_binary = 0.229</code> and <code>MDE_continuous = 0.229</code>, so entry-share claims are feasible but not comfortable.</li>
+<li>Everything above entry-level is fine for first-pass work. Mid-senior, senior, all SWE, and pooled 2024 all fall in the <code>well-powered</code> bucket, with standardized MDEs between <code>0.066</code> and <code>0.024</code>.</li>
+<li>Metro analysis is feasible, but strict metro panels are narrow. After excluding multi-location postings, the arshkon <code>2024-04</code> slice has <code>18</code> metros with at least <code>50</code> SWE postings and <code>8</code> with at least <code>100</code>. The combined scraped <code>2026-03+04</code> slice has <code>18</code> metros that clear <code>50</code> in both periods and only <code>8</code> that clear <code>100</code> in both.</li>
+<li>The overlap panel for company fixed-effects work is usable. There are <code>237</code> companies with at least <code>3</code> SWE postings in both arshkon and scraped, and <code>122</code> companies that clear <code>5</code> in both. Using pooled 2024 instead of arshkon alone expands that to <code>572</code> companies at <code>&gt;=3</code> and <code>323</code> at <code>&gt;=5</code>.</li>
+</ul>
+<h2 id="what-surprised-us">What surprised us<a class="headerlink" href="#what-surprised-us" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The geographic fit is stronger than I expected. Even with incomplete state coverage in our own postings frame, the BLS comparison still lands around <code>r = 0.97</code> for arshkon <code>2024-04</code>, scraped <code>2026-03</code>, and scraped <code>2026-04</code>.</li>
+<li>The sample-size bottleneck is narrow and specific. The rest of the planned comparison families are not merely “possible”; they are comfortably powered under standard assumptions.</li>
+<li>The company-overlap panel is smaller than the raw source totals might suggest, but still large enough to support fixed-effects or within-company decomposition work. The <code>&gt;=5</code> threshold is the real pressure point, not <code>&gt;=3</code>.</li>
+</ul>
+<h2 id="evidence-assessment">Evidence assessment<a class="headerlink" href="#evidence-assessment" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Analysis</th>
+<th style="text-align: right;">n_group1</th>
+<th style="text-align: right;">n_group2</th>
+<th style="text-align: right;">MDE_binary</th>
+<th style="text-align: right;">MDE_continuous</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Entry arshkon vs scraped</td>
+<td style="text-align: right;">175</td>
+<td style="text-align: right;">1,042</td>
+<td style="text-align: right;">0.229</td>
+<td style="text-align: right;">0.229</td>
+<td>marginal</td>
+</tr>
+<tr>
+<td>Mid-senior arshkon vs scraped</td>
+<td style="text-align: right;">2,064</td>
+<td style="text-align: right;">15,534</td>
+<td style="text-align: right;">0.066</td>
+<td style="text-align: right;">0.066</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td>Senior arshkon vs scraped</td>
+<td style="text-align: right;">2,077</td>
+<td style="text-align: right;">15,799</td>
+<td style="text-align: right;">0.065</td>
+<td style="text-align: right;">0.065</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td>All SWE arshkon vs scraped</td>
+<td style="text-align: right;">4,691</td>
+<td style="text-align: right;">37,152</td>
+<td style="text-align: right;">0.043</td>
+<td style="text-align: right;">0.043</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td>Pooled 2024 vs scraped</td>
+<td style="text-align: right;">22,820</td>
+<td style="text-align: right;">37,152</td>
+<td style="text-align: right;">0.024</td>
+<td style="text-align: right;">0.024</td>
+<td>well-powered</td>
+</tr>
+</tbody>
+</table>
+<p>I am treating the MDEs as standardized effect sizes (<code>Cohen's h</code> for binary and <code>Cohen's d</code> for continuous). That avoids arbitrary baseline assumptions and is the right level of abstraction for a feasibility screen.</p>
+<h2 id="external-benchmark-context">External benchmark context<a class="headerlink" href="#external-benchmark-context" title="Permanent link">&para;</a></h2>
+<p>The state-level BLS comparison is strong enough to use as context, not as causal validation. The current 2024 OEWS state table I could scrape cleanly surfaces <code>15-1252</code> Software Developers directly; the combined <code>15-1256</code> naming in BLS guidance is a nomenclature caveat rather than a separate current state row in the table I finished. On the 51-state BLS benchmark, the overlap with our postings frame is high enough to be useful, and the Pearson correlations are consistently around <code>0.97</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">States matched</th>
+<th style="text-align: right;">Pearson r</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arshkon 2024-04</td>
+<td style="text-align: right;">47</td>
+<td style="text-align: right;">0.9718</td>
+</tr>
+<tr>
+<td>scraped 2026-03</td>
+<td style="text-align: right;">31</td>
+<td style="text-align: right;">0.9747</td>
+</tr>
+<tr>
+<td>scraped 2026-04</td>
+<td style="text-align: right;">29</td>
+<td style="text-align: right;">0.9729</td>
+</tr>
+</tbody>
+</table>
+<p>That tells me the sample is not geographically bizarre. It does not validate any substantive trend, but it does make state-level comparisons less fragile than I expected.</p>
+<p>The industry labels in our own sample are also unsurprising in broad outline. The largest categories are <code>IT Services and IT Consulting</code> (<code>1,202</code>), <code>Software Development</code> (<code>611</code>), <code>Financial Services</code> (<code>391</code>), <code>Staffing and Recruiting</code> (<code>271</code>), and <code>Information Services</code> (<code>150</code>). That is directionally consistent with the BLS story that software-developer employment is concentrated in software-heavy and systems-integration-heavy industries, but the company-industry field is too noisy and uneven to treat as a formal benchmark.</p>
+<h2 id="benchmark-caveats">Benchmark caveats<a class="headerlink" href="#benchmark-caveats" title="Permanent link">&para;</a></h2>
+<ul>
+<li>I stopped the FRED/JOLTS download before completion, so there is no hiring-cycle figure in this run. That is an external-benchmark gap, not a data problem.</li>
+<li>Metro counts exclude multi-location postings, as required, and the excluded SWE count in the current default-filter frame is <code>3,901</code>.</li>
+<li>The BLS state benchmark is complete enough for context, but it should not be over-read as a test of causality or representativeness beyond geography.</li>
+</ul>
+<h2 id="emerging-narrative">Emerging narrative<a class="headerlink" href="#emerging-narrative" title="Permanent link">&para;</a></h2>
+<p>The data can support a real restructuring story, but only if the analysis is disciplined about sample size. The broad market-level comparisons are safe; the entry-level story is the one that needs the most care. The geography is reassuringly aligned with the BLS benchmark, which helps the paper’s external validity, but the strong result here is still the feasibility map: most planned analyses are usable, and the entry-level slice is the only one that should be treated as fragile.</p>
+<h2 id="direction-for-next-wave">Direction for next wave<a class="headerlink" href="#direction-for-next-wave" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Treat entry-level claims as provisional and always pair them with the label-independent YOE proxy.</li>
+<li>Proceed with seniority, AI-language, and company-overlap analyses; those are well-powered.</li>
+<li>Use metro work with a <code>&gt;=50</code> exploratory threshold and reserve <code>&gt;=100</code> for the strictest cross-period comparisons.</li>
+<li>Use <code>&gt;=3</code> company overlap as the primary panel definition and <code>&gt;=5</code> as the robustness cut.</li>
+</ul>
+<h2 id="current-paper-positioning">Current paper positioning<a class="headerlink" href="#current-paper-positioning" title="Permanent link">&para;</a></h2>
+<p>If the paper stops looking at the feasibility layer and moves into substantive findings, it should not lead with geography or benchmark validation. The best role for T07 is as a guardrail: it says which later analyses are credible and which ones are thin. The analysis phase should lead with well-powered cross-period and within-company restructuring results, and keep entry-level claims carefully qualified.</p>
+<h2 id="outputs">Outputs<a class="headerlink" href="#outputs" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../../../assets/tables/T07/T07_feasibility_table.csv">Feasibility table</a></li>
+<li><a href="../../../../assets/tables/T07/T07_group_sizes.csv">Group sizes</a></li>
+<li><a href="../../../../assets/tables/T07/T07_metro_feasibility.csv">Metro feasibility</a></li>
+<li><a href="../../../../assets/tables/T07/T07_metro_overlap_detail.csv">Metro overlap detail</a></li>
+<li><a href="../../../../assets/tables/T07/T07_company_overlap.csv">Company overlap</a></li>
+<li><a href="../../../../assets/tables/T07/T07_state_alignment_summary.csv">State alignment summary</a></li>
+<li><a href="../../../../assets/figures/T07/T07_state_alignment.png">State alignment figure</a></li>
+<li><a href="../../../../assets/tables/T07/T07_bls_state_benchmark.csv">BLS state benchmark</a></li>
+<li><a href="../../../../assets/tables/T07/T07_current_counts.csv">Current counts</a></li>
+<li><a href="../../../../assets/tables/T07/T07_our_industry_profile.csv">Our industry profile</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "toc.follow", "content.code.copy"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

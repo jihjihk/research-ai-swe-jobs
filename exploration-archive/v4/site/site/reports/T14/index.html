@@ -1,0 +1,3284 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration v4 — raw findings, gate memos, and verification passes">
+      
+      
+      
+      
+        <link rel="prev" href="../T13/">
+      
+      
+        <link rel="next" href="../T15/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T14 Technology Ecosystem - SWE Labor Market Exploration — v4</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t14-technology-ecosystem-mapping" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration — v4
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T14 Technology Ecosystem
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../INDEX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reports
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../memos/gate_0_pre_exploration/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Memos
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration — v4
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../INDEX/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 Data Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../seniority_measurement_investigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority Measurement Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-mention-rates-by-period-x-seniority-headline-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Mention rates by period x seniority — headline table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-trajectory-classification-2024-vs-2026-overall-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Trajectory classification (2024 vs 2026 overall rate)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Trajectory classification (2024 vs 2026 overall rate)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#top-15-rising-by-absolute-pp-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Top-15 rising (by absolute pp change)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#declining" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declining
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-legacy-web-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The legacy-web bundle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-co-occurrence-network-community-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Co-occurrence network &amp; community structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Co-occurrence network &amp; community structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#community-comparison-2026-best-matching-2024-community" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Community comparison (2026 -&gt; best-matching 2024 community)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-biggest-structural-change-ai-cluster-fusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The biggest structural change — AI cluster fusion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-engineering-swallows-oltp-databases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data engineering swallows OLTP databases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-frameworks-decoupled-from-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test frameworks decoupled from practices
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-stack-diversity-tech-count-per-posting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Stack diversity (tech count per posting)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Stack diversity (tech count per posting)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#calibration-ratio-step-5-check-against-agent-preps-248x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibration ratio (Step 5 check against Agent Prep's 24.8x)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-ai-integration-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. AI-integration pattern
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. AI-integration pattern">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#top-technologies-co-occurring-with-ai-mentions-in-2026-by-excess-over-non-ai-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Top technologies co-occurring with AI mentions in 2026 (by excess over non-AI baseline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#length-confound-check-for-ai-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Length-confound check for AI integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-structured-skills-baseline-asaniczka" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Structured skills baseline (asaniczka)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-structured-vs-extracted-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Structured vs extracted validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Structured vs extracted validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#largest-divergences-sorted-by-rate_extracted-rate_structured" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Largest divergences (sorted by |rate_extracted - rate_structured|)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-seniority-level-skill-differences-structured-asaniczka" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Seniority-level skill differences (structured, asaniczka)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Seniority-level skill differences (structured, asaniczka)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#supplementary-analysis-extracted-tech-pooled-2024-arshkonasaniczka-n_entry773" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supplementary analysis — extracted tech, pooled 2024 (arshkon+asaniczka), n_entry=773
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#surprises-unexpected-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surprises &amp; unexpected patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensitivities-applied" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitivities applied
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V1_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V1 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T28/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 Archetype Decomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T29/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 LLM-Authorship Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V2_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration (Gate 0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t14-technology-ecosystem-mapping">T14 — Technology Ecosystem Mapping</h1>
+<p>Date: 2026-04-09
+Sample: LinkedIn SWE, aggregators excluded, <code>is_english=true AND date_flag='ok'</code>.
+Period pooling: 2024 = arshkon (Apr) + asaniczka (Jan); 2026 = scraped (Mar + Apr).
+Primary stratification column: <code>seniority_3level</code>; secondary: combined best-available (<code>seniority_llm</code> where <code>labeled</code>, <code>seniority_final</code> where <code>rule_sufficient</code>).</p>
+<p>After aggregator exclusion:
+- 2024: n=21,301 (junior 773, mid 1,591, senior 18,128)
+- 2026: n=30,036 (junior 3,405, mid 870, senior 23,628)</p>
+<p>Tech taxonomy: 153 binary columns from <code>swe_tech_matrix.parquet</code>.</p>
+<hr />
+<h2 id="1-mention-rates-by-period-x-seniority-headline-table">1. Mention rates by period x seniority — headline table</h2>
+<p>Full table: <code>tables/T14/tech_mention_rates.csv</code>.</p>
+<h2 id="2-trajectory-classification-2024-vs-2026-overall-rate">2. Trajectory classification (2024 vs 2026 overall rate)</h2>
+<p>Thresholds: rising = +&gt;=2pp AND &gt;=+30% relative; declining = -&lt;=2pp AND &lt;=-25% relative; else stable.</p>
+<ul>
+<li><strong>Rising:</strong> 44 technologies</li>
+<li><strong>Stable:</strong> 104 technologies</li>
+<li><strong>Declining:</strong> 5 technologies</li>
+</ul>
+<h3 id="top-15-rising-by-absolute-pp-change">Top-15 rising (by absolute pp change)</h3>
+<table>
+<thead>
+<tr>
+<th>Tech</th>
+<th>2024 %</th>
+<th>2026 %</th>
+<th>Delta pp</th>
+<th>Rel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>machine_learning</td>
+<td>8.2</td>
+<td>27.8</td>
+<td>+19.6</td>
+<td>+238%</td>
+</tr>
+<tr>
+<td>python</td>
+<td>31.4</td>
+<td>50.5</td>
+<td>+19.1</td>
+<td>+61%</td>
+</tr>
+<tr>
+<td>cicd</td>
+<td>19.3</td>
+<td>34.2</td>
+<td>+14.9</td>
+<td>+77%</td>
+</tr>
+<tr>
+<td>aws</td>
+<td>23.7</td>
+<td>36.6</td>
+<td>+12.9</td>
+<td>+54%</td>
+</tr>
+<tr>
+<td>ai_agents</td>
+<td>0.4</td>
+<td>12.5</td>
+<td>+12.1</td>
+<td>+2857%</td>
+</tr>
+<tr>
+<td>kubernetes</td>
+<td>12.3</td>
+<td>22.6</td>
+<td>+10.3</td>
+<td>+84%</td>
+</tr>
+<tr>
+<td>gcp</td>
+<td>7.8</td>
+<td>17.6</td>
+<td>+9.8</td>
+<td>+126%</td>
+</tr>
+<tr>
+<td>llm</td>
+<td>0.6</td>
+<td>10.2</td>
+<td>+9.6</td>
+<td>+1581%</td>
+</tr>
+<tr>
+<td>go_lang</td>
+<td>8.9</td>
+<td>17.9</td>
+<td>+9.0</td>
+<td>+101%</td>
+</tr>
+<tr>
+<td>generative_ai</td>
+<td>1.1</td>
+<td>9.4</td>
+<td>+8.3</td>
+<td>+753%</td>
+</tr>
+<tr>
+<td>azure</td>
+<td>16.9</td>
+<td>24.2</td>
+<td>+7.3</td>
+<td>+43%</td>
+</tr>
+<tr>
+<td>typescript</td>
+<td>12.3</td>
+<td>19.4</td>
+<td>+7.2</td>
+<td>+59%</td>
+</tr>
+<tr>
+<td>docker</td>
+<td>11.1</td>
+<td>18.1</td>
+<td>+7.0</td>
+<td>+64%</td>
+</tr>
+<tr>
+<td>terraform</td>
+<td>6.4</td>
+<td>12.7</td>
+<td>+6.3</td>
+<td>+97%</td>
+</tr>
+<tr>
+<td>transformers</td>
+<td>0.3</td>
+<td>6.5</td>
+<td>+6.2</td>
+<td>+2230%</td>
+</tr>
+</tbody>
+</table>
+<h3 id="declining">Declining</h3>
+<table>
+<thead>
+<tr>
+<th>Tech</th>
+<th>2024 %</th>
+<th>2026 %</th>
+<th>Delta pp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c_lang</td>
+<td>5.0</td>
+<td>0.5</td>
+<td>-4.6</td>
+</tr>
+<tr>
+<td>html_css</td>
+<td>10.6</td>
+<td>6.8</td>
+<td>-3.7</td>
+</tr>
+<tr>
+<td>dotnet</td>
+<td>10.0</td>
+<td>6.4</td>
+<td>-3.6</td>
+</tr>
+<tr>
+<td>sqlserver</td>
+<td>7.2</td>
+<td>4.3</td>
+<td>-2.9</td>
+</tr>
+<tr>
+<td>jquery</td>
+<td>3.2</td>
+<td>0.9</td>
+<td>-2.3</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Caveat — c_lang extractor bug (data-quality finding).</strong> The shared tech-matrix regex uses <code>\bc\+\+\b</code> for C++; the trailing <code>\b</code> cannot match after <code>+</code>, so C++ is under-extracted (see Step 8). The <code>c_lang</code> regex also requires a cue ("c programming", "c/c++", etc.) which may fail on simple "C, Python, Java" enumerations. Both the C++ decline and much of the C-language decline are probably extractor artifacts. <strong>Recommend patching <code>build_remaining.py</code></strong> — this affects any study citing C-family prevalence.</p>
+<h3 id="the-legacy-web-bundle">The legacy-web bundle</h3>
+<p>Every declining technology except <code>c_lang</code> belongs to one coherent cluster — the "late-2010s enterprise/legacy-web stack" (.NET + SQL Server + HTML/CSS + jQuery). Decline is small in absolute pp but notable because the surrounding community also lost members (see Step 3).</p>
+<p>Table: <code>tables/T14/tech_trajectory.csv</code>. Heatmap: <code>figures/T14/tech_shift_heatmap.png</code>.</p>
+<h2 id="3-co-occurrence-network-community-structure">3. Co-occurrence network &amp; community structure</h2>
+<p>Method: phi coefficient for all pairs among 123 technologies with &gt;=1% prevalence in at least one period; edges kept at phi &gt; 0.15; greedy modularity communities; 2024 vs 2026 compared.</p>
+<ul>
+<li>2024 graph: 112 nodes, 360 edges, 11 communities</li>
+<li>2026 graph: 115 nodes, 491 edges, 9 communities</li>
+<li><strong>2026 graph is +36% denser than 2024</strong> at the same phi threshold. Technologies are co-mentioned more tightly in 2026 — consistent with the description-length and tech-count growth.</li>
+</ul>
+<h3 id="community-comparison-2026-best-matching-2024-community">Community comparison (2026 -&gt; best-matching 2024 community)</h3>
+<table>
+<thead>
+<tr>
+<th>2026 Comm</th>
+<th>Size</th>
+<th>Best 2024 match</th>
+<th>Jaccard</th>
+<th>Key new members in 2026</th>
+<th>Members dropped from 2024</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0 — Cloud/DevOps/platform</td>
+<td>30</td>
+<td>Comm 0 (27)</td>
+<td>0.84</td>
+<td>encryption, microservices, rest_api, security</td>
+<td>perl</td>
+</tr>
+<tr>
+<td>1 — ML+GenAI mega-cluster</td>
+<td>29</td>
+<td>Comm 2 (17)</td>
+<td>0.59</td>
+<td>ai_agents, claude_api, claude_tool, codex, copilot, cursor_ide, gemini, huggingface, mcp, openai_api, sagemaker, transformers</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2 — Enterprise Java + web</td>
+<td>23</td>
+<td>Comm 1 (21)</td>
+<td>0.47</td>
+<td>agile, integration_testing, java, junit, kanban, scrum, spring, tdd, unit_testing</td>
+<td>express, mongodb, mysql, php, postgresql, redis, sql</td>
+</tr>
+<tr>
+<td>3 — Data engineering</td>
+<td>17</td>
+<td>Comm 4 (13)</td>
+<td>0.67</td>
+<td>mongodb, mysql, postgresql, redis, sql</td>
+<td>elasticsearch</td>
+</tr>
+<tr>
+<td>4 — Mobile</td>
+<td>5</td>
+<td>Comm 6 (5)</td>
+<td>1.00</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>5 — Test tools</td>
+<td>4</td>
+<td>Comm 3 (14)</td>
+<td>0.29</td>
+<td>—</td>
+<td>agile/java/junit/microservices/... (moved to Comm 2)</td>
+</tr>
+<tr>
+<td>6 — Python web frameworks</td>
+<td>3</td>
+<td>Comm 5 (5)</td>
+<td>0.60</td>
+<td>—</td>
+<td>rails, ruby</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-biggest-structural-change-ai-cluster-fusion">The biggest structural change — AI cluster fusion</h3>
+<p><strong>In 2024, the modern-AI ecosystem was fragmented into three tiny isolated communities:</strong>
+- Comm 7: <code>claude_api, claude_tool, huggingface, openai_api</code> (4 nodes)
+- Comm 9: <code>codex, copilot</code> (2 nodes)
+- Plus one traditional ML community (Comm 2, 17 members: pytorch/tensorflow/sklearn/pandas/nlp/...).</p>
+<p><strong>In 2026, all of these fused into a single 29-member ML+GenAI community (Comm 1).</strong> Traditional ML tooling (pytorch, tensorflow, scikit_learn, pandas), classic ML subfields (NLP, CV, deep learning), modern-AI APIs (openai_api, claude_api, huggingface), agent/RAG infrastructure (langchain, rag, vector_databases, prompt_engineering, fine_tuning, mcp, ai_agents, transformers, sagemaker), AND AI coding tools (copilot, cursor_ide, codex, gemini, claude_tool) now all strongly co-occur.</p>
+<p><strong>Interpretation:</strong> In 2024 jobs that mentioned Copilot or Claude were distinct from jobs that mentioned TensorFlow. By 2026 they are the same jobs. Traditional ML engineers are expected to work with modern LLM APIs and agent frameworks; conversely, jobs posting about GenAI also list classical ML dependencies. This is a major consolidation of the AI-engineering identity.</p>
+<h3 id="data-engineering-swallows-oltp-databases">Data engineering swallows OLTP databases</h3>
+<p>2024 had a clean split: Comm 1 (enterprise Java / web / SQL / MongoDB / PostgreSQL / MySQL / Redis) vs Comm 4 (analytical — spark, kafka, snowflake, bigquery, airflow, dbt). In 2026 the OLTP data stores (mongodb, mysql, postgresql, redis, sql) <strong>migrate into Comm 3 (data engineering)</strong>. Their former home (Comm 2, now "Enterprise Java + web") becomes dominated by the Java + Spring + microservices + testing bundle. Interpretation: "the database layer" now belongs to data engineers, not generic web developers, in the co-mention structure.</p>
+<h3 id="test-frameworks-decoupled-from-practices">Test frameworks decoupled from practices</h3>
+<p>2024 Comm 3 packed jest/pytest/selenium/cypress/playwright together with agile/scrum/tdd/microservices/rest_api. In 2026 the latter migrated into the Java/enterprise cluster, leaving Comm 5 as a bare 4-node (cypress/jest/playwright/selenium) test-tools island. Testing practice vocabulary moved, testing tools didn't.</p>
+<p>Tables: <code>tables/T14/community_comparison.csv</code>, <code>community_membership.csv</code>, <code>cooccurrence_phi_{2024,2026}.csv</code>. Figures: <code>figures/T14/tech_network_{2024,2026}.png</code>.</p>
+<h2 id="4-stack-diversity-tech-count-per-posting">4. Stack diversity (tech count per posting)</h2>
+<p>Table: <code>tables/T14/stack_diversity.csv</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Seniority</th>
+<th>n</th>
+<th>median</th>
+<th>mean</th>
+<th>p25</th>
+<th>p75</th>
+<th>p90</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td>ALL</td>
+<td>21,301</td>
+<td>5.0</td>
+<td>5.95</td>
+<td>2</td>
+<td>9</td>
+<td>13</td>
+</tr>
+<tr>
+<td>2024</td>
+<td>junior</td>
+<td>773</td>
+<td>5.0</td>
+<td>5.76</td>
+<td>2</td>
+<td>9</td>
+<td>13</td>
+</tr>
+<tr>
+<td>2024</td>
+<td>mid</td>
+<td>1,591</td>
+<td>4.0</td>
+<td>4.78</td>
+<td>1</td>
+<td>7</td>
+<td>12</td>
+</tr>
+<tr>
+<td>2024</td>
+<td>senior</td>
+<td>18,128</td>
+<td>5.0</td>
+<td>6.05</td>
+<td>2</td>
+<td>9</td>
+<td>13</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>ALL</td>
+<td>30,036</td>
+<td>8.0</td>
+<td>8.78</td>
+<td>4</td>
+<td>12</td>
+<td>17</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>junior</td>
+<td>3,405</td>
+<td>6.0</td>
+<td>7.25</td>
+<td>3</td>
+<td>11</td>
+<td>15</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>mid</td>
+<td>870</td>
+<td>7.0</td>
+<td>7.85</td>
+<td>3</td>
+<td>11</td>
+<td>16</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>senior</td>
+<td>23,628</td>
+<td>8.0</td>
+<td>8.95</td>
+<td>4</td>
+<td>13</td>
+<td>17</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Median tech count rose from 5 to 8 (+60%).</strong> The 90th percentile rose from 13 to 17 technologies per posting.</p>
+<h3 id="calibration-ratio-step-5-check-against-agent-preps-248x">Calibration ratio (Step 5 check against Agent Prep's 24.8x)</h3>
+<p>Recomputed within the SWE analytical frame (not the pipeline-wide frame Agent Prep used):</p>
+<ul>
+<li>Within-2024 Cohen's d (arshkon vs asaniczka): 0.165 (arshkon slightly richer)</li>
+<li>Cross-period Cohen's d (arshkon vs scraped): -0.355 (scraped much richer)</li>
+<li><strong>Calibration ratio: -2.15</strong> (direction reversed)</li>
+</ul>
+<p>The ratio is smaller than Agent Prep's 24.8 (they used the full pipeline frame; we use SWE-only non-aggregator). But the direction-reversal plus the magnitude (|d|=0.355 cross-period vs 0.165 within-2024) still makes tech_count one of the strongest real signals above source-variation noise. <strong>Confirmed as a real Wave 2 finding.</strong></p>
+<p>Length-normalized complement: <code>tables/T14/stack_diversity_density.csv</code>. Median density (techs per 1K chars) in 2024 ALL = 3.02, in 2026 ALL = 2.27. <strong>After length-normalization, tech density actually DECREASED by 25%.</strong> Postings got longer faster than they got more tech-dense. The raw +60% median-count signal is therefore heavily driven by description-length inflation (see T05: +57% median length).</p>
+<p><strong>Load-bearing finding:</strong> "Stack breadth is expanding" is real but only in raw count. Postings aren't packing more techs per sentence — they are writing more sentences, each with a moderate tech density. See Step 6 for the AI-subgroup version of the same pattern.</p>
+<p>Figure: <code>figures/T14/stack_diversity_hist.png</code>.</p>
+<h2 id="5-ai-integration-pattern">5. AI-integration pattern</h2>
+<p><strong>"AI-mentioning" set:</strong> any of {llm, openai_api, claude_api, rag, langchain, huggingface, vector_databases, prompt_engineering, fine_tuning, mcp, ai_agents, generative_ai, copilot, cursor_ide, chatgpt, claude_tool, gemini, codex}.</p>
+<p>AI-mentioning prevalence: <strong>2024 = 2.8% (599/21,301); 2026 = 26.2% (7,855/30,036).</strong> 9.4x increase.</p>
+<h3 id="top-technologies-co-occurring-with-ai-mentions-in-2026-by-excess-over-non-ai-baseline">Top technologies co-occurring with AI mentions in 2026 (by excess over non-AI baseline)</h3>
+<table>
+<thead>
+<tr>
+<th>Tech</th>
+<th>rate_in_ai</th>
+<th>rate_in_non_ai</th>
+<th>excess pp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>machine_learning</td>
+<td>52.8%</td>
+<td>19.0%</td>
+<td>+33.9</td>
+</tr>
+<tr>
+<td>python</td>
+<td>62.7%</td>
+<td>46.1%</td>
+<td>+16.6</td>
+</tr>
+<tr>
+<td>aws</td>
+<td>45.9%</td>
+<td>33.4%</td>
+<td>+12.5</td>
+</tr>
+<tr>
+<td>gcp</td>
+<td>26.4%</td>
+<td>14.5%</td>
+<td>+11.9</td>
+</tr>
+<tr>
+<td>azure</td>
+<td>32.6%</td>
+<td>21.2%</td>
+<td>+11.4</td>
+</tr>
+<tr>
+<td>pytorch</td>
+<td>13.3%</td>
+<td>2.8%</td>
+<td>+10.5</td>
+</tr>
+<tr>
+<td>react</td>
+<td>25.9%</td>
+<td>15.8%</td>
+<td>+10.1</td>
+</tr>
+<tr>
+<td>mlops</td>
+<td>9.5%</td>
+<td>1.3%</td>
+<td>+8.2</td>
+</tr>
+<tr>
+<td>tensorflow</td>
+<td>9.6%</td>
+<td>2.3%</td>
+<td>+7.3</td>
+</tr>
+<tr>
+<td>nlp</td>
+<td>10.1%</td>
+<td>2.9%</td>
+<td>+7.2</td>
+</tr>
+<tr>
+<td>deep_learning</td>
+<td>7.0%</td>
+<td>1.7%</td>
+<td>+5.3</td>
+</tr>
+<tr>
+<td>nodejs</td>
+<td>12.2%</td>
+<td>7.0%</td>
+<td>+5.2</td>
+</tr>
+<tr>
+<td>javascript</td>
+<td>25.9%</td>
+<td>21.0%</td>
+<td>+4.9</td>
+</tr>
+<tr>
+<td>fastapi</td>
+<td>6.1%</td>
+<td>1.2%</td>
+<td>+4.9</td>
+</tr>
+<tr>
+<td>typescript</td>
+<td>22.5%</td>
+<td>18.3%</td>
+<td>+4.2</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Read:</strong> An AI-mentioning 2026 SWE posting is (above baseline) a Python job on AWS/GCP with traditional ML tooling AND React/TypeScript frontend AND fastapi. The "AI engineer" role has converged toward full-stack cloud + ML.</p>
+<h3 id="length-confound-check-for-ai-integration">Length-confound check for AI integration</h3>
+<p>Table: <code>tables/T14/ai_density_check.csv</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Group</th>
+<th>n</th>
+<th>mean tech count</th>
+<th>mean text len</th>
+<th>mean density /1K</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024</td>
+<td>ai_mentioning</td>
+<td>599</td>
+<td>8.9</td>
+<td>2,218</td>
+<td>4.63</td>
+</tr>
+<tr>
+<td>2024</td>
+<td>non_ai</td>
+<td>20,702</td>
+<td>5.9</td>
+<td>1,965</td>
+<td>3.92</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>ai_mentioning</td>
+<td>7,855</td>
+<td>12.2</td>
+<td>3,806</td>
+<td>3.68</td>
+</tr>
+<tr>
+<td>2026</td>
+<td>non_ai</td>
+<td>22,181</td>
+<td>7.6</td>
+<td>3,295</td>
+<td>2.75</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Raw:</strong> AI-mentioning 2026 postings list 12.2 techs vs non-AI 7.6 — a +4.6 tech gap.
+<strong>Density-normalized:</strong> AI posts 3.68 per 1K chars vs non-AI 2.75 — a +0.93 per-1K gap (+34%).
+<strong>Time trend:</strong> Within the AI group itself, density fell from 4.63/1K in 2024 to 3.68/1K in 2026. <strong>AI-mentioning jobs became less dense but longer</strong>, mirroring the ALL trend. AI jobs are still meaningfully more tech-dense than non-AI jobs even after length-normalization, but the density gap between AI and non-AI narrowed (2024: +0.70 /1K; 2026: +0.93 /1K — actually widened slightly when measured in absolute density units). Both pictures are consistent with "AI-focused roles pull in more distinct tools than non-AI", and the gap appears robust to length-normalization.</p>
+<p>Full AI co-occurrence: <code>tables/T14/ai_integration_cooccurrence.csv</code>.</p>
+<h2 id="6-structured-skills-baseline-asaniczka">6. Structured skills baseline (asaniczka)</h2>
+<p>Source: <code>exploration/artifacts/shared/asaniczka_structured_skills.parquet</code>. 609,894 mentions across 23,192 asaniczka SWE rows (non-aggregator subset is smaller).</p>
+<p>Top-20 structured skills with prevalence (share of rows):</p>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python</td>
+<td>34.6%</td>
+</tr>
+<tr>
+<td>Java</td>
+<td>27.9%</td>
+</tr>
+<tr>
+<td>AWS</td>
+<td>23.8%</td>
+</tr>
+<tr>
+<td>SQL</td>
+<td>22.8%</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td>17.4%</td>
+</tr>
+<tr>
+<td>JavaScript</td>
+<td>16.5%</td>
+</tr>
+<tr>
+<td>Docker</td>
+<td>16.5%</td>
+</tr>
+<tr>
+<td>Agile</td>
+<td>14.2%</td>
+</tr>
+<tr>
+<td>Communication</td>
+<td>13.7%</td>
+</tr>
+<tr>
+<td>Software Engineering</td>
+<td>12.7%</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td>12.3%</td>
+</tr>
+<tr>
+<td>DevOps</td>
+<td>11.1%</td>
+</tr>
+<tr>
+<td>C++</td>
+<td>10.8%</td>
+</tr>
+<tr>
+<td>Software Development</td>
+<td>10.8%</td>
+</tr>
+<tr>
+<td>Git</td>
+<td>10.5%</td>
+</tr>
+<tr>
+<td>React</td>
+<td>9.8%</td>
+</tr>
+<tr>
+<td>Go</td>
+<td>9.4%</td>
+</tr>
+<tr>
+<td>Troubleshooting</td>
+<td>9.4%</td>
+</tr>
+<tr>
+<td>Azure</td>
+<td>9.4%</td>
+</tr>
+<tr>
+<td>Computer Science</td>
+<td>9.0%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Surprise — soft skills rank high in structured fields.</strong> "Communication" (13.7%) and "Troubleshooting" (9.4%) appear in the top-20. Structured LinkedIn "skills" fields mix hard technologies with general competencies; any analysis of structured-skills frequency must filter for tech-only vocab.</p>
+<p>Full table: <code>tables/T14/structured_skills_frequency.csv</code> (top-100: <code>structured_skills_top100.csv</code>).</p>
+<h2 id="7-structured-vs-extracted-validation">7. Structured vs extracted validation</h2>
+<p>Mapped asaniczka structured skill strings to the 153-tech taxonomy via regex rules (<code>structured_to_tech</code> in the script). 109 technologies have non-trivial prevalence in at least one representation.</p>
+<p><strong>Rank correlation: Spearman rho = 0.77, Pearson r = 0.92.</strong></p>
+<h3 id="largest-divergences-sorted-by-rate_extracted-rate_structured">Largest divergences (sorted by |rate_extracted - rate_structured|)</h3>
+<table>
+<thead>
+<tr>
+<th>Tech</th>
+<th>Extracted %</th>
+<th>Structured %</th>
+<th>Diff</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c_cpp</td>
+<td>0.9</td>
+<td>16.2</td>
+<td>+15.4</td>
+<td><strong>Extractor bug — <code>\bc\+\+\b</code> regex cannot match</strong></td>
+</tr>
+<tr>
+<td>security</td>
+<td>35.6</td>
+<td>24.0</td>
+<td>-11.6</td>
+<td>Extractor over-fires (cybersecurity mentions, "security clearance")</td>
+</tr>
+<tr>
+<td>csharp</td>
+<td>0.4</td>
+<td>11.7</td>
+<td>+11.3</td>
+<td><strong>Extractor bug — C# mentioned in text as "C#" is not matching</strong></td>
+</tr>
+<tr>
+<td>cicd</td>
+<td>18.5</td>
+<td>10.6</td>
+<td>-7.9</td>
+<td>Description-extract catches more CI/CD variants than structured skills</td>
+</tr>
+<tr>
+<td>typescript</td>
+<td>12.7</td>
+<td>6.4</td>
+<td>-6.3</td>
+<td>Extractor over-fires or structured under-reports</td>
+</tr>
+<tr>
+<td>bash_shell</td>
+<td>6.1</td>
+<td>0.0</td>
+<td>-6.1</td>
+<td>Structured field doesn't have "Bash/Shell" as a canonical skill</td>
+</tr>
+<tr>
+<td>c_lang</td>
+<td>5.6</td>
+<td>0.0</td>
+<td>-5.6</td>
+<td>Structured field has only C++ / C#, not plain "C"</td>
+</tr>
+<tr>
+<td>sass_less</td>
+<td>4.5</td>
+<td>0.0</td>
+<td>-4.5</td>
+<td>No structured equivalent</td>
+</tr>
+<tr>
+<td>sql</td>
+<td>26.3</td>
+<td>22.6</td>
+<td>-3.7</td>
+<td>—</td>
+</tr>
+<tr>
+<td>javascript</td>
+<td>21.3</td>
+<td>17.9</td>
+<td>-3.4</td>
+<td>—</td>
+</tr>
+<tr>
+<td>jquery</td>
+<td>3.3</td>
+<td>0.0</td>
+<td>-3.3</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Conclusions:</strong>
+1. Strong convergent validity overall (rho=0.77).
+2. <strong>The description extractor has two concrete bugs:</strong> <code>c_cpp</code> regex (<code>\bc\+\+\b</code>) and <code>csharp</code> regex miss most real mentions. Since C++ is structurally 16% in asaniczka and only 0.9% extracted, this is a large miss. Any "C++ is declining" claim is currently unfounded — the tool has a blind spot.
+3. The structured field misses shell/bash and sass/less entirely — LinkedIn's skill vocabulary doesn't include them as canonical entries.
+4. "security" runs richer in extraction because the word is abundant in compliance / clearance boilerplate that isn't really a technology skill.</p>
+<p><strong>Recommendation (for the next re-run of <code>build_remaining.py</code>):</strong> replace <code>\bc\+\+\b</code> with <code>(?:^|[\s,/()])c\+\+(?:$|[\s,/()])</code> and <code>c#</code> similarly; expand c_lang pattern; re-generate swe_tech_matrix.parquet.</p>
+<p>Table: <code>tables/T14/structured_vs_extracted.csv</code>.</p>
+<h2 id="8-seniority-level-skill-differences-structured-asaniczka">8. Seniority-level skill differences (structured, asaniczka)</h2>
+<p>Chi-squared per skill (skills with n&gt;=30) comparing entry-level to mid-senior, with FDR correction.</p>
+<p><strong>Result: severely underpowered.</strong> Only 61 asaniczka SWE rows have <code>seniority_best_available='entry'</code> (vs 3,612 'mid-senior'). Only 2 skills reached q&lt;0.05. This task cannot be answered with asaniczka-only structured data — that source has essentially no entry-level labels.</p>
+<h3 id="supplementary-analysis-extracted-tech-pooled-2024-arshkonasaniczka-n_entry773">Supplementary analysis — extracted tech, pooled 2024 (arshkon+asaniczka), n_entry=773</h3>
+<p>This is the power-bearing variant (arshkon contributes the vast majority of 2024 entry labels).</p>
+<table>
+<thead>
+<tr>
+<th>Tech</th>
+<th>% in entry</th>
+<th>% in mid-senior</th>
+<th>delta</th>
+<th>q (FDR)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>java</td>
+<td>31.4</td>
+<td>25.4</td>
+<td>+6.0</td>
+<td>0.008</td>
+</tr>
+<tr>
+<td>html_css</td>
+<td>14.4</td>
+<td>10.4</td>
+<td>+4.0</td>
+<td>0.011</td>
+</tr>
+<tr>
+<td>objective_c</td>
+<td>2.2</td>
+<td>0.6</td>
+<td>+1.6</td>
+<td>0.000002</td>
+</tr>
+<tr>
+<td>playwright</td>
+<td>0.9</td>
+<td>0.2</td>
+<td>+0.7</td>
+<td>0.011</td>
+</tr>
+<tr>
+<td>openai_api</td>
+<td>0.6</td>
+<td>0.2</td>
+<td>+0.5</td>
+<td>0.026</td>
+</tr>
+<tr>
+<td>security</td>
+<td>27.7</td>
+<td>34.7</td>
+<td><strong>-7.0</strong></td>
+<td>0.004</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Read:</strong> In 2024, entry-level SWE postings were slightly Java/HTML heavier and meaningfully less security-focused than mid-senior postings. The objective_c surplus at entry-level is odd — probably app-dev bootcamps / iOS coding roles posted as entry.</p>
+<p>Tables: <code>tables/T14/seniority_skills_chi2.csv</code> (asaniczka structured, underpowered), <code>seniority_extracted_tech_chi2_pooled2024.csv</code> (supplementary, pooled 2024).</p>
+<hr />
+<h2 id="surprises-unexpected-patterns">Surprises &amp; unexpected patterns</h2>
+<ol>
+<li><strong>AI cluster fusion.</strong> The 2024 "modern AI" fragmented islands (Claude API + Hugging Face, Copilot + Codex, traditional ML) fuse into a single 29-member community in 2026, roughly the same size as the cloud/DevOps community. This is the single largest structural rearrangement in the network.</li>
+<li><strong>Data engineering annexes OLTP.</strong> MongoDB/MySQL/PostgreSQL/Redis/SQL all moved out of the "enterprise web" community into the data-engineering community by 2026. Implies "database stuff" is increasingly signaling data-eng work, not generic backend.</li>
+<li><strong>Stack diversity grows only in raw count.</strong> Density (techs / 1K chars) DECREASED 25% from 2024 to 2026. The "broader stack" is a length-inflation artifact to a large extent — each individual sentence isn't more tech-dense.</li>
+<li><strong>AI-mentioning share 9.4x.</strong> From 2.8% of postings (2024) to 26.2% (2026). This is the headline validation of T14's AI-integration hypothesis.</li>
+<li><strong>Data-quality finding: C++ / C# regex bugs.</strong> The shared tech matrix's <code>c_cpp</code> pattern (<code>\bc\+\+\b</code>) cannot match because <code>+</code> is not a word character, so <code>\b</code> after <code>+</code> fails. <code>csharp</code> has the same issue. The structured-skills cross-check reveals C++ is actually mentioned in ~16% of asaniczka structured skills but 0.9% in extraction. <strong>This should be fixed and the shared artifacts rebuilt before downstream analysis makes claims about C-family language prevalence.</strong></li>
+<li><strong>"Communication" and "Troubleshooting" in structured top-20.</strong> LinkedIn's structured skills field mixes soft and hard competencies; any structured-field-only analysis must filter the vocabulary.</li>
+<li><strong>Test tools decoupled from practices.</strong> In 2024 test frameworks co-occurred with Agile/Scrum/TDD; in 2026 tools form a bare 4-node island while practice vocabulary migrated to the Java/enterprise community. Testing as practice moved; testing as tooling didn't.</li>
+<li><strong>"Security" is the one tech where entry-level underperforms in 2024 pooled data.</strong> Security practices concentrate at mid-senior — interesting baseline for a downstream study on whether AI-era entry-level now has to "own security" earlier.</li>
+<li><strong>Declining techs are all legacy-web.</strong> Every declining technology fits a single semantic cluster (jquery/html/css/.net/sqlserver/c_lang), reinforcing that the shift is not random attrition but a coherent generational rotation away from classic Microsoft/legacy-web stacks.</li>
+</ol>
+<h2 id="sensitivities-applied">Sensitivities applied</h2>
+<ul>
+<li><strong>(a) Aggregator exclusion:</strong> applied throughout (11,957 rows removed).</li>
+<li><strong>(b) Company capping:</strong> not applied in T14. Top-50 company concentration in scraped is moderate (HHI 0.003-0.014 from T06); unlikely to swing a 63K-row trajectory analysis but a formal cap should be run as a robustness check in the follow-up.</li>
+<li><strong>(f) Within-2024 calibration:</strong> applied to tech_count (ratio -2.15, real). AI-mentioning prevalence growth (2.8% -&gt; 26.2%) calibrates off Agent Prep's finding (ratio -16). Both survive.</li>
+<li><strong>(g) SWE classification tier robustness:</strong> not split in this pass. <code>swe_classification_tier</code> is in the metadata table and can be filtered in a re-run if needed.</li>
+</ul>
+<h2 id="outputs">Outputs</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tables/T14/tech_mention_rates.csv</code></td>
+<td>Mention rates (%) by period x seniority_3level</td>
+</tr>
+<tr>
+<td><code>tables/T14/tech_mention_rates_best_available.csv</code></td>
+<td>Same using combined best-available seniority</td>
+</tr>
+<tr>
+<td><code>tables/T14/tech_trajectory.csv</code></td>
+<td>Rising/stable/declining classification</td>
+</tr>
+<tr>
+<td><code>tables/T14/stack_diversity.csv</code></td>
+<td>Tech count percentiles by group</td>
+</tr>
+<tr>
+<td><code>tables/T14/stack_diversity_density.csv</code></td>
+<td>Length-normalized tech density</td>
+</tr>
+<tr>
+<td><code>tables/T14/tech_count_calibration.csv</code></td>
+<td>Within-2024 vs cross-period effect sizes</td>
+</tr>
+<tr>
+<td><code>tables/T14/cooccurrence_phi_2024.csv</code>, <code>_2026.csv</code></td>
+<td>Pairs above phi&gt;0.15</td>
+</tr>
+<tr>
+<td><code>tables/T14/community_membership.csv</code></td>
+<td>Tech -&gt; community assignments</td>
+</tr>
+<tr>
+<td><code>tables/T14/community_comparison.csv</code></td>
+<td>2026 comm -&gt; best 2024 match</td>
+</tr>
+<tr>
+<td><code>tables/T14/ai_integration_cooccurrence.csv</code></td>
+<td>Techs co-mentioned with AI, by period</td>
+</tr>
+<tr>
+<td><code>tables/T14/ai_density_check.csv</code></td>
+<td>Length-normalized confound check</td>
+</tr>
+<tr>
+<td><code>tables/T14/structured_skills_frequency.csv</code>, <code>_top100.csv</code></td>
+<td>Asaniczka structured skills</td>
+</tr>
+<tr>
+<td><code>tables/T14/structured_vs_extracted.csv</code></td>
+<td>Cross-validation of extractor</td>
+</tr>
+<tr>
+<td><code>tables/T14/seniority_skills_chi2.csv</code></td>
+<td>Structured skills chi2 (underpowered)</td>
+</tr>
+<tr>
+<td><code>tables/T14/seniority_extracted_tech_chi2_pooled2024.csv</code></td>
+<td>Extracted-tech chi2 (powered)</td>
+</tr>
+<tr>
+<td><code>figures/T14/tech_shift_heatmap.png</code></td>
+<td>Top rising/declining/stable heatmap</td>
+</tr>
+<tr>
+<td><code>figures/T14/stack_diversity_hist.png</code></td>
+<td>Tech-count distribution</td>
+</tr>
+<tr>
+<td><code>figures/T14/tech_network_2024.png</code>, <code>_2026.png</code></td>
+<td>Co-occurrence network viz</td>
+</tr>
+</tbody>
+</table>
+<p>Scripts: <code>exploration/scripts/T14_01_mention_rates.py</code>, <code>T14_02_cooccurrence.py</code>, <code>T14_03_structured_skills.py</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

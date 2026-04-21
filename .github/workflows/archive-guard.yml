@@ -1,0 +1,52 @@
+name: archive-guard
+
+on:
+  pull_request:
+    paths:
+      - 'exploration-archive/**'
+      - '.gitignore'
+      - '.github/workflows/archive-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  enforce-whitelist:
+    name: Only built sites under exploration-archive/<ver>/site/site/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check paths and file sizes in exploration-archive/
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+
+          # Every added/modified path under exploration-archive/ must be under <ver>/site/site/.
+          bad_paths=$(git diff --name-only --diff-filter=AM "$base" "$head" -- 'exploration-archive/*' \
+            | grep -v -E '^exploration-archive/[^/]+/site/site/' || true)
+          if [ -n "$bad_paths" ]; then
+            echo "::error::Files under exploration-archive/ must live in <ver>/site/site/. Offending paths:"
+            echo "$bad_paths"
+            exit 1
+          fi
+
+          # No single file >50 MB (GitHub's soft warning threshold).
+          over_budget=$(git diff --name-only --diff-filter=AM "$base" "$head" -- 'exploration-archive/*' \
+            | while read -r f; do
+                [ -f "$f" ] || continue
+                size=$(stat -c%s "$f")
+                if [ "$size" -gt 52428800 ]; then
+                  printf '%s\t%s\n' "$size" "$f"
+                fi
+              done)
+          if [ -n "$over_budget" ]; then
+            echo "::error::Files over 50 MB are not allowed in the archive:"
+            echo "$over_budget"
+            exit 1
+          fi
+
+          echo "archive-guard: all changed archive paths are under site/site/ and under 50 MB."

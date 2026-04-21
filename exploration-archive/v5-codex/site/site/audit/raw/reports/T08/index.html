@@ -1,0 +1,1251 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration findings package and audit trail">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T08 Distribution Profiling & Anomaly Detection - SWE labor market restructuring</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../stylesheets/site.css">
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t08-distribution-profiling-anomaly-detection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="SWE labor market restructuring" class="md-header__button md-logo" aria-label="SWE labor market restructuring" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE labor market restructuring
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T08 Distribution Profiling &amp; Anomaly Detection
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Story
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../findings/" class="md-tabs__link">
+          
+  
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../methods/" class="md-tabs__link">
+          
+  
+  
+  Methods
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../" class="md-tabs__link">
+          
+  
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="SWE labor market restructuring" class="md-nav__button md-logo" aria-label="SWE labor market restructuring" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE labor market restructuring
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Story
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/domain-recomposition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain recomposition and AI/LLM ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/credential-stacking-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirement stacking and scope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/template-drift/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Posting-template drift and AI-authorship hypothesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/company-strategies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Returning employer recomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/cross-occupation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-occupation densification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/seniority/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority and orchestration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/junior-measurement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Junior measurement asymmetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/ghost-aspiration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ghost and aspiration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../findings/divergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark-sensitive divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing and schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../methods/evidence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence and sensitivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw archive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#headline-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline finding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-we-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What we learned
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-surprised-us" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What surprised us
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence assessment
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Evidence assessment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#strong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strong
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moderate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Moderate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weak-or-artifact-prone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weak or artifact-prone
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#narrative-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Narrative evaluation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#emerging-narrative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emerging narrative
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-question-evolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research question evolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gaps-and-weaknesses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gaps and weaknesses
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#direction-for-next-wave" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direction for next wave
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-paper-positioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current paper positioning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#selected-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selected outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t08-distribution-profiling-anomaly-detection">T08 Distribution Profiling &amp; Anomaly Detection<a class="headerlink" href="#t08-distribution-profiling-anomaly-detection" title="Permanent link">&para;</a></h1>
+<h2 id="headline-finding">Headline finding<a class="headerlink" href="#headline-finding" title="Permanent link">&para;</a></h2>
+<p>The SWE LinkedIn frame is structurally more volatile than the initial design suggested. The most important pattern is not a clean junior collapse; it is a split between a conservative explicit-entry label and a broader YOE proxy. <code>seniority_final = entry</code> stays tiny and increasingly conservative in 2026, while <code>yoe_extracted &lt;= 2</code> rises from 9.3% in arshkon to 11.7% in scraped 2026-03 and 11.5% in scraped 2026-04. That divergence survives the known-seniority denominator and points to measurement conservatism, not just a change in the labor market. On the text side, the dominant change is still description expansion and scope/AI language growth, and those changes are much larger than the 2024 baseline calibration noise.</p>
+<h2 id="what-we-learned">What we learned<a class="headerlink" href="#what-we-learned" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The LinkedIn SWE frame is 59,972 rows, with 9,470 aggregator rows. The current wave is well-powered for descriptive profiling, but not for pooled label claims that ignore source-specific coverage.</li>
+<li><code>seniority_final</code> is a strict lower-bound junior label. Explicit-entry share is 3.7% in arshkon, 3.4% in scraped 2026-03, and 2.2% in scraped 2026-04, but the YOE proxy remains above 11% in both scraped periods.</li>
+<li>The direction mismatch between <code>seniority_final</code> and the YOE proxy is not a denominator trick. Even among rows with known seniority, entry share falls from 7.7% in arshkon to 4.9% in scraped 2026-04, while YOE&lt;=2 rises from 15.0% to 17.0%. That is a real measurement asymmetry.</li>
+<li>On the mid-senior calibration subset, mean description length rises from 3,719.7 chars in arshkon to 5,486.2 in scraped 2026, and the effect size is 0.785 d versus 0.245 d within 2024. That is the cleanest large change in the profiling wave.</li>
+<li>Ranked by absolute cross-period effect, the next largest mid-senior shifts are boilerplate share, AI-any/tool share, scope-term share, CI/CD share, and <code>llm_share</code>. In the top-tech stack, C++ falls the most, while Go, Kubernetes, AWS, GCP, and TypeScript rise. Those are weaker than the text-level shifts, but they are the clearest technology-stack movements in this wave.</li>
+<li>Text-heavy signals are concentrated in a subset of employers and in the cleaned-text coverage frame. Only 16.1% of scraped SWE rows have LLM-cleaned text, so any 2026 text claim needs coverage reporting and a sensitivity check.</li>
+</ul>
+<h2 id="what-surprised-us">What surprised us<a class="headerlink" href="#what-surprised-us" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>seniority_native = 'entry'</code> is not a stable baseline in arshkon. Those rows average 4.18 YOE with median 3.0, so the native label cannot be used as a cross-period truth source.</li>
+<li>The geography frame is thinner than expected. Metro missingness runs from 24.5% in scraped 2026-04 to 40.8% in arshkon, and the number of distinct metro areas collapses to 27 in scraped 2026, versus 74 in arshkon and 87 in asaniczka.</li>
+<li>Industry labels are semantically uneven. Arshkon has 163 distinct industry strings; scraped 2026 has 1,000+ distinct labels in the same frame, which is a label-formatting issue as much as a market signal.</li>
+<li>Company size is almost entirely an arshkon-only diagnostic. That makes it useful for within-source structure, but not as a cross-period explanatory variable.</li>
+</ul>
+<h2 id="evidence-assessment">Evidence assessment<a class="headerlink" href="#evidence-assessment" title="Permanent link">&para;</a></h2>
+<h3 id="strong">Strong<a class="headerlink" href="#strong" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Description length expansion. Large sample, same direction across source pairings, and the cross-period shift is larger than the within-2024 calibration gap.</li>
+<li>Text coverage asymmetry. The LLM-cleaned text share is 99.7% in arshkon, 85.9% in asaniczka, and 16.1% in scraped LinkedIn.</li>
+<li>Metro and industry concentration. The geography and industry slices show sharp source-dependent concentration patterns and more missingness than a naive panel interpretation would suggest.</li>
+</ul>
+<h3 id="moderate">Moderate<a class="headerlink" href="#moderate" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The YOE proxy itself. It is broader than <code>seniority_final</code>, but it still depends on parsed YOE availability and inherits source coverage differences.</li>
+<li>Company-size stratification. Within arshkon, larger employers are clearly more expansive and slightly more junior by YOE, but this cannot be generalized to scraped or asaniczka.</li>
+<li>The text-growth calibration table. The main signal is robust, and the company-capped sensitivity keeps the same sign on the core text metrics, but some term-level changes are still sensitive to employer concentration.</li>
+</ul>
+<h3 id="weak-or-artifact-prone">Weak or artifact-prone<a class="headerlink" href="#weak-or-artifact-prone" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>seniority_3level</code> for junior work. It collapses almost all known rows into <code>senior</code>, so it is not a useful junior estimator.</li>
+<li>Cross-source industry comparisons. The labels are not semantically aligned enough to support strong cross-period interpretation.</li>
+</ul>
+<h2 id="narrative-evaluation">Narrative evaluation<a class="headerlink" href="#narrative-evaluation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>RQ1, employer-side restructuring:</strong> partially supported, but the simple junior-decline framing is not. The stronger result is conservative explicit-entry labeling plus a broader junior-like YOE base.</li>
+<li><strong>RQ2, task and requirement migration:</strong> supported in the text domain, especially for description expansion, scope language, and AI language, but the text claims must be framed with coverage limits.</li>
+<li><strong>RQ3, employer-requirement / worker-usage divergence:</strong> still open. The present wave adds no direct worker-side benchmark, only a stronger case that employer-side requirements are changing.</li>
+<li><strong>RQ4, mechanisms:</strong> not tested directly here, but the measurement asymmetry strengthens the case for a qualitative mechanism check.</li>
+</ul>
+<p>Two alternative framings are still live. One is an expansion framing: the market is not simply eliminating juniors; it is expanding the explicit requirement surface and writing fewer postings as clean entry labels. The other is a conservatism framing: the 2026 pipeline is less willing to assign entry labels, so the apparent junior decline is partly a label system artifact. The data currently support the second more strongly than the first, but the YOE rise means there is still a real labor-market signal underneath the artifact.</p>
+<h2 id="emerging-narrative">Emerging narrative<a class="headerlink" href="#emerging-narrative" title="Permanent link">&para;</a></h2>
+<p>The best current narrative is not "junior roles vanished." It is: the observable junior rung became more conservative and less explicit, while broader junior-like YOE requirements remained common and may even have risen slightly. In parallel, postings got longer, more scope-heavy, and more AI-heavy. That is a stronger and more defensible story than a pure junior-collapse claim.</p>
+<h2 id="research-question-evolution">Research question evolution<a class="headerlink" href="#research-question-evolution" title="Permanent link">&para;</a></h2>
+<p>RQ1 should be rewritten to ask how explicit seniority labeling, YOE floors, and employer composition jointly changed the observable junior rung. That is more precise than claiming a single junior-share trend.</p>
+<p>RQ2 should keep the task/requirement migration framing, but the highest-value measure is now the expansion of requirement breadth and scope language, not a single junior-senior migration count.</p>
+<p>RQ3 remains provisional until the worker-side benchmark is compared explicitly.</p>
+<p>RQ4 becomes more important, not less, because the data now show that label conservatism, company concentration, and template inflation all matter.</p>
+<h2 id="gaps-and-weaknesses">Gaps and weaknesses<a class="headerlink" href="#gaps-and-weaknesses" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Cleaned-text coverage is thin in scraped 2026.</li>
+<li><code>company_industry</code> and <code>metro_area</code> are useful profiling variables, but not clean causal controls.</li>
+<li>The archetype decomposition requested in T08 could not be run because <code>../../../assets/artifacts/shared/swe_archetype_labels.parquet</code> is not present yet.</li>
+<li>The current wave does not resolve whether 2026 text growth is mostly requirements, boilerplate, or recruiter template inflation; it only shows that the growth is real.</li>
+</ul>
+<h2 id="direction-for-next-wave">Direction for next wave<a class="headerlink" href="#direction-for-next-wave" title="Permanent link">&para;</a></h2>
+<p>The next wave should dig into the text-content split: requirements versus boilerplate versus credential language, and it should cap employer concentration by default. The strongest follow-up is to test whether the 2026 text expansion is mostly substantive or mostly template inflation, then connect that to archetype structure once the domain labels arrive.</p>
+<h2 id="current-paper-positioning">Current paper positioning<a class="headerlink" href="#current-paper-positioning" title="Permanent link">&para;</a></h2>
+<p>If we stopped here, the paper should not lead with junior decline. It should lead with posting-language expansion plus a measurement warning: explicit seniority labels became more conservative while the YOE proxy and text measures still show a meaningful shift. That supports an empirical restructuring paper, but not a simplistic junior-elimination one.</p>
+<h2 id="selected-outputs">Selected outputs<a class="headerlink" href="#selected-outputs" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../../../assets/tables/T08/T08_counts_overview.csv">Counts overview</a></li>
+<li><a href="../../../../assets/tables/T08/T08_text_coverage_by_source_period.csv">Text coverage</a></li>
+<li><a href="../../../../assets/tables/T08/T08_junior_share_trends.csv">Junior trends</a></li>
+<li><a href="../../../../assets/tables/T08/T08_native_entry_yoe_profile.csv">Native entry diagnostic</a></li>
+<li><a href="../../../../assets/tables/T08/T08_calibration_table.csv">Calibration table</a></li>
+<li><a href="../../../../assets/tables/T08/T08_effect_size_ranking.csv">Effect ranking</a></li>
+<li><a href="../../../../assets/tables/T08/T08_anomaly_flags.csv">Anomaly flags</a></li>
+<li><a href="../../../../assets/tables/T08/T08_company_size_quartiles_arshkon.csv">Company size quartiles</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "toc.follow", "content.code.copy"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

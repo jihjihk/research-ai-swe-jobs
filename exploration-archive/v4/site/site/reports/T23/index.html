@@ -1,0 +1,2925 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration v4 — raw findings, gate memos, and verification passes">
+      
+      
+      
+      
+        <link rel="prev" href="../T22/">
+      
+      
+        <link rel="next" href="../T28/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T23 Divergence - SWE Labor Market Exploration — v4</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t23-employer-requirement-vs-worker-usage-divergence" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration — v4
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T23 Divergence
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../INDEX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reports
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../memos/gate_0_pre_exploration/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Memos
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration — v4" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration — v4" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration — v4
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../INDEX/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 Data Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../seniority_measurement_investigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seniority Measurement Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V1_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V1 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TL;DR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-and-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data and method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-employer-requirement-rates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Employer requirement rates
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 1 — Employer requirement rates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#overall-both-periods-swe-linkedin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overall (both periods, SWE LinkedIn)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direct-only-aggregator-excluded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direct-only (aggregator-excluded)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-seniority-combined-best-available-column" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By seniority (combined best-available column)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-seniority-yoe-proxy-label-independent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By seniority (YOE proxy — label-independent)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-external-benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — External benchmarks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 2 — External benchmarks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stack-overflow-developer-survey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stack Overflow Developer Survey
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anthropic-labor-market-impacts-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anthropic Labor Market Impacts (2024)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#github-blog-survey-late-2023-early-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub Blog Survey (late 2023 / early 2024)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benchmark-scenarios-for-swe-ai-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmark scenarios for SWE AI usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentic-ai-usage-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agentic AI usage scenarios
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-divergence-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Divergence computation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 3 — Divergence computation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#any-ai-divergence-by-scenario-requirement-rate-minus-usage-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Any-AI divergence by scenario (requirement rate minus usage rate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentic-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agentic divergence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-temporal-divergence-growth-rates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Temporal divergence (growth rates)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-divergence-by-specificity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Divergence by specificity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-benchmark-sensitivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6 — Benchmark sensitivity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-7-divergence-chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7 — Divergence chart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#robustness-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Robustness summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#artifacts-produced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifacts produced
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T28/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 Archetype Decomposition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T29/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 LLM-Authorship Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../V2_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration (Gate 0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t23-employer-requirement-vs-worker-usage-divergence">T23 — Employer-Requirement vs Worker-Usage Divergence</h1>
+<p><strong>Agent M, Wave 3</strong></p>
+<h2 id="tldr">TL;DR</h2>
+<ul>
+<li><strong>Employer AI requirements still LAG developer AI usage in absolute level</strong> but are closing the gap fast. Under the central benchmark (Stack Overflow developer survey), any-AI requirement rate in SWE postings rose from 14.3% in 2024 → 51.2% in 2026, while developer AI-tool usage rose from ~62% → ~80% over the same span. Requirements grew 2.6× (or 3.7× for direct-only) vs usage growth of 29%.</li>
+<li><strong>Requirement catch-up is fastest for specific AI tools.</strong> <code>ai_tool</code> subset (copilot / cursor / llm / langchain / prompt engineering) rose from 1.6% → 17.7% of postings (11×) — far outpacing the slower-growing <code>ai_domain</code> subset (ML/DL/NLP, 1.9×). Employers started naming specific coding-AI products.</li>
+<li><strong><code>agentic</code> went from essentially zero to 8% of postings.</strong> Worker adoption of AI agents (per Stack Overflow 2025) is ~24% daily+weekly. So the employer side is still below the worker side in absolute terms, but grew from effectively 0% to 8% in 2 years — an explosive ramp.</li>
+<li><strong>Divergence is NEGATIVE under every benchmark scenario</strong> (requirements &lt; usage). The narrative is NOT "employers demand AI skills workers don't have" — it's "employers were asleep on AI requirements in 2024 and are racing to catch up in 2026, but still haven't crossed the usage line."</li>
+<li><strong>Divergence varies by AI specificity.</strong> For generic AI mentions (<code>ai_general</code>), the catch-up is steep. For specific tool names (copilot/cursor), the catch-up started at near-zero and is growing fastest in relative terms. For agentic/multi-agent, employers are still early but faster than the worker curve.</li>
+<li>Under aggregator exclusion, the employer rate goes slightly HIGHER (direct-only is 11.2% → 52.9% for any-AI, vs full-sample 14.3% → 51.2%). Aggregators were over-representing <em>non-AI</em> postings in 2024, so excluding them makes the 2024 baseline lower and sharpens the increase.</li>
+</ul>
+<h2 id="data-and-method">Data and method</h2>
+<p>Same feature parquet as T22 (<code>exploration/artifacts/T22/ghost_indicators_per_posting.parquet</code>). 28,232 SWE LinkedIn postings in 2024, 35,062 in 2026.</p>
+<p>AI patterns (validated in T22, 50-sample precision review, saved to <code>exploration/artifacts/shared/validated_mgmt_patterns.json</code>):</p>
+<ul>
+<li><strong>AI-as-tool:</strong> <code>copilot</code>, <code>cursor</code>, <code>llm</code>/<code>llms</code>, <code>prompt engineering</code>, <code>langchain</code>, <code>model context protocol</code>, <code>ai pair program</code> (mcp removed — Microsoft Certified Professional contamination in 2024)</li>
+<li><strong>AI-as-domain:</strong> <code>machine learning</code>, <code>deep learning</code>, <code>nlp</code>, <code>natural language processing</code>, <code>computer vision</code>, <code>model training</code>, <code>transformers</code>, <code>embeddings</code>, <code>fine-tuning</code></li>
+<li><strong>AI-general:</strong> <code>\bai\b</code>, <code>artificial intelligence</code> — ~90% precision (the <code>\bai\b</code> token catches <code>ai-driven</code>, <code>ai tools</code>, <code>ai/ml</code> etc., all genuine mentions)</li>
+<li><strong><code>agentic</code> specifically:</strong> V1-validated ~95% AI-precision narrow signal</li>
+<li><strong><code>ai_agent_phrase</code>:</strong> <code>ai agents?</code>, <code>multi-agent</code>, <code>autonomous agents?</code>, <code>agentic ai</code>/<code>agentic workflow</code></li>
+<li><strong><code>rag_phrase</code>:</strong> <code>\brag\b</code>, <code>retrieval augmented</code></li>
+</ul>
+<h2 id="step-1-employer-requirement-rates">Step 1 — Employer requirement rates</h2>
+<p>See <code>exploration/tables/T23/ai_requirement_rates.csv</code> (three scopes: <code>combined</code>, <code>yoe</code>, <code>final</code>).</p>
+<h3 id="overall-both-periods-swe-linkedin">Overall (both periods, SWE LinkedIn)</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;">2024 (n=28,232)</th>
+<th style="text-align: right;">2026 (n=35,062)</th>
+<th style="text-align: right;">Absolute change</th>
+<th style="text-align: right;">Relative growth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>any_ai</td>
+<td style="text-align: right;">14.3%</td>
+<td style="text-align: right;">51.2%</td>
+<td style="text-align: right;"><strong>+36.9pp</strong></td>
+<td style="text-align: right;"><strong>3.6×</strong></td>
+</tr>
+<tr>
+<td>ai_tool</td>
+<td style="text-align: right;">1.6%</td>
+<td style="text-align: right;">17.7%</td>
+<td style="text-align: right;">+16.1pp</td>
+<td style="text-align: right;"><strong>10.2×</strong></td>
+</tr>
+<tr>
+<td>ai_domain</td>
+<td style="text-align: right;">10.9%</td>
+<td style="text-align: right;">22.8%</td>
+<td style="text-align: right;">+11.9pp</td>
+<td style="text-align: right;">2.1×</td>
+</tr>
+<tr>
+<td>ai_general</td>
+<td style="text-align: right;">7.9%</td>
+<td style="text-align: right;">45.9%</td>
+<td style="text-align: right;">+38.0pp</td>
+<td style="text-align: right;">5.8×</td>
+</tr>
+<tr>
+<td>agentic</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">8.0%</td>
+<td style="text-align: right;">+8.0pp</td>
+<td style="text-align: right;">∞</td>
+</tr>
+<tr>
+<td>ai_agent_phrase</td>
+<td style="text-align: right;">0.1%</td>
+<td style="text-align: right;">9.2%</td>
+<td style="text-align: right;">+9.1pp</td>
+<td style="text-align: right;">∞</td>
+</tr>
+<tr>
+<td>rag_phrase</td>
+<td style="text-align: right;">0.1%</td>
+<td style="text-align: right;">5.6%</td>
+<td style="text-align: right;">+5.5pp</td>
+<td style="text-align: right;">∞</td>
+</tr>
+</tbody>
+</table>
+<h3 id="direct-only-aggregator-excluded">Direct-only (aggregator-excluded)</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;">2024 (n=21,301)</th>
+<th style="text-align: right;">2026 (n=30,036)</th>
+<th style="text-align: right;">Absolute change</th>
+<th style="text-align: right;">Relative growth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>any_ai</td>
+<td style="text-align: right;">11.2%</td>
+<td style="text-align: right;">52.9%</td>
+<td style="text-align: right;"><strong>+41.7pp</strong></td>
+<td style="text-align: right;"><strong>4.7×</strong></td>
+</tr>
+<tr>
+<td>ai_tool</td>
+<td style="text-align: right;">1.2%</td>
+<td style="text-align: right;">18.1%</td>
+<td style="text-align: right;">+16.9pp</td>
+<td style="text-align: right;"><strong>14.5×</strong></td>
+</tr>
+<tr>
+<td>ai_domain</td>
+<td style="text-align: right;">8.4%</td>
+<td style="text-align: right;">24.3%</td>
+<td style="text-align: right;">+15.9pp</td>
+<td style="text-align: right;">2.9×</td>
+</tr>
+<tr>
+<td>agentic</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">8.2%</td>
+<td style="text-align: right;">+8.2pp</td>
+<td style="text-align: right;">∞</td>
+</tr>
+<tr>
+<td>rag_phrase</td>
+<td style="text-align: right;">0.1%</td>
+<td style="text-align: right;">5.6%</td>
+<td style="text-align: right;">+5.5pp</td>
+<td style="text-align: right;">∞</td>
+</tr>
+</tbody>
+</table>
+<p>Excluding aggregators makes the 2024 starting level lower and the 2026 level slightly higher, so the relative growth is larger for direct-only.</p>
+<h3 id="by-seniority-combined-best-available-column">By seniority (combined best-available column)</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;">2024 entry</th>
+<th style="text-align: right;">2024 mid-sen</th>
+<th style="text-align: right;">2026 entry</th>
+<th style="text-align: right;">2026 mid-sen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>any_ai</td>
+<td style="text-align: right;">17.0%</td>
+<td style="text-align: right;">14.4%</td>
+<td style="text-align: right;">43.6%</td>
+<td style="text-align: right;">43.4%</td>
+</tr>
+<tr>
+<td>ai_tool</td>
+<td style="text-align: right;">2.5%</td>
+<td style="text-align: right;">1.6%</td>
+<td style="text-align: right;">13.1%</td>
+<td style="text-align: right;">17.0%</td>
+</tr>
+<tr>
+<td>agentic</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">2.8%</td>
+<td style="text-align: right;">7.3%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Entry AI requirement rate 17% → 43.6%</strong> — entry saw similar magnitude absolute growth as mid-senior (+27pp entry, +29pp mid-senior). Employers are not specifically demanding AI skills from seniors more than juniors — the AI explosion is broad-based across seniority. Mid-senior is still slightly higher for ai_tool and agentic, but the gap is small.</p>
+<h3 id="by-seniority-yoe-proxy-label-independent">By seniority (YOE proxy — label-independent)</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;">2024 entry (yoe≤2, n=2,047)</th>
+<th style="text-align: right;">2026 entry (n=4,022)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>any_ai</td>
+<td style="text-align: right;">18.4%</td>
+<td style="text-align: right;">50.0%</td>
+</tr>
+<tr>
+<td>ai_tool</td>
+<td style="text-align: right;">1.2%</td>
+<td style="text-align: right;">15.3%</td>
+</tr>
+<tr>
+<td>agentic</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">6.3%</td>
+</tr>
+<tr>
+<td>ai_domain</td>
+<td style="text-align: right;">15.5%</td>
+<td style="text-align: right;">26.0%</td>
+</tr>
+</tbody>
+</table>
+<p>The YOE-proxy entry pool shows an even bigger AI growth (18.4% → 50.0% = +31.6pp) than the combined column entry pool. Both operationalizations agree: entry-level AI requirements more than doubled.</p>
+<h2 id="step-2-external-benchmarks">Step 2 — External benchmarks</h2>
+<p>Retrieved 2026-04-10 via WebFetch. See script <code>T23_02_divergence_vs_benchmarks.py</code> for source URLs.</p>
+<h3 id="stack-overflow-developer-survey">Stack Overflow Developer Survey</h3>
+<ul>
+<li><strong>2024 survey (results released July 2024):</strong></li>
+<li>62% of all respondents currently use AI tools (up from 44% in 2023)</li>
+<li>63.2% of <strong>professional developers</strong> currently use AI tools</li>
+<li>Additional 13.5% planning to adopt</li>
+<li><strong>2025 survey (results released mid-2025):</strong></li>
+<li>84% of all respondents use AI tools (up from 76% prior year)</li>
+<li>80.8% of professional developers actively use AI (daily 50.6% + weekly 17.4% + monthly 12.8%)</li>
+<li><strong>14.9% use AI agents daily</strong>, 9.2% weekly → ~24% at least weekly</li>
+</ul>
+<h3 id="anthropic-labor-market-impacts-2024">Anthropic Labor Market Impacts (2024)</h3>
+<ul>
+<li>Computer programmers: 75% observed exposure (highest of any occupation)</li>
+<li>Computer &amp; Math broad: 33% observed, 94% theoretical capability</li>
+</ul>
+<h3 id="github-blog-survey-late-2023-early-2024">GitHub Blog Survey (late 2023 / early 2024)</h3>
+<ul>
+<li>92% of US-based developers "already using AI coding tools in and outside of work"</li>
+<li>(Likely inflated by lax "any use" definition; we treat as an upper bound.)</li>
+</ul>
+<h3 id="benchmark-scenarios-for-swe-ai-usage">Benchmark scenarios for SWE AI usage</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th style="text-align: right;">2024</th>
+<th style="text-align: right;">2026</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conservative</td>
+<td style="text-align: right;">50%</td>
+<td style="text-align: right;">65%</td>
+<td>Lower bound: strict "use in primary work" definition</td>
+</tr>
+<tr>
+<td>Central (SO pro devs)</td>
+<td style="text-align: right;">62%</td>
+<td style="text-align: right;">80%</td>
+<td>Stack Overflow pro dev baseline</td>
+</tr>
+<tr>
+<td>High</td>
+<td style="text-align: right;">75%</td>
+<td style="text-align: right;">90%</td>
+<td>Anthropic exposure + SO trend extrapolation</td>
+</tr>
+<tr>
+<td>Extreme (GitHub Blog)</td>
+<td style="text-align: right;">92%</td>
+<td style="text-align: right;">92%</td>
+<td>Any-use lax definition</td>
+</tr>
+</tbody>
+</table>
+<h3 id="agentic-ai-usage-scenarios">Agentic AI usage scenarios</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th style="text-align: right;">2024</th>
+<th style="text-align: right;">2026</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conservative</td>
+<td style="text-align: right;">0%</td>
+<td style="text-align: right;">15%</td>
+</tr>
+<tr>
+<td>Central</td>
+<td style="text-align: right;">0%</td>
+<td style="text-align: right;">24% (SO daily + weekly)</td>
+</tr>
+<tr>
+<td>High</td>
+<td style="text-align: right;">5%</td>
+<td style="text-align: right;">35% (early-adopter extrapolation)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="step-3-divergence-computation">Step 3 — Divergence computation</h2>
+<p>See <code>exploration/tables/T23/divergence_scenarios.csv</code>.</p>
+<h3 id="any-ai-divergence-by-scenario-requirement-rate-minus-usage-rate">Any-AI divergence by scenario (requirement rate minus usage rate)</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Period</th>
+<th style="text-align: right;">Usage</th>
+<th style="text-align: right;">Req (direct)</th>
+<th style="text-align: right;">Divergence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conservative</td>
+<td>2024</td>
+<td style="text-align: right;">50%</td>
+<td style="text-align: right;">11.2%</td>
+<td style="text-align: right;"><strong>-38.8pp</strong></td>
+</tr>
+<tr>
+<td>Conservative</td>
+<td>2026</td>
+<td style="text-align: right;">65%</td>
+<td style="text-align: right;">52.9%</td>
+<td style="text-align: right;"><strong>-12.1pp</strong></td>
+</tr>
+<tr>
+<td>Central</td>
+<td>2024</td>
+<td style="text-align: right;">62%</td>
+<td style="text-align: right;">11.2%</td>
+<td style="text-align: right;"><strong>-50.8pp</strong></td>
+</tr>
+<tr>
+<td>Central</td>
+<td>2026</td>
+<td style="text-align: right;">80%</td>
+<td style="text-align: right;">52.9%</td>
+<td style="text-align: right;"><strong>-27.1pp</strong></td>
+</tr>
+<tr>
+<td>High</td>
+<td>2024</td>
+<td style="text-align: right;">75%</td>
+<td style="text-align: right;">11.2%</td>
+<td style="text-align: right;">-63.8pp</td>
+</tr>
+<tr>
+<td>High</td>
+<td>2026</td>
+<td style="text-align: right;">90%</td>
+<td style="text-align: right;">52.9%</td>
+<td style="text-align: right;">-37.1pp</td>
+</tr>
+<tr>
+<td>Extreme (GitHub Blog)</td>
+<td>2024</td>
+<td style="text-align: right;">92%</td>
+<td style="text-align: right;">11.2%</td>
+<td style="text-align: right;">-80.8pp</td>
+</tr>
+<tr>
+<td>Extreme (GitHub Blog)</td>
+<td>2026</td>
+<td style="text-align: right;">92%</td>
+<td style="text-align: right;">52.9%</td>
+<td style="text-align: right;">-39.1pp</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key pattern:</strong> The divergence is NEGATIVE under every scenario — employer AI requirements are <em>below</em> worker AI usage. However, the absolute divergence SHRANK from about -50pp to about -27pp under the central benchmark. Requirements closed about half the gap in 2 years.</p>
+<h3 id="agentic-divergence">Agentic divergence</h3>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Period</th>
+<th style="text-align: right;">Req <code>agentic</code></th>
+<th style="text-align: right;">Req <code>ai_agent_phrase</code></th>
+<th style="text-align: right;">Usage agent (SO)</th>
+<th style="text-align: right;">Divergence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Direct-only</td>
+<td>2024</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">0.1%</td>
+<td style="text-align: right;">0%</td>
+<td style="text-align: right;">≈ 0</td>
+</tr>
+<tr>
+<td>Direct-only</td>
+<td>2026</td>
+<td style="text-align: right;">8.2%</td>
+<td style="text-align: right;">9.4%</td>
+<td style="text-align: right;">24%</td>
+<td style="text-align: right;">-15.8pp</td>
+</tr>
+</tbody>
+</table>
+<p>Under SO 2025's agent usage benchmark, employer-side agentic requirements are still ~16pp <em>below</em> worker agent usage rates. Employers are adopting "agentic AI" as a job description term later than workers are adopting AI agents as a practice.</p>
+<h2 id="step-4-temporal-divergence-growth-rates">Step 4 — Temporal divergence (growth rates)</h2>
+<p>See <code>divergence_temporal_growth.csv</code>. Percentage-point change and relative multiplier:</p>
+<table>
+<thead>
+<tr>
+<th>Side</th>
+<th>Metric</th>
+<th style="text-align: right;">2024</th>
+<th style="text-align: right;">2026</th>
+<th style="text-align: right;">+pp</th>
+<th style="text-align: right;">×</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Employer (all)</td>
+<td>any_ai</td>
+<td style="text-align: right;">14.3%</td>
+<td style="text-align: right;">51.2%</td>
+<td style="text-align: right;">+36.9</td>
+<td style="text-align: right;">2.59×</td>
+</tr>
+<tr>
+<td>Employer (all)</td>
+<td>ai_tool</td>
+<td style="text-align: right;">1.6%</td>
+<td style="text-align: right;">17.7%</td>
+<td style="text-align: right;">+16.1</td>
+<td style="text-align: right;">10.2×</td>
+</tr>
+<tr>
+<td>Employer (direct)</td>
+<td>any_ai</td>
+<td style="text-align: right;">11.2%</td>
+<td style="text-align: right;">52.9%</td>
+<td style="text-align: right;">+41.7</td>
+<td style="text-align: right;">3.71×</td>
+</tr>
+<tr>
+<td>Employer (direct)</td>
+<td>ai_tool</td>
+<td style="text-align: right;">1.2%</td>
+<td style="text-align: right;">18.1%</td>
+<td style="text-align: right;">+16.9</td>
+<td style="text-align: right;">14.5×</td>
+</tr>
+<tr>
+<td>Employer (all)</td>
+<td>agentic</td>
+<td style="text-align: right;">0.0%</td>
+<td style="text-align: right;">8.0%</td>
+<td style="text-align: right;">+8.0</td>
+<td style="text-align: right;">∞</td>
+</tr>
+<tr>
+<td>Employer (all)</td>
+<td>rag_phrase</td>
+<td style="text-align: right;">0.1%</td>
+<td style="text-align: right;">5.6%</td>
+<td style="text-align: right;">+5.5</td>
+<td style="text-align: right;">~60×</td>
+</tr>
+<tr>
+<td><strong>Worker (SO)</strong></td>
+<td>any AI usage</td>
+<td style="text-align: right;">62%</td>
+<td style="text-align: right;">80%</td>
+<td style="text-align: right;">+18.0</td>
+<td style="text-align: right;">1.29×</td>
+</tr>
+<tr>
+<td><strong>Worker (SO)</strong></td>
+<td>AI agent usage</td>
+<td style="text-align: right;">0%</td>
+<td style="text-align: right;">24%</td>
+<td style="text-align: right;">+24.0</td>
+<td style="text-align: right;">∞</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Growth rate contrast:</strong> Employer requirements are growing <strong>~10× faster in relative terms</strong> and <strong>~2× faster in absolute pp terms</strong> than worker usage. This is the divergence signal — not in levels, but in the <em>rate of employer-side shift</em>.</p>
+<p><strong>Interpretation:</strong> Employers are closing a previously-large gap, not opening a new one. The 2024 baseline of 14.3% employer AI requirements against 62% worker usage implies a 50pp gap where workers were using AI without employers asking for it (or, more precisely, employers were slow to update JDs). By 2026 that gap has shrunk to ~27pp.</p>
+<h2 id="step-5-divergence-by-specificity">Step 5 — Divergence by specificity</h2>
+<p>The divergence looks different across AI specificity tiers:</p>
+<table>
+<thead>
+<tr>
+<th>AI type</th>
+<th style="text-align: right;">Req rate 2026</th>
+<th style="text-align: right;">Worker usage 2026</th>
+<th style="text-align: right;">Divergence</th>
+<th style="text-align: right;">Growth 24→26</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Any AI</td>
+<td style="text-align: right;">52.9%</td>
+<td style="text-align: right;">80%</td>
+<td style="text-align: right;">-27pp</td>
+<td style="text-align: right;">4.7×</td>
+</tr>
+<tr>
+<td>AI-tool (specific products)</td>
+<td style="text-align: right;">18.1%</td>
+<td style="text-align: right;">~67% SO pro dev uses ChatGPT / ~50% Copilot</td>
+<td style="text-align: right;">-32 to -49pp</td>
+<td style="text-align: right;">14.5×</td>
+</tr>
+<tr>
+<td>AI-domain (ML/DL/NLP)</td>
+<td style="text-align: right;">24.3%</td>
+<td style="text-align: right;">N/A (not equivalent to usage)</td>
+<td style="text-align: right;">N/A</td>
+<td style="text-align: right;">2.9×</td>
+</tr>
+<tr>
+<td>Agentic</td>
+<td style="text-align: right;">8.2%</td>
+<td style="text-align: right;">24% daily+weekly</td>
+<td style="text-align: right;">-16pp</td>
+<td style="text-align: right;">∞</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The "specific tools" tier has the biggest absolute divergence</strong> — employer rate 18.1% of SWE postings demand specific AI tools by name, but ~50-67% of developers report using those specific tools. Employers still don't name Copilot or Cursor in most postings even though most developers use them.</p>
+<p>But <code>ai_tool</code> is also the fastest-growing category (14.5× in 2 years), so the gap is closing quickly.</p>
+<h2 id="step-6-benchmark-sensitivity">Step 6 — Benchmark sensitivity</h2>
+<p>Under all four benchmark scenarios, the qualitative findings are robust:</p>
+<ol>
+<li><strong>Employer AI requirement rates are BELOW worker AI usage</strong> in both 2024 and 2026 — robust across Conservative, Central, High, Extreme.</li>
+<li><strong>Employer rates grew ~4× while worker usage grew ~1.3×</strong> — relative growth divergence is robust.</li>
+<li><strong>Agentic employer requirements (8%) are below agentic worker usage (15-35%)</strong> — robust except under the High agent adoption scenario (where it becomes a -27pp gap instead of -16pp, but still negative).</li>
+</ol>
+<p>The qualitative finding that changes across scenarios: under the Extreme/GitHub Blog scenario (92% any-use), the 2024 gap is an enormous 81pp and the 2026 gap is still 39pp, implying employers are even further behind than under Central. This reinforces rather than weakens the "catching up" narrative.</p>
+<h2 id="step-7-divergence-chart">Step 7 — Divergence chart</h2>
+<p>See <code>exploration/figures/T23/divergence_chart.png</code>. Two panels:</p>
+<ul>
+<li><strong>Left:</strong> Employer any-AI / ai_tool / ai_domain requirement rates as bars; SO central usage rate as a connecting line with low-high uncertainty band.</li>
+<li><strong>Right:</strong> Agentic requirement bars vs SO agent-usage line.</li>
+</ul>
+<p>The chart shows (a) the requirement bars rising steeply, (b) the worker usage line rising more modestly, (c) the bars still below the line in 2026, and (d) the agentic bar going from ~0 to ~8% while the worker line jumps to ~24%.</p>
+<h2 id="robustness-summary">Robustness summary</h2>
+<ul>
+<li><strong>Aggregator exclusion (core):</strong> Including aggregators raises the 2024 baseline (aggregators overrepresent non-AI postings in 2024's asaniczka pool) and slightly lowers the 2026 rate. Direct-only is the sharper specification and shows a larger absolute jump.</li>
+<li><strong>Seniority operationalization:</strong> Combined best-available column and YOE proxy produce similar headline AI requirement rates with no direction disagreement. Entry-level AI requirements rose +27-32pp under either method.</li>
+<li><strong>AI pattern choice:</strong> Using the validated <code>ai_tool</code> union (with <code>mcp</code> removed) versus the original naive set changes 2024 counts by &lt; 10% (mostly removing Microsoft Certified Professional matches).</li>
+<li><strong>Benchmark scenario range:</strong> Divergence direction (negative — requirements &lt; usage) holds under all 4 benchmark scenarios. Growth-rate divergence (employer catching up faster than worker usage rose) holds under all 4 scenarios.</li>
+</ul>
+<h2 id="implications">Implications</h2>
+<ol>
+<li><strong>Narrative correction.</strong> The popular framing "employers demand AI skills that workers don't have" is wrong for SWE in 2026. The correct narrative is: <strong>employers were slow to update JDs in 2024 (demanding AI at rates far below worker adoption) and are now racing to catch up in 2026 (4× relative growth in 2 years), but are STILL below the worker usage line.</strong> This reframes "AI requirement inflation" as "employer lag reduction."</li>
+<li><strong>The lag is a measurement opportunity.</strong> If you believe SO developer survey numbers, the 50pp employer-worker AI-mention lag in 2024 means that for every SWE posting that mentioned AI in 2024, there were about 4 workers using AI who weren't being asked to in their JDs. By 2026 that's closer to 1:1.5. This gap closing is the RQ3 signal.</li>
+<li><strong>Methodological implication.</strong> If employer requirement rates are still below worker adoption rates, cross-validating the "requirement" side against the "worker usage" side can calibrate our estimate of JD lag systematically. Future work could compute a company-by-company JD-to-workforce AI lag using internal LinkedIn profile data.</li>
+<li><strong>Agentic is the frontier.</strong> 8% of 2026 SWE postings mention <code>agentic</code> or agent phrases; worker agent usage is ~24%. This 16pp gap is the "next wave" space where employer requirements are farthest behind, and it's the category with the fastest employer-side growth.</li>
+</ol>
+<h2 id="artifacts-produced">Artifacts produced</h2>
+<ul>
+<li><code>exploration/tables/T23/ai_requirement_rates.csv</code> — AI requirement rates by period × seniority × scope</li>
+<li><code>exploration/tables/T23/ai_requirement_rates_direct_only.csv</code> — aggregator-excluded</li>
+<li><code>exploration/tables/T23/ai_requirement_rates_period_only.csv</code> — period-only headline</li>
+<li><code>exploration/tables/T23/divergence_scenarios.csv</code> — requirement vs usage under 4 benchmark scenarios</li>
+<li><code>exploration/tables/T23/divergence_agentic.csv</code> — agentic-specific divergence</li>
+<li><code>exploration/tables/T23/divergence_temporal_growth.csv</code> — temporal growth rates, both sides</li>
+<li><code>exploration/figures/T23/divergence_chart.png</code> — two-panel chart</li>
+<li>The feature parquet is reused from T22 (<code>exploration/artifacts/T22/ghost_indicators_per_posting.parquet</code>) so downstream tasks can join T22 and T23 indicators by uid.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

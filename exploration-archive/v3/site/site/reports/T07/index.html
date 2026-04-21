@@ -1,0 +1,3613 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Exploration findings from the SWE labor market restructuring study">
+      
+      
+      
+      
+        <link rel="prev" href="../T06/">
+      
+      
+        <link rel="next" href="../T08/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>T07 Benchmarks & Power - SWE Labor Market Exploration</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#t07-external-benchmarks-power-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              T07 Benchmarks & Power
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../slides/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Presentation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../findings/ai-requirements/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../methodology/data-sources/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Methods & Risks
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../T01/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Evidence
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Presentation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Presentation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration Findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/ai-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Requirements Surged +24pp (DiD), Validated as Genuine Hiring Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/ai-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Requirements Surged +24pp (DiD), Validated as Genuine Hiring Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/junior-decline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Junior hiring declined — SWE only
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/domain-recomposition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The market recomposed by domain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/technology-expansion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI expanded tech stacks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What we corrected along the way
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/orthogonality/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The orthogonality puzzle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/claims/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What the paper can claim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the story evolved
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/synthesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods & Risks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methods & Risks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/sensitivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity & robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations & open questions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evidence
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01: Column Coverage Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 — Data Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 — Data Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01: Column Coverage Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 Seniority Comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 Seniority Labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 SWE Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 Cross-Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 Company Concentration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 Benchmarks & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Executive Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-geographic-representativeness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Geographic Representativeness
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Geographic Representativeness">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-state-level-correlation-with-bls-oes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 State-Level Correlation with BLS OES
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-state-coverage-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 State Coverage Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-industry-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Industry Distribution
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Industry Distribution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-comparison-with-bls-oes-industry-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Comparison with BLS OES Industry Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-jolts-information-sector-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. JOLTS Information Sector Benchmark
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. JOLTS Information Sector Benchmark">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-jolts-trends-and-our-data-periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 JOLTS Trends and Our Data Periods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-jolts-vs-our-daily-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 JOLTS vs Our Daily Counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-representativeness-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Representativeness Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Representativeness Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-what-population-does-our-sample-represent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 What Population Does Our Sample Represent?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-what-we-can-and-cannot-generalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 What We Can and Cannot Generalize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-key-confounds-for-cross-period-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Key Confounds for Cross-Period Comparison
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-power-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Power Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Power Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Method
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-cross-period-comparisons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Cross-Period Comparisons
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-interpretation-of-effect-sizes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Interpretation of Effect Sizes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-metro-level-feasibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Metro-Level Feasibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Metro-Level Feasibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-metro-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Metro Coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-top-metros-for-cross-period-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Top Metros for Cross-Period Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-company-panel-feasibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Company-Panel Feasibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Company-Panel Feasibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-overlap-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Overlap Statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-top-panel-companies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Top Panel Companies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-panel-power-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Panel Power Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-panel-composition-concerns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Panel Composition Concerns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-comprehensive-feasibility-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Comprehensive Feasibility Table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implications-for-wave-2-analysis-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Implications for Wave 2+ Analysis Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Implications for Wave 2+ Analysis Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-analyses-that-should-proceed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Analyses That Should Proceed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-analyses-requiring-caution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Analyses Requiring Caution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-analyses-that-are-not-feasible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Analyses That Are Not Feasible
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-data-quality-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Data Quality Notes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-produced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files Produced
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 — Discovery
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 — Discovery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 Archetypes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10 Title Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11 Requirements Complexity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 Text Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 Linguistic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 Technology Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 Semantic Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 — Dynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 — Dynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 Company Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 Geographic Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 Cross-Occupation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 Temporal Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 Seniority Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 Senior Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22 Ghost Forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23 Divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 — Synthesis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 — Synthesis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 Hypotheses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T25/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T25 Interview Artifacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../T26/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T26 Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate Memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gate Memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pre-Exploration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="t07-external-benchmarks-power-analysis">T07: External Benchmarks &amp; Power Analysis</h1>
+<p><strong>Generated:</strong> 2026-04-05
+<strong>Data source:</strong> <code>preprocessing/intermediate/stage8_final.parquet</code> (Stage 8)
+<strong>Default filters:</strong> <code>source_platform='linkedin' AND is_english=true AND date_flag='ok'</code></p>
+<hr />
+<h2 id="executive-summary">Executive Summary</h2>
+<p>Our LinkedIn SWE posting samples show strong geographic representativeness (Pearson r = 0.97 for arshkon, r = 0.98 for scraped vs BLS OES state-level employment). Industry distributions over-represent Professional/Technical Services relative to BLS OES, consistent with LinkedIn's user base skew. JOLTS information sector openings were substantially lower during our 2024 collection periods than peak 2022 levels, and had partially recovered by early 2026.</p>
+<p><strong>Power analysis verdict:</strong> The primary comparisons (entry-level arshkon vs scraped, senior, and all SWE) are <strong>well-powered</strong> for detecting small-to-moderate effects (d = 0.04-0.11). Metro-level analyses are feasible for 8-18 metros depending on the minimum threshold. Company-panel analysis is well-powered in aggregate (202 companies, 8,948 postings) but underpowered at the individual-company level. The arshkon-asaniczka entry-level comparison (n=830 vs n=130) and arshkon-scraped mid-level comparison (n=228 vs n=622) are adequate but not generous.</p>
+<hr />
+<h2 id="1-geographic-representativeness">1. Geographic Representativeness</h2>
+<h3 id="11-state-level-correlation-with-bls-oes">1.1 State-Level Correlation with BLS OES</h3>
+<p>We compared our state-level SWE posting counts against BLS OES May 2023 employment estimates for SOC 15-1252 (Software Developers).</p>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>N states</th>
+<th>Pearson r</th>
+<th>Spearman rho</th>
+<th>Log-scale Pearson r</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Arshkon (2024-04)</td>
+<td>47</td>
+<td>0.969</td>
+<td>0.949</td>
+<td>0.961</td>
+</tr>
+<tr>
+<td>Scraped (2026-03)</td>
+<td>31</td>
+<td>0.983</td>
+<td>0.896</td>
+<td>0.796</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interpretation:</strong>
+- <strong>Arshkon</strong> covers 47 of 51 states/DC (missing HI, SD, VT, WY), representing 99.5% of BLS SWE employment. Its geographic distribution is an excellent match to BLS OES at both raw and log scale.
+- <strong>Scraped</strong> covers only 31 states because the scraper targets 26 metros, not all states. Among covered states, raw correlation is slightly higher (r=0.983) but log-scale correlation is lower (0.796) because the scraper's metro-targeted design produces sharper concentration in tech-hub states. The 20 missing states represent 7.6% of BLS SWE employment.
+- The scraped data's lower log-scale r reflects its metro-targeted sampling design: it oversamples high-employment states (CA, TX, WA, NY) relative to small states. This is by design, not a defect, but it means scraped cannot support state-level analyses for smaller states.</p>
+<p><strong>Target met:</strong> Both datasets exceed the r &gt; 0.80 geographic benchmark by substantial margins.</p>
+<h3 id="12-state-coverage-details">1.2 State Coverage Details</h3>
+<p>Top 10 states by BLS OES SWE employment and our coverage:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>BLS OES</th>
+<th>Arshkon</th>
+<th>Scraped</th>
+<th>Arshkon share</th>
+<th>Scraped share</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CA</td>
+<td>293,760</td>
+<td>620</td>
+<td>5,128</td>
+<td>0.21%</td>
+<td>1.75%</td>
+</tr>
+<tr>
+<td>TX</td>
+<td>161,230</td>
+<td>475</td>
+<td>2,689</td>
+<td>0.29%</td>
+<td>1.67%</td>
+</tr>
+<tr>
+<td>WA</td>
+<td>108,040</td>
+<td>193</td>
+<td>1,742</td>
+<td>0.18%</td>
+<td>1.61%</td>
+</tr>
+<tr>
+<td>NY</td>
+<td>89,050</td>
+<td>258</td>
+<td>1,753</td>
+<td>0.29%</td>
+<td>1.97%</td>
+</tr>
+<tr>
+<td>VA</td>
+<td>81,140</td>
+<td>292</td>
+<td>1,167</td>
+<td>0.36%</td>
+<td>1.44%</td>
+</tr>
+<tr>
+<td>MA</td>
+<td>71,590</td>
+<td>127</td>
+<td>1,164</td>
+<td>0.18%</td>
+<td>1.63%</td>
+</tr>
+<tr>
+<td>FL</td>
+<td>68,560</td>
+<td>142</td>
+<td>541</td>
+<td>0.21%</td>
+<td>0.79%</td>
+</tr>
+<tr>
+<td>IL</td>
+<td>63,470</td>
+<td>177</td>
+<td>878</td>
+<td>0.28%</td>
+<td>1.38%</td>
+</tr>
+<tr>
+<td>GA</td>
+<td>59,330</td>
+<td>160</td>
+<td>868</td>
+<td>0.27%</td>
+<td>1.46%</td>
+</tr>
+<tr>
+<td>NC</td>
+<td>52,910</td>
+<td>145</td>
+<td>1,157</td>
+<td>0.27%</td>
+<td>2.19%</td>
+</tr>
+</tbody>
+</table>
+<p>The scraped data captures a substantially higher share of BLS employment per state than arshkon, consistent with the scraper being designed for higher per-metro volume. The "share" column shows our sample represents ~0.2-0.4% (arshkon) and ~0.8-2.2% (scraped) of BLS employment by state — reasonable for a posting-level sample.</p>
+<p><strong>Figure:</strong> <code>exploration/figures/T07/geographic_correlation.png</code> — log-scale scatter plots of our counts vs BLS OES by state.</p>
+<hr />
+<h2 id="2-industry-distribution">2. Industry Distribution</h2>
+<h3 id="21-comparison-with-bls-oes-industry-distribution">2.1 Comparison with BLS OES Industry Distribution</h3>
+<p>BLS OES reports SWE employment by NAICS sector. LinkedIn uses its own industry taxonomy, so the comparison requires approximate mapping. The mapping below is rough but directional:</p>
+<table>
+<thead>
+<tr>
+<th>Sector (BLS NAICS-equivalent)</th>
+<th>BLS OES (%)</th>
+<th>Arshkon (%)</th>
+<th>Scraped (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Professional/Technical Services</td>
+<td>37.2</td>
+<td>46.1</td>
+<td>44.3</td>
+</tr>
+<tr>
+<td>Finance &amp; Insurance</td>
+<td>11.8</td>
+<td>12.5</td>
+<td>9.7</td>
+</tr>
+<tr>
+<td>Manufacturing</td>
+<td>10.5</td>
+<td>3.7</td>
+<td>4.4</td>
+</tr>
+<tr>
+<td>Information</td>
+<td>9.8</td>
+<td>4.8</td>
+<td>3.1</td>
+</tr>
+<tr>
+<td>Healthcare</td>
+<td>2.8</td>
+<td>1.6</td>
+<td>1.3</td>
+</tr>
+<tr>
+<td>Retail/Wholesale</td>
+<td>3.2</td>
+<td>1.5</td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>Staffing (no BLS equiv.)</td>
+<td>—</td>
+<td>5.5</td>
+<td>2.5</td>
+</tr>
+<tr>
+<td>Other</td>
+<td>20.6</td>
+<td>24.3</td>
+<td>33.8</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key observations:</strong>
+- Our data <strong>over-represents Professional/Technical Services</strong> by ~7-9 percentage points relative to BLS OES. This is expected: LinkedIn's user base skews toward tech, consulting, and professional services.
+- <strong>Manufacturing and Information sectors are under-represented</strong> in our data (~3-5% vs ~10% in BLS OES), likely because many manufacturing-sector SWE roles are posted on different platforms or through internal channels.
+- <strong>Finance &amp; Insurance</strong> representation is close to BLS OES.
+- <strong>Staffing/recruiting</strong> postings (5.5% arshkon, 2.5% scraped) have no BLS OES equivalent — these are aggregator postings that BLS would count under the actual employer's industry.
+- The "Other" category is large in scraped (33.8%) partly because LinkedIn's industry labels are finer-grained and many don't map cleanly to a single NAICS sector.</p>
+<p><strong>Implication:</strong> Our sample is most representative of Professional/Technical Services SWE. Findings about manufacturing or information-sector SWE should be treated with caution due to underrepresentation.</p>
+<p><strong>Figure:</strong> <code>exploration/figures/T07/industry_comparison.png</code></p>
+<hr />
+<h2 id="3-jolts-information-sector-benchmark">3. JOLTS Information Sector Benchmark</h2>
+<h3 id="31-jolts-trends-and-our-data-periods">3.1 JOLTS Trends and Our Data Periods</h3>
+<p>We retrieved JOLTS seasonally adjusted information sector job openings (Series JTS510000000000000JOL) from the BLS public API for 2022-2026.</p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>JOLTS Info Openings (000s)</th>
+<th>Our data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2022 peak (Apr)</td>
+<td>274</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2022 trough (Dec)</td>
+<td>80</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2024-01 (asaniczka)</td>
+<td>160</td>
+<td>23,213 SWE</td>
+</tr>
+<tr>
+<td>2024-04 (arshkon)</td>
+<td>87</td>
+<td>5,019 SWE</td>
+</tr>
+<tr>
+<td>2025 avg</td>
+<td>120</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2026-01</td>
+<td>100</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2026-02</td>
+<td>91</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2026-03 (scraped)</td>
+<td>~95 (est.)</td>
+<td>24,095 SWE</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key observations:</strong>
+- The information sector experienced a massive contraction from 274K openings (Apr 2022) to 80K (Dec 2022), consistent with the widely reported tech hiring freeze.
+- Our asaniczka period (Jan 2024, 160K) captures a partial recovery; the arshkon period (Apr 2024, 87K) captures a secondary dip.
+- By early 2026, JOLTS information sector openings appear to have partially stabilized around 90-100K, still well below the 2022 peak.
+- <strong>Our scraped data collection (March 2026) occurred during a period of subdued but stable information-sector hiring.</strong> This means our 2026 sample is not from a hiring boom, reducing the risk that composition shifts are driven by cyclical expansion.</p>
+<h3 id="32-jolts-vs-our-daily-counts">3.2 JOLTS vs Our Daily Counts</h3>
+<p>The scraped data has limited <code>date_posted</code> coverage for LinkedIn (only 2.8% of rows), so direct daily comparison with JOLTS is not feasible. However, <code>scrape_date</code> shows our daily SWE yield of 865-3,047 postings across 12 scrape days in March 2026, consistent with stable scraping activity rather than variation in underlying demand.</p>
+<p><strong>Figure:</strong> <code>exploration/figures/T07/jolts_information_sector.png</code></p>
+<hr />
+<h2 id="4-representativeness-summary">4. Representativeness Summary</h2>
+<h3 id="41-what-population-does-our-sample-represent">4.1 What Population Does Our Sample Represent?</h3>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Coverage</th>
+<th>Representativeness</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Platform</strong></td>
+<td>LinkedIn only (primary), Indeed (sensitivity)</td>
+<td>Represents LinkedIn-posted SWE roles. Excludes company career pages, Greenhouse/Lever ATS-only postings, and non-LinkedIn platforms.</td>
+</tr>
+<tr>
+<td><strong>Geography</strong></td>
+<td>47 states (arshkon), 31 states (scraped), 26-metro frame</td>
+<td>Excellent correlation with BLS OES state distribution. Scraped concentrated in major metros by design.</td>
+</tr>
+<tr>
+<td><strong>Industry</strong></td>
+<td>Professional/Technical Services over-represented</td>
+<td>LinkedIn skews toward tech-adjacent employers. Manufacturing and information-sector SWE underrepresented.</td>
+</tr>
+<tr>
+<td><strong>Company size</strong></td>
+<td>Large employers over-represented in scraped (Google, JPMorgan, Deloitte dominate)</td>
+<td>LinkedIn favors established companies with active recruiting presence.</td>
+</tr>
+<tr>
+<td><strong>Seniority</strong></td>
+<td>81% known (arshkon), ~100% known (asaniczka, scraped) for SWE</td>
+<td>Good coverage, but asaniczka has zero entry-level labels. Entry-level baseline relies solely on arshkon.</td>
+</tr>
+<tr>
+<td><strong>Time</strong></td>
+<td>Snapshots at Jan 2024, Apr 2024, Mar 2026</td>
+<td>Not continuous panel. Cross-sectional comparisons only. Cyclical effects not separable from structural shifts.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-what-we-can-and-cannot-generalize">4.2 What We Can and Cannot Generalize</h3>
+<p><strong>Can generalize to:</strong>
+- LinkedIn-posted SWE roles in major US metros
+- Posting content and requirement trends among established employers
+- Relative geographic distribution of SWE demand
+- Cross-period changes in posting composition at the aggregate level</p>
+<p><strong>Cannot generalize to:</strong>
+- All SWE jobs (many are never posted on LinkedIn)
+- Small companies and startups (underrepresented)
+- Manufacturing-sector or government SWE roles
+- International markets
+- Actual employment (postings measure labor demand signals, not hires)
+- Individual-company trajectories (panel is too sparse for most companies)</p>
+<h3 id="43-key-confounds-for-cross-period-comparison">4.3 Key Confounds for Cross-Period Comparison</h3>
+<ol>
+<li><strong>Description length grew ~56%</strong> from 2024 to 2026 (median 3,316 to 5,181 chars for SWE). Any text-based measure MUST be normalized by description length.</li>
+<li><strong>Company overlap is only ~18%</strong> between arshkon and scraped. Composition effects from different company mixes could drive observed differences.</li>
+<li><strong>JOLTS context:</strong> The arshkon period (Apr 2024, 87K openings) was a relative trough; the scraped period (Mar 2026, ~95K) was slightly higher but still subdued. Cyclical position differs modestly.</li>
+<li><strong>Seniority label provenance differs:</strong> arshkon entry-level labels are 88% native_backfill vs 80% in scraped. Label construction should be checked for artifacts.</li>
+</ol>
+<hr />
+<h2 id="5-power-analysis">5. Power Analysis</h2>
+<h3 id="51-method">5.1 Method</h3>
+<p>Minimum detectable effect sizes (MDE) computed for two-sample comparisons at 80% power, alpha = 0.05 (two-tailed).
+- <strong>Binary outcomes</strong> (e.g., presence of a keyword): MDE for difference in proportions, using normal approximation.
+- <strong>Continuous outcomes</strong> (e.g., embedding similarity, YOE): MDE expressed as Cohen's d.</p>
+<h3 id="52-cross-period-comparisons">5.2 Cross-Period Comparisons</h3>
+<table>
+<thead>
+<tr>
+<th>Comparison</th>
+<th>n1</th>
+<th>n2</th>
+<th>MDE (d)</th>
+<th>MDE (prop, base=50%)</th>
+<th>MDE (prop, base=10%)</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Entry-level: arshkon vs scraped</strong></td>
+<td>830</td>
+<td>3,255</td>
+<td>0.109</td>
+<td>5.4 pp</td>
+<td>3.3 pp</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td><strong>Senior: arshkon vs scraped</strong></td>
+<td>3,008</td>
+<td>18,592</td>
+<td>0.055</td>
+<td>2.8 pp</td>
+<td>1.7 pp</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td><strong>All SWE: arshkon vs scraped</strong></td>
+<td>5,019</td>
+<td>24,095</td>
+<td>0.044</td>
+<td>2.2 pp</td>
+<td>1.3 pp</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td>Entry: arshkon vs asaniczka</td>
+<td>830</td>
+<td>130</td>
+<td>0.264</td>
+<td>13.2 pp</td>
+<td>7.9 pp</td>
+<td>adequate</td>
+</tr>
+<tr>
+<td>Mid-level: arshkon vs scraped</td>
+<td>228</td>
+<td>622</td>
+<td>0.217</td>
+<td>10.8 pp</td>
+<td>6.5 pp</td>
+<td>adequate</td>
+</tr>
+<tr>
+<td><strong>Senior: pooled 2024 vs scraped</strong></td>
+<td>24,641</td>
+<td>18,592</td>
+<td>0.027</td>
+<td>1.4 pp</td>
+<td>0.8 pp</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td><strong>All SWE: pooled 2024 vs scraped</strong></td>
+<td>28,232</td>
+<td>24,095</td>
+<td>0.025</td>
+<td>1.2 pp</td>
+<td>0.7 pp</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td>Entry (native_backfill only)</td>
+<td>729</td>
+<td>2,592</td>
+<td>0.118</td>
+<td>5.7 pp</td>
+<td>3.5 pp</td>
+<td>well-powered</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key takeaways:</strong>
+- The primary entry-level comparison (arshkon vs scraped) can detect effects as small as d=0.11, or a 3.3 pp shift in a 10%-prevalence keyword. This is sufficient for the hypothesized scope-inflation effects.
+- Pooling asaniczka + arshkon for 2024 dramatically improves power for senior and all-SWE comparisons (d = 0.025-0.027), but <strong>pooling is only valid if source composition effects are controlled for</strong> (since asaniczka and arshkon differ in company mix, seniority labels, and description length).
+- The arshkon-asaniczka entry-level comparison (n=130 asaniczka) is adequate but only for large effects. Asaniczka entry-level labels are rule-imputed (130 rows) and should be treated as a cross-check, not a primary analysis.
+- The mid-level comparison (n=228 arshkon mid) is the weakest cross-period comparison, with MDE of d=0.22. Only substantial effects will be detectable.</p>
+<h3 id="53-interpretation-of-effect-sizes">5.3 Interpretation of Effect Sizes</h3>
+<p>For context, what do these MDE values mean in practical terms?</p>
+<table>
+<thead>
+<tr>
+<th>MDE (Cohen's d)</th>
+<th>Meaning for continuous outcomes</th>
+<th>Meaning for binary (base=20%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.05</td>
+<td>~0.05 SD shift in embedding similarity</td>
+<td>~1.7 pp shift</td>
+</tr>
+<tr>
+<td>0.10</td>
+<td>~0.10 SD shift</td>
+<td>~3.3 pp shift</td>
+</tr>
+<tr>
+<td>0.20</td>
+<td>~0.20 SD shift (small effect)</td>
+<td>~6.3 pp shift</td>
+</tr>
+<tr>
+<td>0.50</td>
+<td>~0.50 SD shift (medium effect)</td>
+<td>~14.6 pp shift</td>
+</tr>
+</tbody>
+</table>
+<p>The hypothesized effects (scope inflation, archetype shift) are expected to be moderate (d = 0.20-0.50), so all primary comparisons are adequately powered.</p>
+<hr />
+<h2 id="6-metro-level-feasibility">6. Metro-Level Feasibility</h2>
+<h3 id="61-metro-coverage">6.1 Metro Coverage</h3>
+<p>Of the 26-metro study frame, metros with SWE postings in both arshkon and scraped:</p>
+<table>
+<thead>
+<tr>
+<th>Threshold</th>
+<th>Metros meeting threshold</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Both &gt;= 50 SWE</td>
+<td>18</td>
+</tr>
+<tr>
+<td>Both &gt;= 100 SWE</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Both &gt;= 200 SWE</td>
+<td>4 (SF Bay, DC, Seattle, Dallas)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-top-metros-for-cross-period-analysis">6.2 Top Metros for Cross-Period Analysis</h3>
+<table>
+<thead>
+<tr>
+<th>Metro</th>
+<th>Arshkon</th>
+<th>Scraped</th>
+<th>MDE (d)</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>San Francisco Bay Area</td>
+<td>403</td>
+<td>3,000</td>
+<td>0.149</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td>Washington DC Metro</td>
+<td>298</td>
+<td>1,606</td>
+<td>0.177</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td>Dallas-Fort Worth</td>
+<td>272</td>
+<td>1,200</td>
+<td>0.188</td>
+<td>well-powered</td>
+</tr>
+<tr>
+<td>Seattle</td>
+<td>189</td>
+<td>1,433</td>
+<td>0.217</td>
+<td>adequate</td>
+</tr>
+<tr>
+<td>Chicago</td>
+<td>176</td>
+<td>708</td>
+<td>0.236</td>
+<td>adequate</td>
+</tr>
+<tr>
+<td>Atlanta</td>
+<td>148</td>
+<td>694</td>
+<td>0.254</td>
+<td>adequate</td>
+</tr>
+<tr>
+<td>Boston</td>
+<td>140</td>
+<td>969</td>
+<td>0.253</td>
+<td>adequate</td>
+</tr>
+<tr>
+<td>Los Angeles</td>
+<td>130</td>
+<td>938</td>
+<td>0.262</td>
+<td>adequate</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note:</strong> New York City Metro is unusable for arshkon comparison (n=13 arshkon). This is a significant gap — NYC is the 2nd largest US tech market but has minimal representation in arshkon. For NYC-specific analyses, asaniczka (n=89) provides some data but is still thin.</p>
+<h3 id="63-recommendation">6.3 Recommendation</h3>
+<ul>
+<li><strong>Tier 1 metros</strong> (well-powered, d &lt; 0.20): SF Bay Area, Washington DC, Dallas-Fort Worth — use for metro-specific effect estimation.</li>
+<li><strong>Tier 2 metros</strong> (adequate, d = 0.20-0.30): Seattle, Chicago, Atlanta, Boston, Los Angeles — use for metro-level robustness checks.</li>
+<li><strong>Metro-pooled analysis</strong> with metro fixed effects is feasible across all 18 metros with &gt;= 50 SWE per period.</li>
+</ul>
+<hr />
+<h2 id="7-company-panel-feasibility">7. Company-Panel Feasibility</h2>
+<h3 id="71-overlap-statistics">7.1 Overlap Statistics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unique companies with SWE postings (arshkon)</td>
+<td>2,298</td>
+</tr>
+<tr>
+<td>Unique companies with SWE postings (scraped)</td>
+<td>5,100</td>
+</tr>
+<tr>
+<td>Overlapping companies</td>
+<td>813 (35.4% of arshkon, 15.9% of scraped)</td>
+</tr>
+<tr>
+<td>Companies with &gt;= 3 SWE in BOTH periods</td>
+<td>202</td>
+</tr>
+<tr>
+<td>Total postings in panel (arshkon side)</td>
+<td>1,875</td>
+</tr>
+<tr>
+<td>Total postings in panel (scraped side)</td>
+<td>7,073</td>
+</tr>
+<tr>
+<td>Avg postings per company (arshkon)</td>
+<td>9.3</td>
+</tr>
+<tr>
+<td>Avg postings per company (scraped)</td>
+<td>35.0</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-top-panel-companies">7.2 Top Panel Companies</h3>
+<table>
+<thead>
+<tr>
+<th>Company</th>
+<th>Arshkon SWE</th>
+<th>Scraped SWE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Capital One</td>
+<td>115</td>
+<td>176</td>
+</tr>
+<tr>
+<td>DataAnnotation</td>
+<td>163</td>
+<td>38</td>
+</tr>
+<tr>
+<td>Apex Systems</td>
+<td>52</td>
+<td>86</td>
+</tr>
+<tr>
+<td>Motion Recruitment</td>
+<td>42</td>
+<td>100</td>
+</tr>
+<tr>
+<td>Deloitte</td>
+<td>22</td>
+<td>345</td>
+</tr>
+<tr>
+<td>Amazon</td>
+<td>32</td>
+<td>205</td>
+</tr>
+<tr>
+<td>Google</td>
+<td>15</td>
+<td>520</td>
+</tr>
+<tr>
+<td>Microsoft</td>
+<td>19</td>
+<td>138</td>
+</tr>
+<tr>
+<td>JPMorgan Chase</td>
+<td>12</td>
+<td>479</td>
+</tr>
+<tr>
+<td>Wells Fargo</td>
+<td>16</td>
+<td>162</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-panel-power-analysis">7.3 Panel Power Analysis</h3>
+<ul>
+<li><strong>Aggregate panel</strong> (1,875 vs 7,073 postings): MDE d = 0.073, <strong>well-powered</strong>. This is T16's primary design — comparing posting content within the same company across periods.</li>
+<li><strong>Individual company</strong> (~9 vs ~35 postings): MDE d = 1.05, <strong>underpowered</strong>. Within-company analyses at the single-company level are not feasible for most companies.</li>
+<li><strong>Recommendation:</strong> Use the company panel for within-company fixed-effects analysis at the aggregate level. Company-specific trajectories should be limited to the ~10 largest panel companies (Capital One, Deloitte, Amazon, Google, etc.).</li>
+</ul>
+<h3 id="74-panel-composition-concerns">7.4 Panel Composition Concerns</h3>
+<ul>
+<li>The panel is dominated by large employers (FAANG, banks, defense contractors, staffing agencies). Small/medium companies rarely have &gt;= 3 SWE postings in both periods.</li>
+<li>Staffing agencies (Motion Recruitment, Apex Systems, Actalent) contribute significantly. These may reflect labor-market intermediary behavior rather than direct employer restructuring.</li>
+<li>DataAnnotation's high arshkon count (163) but low scraped count (38) likely reflects a specific recruitment campaign, not a structural trend.</li>
+</ul>
+<hr />
+<h2 id="8-comprehensive-feasibility-table">8. Comprehensive Feasibility Table</h2>
+<p>The full feasibility table is saved at <code>exploration/tables/T07/feasibility_table.csv</code>.</p>
+<p>Summary by verdict:</p>
+<table>
+<thead>
+<tr>
+<th>Verdict</th>
+<th>Count</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Well-powered</strong> (MDE d &lt;= 0.20)</td>
+<td>12</td>
+<td>All primary cross-period, SF/DC/Dallas metros, aggregate company panel, seniority share</td>
+</tr>
+<tr>
+<td><strong>Adequate</strong> (MDE d = 0.20-0.35)</td>
+<td>7</td>
+<td>Entry arshkon-asaniczka, mid-level, Seattle/Chicago/Atlanta/Boston/LA/Austin metros</td>
+</tr>
+<tr>
+<td><strong>Marginal</strong> (MDE d = 0.35-0.50)</td>
+<td>0</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Underpowered</strong> (MDE d &gt; 0.50)</td>
+<td>2</td>
+<td>NYC metro (arshkon n=13), individual company panel</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Figure:</strong> <code>exploration/figures/T07/power_analysis.png</code></p>
+<hr />
+<h2 id="9-implications-for-wave-2-analysis-design">9. Implications for Wave 2+ Analysis Design</h2>
+<h3 id="91-analyses-that-should-proceed">9.1 Analyses That Should Proceed</h3>
+<ol>
+<li><strong>RQ1 junior scope inflation</strong> (entry-level arshkon vs scraped): Well-powered, proceed as planned. The n=830 arshkon entry-level sample is the binding constraint but sufficient for d=0.11 detection.</li>
+<li><strong>RQ1 senior archetype shift</strong> (senior arshkon vs scraped): Well-powered (d=0.055). Even subtle shifts in requirement language should be detectable.</li>
+<li><strong>All-SWE aggregate comparisons</strong>: Extremely well-powered. Any planned descriptive analyses at the all-SWE level will have more than sufficient statistical resolution.</li>
+<li><strong>Company-panel within-firm analysis</strong> (T16): Well-powered in aggregate. Proceed with 202-company panel using company fixed effects.</li>
+<li><strong>Metro-level heterogeneity</strong>: Feasible for 18 metros (&gt;= 50 per period). Use SF Bay Area, DC, and Dallas as anchor metros.</li>
+</ol>
+<h3 id="92-analyses-requiring-caution">9.2 Analyses Requiring Caution</h3>
+<ol>
+<li><strong>Mid-level cross-period comparison</strong> (n=228 arshkon mid): Adequate power only for moderate effects (d &gt;= 0.22). Consider pooling mid + senior into a "non-junior" category for better power.</li>
+<li><strong>Arshkon-asaniczka entry-level comparison</strong> (n=130 asaniczka entry): Asaniczka entry-level labels are rule-imputed and small (n=130). Use only as directional cross-check, not primary evidence.</li>
+<li><strong>Metro-level entry-level analysis</strong>: Not assessed here, but entry-level counts per metro are likely very small. Expect most metro-level entry analyses to be underpowered.</li>
+</ol>
+<h3 id="93-analyses-that-are-not-feasible">9.3 Analyses That Are Not Feasible</h3>
+<ol>
+<li><strong>NYC-specific arshkon vs scraped</strong> (n=13 arshkon): Not viable. NYC comparisons require asaniczka (n=89) or should be dropped.</li>
+<li><strong>Individual company trajectories</strong>: Only ~10 companies have enough postings for company-specific analysis.</li>
+<li><strong>State-level analysis using scraped data</strong> for small states: The scraper covers only 31 states; 20 states are missing entirely.</li>
+</ol>
+<hr />
+<h2 id="10-data-quality-notes">10. Data Quality Notes</h2>
+<ul>
+<li><strong>BLS OES data</strong>: May 2023 estimates for SOC 15-1252 used as the benchmark. These are survey-based estimates with their own sampling variability, but are the best available external anchor for SWE employment by state.</li>
+<li><strong>JOLTS data</strong>: Retrieved via BLS public API (Series JTS510000000000000JOL). Seasonally adjusted information sector openings in thousands.</li>
+<li><strong>Industry mapping</strong>: The BLS-to-LinkedIn industry mapping is approximate. LinkedIn industry labels are self-reported by companies and do not map cleanly to NAICS sectors. The industry comparison should be treated as directional, not precise.</li>
+<li><strong>Seniority counts</strong>: The "3,255 scraped entry-level" includes both native_backfill (2,592) and title_keyword (661) sources. These are substantially larger than the arshkon entry-level count because the scraper specifically targeted entry-level search queries.</li>
+<li><strong>Sample size note</strong>: The task brief referenced n=574 scraped entry and n=3,003/3,459 for mid-senior. The current stage8_final.parquet yields n=3,255 scraped entry and n=18,592 scraped senior (seniority_3level). This difference is due to data growth from continued scraping. The higher counts only improve power.</li>
+</ul>
+<hr />
+<h2 id="files-produced">Files Produced</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>exploration/reports/T07.md</code></td>
+<td>This report</td>
+</tr>
+<tr>
+<td><code>exploration/tables/T07/feasibility_table.csv</code></td>
+<td>Comprehensive feasibility table (21 rows)</td>
+</tr>
+<tr>
+<td><code>exploration/tables/T07/metro_feasibility.csv</code></td>
+<td>Metro-level SWE counts by source</td>
+</tr>
+<tr>
+<td><code>exploration/figures/T07/geographic_correlation.png</code></td>
+<td>State-level correlation scatter plots</td>
+</tr>
+<tr>
+<td><code>exploration/figures/T07/jolts_information_sector.png</code></td>
+<td>JOLTS information sector timeline</td>
+</tr>
+<tr>
+<td><code>exploration/figures/T07/power_analysis.png</code></td>
+<td>MDE bar chart for all comparisons</td>
+</tr>
+<tr>
+<td><code>exploration/figures/T07/industry_comparison.png</code></td>
+<td>Industry distribution comparison</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "search.suggest", "navigation.top", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

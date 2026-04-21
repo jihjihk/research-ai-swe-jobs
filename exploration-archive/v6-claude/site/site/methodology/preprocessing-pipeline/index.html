@@ -1,0 +1,3430 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Findings package from the 2024-2026 SWE labor market exploration">
+      
+      
+        <meta name="author" content="Agent P (Wave 5)">
+      
+      
+      
+        <link rel="prev" href="../data-sources/">
+      
+      
+        <link rel="next" href="../sensitivity-framework/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Preprocessing pipeline - SWE Labor Market Exploration</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#preprocessing-pipeline" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SWE Labor Market Exploration" class="md-header__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SWE Labor Market Exploration
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Preprocessing pipeline
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../layer1-presentation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Slides
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../findings/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Findings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Methodology
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../narrative/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Narrative
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../audit/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Audit trail
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SWE Labor Market Exploration" class="md-nav__button md-logo" aria-label="SWE Labor Market Exploration" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SWE Labor Market Exploration
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../layer1-presentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../findings/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Findings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/01-ai-explosion-field-wide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The AI explosion is field-wide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/02-posting-lags-workers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Posting language lags workers by 10x
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/03-senior-orchestration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Senior orchestration specialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/04-toolstack-pivot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool-stack restructuring and archetype pivot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/05-what-does-not-survive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What does not survive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../findings/06-robustness-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Robustness framework (methods)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methodology
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing pipeline
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-preprocessing-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why preprocessing exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-rule-based-baseline-llm-augmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture: rule-based baseline + LLM augmentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-10-stages-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The 10 stages at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-by-stage-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage-by-stage summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage-by-stage summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stage-1-ingest-schema-unification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 1 — Ingest &amp; schema unification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-2-aggregator-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 2 — Aggregator handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-4-company-canonicalization-dedup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 4 — Company canonicalization + dedup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-5-occupation-seniority-classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 5 — Occupation + seniority classification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stages-6-8-normalization-temporal-quality-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stages 6-8 — Normalization, temporal, quality flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-9-llm-extraction-cleaned-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 9 — LLM extraction + cleaned text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-10-llm-classification-final-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 10 — LLM classification + final integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-schema-highlights-the-columns-findings-actually-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output schema highlights (the columns findings actually use)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-9-extraction-prompt-verbatim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 9 extraction prompt (verbatim)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-10-classification-prompt-verbatim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 10 classification prompt (verbatim)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#budgeting-and-coverage-caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Budgeting and coverage caveats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canonical-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canonical references
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sensitivity-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitivity framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations and open questions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../narrative/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Narrative
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Narrative
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/claims/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What the paper can and cannot claim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/story-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the story evolved across gates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../narrative/SYNTHESIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full synthesis document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../audit/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit trail
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Audit trail
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/INDEX/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Task inventory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 1 reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 1 reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T01/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T01 — Data Profile &amp; Column Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T02/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T02 — Seniority Comparability &amp; Label Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T03 — Seniority Label Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T04/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T04 — SWE Classification Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T05/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T05 — Cross-dataset comparability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T06 — Company concentration deep investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T07 — External benchmarks &amp; power/feasibility analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 2 reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 2 reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T08 — Distribution profiling &amp; anomaly detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T09 — Posting Archetype Discovery (Methods Laboratory)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T10. Title taxonomy evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T11. Requirements complexity &amp; credential stacking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T12 — Open-ended text evolution (Fightin' Words)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T13/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T13 — Linguistic &amp; structural evolution of SWE job postings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T14 — Technology ecosystem mapping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T15/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T15 — Semantic similarity landscape &amp; convergence analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 3 reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 3 reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T16/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T16 — Company hiring strategy typology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T17/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T17 — Geographic market structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T18/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T18 — Cross-occupation boundary analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T19 — Temporal patterns &amp; rate-of-change estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T20 — Seniority boundary clarity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T21/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T21 — Senior role evolution deep dive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T22/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T22. Ghost &amp; aspirational requirements forensics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T23/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T23. Employer-requirement / worker-usage divergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T28/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T28 — Domain-stratified scope changes by archetype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T29/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T29 — LLM-authored description detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wave 4 reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wave 4 reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T24 — Hypothesis generation from exploration findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/reports/T25/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    T25 — Interview elicitation artifacts (meta-report)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate memos
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gate memos
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/memos/gate_0_pre_exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 0 — Pre-Exploration Note
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/memos/gate_1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 1 Research Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/memos/gate_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2 Research Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/memos/gate_2_corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 2 Corrections (post-V1 verification)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/memos/gate_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3 Research Memo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/memos/gate_3_corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gate 3 Corrections (post-V2 verification)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_8" id="__nav_6_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verifications
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verifications
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/verifications/V1_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V1 — Gate 2 Adversarial Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audit/verifications/V2_verification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    V2 — Gate 3 Adversarial Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-preprocessing-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why preprocessing exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-rule-based-baseline-llm-augmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture: rule-based baseline + LLM augmentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-10-stages-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The 10 stages at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-by-stage-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage-by-stage summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage-by-stage summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stage-1-ingest-schema-unification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 1 — Ingest &amp; schema unification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-2-aggregator-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 2 — Aggregator handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-4-company-canonicalization-dedup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 4 — Company canonicalization + dedup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-5-occupation-seniority-classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 5 — Occupation + seniority classification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stages-6-8-normalization-temporal-quality-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stages 6-8 — Normalization, temporal, quality flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-9-llm-extraction-cleaned-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 9 — LLM extraction + cleaned text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-10-llm-classification-final-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 10 — LLM classification + final integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-schema-highlights-the-columns-findings-actually-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output schema highlights (the columns findings actually use)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-9-extraction-prompt-verbatim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 9 extraction prompt (verbatim)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-10-classification-prompt-verbatim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 10 classification prompt (verbatim)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#budgeting-and-coverage-caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Budgeting and coverage caveats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canonical-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canonical references
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="preprocessing-pipeline">Preprocessing pipeline<a class="headerlink" href="#preprocessing-pipeline" title="Permanent link">&para;</a></h1>
+<p>This page is a condensed, reader-oriented description of the preprocessing pipeline that transforms raw job-posting CSVs into the analysis-ready <code>unified.parquet</code> used by every finding in this package. It is extracted from <code>docs/preprocessing-guide.md</code> and <code>docs/preprocessing-schema.md</code> (the canonical references in the repository) and is intended for a skeptical reader clicking through from a finding page. It is <strong>not</strong> operator documentation — for run commands, cache semantics, and failure modes, see the in-repo guide.</p>
+<h2 id="why-preprocessing-exists">Why preprocessing exists<a class="headerlink" href="#why-preprocessing-exists" title="Permanent link">&para;</a></h2>
+<p>Three problems force a real pipeline:</p>
+<ol>
+<li><strong>Three heterogeneous sources</strong> (arshkon, asaniczka, scraped) with different schemas, column names, date formats, seniority conventions, and description cleanup levels must merge into one comparable panel.</li>
+<li><strong>Classification decisions</strong> (is this SWE? what seniority? what occupation? what metro?) are load-bearing for every downstream finding and need both deterministic rules (for speed and reproducibility) and LLM labels (for the cases rules cannot handle).</li>
+<li><strong>Boilerplate</strong> (EEO text, compensation text, benefits, culture paragraphs) dominates raw description length and biases every text-sensitive metric — the pipeline has to produce a clean text column for analysis.</li>
+</ol>
+<h2 id="architecture-rule-based-baseline-llm-augmentation">Architecture: rule-based baseline + LLM augmentation<a class="headerlink" href="#architecture-rule-based-baseline-llm-augmentation" title="Permanent link">&para;</a></h2>
+<p>The pipeline has two layers:</p>
+<ol>
+<li><strong>Rule-based baseline (Stages 1-8):</strong> deterministic, fast (~30 min end-to-end), reproducible. Produces a usable corpus with rule-based classification labels for occupation, seniority, YOE, location, temporal, and quality fields.</li>
+<li><strong>LLM augmentation (Stages 9-10):</strong> adds higher-quality classification and cleaned text via LLM calls. Takes hours to days depending on corpus size and API quotas. Results are cached in SQLite for resumability.</li>
+</ol>
+<p>Rule-based runs first and its outputs serve as both the classification fallback labels and the cache keys for the LLM layer.</p>
+<h2 id="the-10-stages-at-a-glance">The 10 stages at a glance<a class="headerlink" href="#the-10-stages-at-a-glance" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>Raw data (3 sources)
+  │
+  ├── Stage 1  — Ingest &amp; schema unification
+  │              (arshkon join + asaniczka join + scraped ingest → 39 canonical columns)
+  ├── Stage 2  — Aggregator / staffing-agency handling
+  │              (flag Dice, Lensa, Robert Half etc.; extract real employers)
+  ├── Stage 4  — Company canonicalization + dedup
+  │              (the ONLY row-reducing stage: exact/fuzzy/multi-location collapse)
+  ├── Stage 5  — Occupation + seniority classification
+  │              (regex + title lookup + embedding; YOE clause parser)
+  ├── Stages 6-8 — Location normalize, temporal alignment, quality flags
+  │              (metro assignment, period derivation, language detection, ghost heuristics)
+  │
+  ▼  preprocessing/intermediate/stage8_final.parquet   ← rule-based baseline
+  │
+  ├── Stage 9  — LLM extraction + cleaned text
+  │              (core-frame selection; sentence-unit boilerplate removal
+  │               → description_core_llm, the cleaned text column)
+  ├── Stage 10 — LLM classification + final integration
+  │              (SWE type, seniority, ghost, YOE cross-check for routed rows;
+  │               LLM seniority overwrites seniority_final)
+  │
+  ▼  data/unified.parquet          (one row per unique posting)
+  ▼  data/unified_observations.parquet   (daily panel)
+</code></pre></div>
+<p><strong>Stage 3 is intentionally absent</strong> — the original stage 3 (rule-based boilerplate) was removed on 2026-04-10 because it didn't add useful signal. Boilerplate removal now lives <strong>exclusively in Stage 9</strong>.</p>
+<h2 id="stage-by-stage-summary">Stage-by-stage summary<a class="headerlink" href="#stage-by-stage-summary" title="Permanent link">&para;</a></h2>
+<h3 id="stage-1-ingest-schema-unification">Stage 1 — Ingest &amp; schema unification<a class="headerlink" href="#stage-1-ingest-schema-unification" title="Permanent link">&para;</a></h3>
+<p>Loads the three source datasets, applies source-specific joins and normalization, concatenates into a canonical 39-column format. Handles seniority mapping, text normalization, date parsing, company size parsing. Produces both the canonical posting table and a daily observations table for scraped data.</p>
+<h3 id="stage-2-aggregator-handling">Stage 2 — Aggregator handling<a class="headerlink" href="#stage-2-aggregator-handling" title="Permanent link">&para;</a></h3>
+<p>Identifies staffing agencies and job-board aggregators (Dice, Lensa, Robert Half, etc.) via exact name matching and regex patterns. Extracts the real employer from description text when possible. Derives <code>company_name_effective = real employer if aggregator, else original company name</code>. An exploration-phase finding (T08/T16) was that this flag <em>misses</em> entry-specialist intermediaries (SynergisticIT, WayUp, Leidos, Emonics) that drive ~15-20% of the 2026 entry pool — a follow-up flag is on the preprocessing action items list.</p>
+<h3 id="stage-4-company-canonicalization-dedup">Stage 4 — Company canonicalization + dedup<a class="headerlink" href="#stage-4-company-canonicalization-dedup" title="Permanent link">&para;</a></h3>
+<p>The only row-reducing stage. Uses a memory-safe two-pass design: Pass 1 loads only dedup-key columns to decide keep/drop; Pass 2 streams full data and filters to kept rows.</p>
+<p>Dedup strategies:</p>
+<ul>
+<li>Exact <code>job_id</code> duplicates</li>
+<li>Exact opening duplicates (company + title + location + hash of raw description)</li>
+<li>Fuzzy near-duplicates (token_set_ratio ≥ 85%)</li>
+<li><strong>Multi-location collapse:</strong> rows sharing <code>(company, title, description_hash)</code> across ≥ 2 normalized locations collapse to a single representative row with <code>location = 'multi-location'</code> and <code>is_multi_location = True</code>.</li>
+</ul>
+<h3 id="stage-5-occupation-seniority-classification">Stage 5 — Occupation + seniority classification<a class="headerlink" href="#stage-5-occupation-seniority-classification" title="Permanent link">&para;</a></h3>
+<p>The first analytical classification boundary. Assigns <code>is_swe</code>, <code>is_swe_adjacent</code>, <code>is_control</code> via a 3-tier system (regex → curated title lookup → embedding). Sets <code>seniority_final</code> from high-confidence title keywords (<code>title_keyword</code>, <code>title_manager</code>); rows with no strong rule match are left as <code>unknown</code> for Stage 10 to fill in via LLM. Extracts years-of-experience with a clause-aware parser.</p>
+<h3 id="stages-6-8-normalization-temporal-quality-flags">Stages 6-8 — Normalization, temporal, quality flags<a class="headerlink" href="#stages-6-8-normalization-temporal-quality-flags" title="Permanent link">&para;</a></h3>
+<p>A single script implementing three logical stages. Stage 6 parses locations into city/state/country, infers remote status, assigns metro areas. Stage 7 derives <code>period</code>, <code>posting_age_days</code>, <code>scrape_week</code>. Stage 8 adds language detection, date validation, ghost-job heuristics, description quality flags. All row-preserving.</p>
+<h3 id="stage-9-llm-extraction-cleaned-text">Stage 9 — LLM extraction + cleaned text<a class="headerlink" href="#stage-9-llm-extraction-cleaned-text" title="Permanent link">&para;</a></h3>
+<p>Defines the LLM analysis universe (LinkedIn, English, has description). Selects a deterministic sticky core over <code>source × analysis_group × date_bin</code> via a <code>selection_target</code> budget. Segments descriptions into sentence units and asks LLMs to identify <strong>boilerplate units for removal</strong>. Produces <code>description_core_llm</code> — the LLM-cleaned description, which is the <strong>only</strong> boilerplate-removed text in the pipeline and the canonical input for any text-sensitive analysis. Hard-skips descriptions under 15 words.</p>
+<p>See <strong><a href="#stage-9-extraction-prompt-verbatim">The Stage 9 extraction prompt</a></strong> below for the exact prompt text.</p>
+<h3 id="stage-10-llm-classification-final-integration">Stage 10 — LLM classification + final integration<a class="headerlink" href="#stage-10-llm-classification-final-integration" title="Permanent link">&para;</a></h3>
+<p>Reuses the Stage 9 core frame and routes eligible rows to LLM classification: SWE type, seniority, ghost-job assessment, YOE cross-check. <strong>Skips</strong> rows where the rule-based confidence is already high (strong SWE tier + Stage 5 strong-rule seniority + low ghost risk). For routed rows, the LLM seniority result overwrites <code>seniority_final</code> with <code>seniority_final_source = 'llm'</code>. Merges all LLM results back to the full posting table.</p>
+<p>See <strong><a href="#stage-10-classification-prompt-verbatim">The Stage 10 classification prompt</a></strong> below for the exact prompt text.</p>
+<h2 id="output-schema-highlights-the-columns-findings-actually-use">Output schema highlights (the columns findings actually use)<a class="headerlink" href="#output-schema-highlights-the-columns-findings-actually-use" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Source</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uid</code></td>
+<td>Stage 1</td>
+<td>Row identity</td>
+</tr>
+<tr>
+<td><code>source</code>, <code>source_platform</code></td>
+<td>Stage 1</td>
+<td>Source provenance</td>
+</tr>
+<tr>
+<td><code>description</code>, <code>description_raw</code></td>
+<td>Stage 1</td>
+<td>Raw text (boilerplate-insensitive analyses only)</td>
+</tr>
+<tr>
+<td><code>description_core_llm</code></td>
+<td>Stage 9</td>
+<td><strong>The cleaned-text column for every text-sensitive analysis</strong></td>
+</tr>
+<tr>
+<td><code>is_swe</code>, <code>is_swe_adjacent</code>, <code>is_control</code></td>
+<td>Stage 5</td>
+<td>Occupation frames, DiD</td>
+</tr>
+<tr>
+<td><code>seniority_final</code>, <code>seniority_final_source</code></td>
+<td>Stages 5 + 10</td>
+<td><strong>Primary seniority column — always paired with YOE ≤ 2 proxy</strong></td>
+</tr>
+<tr>
+<td><code>seniority_3level</code></td>
+<td>—</td>
+<td>Coarse junior/mid/senior/unknown</td>
+</tr>
+<tr>
+<td><code>yoe_extracted</code>, <code>yoe_min_extracted</code></td>
+<td>Stage 5</td>
+<td>YOE-based entry proxy</td>
+</tr>
+<tr>
+<td><code>metro_area</code>, <code>is_remote_inferred</code></td>
+<td>Stage 6</td>
+<td>18-metro frame, remote-vs-metro comparison</td>
+</tr>
+<tr>
+<td><code>period</code>, <code>posting_age_days</code></td>
+<td>Stage 7</td>
+<td>Temporal slicing, within-scraped-window calibration</td>
+</tr>
+<tr>
+<td><code>is_english</code>, <code>date_flag</code>, <code>ghost_job_risk</code></td>
+<td>Stage 8</td>
+<td>Default filters</td>
+</tr>
+<tr>
+<td><code>llm_extraction_coverage</code>, <code>llm_classification_coverage</code></td>
+<td>Stages 9-10</td>
+<td>Binding constraint check (filter to <code>labeled</code>)</td>
+</tr>
+<tr>
+<td><code>is_aggregator</code>, <code>company_name_effective</code>, <code>company_name_canonical</code></td>
+<td>Stages 2, 4</td>
+<td>Aggregator sensitivity, within-company grouping</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Default analytical filter:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">is_swe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">TRUE</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">source_platform</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;linkedin&#39;</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">is_english</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">TRUE</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">date_flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;ok&#39;</span>
+</code></pre></div>
+<p>For text-sensitive analyses, additionally filter to <code>llm_extraction_coverage = 'labeled'</code>. See <a href="../data-sources/">Data sources</a> for binding constraints on 2026 coverage.</p>
+<hr />
+<h2 id="stage-9-extraction-prompt-verbatim">Stage 9 extraction prompt (verbatim)<a class="headerlink" href="#stage-9-extraction-prompt-verbatim" title="Permanent link">&para;</a></h2>
+<p>This is the exact prompt sent to the LLM to identify boilerplate units for removal. Prompt version is SHA-256 hashed from the template text; any prompt edit invalidates the cache.</p>
+<details class="quote">
+<summary>Click to expand the full Stage 9 extraction prompt</summary>
+<div class="highlight"><pre><span></span><code>You are preparing job-posting text for labor-market research.
+You will receive numbered extraction units. Return ONLY valid JSON.
+
+Goal:
+Drop units that do not change what the worker does, must know, must have, must own, or must coordinate.
+
+KEEP core job content:
+- role summary
+- responsibilities and day-to-day work
+- requirements and qualifications
+- preferred qualifications
+- tech stack, tools, systems, methods
+- domain expertise
+- seniority- or scope-relevant expectations
+- operational constraints that affect the work itself: travel frequency, shift coverage, on-call, clearance, contract length, or reporting line
+
+DROP non-core text:
+- company overview, mission, values, culture, and employer-branding
+- all salary, pay, compensation, OTE, bonus, equity, and pay-range text
+- all benefits, perks, insurance, PTO, leave, retirement, 401(k), wellness, tuition, and total-rewards text
+- all EEO / equal-opportunity / anti-discrimination / accommodation / legal-policy boilerplate such as
+  &quot;equal opportunity employer&quot;, &quot;all qualified applicants will receive consideration&quot;, or protected-class language
+- all application instructions, recruiter/platform framing, and candidate-journey text
+- generic metadata such as requisition IDs, posted dates, labels, and location headers
+- all remote, hybrid, on-site, and work-model text, including in-office cadence, commute expectations,
+  and flexibility language, unless it encodes a real work constraint like travel frequency,
+  shift coverage, or clearance/facility access
+
+Decision rule:
+- Return IDs for units to DROP, not units to keep.
+- Compensation is never core.
+- Benefits are never core.
+- Generic remote, hybrid, on-site, and work-model text is never core by itself.
+- EEO/legal text is never core.
+- EEO/legal boilerplate is never core, even when it mentions disability, veteran status, or other protected classes.
+- Standalone headers inherit the type of their section. For example: Benefits, Benefits &amp; Perks, Compensation,
+  Salary Range, Work Model, Worker Category, EEO.
+- If a unit mixes core content with salary, benefits, work-model, or EEO/legal text,
+  put it in uncertain_unit_ids unless the whole unit is clearly non-core and should be dropped.
+- Use only unit IDs that appear in the numbered units.
+- If the units are malformed or the task cannot be completed reliably, return
+  &quot;task_status&quot;: &quot;cannot_complete&quot; with empty ID lists.
+- Keep `reason` short.
+
+TITLE: {title}
+COMPANY: {company}
+
+NUMBERED UNITS:
+{numbered_units}
+
+Respond with this exact JSON structure:
+{
+  &quot;task_status&quot;: &quot;ok&quot; | &quot;cannot_complete&quot;,
+  &quot;boilerplate_unit_ids&quot;: [1, 2],
+  &quot;uncertain_unit_ids&quot;: [3],
+  &quot;reason&quot;: &quot;short phrase&quot;
+}
+</code></pre></div>
+<p><strong>Source:</strong> <code>preprocessing/scripts/llm_shared.py:EXTRACTION_PROMPT_TEMPLATE</code>.</p>
+</details>
+<hr />
+<h2 id="stage-10-classification-prompt-verbatim">Stage 10 classification prompt (verbatim)<a class="headerlink" href="#stage-10-classification-prompt-verbatim" title="Permanent link">&para;</a></h2>
+<p>This is the exact prompt sent to the LLM for SWE classification, seniority classification, ghost-job assessment, and YOE extraction, in a single call.</p>
+<details class="quote">
+<summary>Click to expand the full Stage 10 classification prompt</summary>
+<div class="highlight"><pre><span></span><code>You are a labor economics research assistant classifying job postings.
+Perform the tasks below on this job posting. Return ONLY valid JSON.
+
+TASK 1 - SWE CLASSIFICATION
+Classify this role into exactly one category:
+- &quot;SWE&quot;: The role&#39;s primary function is writing, designing, or maintaining
+  software. Includes software engineers, full-stack developers,
+  frontend/backend engineers, mobile developers, ML engineers, data engineers
+  who primarily write code, and DevOps engineers whose description emphasizes
+  writing code for infrastructure.
+- &quot;SWE_ADJACENT&quot;: Technical roles that involve some code but where coding is
+  not the primary function. Includes QA/SDET roles, technical program
+  managers, solutions architects, many data-science roles, and product roles
+  for developer tooling where coding is useful but not the primary output.
+- &quot;NOT_SWE&quot;: Roles where software development is not a meaningful part of the
+  job. Includes non-technical roles, most IT support roles, hardware/product
+  engineering roles focused on physical systems, and misleading &quot;engineer&quot;
+  titles where the work is not software development.
+
+TASK 2 - SENIORITY CLASSIFICATION
+Use ONLY explicit seniority signals from the title or description.
+
+Strong signals:
+- &quot;junior&quot;, &quot;jr&quot;, &quot;intern&quot;, &quot;internship&quot;, &quot;new grad&quot;, &quot;graduate&quot;,
+  &quot;entry-level&quot;, &quot;early career&quot;, &quot;apprentice&quot; -&gt; &quot;entry&quot;
+- &quot;senior&quot;, &quot;sr&quot;, &quot;staff&quot;, &quot;principal&quot;, &quot;lead&quot;, &quot;architect&quot; -&gt; &quot;mid-senior&quot;
+- &quot;director&quot;, &quot;vp&quot;, &quot;vice president&quot;, &quot;head of&quot;, &quot;chief&quot; -&gt; &quot;director&quot;
+
+Weak company-specific signals:
+- &quot;associate&quot;, &quot;analyst&quot;, &quot;consultant&quot;, &quot;fellow&quot;, &quot;partner&quot;
+- numeric or Roman numeral levels such as I/II/III, 1/2/3, L3/L4/L5, E3/E4/E5
+
+Rules for weak signals:
+- Use them ONLY when the posting itself makes the mapping explicit.
+- Do NOT assume company-specific numbering or title ladders from general knowledge.
+- If the only seniority evidence is a weak company-specific signal, return &quot;unknown&quot;.
+
+IMPORTANT:
+- Do NOT infer seniority from years of experience, responsibilities, tech stack,
+  scope, or company reputation.
+- When in doubt, classify as &quot;unknown&quot;.
+
+TASK 3 - GHOST JOB ASSESSMENT
+Assess whether this posting&#39;s requirements are realistic for its stated level:
+- &quot;realistic&quot;: Requirements match the stated or apparent seniority level
+- &quot;inflated&quot;: Requirements are significantly higher than the stated level would
+  normally demand
+- &quot;ghost_likely&quot;: Strong signs this is not a genuine open position
+
+TASK 4 - YEARS OF EXPERIENCE EXTRACTION
+Extract `yoe_min_years`.
+
+Rules:
+- Use explicit years-of-experience mentions only. Number words and digits both
+  count.
+- For a single qualification path, return the binding YOE floor: use the
+  highest relevant years-of-experience mention on that path, including
+  preferred figures.
+- Tool/framework/domain-specific experience counts if it is the only YOE
+  mention on that path, or if it is higher than the general-role YOE on that
+  path.
+- If the posting gives multiple acceptable qualification paths, return the
+  lowest path-level YOE floor.
+- If a range is given, return the lower bound.
+- Ignore title/job-level numbers, dates, salaries, addresses, clearance levels,
+  and other numbers not tied to YOE.
+- If no relevant explicit YOE exists, return null.
+- Do not use YOE to infer seniority.
+
+---
+
+TITLE: {title}
+COMPANY: {company}
+DESCRIPTION:
+{full_description}
+
+---
+
+Respond with this exact JSON structure:
+{
+  &quot;swe_classification&quot;: &quot;SWE&quot; | &quot;SWE_ADJACENT&quot; | &quot;NOT_SWE&quot;,
+  &quot;seniority&quot;: &quot;entry&quot; | &quot;associate&quot; | &quot;mid-senior&quot; | &quot;director&quot; | &quot;unknown&quot;,
+  &quot;ghost_assessment&quot;: &quot;realistic&quot; | &quot;inflated&quot; | &quot;ghost_likely&quot;,
+  &quot;yoe_min_years&quot;: &lt;integer|null&gt;
+}
+</code></pre></div>
+<p><strong>Source:</strong> <code>preprocessing/scripts/llm_shared.py:CLASSIFICATION_PROMPT_TEMPLATE</code>.</p>
+</details>
+<hr />
+<h2 id="budgeting-and-coverage-caveats">Budgeting and coverage caveats<a class="headerlink" href="#budgeting-and-coverage-caveats" title="Permanent link">&para;</a></h2>
+<p>This is where preprocessing realities hit the analysis. Three coverage facts control which findings can run:</p>
+<ol>
+<li><strong>Stage 9 LLM text coverage on scraped is 30.7% labeled.</strong> This is the binding constraint on every text-sensitive 2026 analysis. Analyses on <code>description_core_llm</code> cap at ~12,500 2026 rows.</li>
+<li><strong>Stage 10 LLM seniority coverage leaves 53% of scraped SWE as <code>seniority_final = 'unknown'</code>.</strong> Denominator drift — "of known" entry shares drift from 61% → 47% between periods, structurally biasing any "of known" comparison.</li>
+<li><strong>T09 archetype label coverage on scraped is 30.5%.</strong> All within-archetype 2026-side claims inherit this constraint.</li>
+</ol>
+<p>Both LLM stages use separate SQLite caches so cache reuse can be computed independently of fresh calls; prompt-version hashing ensures edits to prompt text invalidate the cache automatically.</p>
+<p><strong>Preprocessing action items</strong> (SYNTHESIS Section 17) to address these constraints in the next run:</p>
+<ul>
+<li>Raise Stage 9 selection target for scraped.</li>
+<li>Raise Stage 10 budget to reduce <code>seniority_final = 'unknown'</code> share.</li>
+<li>Add an entry-specialist intermediary flag to supplement <code>is_aggregator</code>.</li>
+<li>Apply the markdown-escape fix (<code>c\+\+</code>, <code>c\#</code>, <code>\.net</code>).</li>
+<li>Add a lightweight raw-text archetype classifier to broaden within-archetype coverage.</li>
+</ul>
+<h2 id="canonical-references">Canonical references<a class="headerlink" href="#canonical-references" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong><a href="https://github.com/"><code>docs/preprocessing-guide.md</code></a></strong> — the operator-oriented guide with run commands, cache semantics, and failure modes.</li>
+<li><strong><a href="https://github.com/"><code>docs/preprocessing-schema.md</code></a></strong> — full column-by-column schema reference.</li>
+<li><strong><a href="https://github.com/"><code>preprocessing/scripts/llm_shared.py</code></a></strong> — the source file for the two prompts above (<code>CLASSIFICATION_PROMPT_TEMPLATE</code> and <code>EXTRACTION_PROMPT_TEMPLATE</code>).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.indexes", "content.code.copy", "toc.follow", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

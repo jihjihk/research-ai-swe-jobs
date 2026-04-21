@@ -1,0 +1,60 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'exploration-archive/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble deploy tree
+        run: |
+          set -euo pipefail
+          rm -rf _deploy
+          mkdir -p _deploy
+          shopt -s nullglob
+          found=0
+          for ver_dir in exploration-archive/*/; do
+            ver=$(basename "$ver_dir")
+            src="${ver_dir}site/site"
+            if [ -d "$src" ] && [ -f "$src/index.html" ]; then
+              echo "deploying $ver from $src"
+              mkdir -p "_deploy/$ver"
+              cp -R "$src"/. "_deploy/$ver/"
+              found=$((found + 1))
+            else
+              echo "skipping $ver (no built site at $src)"
+            fi
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::error::No built sites found under exploration-archive/*/site/site/"
+            exit 1
+          fi
+          echo "deployed $found versions"
+          ls _deploy
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _deploy
+      - id: deployment
+        uses: actions/deploy-pages@v4

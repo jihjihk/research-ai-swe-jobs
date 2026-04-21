@@ -1,11 +1,5 @@
 # SWE Labor Market Research — Project Instructions
 
-Last updated: 2026-04-18
-
-## Recent changes
-
-- **Stage 10 skip-logic removed 2026-04-18:** Every in-frame eligible row (LinkedIn, English, ≥15 words, `selected_for_llm_frame = True`) now routes to the LLM. Schema: `llm_classification_coverage` enum dropped `rule_sufficient` (4 values remain: `labeled`, `deferred`, `not_selected`, `skipped_short`); Stage 5 now writes `seniority_rule` + `seniority_rule_source` columns (immutable rule-based snapshots preserved through Stage 10 overrides of `seniority_final`).
-- **Wave 4 exploration complete 2026-04-17:** SYNTHESIS.md ready for analysis phase.
 
 ## Purpose
 
