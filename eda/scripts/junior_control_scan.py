@@ -29,7 +29,7 @@ import duckdb
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
-from scans import AI_VOCAB_PATTERN
+from scans import AI_VOCAB_PATTERN, text_col, text_filter
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CORE_PATH = PROJECT_ROOT / "data" / "unified_core.parquet"
@@ -55,12 +55,12 @@ def four_panel_scan(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         AVG(description_length) AS mean_desc_len,
         AVG(yoe_min_years_llm) AS mean_yoe_llm,
         COUNT(yoe_min_years_llm) AS n_with_yoe,
-        SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END)::DOUBLE / COUNT(*) AS ai_rate,
+        SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END)::DOUBLE / COUNT(*) AS ai_rate,
         SUM(CASE WHEN ghost_assessment_llm = 'inflated' THEN 1 ELSE 0 END)::DOUBLE
           / NULLIF(SUM(CASE WHEN ghost_assessment_llm IS NOT NULL THEN 1 ELSE 0 END), 0) AS inflated_rate,
         SUM(CASE WHEN ghost_assessment_llm IS NOT NULL THEN 1 ELSE 0 END) AS n_with_ghost
       FROM '{CORE_PATH}'
-      WHERE {BASE_FILTER}
+      WHERE {BASE_FILTER} AND {text_filter()}
       GROUP BY 1,2,3
       ORDER BY 1,2,3
     """).df()

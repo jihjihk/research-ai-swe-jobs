@@ -40,6 +40,8 @@ from scans import (
     fig_caption,
     save_fig,
     period_order,
+    text_col,
+    text_filter,
 )
 
 random.seed(0)
@@ -78,9 +80,9 @@ def rerun_s1_core(con):
     df = con.execute(f"""
       SELECT period, seniority_3level,
              COUNT(*) AS n,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
       FROM '{CORE_PATH}'
-      WHERE {CORE_DEFAULT_FILTER} AND is_swe
+      WHERE {CORE_DEFAULT_FILTER} AND is_swe AND {text_filter()}
       GROUP BY 1,2 ORDER BY 1,2
     """).df()
     df["ai_rate"] = df["n_ai"] / df["n"]
@@ -109,9 +111,9 @@ def rerun_s11_core(con):
     df = con.execute(f"""
       SELECT period, analysis_group,
              COUNT(*) AS n,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
       FROM '{CORE_PATH}'
-      WHERE {CORE_DEFAULT_FILTER} AND analysis_group IN ('swe', 'swe_adjacent', 'control')
+      WHERE {CORE_DEFAULT_FILTER} AND analysis_group IN ('swe', 'swe_adjacent', 'control') AND {text_filter()}
       GROUP BY 1,2 ORDER BY 1,2
     """).df()
     df["ai_rate"] = df["n_ai"] / df["n"]
@@ -140,9 +142,9 @@ def rerun_s10_core(con):
       SELECT period,
              CASE WHEN LOWER(company_name_canonical) IN ({bt}) THEN 'big_tech' ELSE 'rest' END AS tier,
              COUNT(*) AS n,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
       FROM '{CORE_PATH}'
-      WHERE {CORE_DEFAULT_FILTER} AND is_swe
+      WHERE {CORE_DEFAULT_FILTER} AND is_swe AND {text_filter()}
       GROUP BY 1,2 ORDER BY 1,2
     """).df()
     df["ai_rate"] = df["n_ai"] / df["n"]
@@ -302,13 +304,13 @@ def scan_s12(con):
 
 def scan_s13(con):
     selects = ", ".join(
-        f"SUM(CASE WHEN regexp_matches(description, '{p}') THEN 1 ELSE 0 END) AS n_{name}"
+        f"SUM(CASE WHEN regexp_matches({text_col()}, '{p}') THEN 1 ELSE 0 END) AS n_{name}"
         for name, p in VENDOR_PATTERNS.items()
     )
     df = con.execute(f"""
       SELECT period, COUNT(*) AS n_total, {selects}
       FROM '{CORE_PATH}'
-      WHERE {CORE_DEFAULT_FILTER} AND is_swe
+      WHERE {CORE_DEFAULT_FILTER} AND is_swe AND {text_filter()}
       GROUP BY 1 ORDER BY 1
     """).df()
     rates = df[["period", "n_total"]].copy()
@@ -348,13 +350,13 @@ def scan_s13(con):
 def scan_s14(con):
     df = con.execute(f"""
       SELECT period,
-             CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 'ai_mentioned' ELSE 'no_ai' END AS ai_tag,
+             CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 'ai_mentioned' ELSE 'no_ai' END AS ai_tag,
              COUNT(*) AS n,
              SUM(CASE WHEN ghost_assessment_llm = 'inflated' THEN 1 ELSE 0 END) AS n_inflated,
              SUM(CASE WHEN ghost_assessment_llm = 'ghost_likely' THEN 1 ELSE 0 END) AS n_ghost,
              SUM(CASE WHEN ghost_assessment_llm = 'realistic' THEN 1 ELSE 0 END) AS n_realistic
       FROM '{CORE_PATH}'
-      WHERE {CORE_DEFAULT_FILTER} AND is_swe AND ghost_assessment_llm IS NOT NULL
+      WHERE {CORE_DEFAULT_FILTER} AND is_swe AND ghost_assessment_llm IS NOT NULL AND {text_filter()}
       GROUP BY 1,2 ORDER BY 1,2
     """).df()
     df["inflated_rate"] = df["n_inflated"] / df["n"]
@@ -394,9 +396,9 @@ def scan_s15(con):
     df = con.execute(f"""
       SELECT period, title,
              COUNT(*) AS n,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
       FROM '{CORE_PATH}'
-      WHERE {CORE_DEFAULT_FILTER} AND is_control
+      WHERE {CORE_DEFAULT_FILTER} AND is_control AND {text_filter()}
       GROUP BY 1,2
     """).df()
 
@@ -461,16 +463,18 @@ def scan_s16(con):
                ANY_VALUE(analysis_group) AS analysis_group,
                ANY_VALUE(ghost_assessment_llm) AS ghost,
                ANY_VALUE(description) AS description,
+               ANY_VALUE(description_core_llm) AS description_core_llm,
                ANY_VALUE(is_swe) AS is_swe
         FROM '{CORE_OBS_PATH}'
         WHERE is_english = true AND date_flag = 'ok'
         GROUP BY uid
       )
       SELECT uid, first_seen, last_seen, obs_count, period, analysis_group, ghost,
-             regexp_matches(description, '{AI_VOCAB_PATTERN}') AS ai_mentioned,
+             regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') AS ai_mentioned,
              is_swe,
              DATE_DIFF('day', CAST(first_seen AS DATE), CAST(last_seen AS DATE)) AS days_spanned
       FROM uid_stats
+      WHERE {text_filter()}
     """).df()
     # Restrict to scraped 2026 periods where we have cadence (>1 obs possible)
     df_scraped = df[df["period"].isin(["2026-03", "2026-04"])].copy()
@@ -524,10 +528,11 @@ def scan_s17(con):
       WITH bucketed AS (
         SELECT company_name_canonical,
                CASE WHEN source LIKE 'kaggle%' THEN '2024' ELSE '2026' END AS bucket,
-               regexp_matches(description, '{AI_VOCAB_PATTERN}') AS ai
+               regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') AS ai
         FROM '{CORE_PATH}'
         WHERE {CORE_DEFAULT_FILTER} AND is_swe
           AND company_name_canonical IS NOT NULL
+          AND {text_filter()}
       ),
       co_panel AS (
         SELECT company_name_canonical,

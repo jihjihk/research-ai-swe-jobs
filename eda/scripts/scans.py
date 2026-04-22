@@ -125,6 +125,41 @@ TECH_INDUSTRIES = {
 # Default filter — applied in every scan unless overridden
 DEFAULT_FILTER = "source_platform = 'linkedin' AND is_english = true AND date_flag = 'ok'"
 
+# ---------------------------------------------------------------------------
+# Substrate (text column) for AI-vocab matching
+# ---------------------------------------------------------------------------
+# `description_core_llm` is the LLM-stripped, boilerplate-removed substrate
+# (median ~2,423 chars vs raw ~4,280; coverage 99.2% on unified_core).
+# Per the methodology protocol (eda/research_memos/methodology_protocol.md)
+# this is the primary substrate for AI-vocab regex matching. Length-comparison
+# scans (Sv) intentionally read both raw and core side-by-side and should NOT
+# use text_col(); they hardcode their column names.
+SUBSTRATE = "description_core_llm"
+
+
+def text_col(table_alias: str | None = None) -> str:
+    """Return the AI-vocab matching substrate column, optionally aliased.
+
+    STRICT-CORE: returns the bare `description_core_llm` column with no
+    fallback. Callers MUST pair this with `text_filter()` in their WHERE
+    clause to avoid scanning NULL rows. Per the methodology protocol
+    (eda/research_memos/methodology_protocol.md), this is the primary
+    substrate for AI-vocab regex matching; ~0.8% of `unified_core.parquet`
+    rows lack the column and are filtered out.
+    """
+    prefix = f"{table_alias}." if table_alias else ""
+    return f"{prefix}{SUBSTRATE}"
+
+
+def text_filter(table_alias: str | None = None) -> str:
+    """Return the SQL fragment '<prefix>description_core_llm IS NOT NULL'.
+
+    Use in WHERE clauses paired with text_col() to enforce strict-core
+    semantics — scans only rows where the LLM-cleaned substrate exists.
+    """
+    prefix = f"{table_alias}." if table_alias else ""
+    return f"{prefix}{SUBSTRATE} IS NOT NULL"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -154,9 +189,9 @@ def scan_s1(con):
     sql = f"""
       SELECT period, seniority_3level,
              COUNT(*) AS n,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
       FROM '{UNIFIED_PATH}'
-      WHERE {DEFAULT_FILTER} AND is_swe = true
+      WHERE {DEFAULT_FILTER} AND is_swe = true AND {text_filter()}
       GROUP BY 1,2
       ORDER BY 1,2
     """
@@ -549,9 +584,9 @@ def scan_s9(con):
     b = con.execute(f"""
       SELECT period, seniority_3level,
              COUNT(*) AS n,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
       FROM '{UNIFIED_PATH}'
-      WHERE {DEFAULT_FILTER} AND is_swe = true
+      WHERE {DEFAULT_FILTER} AND is_swe = true AND {text_filter()}
       GROUP BY 1,2 ORDER BY 1,2
     """).df()
     b["ai_rate"] = b["n_ai"] / b["n"]
@@ -626,9 +661,9 @@ def scan_s10(con):
       SELECT period,
              CASE WHEN LOWER(company_name_canonical) IN ({bt_list}) THEN 'big_tech' ELSE 'rest' END AS tier,
              COUNT(*) AS n,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
       FROM '{UNIFIED_PATH}'
-      WHERE {DEFAULT_FILTER} AND is_swe = true
+      WHERE {DEFAULT_FILTER} AND is_swe = true AND {text_filter()}
       GROUP BY 1,2 ORDER BY 1,2
     """
     df = con.execute(sql).df()
@@ -685,9 +720,9 @@ def scan_s11(con):
              COUNT(*) AS n,
              SUM(CASE WHEN is_remote THEN 1 ELSE 0 END) AS n_remote,
              SUM(CASE WHEN is_aggregator THEN 1 ELSE 0 END) AS n_agg,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
       FROM '{UNIFIED_PATH}'
-      WHERE {DEFAULT_FILTER}
+      WHERE {DEFAULT_FILTER} AND {text_filter()}
       GROUP BY 1,2 ORDER BY 1,2
     """
     df = con.execute(sql).df()

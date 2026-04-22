@@ -28,7 +28,7 @@ import duckdb
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
-from scans import AI_VOCAB_PATTERN
+from scans import AI_VOCAB_PATTERN, text_col, text_filter
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CORE_PATH = PROJECT_ROOT / "data" / "unified_core.parquet"
@@ -60,13 +60,13 @@ def h1_h7_swe_vs_control(con: duckdb.DuckDBPyConnection, path: Path) -> pd.DataF
              SUM(CASE WHEN is_swe THEN 1 ELSE 0 END) AS n_swe,
              SUM(CASE WHEN is_control THEN 1 ELSE 0 END) AS n_ctrl,
              SUM(CASE WHEN is_swe
-                       AND regexp_matches(description, '{AI_VOCAB_PATTERN}')
+                       AND regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}')
                       THEN 1 ELSE 0 END) AS n_ai_swe,
              SUM(CASE WHEN is_control
-                       AND regexp_matches(description, '{AI_VOCAB_PATTERN}')
+                       AND regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}')
                       THEN 1 ELSE 0 END) AS n_ai_ctrl
       FROM '{path}'
-      WHERE {base_filter(path)}
+      WHERE {base_filter(path)} AND {text_filter()}
       GROUP BY 1 ORDER BY 1
     """).df()
     df["swe_ai_rate"] = df["n_ai_swe"] / df["n_swe"]
@@ -96,10 +96,10 @@ def h5a_ai_by_seniority(con: duckdb.DuckDBPyConnection, path: Path) -> pd.DataFr
     df = con.execute(f"""
       SELECT seniority_3level,
              COUNT(*) AS n,
-             SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}')
+             SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}')
                       THEN 1 ELSE 0 END) AS n_ai
       FROM '{path}'
-      WHERE {base_filter(path)} AND is_swe = true AND period = '2026-04'
+      WHERE {base_filter(path)} AND is_swe = true AND period = '2026-04' AND {text_filter()}
       GROUP BY 1 ORDER BY 1
     """).df()
     df["ai_rate"] = df["n_ai"] / df["n"]
@@ -112,10 +112,11 @@ def h13_within_firm_panel(con: duckdb.DuckDBPyConnection, path: Path) -> dict:
       WITH bucketed AS (
         SELECT company_name_canonical,
                CASE WHEN source LIKE 'kaggle%' THEN '2024' ELSE '2026' END AS bucket,
-               regexp_matches(description, '{AI_VOCAB_PATTERN}') AS ai
+               regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') AS ai
         FROM '{path}'
         WHERE {base_filter(path)} AND is_swe = true
           AND company_name_canonical IS NOT NULL
+          AND {text_filter()}
       ),
       co_panel AS (
         SELECT company_name_canonical,

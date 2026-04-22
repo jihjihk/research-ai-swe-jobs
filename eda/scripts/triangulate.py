@@ -36,6 +36,8 @@ from scans import (
     BIG_TECH_CANONICAL,
     DEFAULT_FILTER,
     NEW_AI_TITLE_PATTERN,
+    text_col,
+    text_filter,
 )
 
 random.seed(0)
@@ -61,11 +63,13 @@ SLICES = {
 }
 
 
-def rate_query(filter_clause, numerator_clause, swe_only=True):
+def rate_query(filter_clause, numerator_clause, swe_only=True, extra_where=None):
     """Return SQL computing (period, n, n_positive, rate) with the given filter."""
     where = DEFAULT_FILTER + f" AND ({filter_clause})"
     if swe_only:
         where += " AND is_swe = true"
+    if extra_where:
+        where += f" AND ({extra_where})"
     return f"""
       SELECT period,
              COUNT(*) AS n,
@@ -76,11 +80,13 @@ def rate_query(filter_clause, numerator_clause, swe_only=True):
     """
 
 
-def metro_balanced_rate(con, numerator_clause, swe_only=True):
+def metro_balanced_rate(con, numerator_clause, swe_only=True, extra_where=None):
     """Equal-weight average across top-10 metros by SWE volume."""
     where = DEFAULT_FILTER + " AND metro_area IS NOT NULL"
     if swe_only:
         where += " AND is_swe = true"
+    if extra_where:
+        where += f" AND ({extra_where})"
     # Find top-10 metros by total SWE volume across all periods
     top = con.execute(f"""
       SELECT metro_area FROM '{UNIFIED_PATH}'
@@ -110,13 +116,13 @@ def metro_balanced_rate(con, numerator_clause, swe_only=True):
 
 def triangulate_s1(con):
     """AI-vocab rate on SWE by period under 5 slices."""
-    numerator = f"regexp_matches(description, '{AI_VOCAB_PATTERN}')"
+    numerator = f"regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}')"
     results = []
     for slice_name, filter_clause in SLICES.items():
         if slice_name == "slice_b_metro_balanced":
-            df = metro_balanced_rate(con, numerator)
+            df = metro_balanced_rate(con, numerator, extra_where=text_filter())
         else:
-            df = con.execute(rate_query(filter_clause, numerator)).df()
+            df = con.execute(rate_query(filter_clause, numerator, extra_where=text_filter())).df()
             df["rate"] = df["n_positive"] / df["n"]
         df["slice"] = slice_name
         df["finalist"] = "S1_H1_ai_vocab"
@@ -149,7 +155,7 @@ def triangulate_s10(con):
     bt_list = ", ".join(f"'{b}'" for b in BIG_TECH_CANONICAL)
     results = []
     for slice_name, filter_clause in SLICES.items():
-        where = DEFAULT_FILTER + f" AND ({filter_clause}) AND is_swe = true"
+        where = DEFAULT_FILTER + f" AND ({filter_clause}) AND is_swe = true AND {text_filter()}"
         if slice_name == "slice_b_metro_balanced":
             where += " AND metro_area IS NOT NULL"
         sql = f"""
@@ -157,7 +163,7 @@ def triangulate_s10(con):
                  CASE WHEN LOWER(company_name_canonical) IN ({bt_list})
                       THEN 'big_tech' ELSE 'rest' END AS tier,
                  COUNT(*) AS n,
-                 SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+                 SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
           FROM '{UNIFIED_PATH}'
           WHERE {where}
           GROUP BY 1,2 ORDER BY 1,2
@@ -175,7 +181,7 @@ def triangulate_s11(con):
     """SWE vs control AI-vocab divergence under 5 slices. Control only in scraped."""
     results = []
     for slice_name, filter_clause in SLICES.items():
-        where = DEFAULT_FILTER + f" AND ({filter_clause})"
+        where = DEFAULT_FILTER + f" AND ({filter_clause}) AND {text_filter()}"
         if slice_name == "slice_b_metro_balanced":
             where += " AND metro_area IS NOT NULL"
         sql = f"""
@@ -184,7 +190,7 @@ def triangulate_s11(con):
                       WHEN is_control THEN 'control'
                       ELSE NULL END AS group_label,
                  COUNT(*) AS n,
-                 SUM(CASE WHEN regexp_matches(description, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
+                 SUM(CASE WHEN regexp_matches({text_col()}, '{AI_VOCAB_PATTERN}') THEN 1 ELSE 0 END) AS n_ai
           FROM '{UNIFIED_PATH}'
           WHERE {where} AND (is_swe = true OR is_control = true)
           GROUP BY 1,2 ORDER BY 1,2
