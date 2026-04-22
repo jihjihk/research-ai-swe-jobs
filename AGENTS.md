@@ -51,7 +51,7 @@ Formal hypothesis testing and robustness checks for RQ1-RQ3. Formal analysis pla
 **Navigation index — where existing work lives, where to look for new questions:**
 
 - **Latest full exploration:** `exploration-archive/v9_final_opus_47/` — the 8-wave orchestrator run. Start with `reports/SYNTHESIS.md` (paper backbone), `reports/INDEX.md` (task catalog T01-T38), and `memos/gate_{0,1,2,3}.md` (narrative evolution). If a later version exists (v10, v11, …), prefer it.
-- **Targeted follow-up analysis:** `eda/` — open-ended, hypothesis-driven notebooks that extend the exploration. Current entry point: `eda/reports/open_ended_v2.md` and `eda/notebooks/findings_consolidated_2026-04-21.ipynb`. See `eda/README.md` for structure.
+- **Targeted follow-up analysis:** `eda/` — open-ended, hypothesis-driven notebooks that extend the exploration. Current entry point: `eda/reports/open_ended_v2.md` and `eda/notebooks/findings_consolidated_2026-04-21.ipynb`. Composite article B (role landscape) memo: `eda/research_memos/composite_B_v2.md` (BERTopic rerun, 95-topic taxonomy on 37k SWE postings, archetype labels at `eda/artifacts/composite_B_archetype_labels.parquet`). See `eda/README.md` for structure.
 - **Primary data for new queries:** `data/unified_core.parquet` — 193 MB, ~110k rows, 42 columns, covers the columns most analyses need. Start here. Switch to `data/unified.parquet` (7.4 GB) only when you need columns not in the core.
 - **Data schema:** `docs/preprocessing-schema.md` — column definitions, stage availability, source-specific gaps, enum values. Read before writing any SQL.
 - **Research design:** `docs/1-research-design.md` through `docs/6-methods-learning.md` — RQs, constructs, interview protocol, literature, publication targets, methods notes.
@@ -80,6 +80,14 @@ Academic writing, research design, literature review, interview protocol, method
 - 31 GB RAM limit. Use pyarrow chunked I/O for pipeline code. See `docs/preprocessing-guide.md` for memory patterns.
 - Do not overwrite large data artifacts unless the task requires it.
 - After completing work, update the relevant documentation if status, known issues, or priorities changed.
+
+## Writing style
+
+Prose for findings, stories, and methodology pages should read like *The Economist* — data-driven investigative journalism where numbers are carried by sentences rather than scanned off tables, caveats sit next to the claims they qualify, sentence length varies, and the writer commits where evidence is strong and hedges precisely where it is weak. Tonal anchors, to read before writing:
+
+- Anthropic Economic Index, ["Learning curves"](https://www.anthropic.com/research/economic-index-march-2026-report) — defines a construct (automation vs. augmentation patterns in Claude usage), names the intuitive reading, and lands a counterintuitive fact about tenured users.
+- Indeed Hiring Lab, Cory Stahle, ["How Employers Are Talking About AI in Job Postings"](https://www.hiringlab.org/2025/10/28/how-employers-are-talking-about-ai-in-job-postings/) — dense posting-share statistics carried by prose, with methodological caveats surfaced inline.
+- Derek Thompson, ["The Evidence That AI Is Destroying Jobs For Young People Just Got Stronger"](https://www.derekthompson.org/p/the-evidence-that-ai-is-destroying) — steelmans the aggregate-null position, then names what it fails to explain; hard commit next to precise hedge.
 
 ## Data Sources
 
