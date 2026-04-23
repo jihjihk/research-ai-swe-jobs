@@ -1,19 +1,11 @@
 """
-Polished visualizations for the headlines notebook.
+Shared visualization helpers for the findings-consolidated notebook.
 
 Each function reads from an existing CSV in eda/tables/ and returns a
-matplotlib Figure (no save_fig. The headlines notebook embeds figures
-inline so the .ipynb is self-contained).
+matplotlib Figure (no save_fig; figures are embedded inline).
 
-Usage from the notebook:
-    from headlines_viz import (
-        viz_within_firm, viz_swe_vs_control, viz_yoe_floor,
-        viz_vendor_leaderboard, viz_bigtech_density,
-        viz_disproven_aiwashing, viz_disproven_industry_spread,
-        viz_disproven_juniorfirst,
-    )
-    fig = viz_within_firm()
-    plt.show()
+Imported by consolidated_viz, which composes these with its own
+notebook-specific figures.
 """
 
 from __future__ import annotations
@@ -172,7 +164,7 @@ def viz_swe_vs_control():
             bbox=dict(boxstyle="round,pad=0.5", facecolor="#fff8c4", edgecolor="#999"))
 
     fig.text(0.5, -0.01,
-             "If AI were narrative cover (H1) or macro-only (H3), SWE and control should co-move. They don't.  Source: eda/tables/S11_core_swe_vs_control.csv",
+             "If AI talk were a generic economy-wide narrative, or if macro forces alone drove content change, SWE and control should co-move. They don't.  Source: eda/tables/S11_core_swe_vs_control.csv",
              ha="center", fontsize=8, style="italic", color="#666")
     fig.tight_layout()
     return fig
@@ -315,37 +307,7 @@ def viz_bigtech_density():
 
 
 # ---------------------------------------------------------------------------
-# DISPROVEN 1: AI-washing (content level)
-# ---------------------------------------------------------------------------
-
-def viz_disproven_aiwashing():
-    _style_setup()
-    df = pd.read_csv(TABLES_DIR / "S11_core_swe_vs_control.csv")
-
-    swe = df[df["analysis_group"] == "swe"].set_index("period").reindex(PERIODS)["ai_rate"].values
-    ctrl = df[df["analysis_group"] == "control"].set_index("period").reindex(PERIODS)["ai_rate"].values
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-    swe_delta = (swe[-1] - swe[0]) * 100
-    ctrl_delta = (ctrl[-1] - ctrl[0]) * 100
-    ax.barh(["control", "SWE"], [ctrl_delta, swe_delta],
-            color=[PAL["control"], PAL["swe"]], edgecolor="white")
-    for i, v in enumerate([ctrl_delta, swe_delta]):
-        ax.text(v + 0.5, i, f"+{v:.1f}pp", va="center", fontsize=12, fontweight="bold")
-    ax.set_xlabel("Δ AI-vocab rate (2024-01 → 2026-04), percentage points")
-    ax.set_title("If AI were narrative cover for layoffs, software and control would move together")
-    ax.text(0.5, 0.96,
-            "If AI were narrative cover for layoffs, SWE and control should move TOGETHER.\n"
-            f"Observed ratio: {swe_delta/ctrl_delta:.0f}× SWE-only.",
-            transform=ax.transAxes, ha="center", va="top", fontsize=11,
-            bbox=dict(boxstyle="round,pad=0.5", facecolor="#ffe5e5",
-                      edgecolor=PAL["disproven"]))
-    fig.tight_layout()
-    return fig
-
-
-# ---------------------------------------------------------------------------
-# DISPROVEN 2: industry spread on LinkedIn
+# DISPROVEN: industry spread on LinkedIn
 # ---------------------------------------------------------------------------
 
 def viz_disproven_industry_spread():
@@ -405,73 +367,3 @@ def viz_disproven_juniorfirst():
     return fig
 
 
-# ---------------------------------------------------------------------------
-# Verdict-at-a-glance figure (all 13 hypotheses)
-# ---------------------------------------------------------------------------
-
-VERDICTS = [
-    ("H1",  "AI-washing (content-level)",         "FALSIFIED",  "SWE-vs-control 23:1 delta ratio"),
-    ("H2",  "AI creates new job types",           "supported",  "new-AI-title share 1.6% → 8.3% (5×)"),
-    ("H3",  "Non-AI macro (content)",             "FALSIFIED",  "SWE-specificity rules out economy-wide cause"),
-    ("H4",  "Industry spread on LinkedIn",        "FALSIFIED",  "non-tech share flat ~55%"),
-    ("H5a", "junior-first automation",            "FALSIFIED",  "AI uniform across levels; YOE fell"),
-    ("H5b", "senior-restructuring",               "supported",  "AI-vocab uniform; senior content shifted"),
-    ("H6a", "BT posting share fell",              "FALSIFIED",  "BT share ROSE 2.4% → 7.0%"),
-    ("H6b", "BT AI density > rest",               "supported",  "BT 44% vs rest 27% in 2026 (+17pp)"),
-    ("H7",  "SWE vs control divergence",          "STRONGLY supported", "23:1 delta ratio on balanced core"),
-    ("H8",  "YOE floor falling",                  "supported",  "junior mean YOE 2.01 → 1.23"),
-    ("H9",  "vendor leaderboard hierarchy",       "supported",  "Copilot > Claude > OpenAI > Cursor"),
-    ("H10", "AI mention ≠ ghost job",             "supported",  "AI inflated 4.5% < non-AI 5.6%"),
-    ("H11", "control AI-spread is niche",         "supported",  "finance + electrical/nuclear concentrate"),
-    ("H12", "posting survival differs",           "directional only", "+0.9 days for AI in 2026-03"),
-    ("H13", "within-firm AI rewrite",             "STRONGLY supported", "+19.4pp on 292-co panel; 75% rose"),
-]
-
-
-def viz_verdict_table():
-    _style_setup()
-    fig, ax = plt.subplots(figsize=(13, 9))
-    ax.axis("off")
-
-    cell_height = 0.055
-    y0 = 0.95
-
-    # Header
-    ax.text(0.02, y0, "H",        fontsize=12, fontweight="bold", color=PAL["neutral"], transform=ax.transAxes)
-    ax.text(0.07, y0, "Hypothesis",fontsize=12, fontweight="bold", color=PAL["neutral"], transform=ax.transAxes)
-    ax.text(0.46, y0, "Verdict",   fontsize=12, fontweight="bold", color=PAL["neutral"], transform=ax.transAxes)
-    ax.text(0.65, y0, "Evidence",  fontsize=12, fontweight="bold", color=PAL["neutral"], transform=ax.transAxes)
-    ax.plot([0.01, 0.99], [y0 - 0.01, y0 - 0.01], color="#999", linewidth=1, transform=ax.transAxes)
-
-    for i, (h, name, verdict, ev) in enumerate(VERDICTS):
-        y = y0 - cell_height * (i + 1.2)
-        is_falsified = verdict.startswith("FALSIFIED")
-        v_color = PAL["disproven"] if is_falsified else PAL["headline"]
-        if "directional" in verdict.lower():
-            v_color = PAL["neutral"]
-
-        # background stripe
-        if i % 2 == 0:
-            ax.add_patch(plt.Rectangle((0.005, y - 0.02), 0.99, cell_height,
-                                        facecolor="#f5f5f5", edgecolor="none",
-                                        transform=ax.transAxes, zorder=0))
-
-        ax.text(0.02, y, h, fontsize=11, fontweight="bold", color=PAL["neutral"], transform=ax.transAxes)
-        ax.text(0.07, y, name, fontsize=11, color="#222", transform=ax.transAxes)
-        symbol = "✗" if is_falsified else ("●" if "directional" in verdict.lower() else "✓")
-        ax.text(0.46, y, f"{symbol} {verdict}", fontsize=11, fontweight="bold",
-                color=v_color, transform=ax.transAxes)
-        ax.text(0.65, y, ev, fontsize=10, color="#444", transform=ax.transAxes)
-
-    ax.set_title("Verdict table, all 13 hypotheses",
-                 fontsize=13, fontweight="bold", y=0.99)
-
-    # Legend
-    legend_y = y0 - cell_height * (len(VERDICTS) + 1.8)
-    ax.text(0.02, legend_y,
-            "✓ supported    ✗ FALSIFIED    ● directional only",
-            fontsize=10, color=PAL["neutral"], transform=ax.transAxes,
-            bbox=dict(boxstyle="round,pad=0.4", facecolor="#fff", edgecolor="#bbb"))
-
-    fig.tight_layout()
-    return fig

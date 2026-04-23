@@ -81,12 +81,18 @@ def build() -> nbf.NotebookNode:
         "    viz_junior_scope_panel, viz_senior_scope_inflation,\n"
         "    viz_within_firm, viz_swe_vs_control, viz_yoe_floor,\n"
         "    viz_vendor_leaderboard, viz_bigtech_density,\n"
-        "    viz_disproven_aiwashing, viz_disproven_industry_spread,\n"
+        "    viz_disproven_industry_spread,\n"
         "    viz_disproven_juniorfirst, viz_disproven_hiring_bar,\n"
         "    viz_disproven_selectivity, viz_verdict_table,\n"
         "    viz_cross_occ_rank,\n"
         "    viz_composite_a_lead, viz_composite_a_geo, viz_composite_a_industry,\n"
         "    viz_composite_b_cluster, viz_composite_b_fde_legacy,\n"
+        ")\n"
+        "from composite_B_v3_viz import (\n"
+        "    viz_composite_b_map,\n"
+        "    viz_composite_b_deltas,\n"
+        "    viz_composite_b_growth_emergence,\n"
+        "    viz_composite_b_drift_words,\n"
         ")\n"
         "\n"
         "con = duckdb.connect()\n"
@@ -104,8 +110,11 @@ def build() -> nbf.NotebookNode:
         "Cursor, and Claude Code now write enough software that human engineers "
         "(so the story goes) are becoming redundant.\n\n"
         "Several alternative explanations compete with that story:\n\n"
-        "- **AI-washing.** Firms invoke AI as a narrative cover while the real "
-        "drivers are post-Covid hiring corrections and rising interest rates.\n"
+        "- **Generic AI narrative.** AI talk is economy-wide cultural noise, "
+        "absorbed into every job posting rather than tracking real change in "
+        "software work specifically.\n"
+        "- **Macro forces.** Post-Covid hiring corrections and rising interest "
+        "rates are the real drivers; AI is incidental to the labour-market shift.\n"
         "- **Outsourcing.** Work migrates to lower-cost regions rather than to AI tools.\n"
         "- **Industry redistribution.** Software engineers are not disappearing. "
         "They are moving from pure-tech firms into non-tech industries like "
@@ -196,7 +205,7 @@ def build() -> nbf.NotebookNode:
         "## How we did this\n\n"
         "1. **Wrote priors first.** Before touching any data, we wrote down "
         "specific hypotheses about what we would find, including the popular "
-        "narratives we wanted to test (AI-washing, junior scope inflation, "
+        "narratives we wanted to test (junior scope inflation, "
         "industry spread). Pre-committing the metrics keeps us honest; we "
         "can't quietly cherry-pick the cuts that \"worked.\"\n\n"
         "2. **Profiled the corpus** to confirm it matches the pipeline documentation.\n\n"
@@ -240,7 +249,7 @@ def build() -> nbf.NotebookNode:
         "After this section you will see:\n\n"
         "1. **A new analytical cut** showing how junior SWE job scope has changed versus junior control scope.\n"
         "2. **Seven headline findings**, each with one short markdown block and one inline figure.\n"
-        "3. **Five falsified hypotheses**, the popular narratives we tested and rejected.\n"
+        "3. **Four falsified hypotheses**, the popular narratives we tested and rejected.\n"
         "4. **Two longer articles** that synthesise multiple findings: where the new AI vocabulary lands, and how the role landscape is being rewritten.\n"
         "5. **A verdict table** with all claims on one page.\n"
         "6. **Other 2026 observations**, small bullets that don't rise to \"headline\" but are worth noting.\n"
@@ -284,8 +293,8 @@ def build() -> nbf.NotebookNode:
         "/ LLM-systems work has grown 5.2× as a share of the SWE corpus**, "
         "from 2.5% in 2024 to 12.7% in 2026. Two methods agree that this "
         "cluster is the largest single growth lane.\n\n"
-        "The popular *AI-washing* and *junior-scope-inflation* narratives do "
-        "not hold up here. **Years-of-experience requirements are falling**, "
+        "The popular *junior-scope-inflation* narrative does not hold up "
+        "here. **Years-of-experience requirements are falling**, "
         "not rising (junior median YOE dropped from 2 to 1), and "
         "**a dev-tool vendor leaderboard has emerged** in labor demand, with "
         "Copilot at 4.1%, Claude at 3.8%, OpenAI at 3.2%, and Cursor at 2.1% "
@@ -374,12 +383,13 @@ def build() -> nbf.NotebookNode:
         "+14 pp (95% confidence interval +13.7 to +14.4) for the SWE-specific "
         "AI-vocab effect.\n\n"
         "**Why it matters.** This is the cleanest test for two competing "
-        "narratives at once. *AI-washing* would predict SWE and control to "
-        "co-move because both groups absorb the same public AI narrative. "
-        "*Macro-only stories* (rate hikes, post-Covid correction) would "
-        "predict the same, because macro forces operate economy-wide. "
-        "Neither prediction holds. Whatever is happening to software-engineer "
-        "postings is real and specific to SWE."
+        "narratives at once. A *generic AI narrative* — AI talk as economy-wide "
+        "cultural noise — would predict SWE and control to co-move, because "
+        "both groups would absorb the same public vocabulary. *Macro-only "
+        "stories* (rate hikes, post-Covid correction) would predict the same, "
+        "because macro forces operate economy-wide. Neither prediction holds. "
+        "Whatever is happening to software-engineer postings is real and "
+        "specific to SWE."
     ))
     cells.append(code("fig = viz_swe_vs_control(); plt.show()"))
 
@@ -574,35 +584,18 @@ def build() -> nbf.NotebookNode:
     cells.append(code("fig = viz_cross_occ_rank(); plt.show()"))
 
     # =========================================================================
-    # 10 · Five falsified hypotheses
+    # 10 · Four falsified hypotheses
     # =========================================================================
     cells.append(md(
         "---\n\n"
-        "# Five falsified hypotheses\n\n"
+        "# Four falsified hypotheses\n\n"
         "These came from credible sources: popular press, labor-market "
         "literature, and our own priors going into the analysis. The data "
         "does not support them, at least not at the level our data can see."
     ))
 
     cells.append(md(
-        "## Falsified 1 · AI is narrative cover for unrelated layoffs (at the content level)\n\n"
-        "**The hypothesis.** Firms invoke AI as the public reason for 2023 "
-        "to 2026 layoffs, while the real drivers are post-Covid hiring "
-        "corrections, rising interest rates, and outsourcing. AI is "
-        "narrative, not substance.\n\n"
-        "**Why it fails at the content level.** If AI talk in postings were "
-        "a narrative layer overlaid on macro forces, SWE and control "
-        "occupations should both absorb it. They don't. SWE rose 38 times "
-        "faster than control under the strict cleaned-description substrate "
-        "(and 23 times faster under raw — the lower bound).\n\n"
-        "**Caveat.** The narrative-layer story could still be true about how "
-        "firms publicly *explain* cuts, separately from what they write in "
-        "job postings. That is an interview question, not one our data answers."
-    ))
-    cells.append(code("fig = viz_disproven_aiwashing(); plt.show()"))
-
-    cells.append(md(
-        "## Falsified 2 · Software jobs are spreading into non-tech industries on LinkedIn\n\n"
+        "## Falsified 1 · Software jobs are spreading into non-tech industries on LinkedIn\n\n"
         "**The hypothesis.** Software-worker headcount is reportedly growing "
         "in retail (+12%), property (+75%), and construction (+100%) between "
         "2022 and 2025 (source: Bureau of Labor Statistics occupational "
@@ -622,7 +615,7 @@ def build() -> nbf.NotebookNode:
     cells.append(code("fig = viz_disproven_industry_spread(); plt.show()"))
 
     cells.append(md(
-        "## Falsified 3 · Automation hits junior engineers first\n\n"
+        "## Falsified 2 · Automation hits junior engineers first\n\n"
         "**The hypothesis.** AI automates routine tasks first. Junior SWE "
         "postings, which describe the most routine work, should therefore be "
         "the first to mention AI tools and the first to demand more "
@@ -639,7 +632,7 @@ def build() -> nbf.NotebookNode:
     cells.append(code("fig = viz_disproven_juniorfirst(); plt.show()"))
 
     cells.append(md(
-        "## Falsified 4 · Requirements-section contraction indicates hiring-bar lowering\n\n"
+        "## Falsified 3 · Requirements-section contraction indicates hiring-bar lowering\n\n"
         "**The hypothesis.** Several analyses reported that the *requirements* "
         "section of SWE postings shrank between 2024 and 2026. A natural "
         "reading: employers are quietly lowering the hiring bar, dropping "
@@ -662,7 +655,7 @@ def build() -> nbf.NotebookNode:
     cells.append(code("fig = viz_disproven_hiring_bar(); plt.show()"))
 
     cells.append(md(
-        "## Falsified 5 · The hiring cycle tightened, so firms raised the bar\n\n"
+        "## Falsified 4 · The hiring cycle tightened, so firms raised the bar\n\n"
         "**The hypothesis.** The 2026 Q1 hiring trough (JOLTS "
         "Information-sector openings at 0.71× the 2023 average) let "
         "employers be more selective. Firms posting fewer roles should "
@@ -867,20 +860,153 @@ def build() -> nbf.NotebookNode:
     ))
     cells.append(code("fig = viz_composite_b_fde_legacy(); plt.show()"))
 
+    # ----- Article B · Panel 3: the full map (created / destroyed / rewritten)
+    # Figures produced by eda/scripts/composite_B_v3_evolution.py.
+    # Narrative and method details: eda/research_memos/composite_B_v3_findings.md
+    cells.append(md(
+        "### Panel 3 — The full map: created, destroyed, rewritten\n\n"
+        "The first two panels zoomed in on two specific stories: a new "
+        "specialist cluster and a new role type. Step back, and the picture "
+        "reorganises into three simultaneous transformations. Between 2024 "
+        "and 2026, the same 46,000 software-engineering and SWE-adjacent "
+        "postings — classified by the LLM rather than by keyword heuristics "
+        "— tell a story with three layers. Something was **created**: an "
+        "AI-engineering specialty that went from rounding-error to one in "
+        "four software-engineering postings. Something was **destroyed**: "
+        "specific legacy tech stacks contracted by half or more. And a "
+        "great deal was **rewritten**: even surviving clusters shifted "
+        "their central vocabulary in ways the cluster labels alone do not "
+        "convey.\n\n"
+        "The four sub-panels below each take one cut at the change."
+    ))
+
+    cells.append(md(
+        "#### A. The map\n\n"
+        "Four views of the same 46,000 postings, plotted in the same "
+        "two-dimensional projection of their description embeddings. Rows "
+        "separate software-engineer postings from SWE-adjacent ones; "
+        "columns separate the 2024 baseline from the 2026 current window. "
+        "The ten largest archetype families are coloured distinctly; the "
+        "long tail and uncategorised postings are grey. The red cohort — "
+        "AI-coded postings within the data/AI cluster — is negligible on "
+        "the left and prominent on the right, on both rows. The amber "
+        "surround is the non-AI data work within the same cluster. "
+        "Cybersecurity (green) and SRE/reliability (pale cyan) emerge as "
+        "distinct regions in 2026 that were not distinct in 2024. "
+        "Enterprise Java/.NET (dark navy) visibly contracts on the "
+        "software-engineer row."
+    ))
+    cells.append(code("fig = viz_composite_b_map(); plt.show()"))
+
+    cells.append(md(
+        "#### B. What grew, what shrank\n\n"
+        "The net percentage-point change in corpus share, archetype by "
+        "archetype, separating the software-engineer side (dark green or "
+        "red) from the SWE-adjacent side (lighter). Positive bars extend "
+        "right, negative bars extend left. The scale of the AI-engineering "
+        "shift — roughly 15 percentage points on the software-engineer "
+        "side, 13 on the SWE-adjacent side — dominates the picture. On "
+        "the losing side, no single category matches that magnitude, but "
+        "several specific legacy stacks lose between half a point and six "
+        "and a half points each: enterprise Java/.NET most of all, "
+        "followed by embedded systems, ServiceNow consulting, SAP/Oracle/"
+        "mainframe, PHP/WordPress, automotive embedded, PLC manufacturing "
+        "automation, and QA test automation."
+    ))
+    cells.append(code("fig = viz_composite_b_deltas(); plt.show()"))
+
+    cells.append(md(
+        "#### C. Growth, and growing into new territory — are not the "
+        "same thing\n\n"
+        "A two-dimensional read on what the growth means. The horizontal "
+        "axis is simple growth — how much bigger the archetype is in "
+        "2026 than in 2024. The vertical axis is the **emergence index**: "
+        "the share of a family's 2026 postings that sit further from "
+        "their nearest 2024 counterpart than typical 2024 postings sit "
+        "from each other. The threshold is calibrated on within-2024 "
+        "variation, so five percent of 2024 postings would clear it by "
+        "construction. A family above ten percent is drifting into "
+        "conceptually new territory, not merely scaling.\n\n"
+        "The Data + AI/ML cluster is the biggest mainstream-growth bubble, "
+        "at roughly 2× growth and 11% emergence — large but not far from "
+        "2024 in shape. Inside it, though, the AI-coded sub-cohort grew "
+        "8.5× on its own. The upper-right quadrant holds the genuinely "
+        "new frontiers: robotics, network automation, GPU inference, "
+        "payments, and ad-tech / streaming — small but growing into "
+        "places the 2024 corpus did not occupy. The lower-left holds "
+        "contracting legacies that are also stable in shape — enterprise "
+        "Java, SAP/mainframe, ServiceNow consulting, technical "
+        "leadership."
+    ))
+    cells.append(code("fig = viz_composite_b_growth_emergence(); plt.show()"))
+
+    cells.append(md(
+        "#### D. Same cluster, different words\n\n"
+        "Four archetype families whose 2024 and 2026 postings share the "
+        "same label but read differently. Within each family, we compare "
+        "the top-20 most characteristic words in 2024 and 2026, and show "
+        "which words entered and which exited the top-20 between the two "
+        "years. The data/AI mega-cluster rotated from the generic "
+        "buzzword *ai* to specific practices: *ml*, *model*, *data "
+        "science*, *workflows*. The enterprise Java/.NET cluster, even "
+        "as it halved, shed *java* and *framework* and picked up *apis*, "
+        "*microservices*, *cloud* — the surviving postings modernise. "
+        "The cloud/DevOps cluster shed the word *DevOps* itself, "
+        "replaced by *reliability*, *monitoring*, *hands-on*, *best "
+        "practices* — the platform-engineering rebrand. The QA cluster "
+        "shed the word *QA*, replaced by *ci/cd*, *api*, *tests*, "
+        "*integration* — testing embedded into development.\n\n"
+        "The archetype label persisted in each case. The job underneath "
+        "changed."
+    ))
+    cells.append(code("fig = viz_composite_b_drift_words(); plt.show()"))
+
+    cells.append(md(
+        "**Methods caveat for Panel 3.** Topic-level clustering is "
+        "seed-sensitive: across three random seeds, pairwise ARI on the "
+        "88-topic granularity averages 0.49, and at the 30-family "
+        "granularity it averages 0.44. The stronger stability evidence "
+        "is that when the joint-fit taxonomy is compared to independent "
+        "2024-only and 2026-only fits, centroid cosine similarities "
+        "average 0.94 and 0.95 respectively — the same archetype "
+        "structure emerges whether the corpus is pooled or time-sliced. "
+        "We lean on that for interpretation and flag the seed "
+        "sensitivity here."
+    ))
+
     cells.append(md(
         "### Methods footnote — Article B\n\n"
-        "BERTopic was fit on `description_core_llm` with a COALESCE fallback "
-        "to raw description, on rows where `llm_extraction_coverage = "
-        "'labeled'` and length ≥ 200 characters. The sample was capped at 30 "
-        "postings per `(company_name_canonical, period_bucket)` to prevent "
-        "prolific employers from dominating cluster centroids. Embeddings: "
-        "sentence-transformers `all-MiniLM-L6-v2`, batch 256. Clustering: "
-        "UMAP (n_neighbors=15, n_components=5, cosine) + HDBSCAN "
-        "(min_cluster_size=35, min_samples=10). Stability: three seeds, "
-        "mean pairwise ARI = 0.64. The NMF comparator uses TF-IDF (ngram "
-        "1-2, min_df=20, max_features=30,000) and k=20. BERTopic-vs-NMF NMI "
-        "on cluster assignments = 0.40. Full method specification: "
-        "`eda/scripts/S27_v2_bertopic.py`."
+        "**Panels 1 and 2 (v2).** BERTopic was fit on `description_core_llm` "
+        "with a COALESCE fallback to raw description, on rows where "
+        "`llm_extraction_coverage = 'labeled'` and length ≥ 200 characters. "
+        "The sample was capped at 30 postings per `(company_name_canonical, "
+        "period_bucket)` to prevent prolific employers from dominating "
+        "cluster centroids. Embeddings: sentence-transformers "
+        "`all-MiniLM-L6-v2`, batch 256. Clustering: UMAP (n_neighbors=15, "
+        "n_components=5, cosine) + HDBSCAN (min_cluster_size=35, "
+        "min_samples=10). Stability: three seeds, mean pairwise ARI = "
+        "0.64. The NMF comparator uses TF-IDF (ngram 1-2, min_df=20, "
+        "max_features=30,000) and k=20. BERTopic-vs-NMF NMI on cluster "
+        "assignments = 0.40. Full method specification: "
+        "`eda/scripts/S27_v2_bertopic.py`.\n\n"
+        "**Panel 3 (v3-LLM).** Pooled SWE + SWE-adjacent corpus, "
+        "filtered with `swe_classification_llm IN ('SWE','SWE_ADJACENT')` "
+        "— the direct LLM verdict, not the composite rule-based flag, "
+        "which drops roughly 12,600 postings the LLM classifies as "
+        "NOT_SWE, including a documented false-positive cluster of ~400 "
+        "building architects. Cap 30 per `(company, period, role_group)`. "
+        "Embeddings as above. Joint BERTopic fit with "
+        "`reduce_topics(nr_topics=30)` for 29 readable archetype "
+        "families; the data/AI mega-cluster (Family 0) is split post-hoc "
+        "via the Article-A AI-vocabulary regex into AI-coded and non-AI "
+        "sub-cohorts. Stability: topic-level ARI 0.49 mean / family-level "
+        "ARI at k=30 0.44 mean across three seeds; joint↔period-specific "
+        "alignment cosine 0.94 / 0.95. Emergence calibrated on the "
+        "95th-percentile within-2024 nearest-neighbour cosine distance "
+        "(0.314). Full specification: "
+        "`eda/scripts/composite_B_v3_evolution.py` and "
+        "`eda/scripts/composite_B_v3_viz.py`. Narrative: "
+        "`eda/research_memos/composite_B_v3_findings.md`."
     ))
 
     # =========================================================================

@@ -22,11 +22,10 @@ The strongest paper-worthy new finding is **H13 within-firm rewrite** (a Gulfstr
 
 ---
 
-## Verdict table (H1–H13)
+## Verdict table (H2–H13)
 
 | H | Verdict | Primary evidence |
 |---|---|---|
-| H1 AI-washing | **against (content-level)** | S11 SWE Δ+25pp vs control Δ+1.1pp — 23:1 ratio on balanced core |
 | H2 new AI job types | **supported** | S3 new-AI-title share 1.6% → 8.3% (5×) |
 | H3 non-AI macro (content) | **against** | S11 SWE-specificity rules out economy-wide cause of content change |
 | H4 industry spread | **NOT observed on LinkedIn** | S8 (v1): non-tech share flat ~55% 2024→2026 |
@@ -154,7 +153,7 @@ AI-mentioning SWE postings persist 0.9 days longer on average — a small effect
 
 1. **Within-firm rewrite paper (S17 as anchor).** The 292-company overlap panel with +19.4pp mean within-firm rise is the strongest causal-identification surface on our data. Pair with RQ4 interview questions: *"Who inside your firm rewrote the JDs between 2024 and 2026? What changed about the actual work you expect from a SWE hire?"* Connects employer-side content directly to the ghost-vs-real debate.
 
-2. **Big-Tech-stratified RQ1 paper.** The 17pp BT-vs-rest AI-density gap (S10) and the biggest within-firm movers (Microsoft +51pp, Amazon +36pp, Google +22pp) concentrate at Big Tech. Pair with named-firm layoff timelines and 10-Q filings to test a sharper version of H1: *does AI-density rise lead, follow, or co-move with layoff announcements at each firm?*
+2. **Big-Tech-stratified RQ1 paper.** The 17pp BT-vs-rest AI-density gap (S10) and the biggest within-firm movers (Microsoft +51pp, Amazon +36pp, Google +22pp) concentrate at Big Tech. Pair with named-firm layoff timelines and 10-Q filings to ask the question our posting data cannot answer: *does AI-density rise lead, follow, or co-move with layoff announcements at each firm?* That is an external-data question, not something we can resolve from JD content alone.
 
 3. **Dev-tool vendor-specificity paper (S13).** Nobody has published a labor-demand vendor-share table for dev tools. The hierarchy (Copilot > Claude > OpenAI > Cursor) with Claude's steeper growth curve and ChatGPT's plateauing is entirely new and widely interesting. Sensitivity: verify that "cursor" and "claude" regex matches are not over-counting unrelated senses.
 
@@ -172,8 +171,8 @@ AI-mentioning SWE postings persist 0.9 days longer on average — a small effect
 
 | hypothesis | scope | core | full | abs diff |
 |---|---|---|---|---|
-| **H1 / H7** SWE AI-vocab rate | 2026-04 | 28.45% | 28.10% | **0.35pp** |
-| **H1 / H7** control AI-vocab rate | 2026-04 | 1.37% | 1.39% | 0.02pp |
+| **H7** SWE AI-vocab rate | 2026-04 | 28.45% | 28.10% | **0.35pp** |
+| **H7** control AI-vocab rate | 2026-04 | 1.37% | 1.39% | 0.02pp |
 | **H4** non-tech share of SWE | 2026-04 | 54.40% | 53.85% | 0.55pp |
 | **H5a** AI rate — junior | 2026-04 | 26.46% | 27.02% | 0.57pp |
 | **H5a** AI rate — senior | 2026-04 | 31.61% | 31.50% | 0.11pp |
@@ -211,7 +210,7 @@ AI-mentioning SWE postings persist 0.9 days longer on average — a small effect
 - Phase B (v2 on core): `eda/tables/S{1,3,10,11,v}_core_*.csv` + `_core_*.png`
 - Phase B (v2 new): `eda/tables/S1{2..7}_*.csv` + `eda/figures/S1{2..7}_*.png`
 - Phase C (v1 triangulation): `eda/tables/C_triangulation_*.csv` + `eda/figures/C_triangulation_summary.png`
-- Reports: `eda/reports/open_ended_v1.md` (v1) and this file (v2).
+- Report: this file.
 
 ## Re-run
 

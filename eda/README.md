@@ -32,10 +32,10 @@ Each phase writes to `eda/figures/` and `eda/tables/` idempotently (no appending
 ```
 memos/              priors.md (blind-to-v8 H1–H7) + archived references
 scripts/            profile.py, scans.py, triangulate.py
-notebooks/          open_ended_v1.ipynb (optional driver; scripts are source of truth)
+notebooks/          findings_consolidated_2026-04-21.ipynb (current entry point); open_ended_v2.ipynb (v2 driver)
 figures/            A_*.png, S1_*.png … Sv_*.png, C_*.png
 tables/             A_*.csv, S1_*.csv … Sv_*.csv
-reports/            open_ended_v1.md (final findings, one verdict per hypothesis)
+reports/            open_ended_v2.md (current findings, one verdict per hypothesis)
 ```
 
 ## Guardrails

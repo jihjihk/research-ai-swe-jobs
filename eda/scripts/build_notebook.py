@@ -88,7 +88,6 @@ def build() -> nbf.NotebookNode:
     cells.append(md(
         "Full priors in `eda/memos/priors.md`. Short form:\n\n"
         "**Macro-narrative (from v1):**\n"
-        "- **H1** AI-washing — AI is narrative cover for macro layoffs. *Falsified on content* if SWE vs control diverge.\n"
         "- **H2** AI creates new job types — emergence in titles.\n"
         "- **H3** Non-AI macro (Covid-binge + rate hikes + outsourcing) — Economist central claim.\n"
         "- **H4** Industry spread to non-tech — Economist tech-skills-everywhere.\n"
@@ -253,8 +252,6 @@ def build() -> nbf.NotebookNode:
     cells.append(md("## 5. Headlines — v2 verdict table"))
     cells.append(code(
         "verdicts = pd.DataFrame([\n"
-        "    ('H1  AI-washing',                'against (content-level)',\n"
-        "     'S11 SWE+25pp vs control+1.2pp — 21× delta ratio'),\n"
         "    ('H2  new AI job types',          'supported',\n"
         "     'S3 new-AI-title share 1.6% → 8.3% (5×)'),\n"
         "    ('H3  non-AI macro (content)',    'against',\n"

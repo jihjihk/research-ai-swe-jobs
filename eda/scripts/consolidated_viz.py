@@ -44,7 +44,6 @@ from headlines_viz import (
     PERIODS,
     _style_setup,
     viz_bigtech_density,
-    viz_disproven_aiwashing,
     viz_disproven_industry_spread,
     viz_disproven_juniorfirst,
     viz_swe_vs_control,
@@ -287,9 +286,6 @@ CLAIMS = [
      "supported",
      "Across 17 occupations, Spearman ρ on the 2024→2026 employer delta = +0.84 under core_llm; tech-only ρ = +0.89; two-cluster permutation p = 0.0007"),
 
-    ("falsified", "AI is narrative cover for unrelated macro layoffs (content level)",
-     "FALSIFIED",
-     "SWE and control would co-move; they don't. 38:1 divergence ratio under strict core_llm rules out the content-level story"),
     ("falsified", "Software-engineer jobs are spreading to non-tech industries (on LinkedIn)",
      "FALSIFIED",
      "Non-tech share of SWE postings flat at ~55% across 2024 → 2026"),

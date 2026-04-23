@@ -13,9 +13,8 @@ Twelve headline AI-vocab claims, recomputed under both substrates. The picture i
 - **H2 within-firm +19.4 pp on 292-firm panel.** WEAKENS to +17.6 pp. The 292-firm story holds in direction, magnitude, and population (75% → 73% of firms rose).
 - **H4 vendor leaderboard.** WEAKENS uniformly by 0.06–0.5 pp; Copilot 4.25% → 3.99%, Claude 3.83% → 3.75%, OpenAI 3.63% → 3.08%, Cursor 2.17% → 2.04%. Ranking unchanged.
 - **H6 Big Tech vs rest.** WEAKENS from +16.7 pp to +13.8 pp. Both tiers shrink under core; Big Tech shrinks more in absolute terms, but the gap remains decisive.
-- **F1 AI-washing.** Falsified more sharply under core (control 2024-01 0.26% → 0.02%; controls have almost no AI vocabulary at all once boilerplate is removed).
-- **F2 industry spread (non-tech share of SWE).** No AI vocab — substrate-invariant. SKIPPED.
-- **F3 junior-first.** SURVIVES. Junior 26.4% → 22.6%, mid 30.4% → 23.2%, senior 31.6% → 27.4% under core; max-min spread shrinks from 5.2 pp to 4.8 pp. Uniform-across-seniority finding intact.
+- **F1 industry spread (non-tech share of SWE).** No AI vocab — substrate-invariant. SKIPPED.
+- **F2 junior-first.** SURVIVES. Junior 26.4% → 22.6%, mid 30.4% → 23.2%, senior 31.6% → 27.4% under core; max-min spread shrinks from 5.2 pp to 4.8 pp. Uniform-across-seniority finding intact.
 - **Vendor 2024 baselines.** SURVIVES. Copilot 0.08% → 0.04% in 2024-01; the order-of-magnitude growth claim (≈40-50× from 2024 to 2026) is unchanged.
 - **Legacy 6-title list.** Sample too thin (n=3 in 2026); both substrates report 0% AI vocab.
 
@@ -45,9 +44,9 @@ Twelve headline AI-vocab claims, recomputed under both substrates. The picture i
 | H6 Big Tech rate | substrate_A4 | 44.0% | 37.4% | −6.6 pp | WEAKENS |
 | H6 Rest rate | substrate_A4 | 27.3% | 23.6% | −3.7 pp | WEAKENS |
 | **H6 Big Tech minus Rest gap** | substrate_A4 | **+16.7 pp** | **+13.8 pp** | −2.9 pp | **SURVIVES** |
-| F3 junior 2026-04 | substrate_A6 | 26.46% | 22.58% | −3.88 pp | SURVIVES |
-| F3 senior 2026-04 | substrate_A6 | 31.61% | 27.36% | −4.25 pp | SURVIVES |
-| F3 max-min spread across seniority | substrate_A6 | 5.15 pp | 4.78 pp | −0.37 pp | SURVIVES |
+| F2 junior 2026-04 | substrate_A6 | 26.46% | 22.58% | −3.88 pp | SURVIVES |
+| F2 senior 2026-04 | substrate_A6 | 31.61% | 27.36% | −4.25 pp | SURVIVES |
+| F2 max-min spread across seniority | substrate_A6 | 5.15 pp | 4.78 pp | −0.37 pp | SURVIVES |
 | Copilot 2024-01 baseline | substrate_A7 | 0.077% | 0.044% | −0.033 pp | SURVIVES |
 | Claim 7 ρ 2026 levels (n=17) | substrate_B | 0.860 | 0.898 | +0.038 | STRENGTHENS |
 | Claim 7 ρ 2024 levels (n=17) | substrate_B | 0.581 | 0.757 | +0.176 | STRENGTHENS |
@@ -90,9 +89,9 @@ Twelve headline AI-vocab claims, recomputed under both substrates. The picture i
 - *FS-vs-SWE comparison*. FS postings carry proportionally more compliance / regulated-industry boilerplate that contains AI-adjacent language (vendor-management lists, regulatory technology). Under core, the FS rate stays high relative to SWE (gap shrinks from −6.2 pp to −3.4 pp), so the FS rate rises in relative terms.
 
 **Substrate-invariant by construction:**
-- F2 non-tech industry share (no AI vocab).
-- F4 requirements contraction (section classifier).
-- F5 hiring cycle (correlation on length & breadth).
+- F1 non-tech industry share (no AI vocab).
+- F3 requirements contraction (section classifier).
+- F4 hiring cycle (correlation on length & breadth).
 - H5 YOE (LLM-extracted field).
 - BERTopic *cluster geometry* (fitted on core already).
 
