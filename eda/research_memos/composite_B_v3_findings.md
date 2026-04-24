@@ -77,6 +77,34 @@ Even clusters that survived (and in some cases grew) show vocabulary drift. Trac
 - **Family 6 (QA / test automation, flat):** the word `qa` itself exits the top-20; `ci/cd, api, tests, integration, selenium` enters. Testing embeds into development workflows.
 - **Family 0 overall (mega-cluster):** the word `ai` exits the top-20; `ml, data science, model, platform, workflows` enters. As the cluster grew 2×, its central vocabulary rotated from a buzzword into named practices.
 
+## Inside the AI cohort: a vertical splinter, not a horizontal split
+
+The Data + AI/ML cluster's AI-coded portion grew 8.5× between 2024 and 2026 (520 → 4,447 postings). A natural follow-up question is whether that surge is already differentiating into sub-roles the way web development split into frontend / backend / fullstack / distributed systems over time. We ran the split test on the AI-coded subset alone (`eda/scripts/composite_B_v3_ai_subcluster_probe.py`). It's a short probe, not a headline analysis, but the answer is informative.
+
+**Method, four validity tests:**
+
+1. **Density separation.** Re-fit UMAP (5D) on the AI subset alone. Sweep HDBSCAN at `min_cluster_size ∈ {10, 20, 40, 80}`. At the fine end (mcs=10), 63 tiny clusters form with 53% noise — fragmented. At mcs=20, 40, and 80, the result is the same shape: one main blob (≈ 4,600 postings) plus one small island (≈ 250 postings), with 2-8% noise. The cross-scale agreement at the coarser settings is the real signal.
+2. **Silhouette score (5D UMAP):** 0.27. Weak structure; below the 0.5 threshold that would indicate clean separation.
+3. **Inter-centroid / intra-cluster ratio (cosine distance in 384D):** 0.68. The centroids of the two clusters are *closer* to each other than a typical within-cluster nearest-neighbour distance — the main blob is so heterogeneous that its internal spread exceeds the gap to the island. This is not how neatly-separated role categories should look.
+4. **Seed stability.** Across UMAP seeds {42, 1337, 2026}, pairwise ARI is 0.96 / 0.04 / 0.04 — bimodal. Seeds 42 and 2026 find the same two clusters; seed 1337 instead produces 18 micro-clusters and recovers none of them. The structure exists but sits right at HDBSCAN's detection threshold.
+
+**What the geometry does separate.** One cluster, robustly: a healthcare / biotech / life-sciences ML island (n = 253; 34 → 219 postings, 6.4× growth). Top firms: BioSpace, Optum, Genentech, CVS Health, GE HealthCare, WHOOP, MD Anderson. Top distinctive terms: *clinical, healthcare, medical, biology, patient, discovery*. This is a **vertical** specialisation (a domain) rather than a **horizontal** one (a technical role). The embedding separates it because the healthcare vocabulary overwhelms the rest.
+
+**What the geometry does not separate, but the vocabulary does.** The striking signal. When we force fragmentation (mcs=10) and then aggregate the 63 micro-clusters by regex theme, growth rates inside the AI cohort spread dramatically:
+
+| Theme | 2024 | 2026 | Growth |
+|---|---:|---:|---:|
+| **LLM / agents / RAG / agentic infrastructure** | 11 | 557 | **50.6×** |
+| Classical data science | 29 | 316 | 10.9× |
+| Applied ML (ranking, forecasting, recs) | 6 | 54 | 9.0× |
+| ML ops / deployment | 79 | 444 | 5.6× |
+| Foundation-model research | 49 | 248 | 5.1× |
+| Data platform / analytics | 0 | 13 | — |
+
+Inside a cohort that grew 8.5× overall, **LLM/agents grew 50×**. Foundation-research-flavoured ML grew only 5×. The composition inside "AI engineer" has tilted hard toward agents and LLM infrastructure — but job descriptions write that content in language that overlaps with generic AI-engineer postings, so the embedding does not place them in a distinct region. The vocabulary split is real; the geometric split is not.
+
+**Verdict for the paper.** Internal specialisation is **emerging but not yet crystallised**. In 2026, "AI engineer" is still mostly one undifferentiated job at the description-embedding level. The exception the geometry enforces is a healthcare / biotech island, because that domain vocabulary dominates the text. If AI engineering is going to split the way web dev did, we would expect ARI ≥ 0.8 and centroid ratio ≥ 3 across multiple scales. We see 0.35 and 0.68. This is a "watch next year" finding rather than "the split has already happened." The 50× LLM/agents growth is a real compositional signal to report; the geometric null is itself the method saying "don't overclaim."
+
 ## Caveat surfaced by the method: classifier contamination discovered
 
 The switch from `is_swe_adjacent` (composite rule-based) to `swe_classification_llm` (LLM verdict) removed ~12,600 postings from the sample. Inspection of one prominent removed cluster revealed ~430 building architects (Sheladia Associates, LS3P Associates, Olson Kundig, Kleinfelder) that had been labeled SWE-adjacent by the pipeline's `embedding_adjacent` tier — title-embedding similarity placed "Architect" near "software architect" / "cloud architect." The LLM classified all 375 as NOT_SWE but was overridden. **This is a documented false-positive channel in the upstream SWE-adjacent classifier** that Composite B v2 carried unknowingly. Worth flagging in the paper's data-quality section.

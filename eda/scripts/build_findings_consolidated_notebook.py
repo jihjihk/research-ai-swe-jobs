@@ -974,6 +974,140 @@ def build() -> nbf.NotebookNode:
         "sensitivity here."
     ))
 
+    # ----- Article B · Panel 3 · sub-section E: inside the AI cohort
+    # Probe script: eda/scripts/composite_B_v3_ai_subcluster_probe.py
+    # Findings memo section: "Inside the AI cohort" in composite_B_v3_findings.md
+    cells.append(md(
+        "#### E. Inside the AI cohort — one vertical splinter, no "
+        "horizontal split yet\n\n"
+        "A natural follow-up question sits inside Panel 3's main finding: "
+        "the AI-coded sub-cohort of the Data + AI/ML cluster grew 8.5× "
+        "(520 → 4,447 postings). Is that surge already differentiating "
+        "into sub-roles — the way web development split into frontend, "
+        "backend, fullstack, and distributed systems over roughly fifteen "
+        "years — or is 'AI engineer' still one undifferentiated job in "
+        "2026?\n\n"
+        "We ran a focused probe on the AI-coded subset alone "
+        "(`eda/scripts/composite_B_v3_ai_subcluster_probe.py`). Four "
+        "validity tests, in the order they should be trusted:"
+    ))
+
+    cells.append(md(
+        "**How we tested for a split.**\n\n"
+        "1. **Density separation.** Re-fit UMAP (5D) on only the 4,967 "
+        "AI-coded postings, then sweep HDBSCAN across "
+        "`min_cluster_size ∈ {10, 20, 40, 80}`. The concern: a single "
+        "setting that happens to produce clusters can be a random "
+        "artifact. Cross-scale agreement — the same structure found at "
+        "multiple resolutions — is the real signal.\n"
+        "2. **Silhouette score** on the 5D coordinates. Below 0.25 "
+        "means points inside a cluster aren't meaningfully closer to "
+        "each other than to points in other clusters; above 0.5 would "
+        "indicate clean separation.\n"
+        "3. **Inter-centroid vs. intra-cluster ratio** in the original "
+        "384-dimensional embedding space, using cosine distance. If the "
+        "ratio is well above 1, cluster centroids are distinctly further "
+        "apart than typical within-cluster neighbours — real separation. "
+        "A ratio near 1 means the 'clusters' are overlapping "
+        "neighbourhoods rather than distinct regions.\n"
+        "4. **Seed stability.** Refit at UMAP seeds 42, 1337, and 2026; "
+        "compute pairwise adjusted Rand index. A genuine role structure "
+        "should survive seed changes; ARI below about 0.3 means the "
+        "partition is an initialisation artifact."
+    ))
+
+    cells.append(md(
+        "**What the tests say.**"
+    ))
+    cells.append(code(
+        "import json, pandas as pd\n"
+        "sweep   = pd.read_csv('eda/tables/composite_B_v3llm_ai_subcluster_sweep.csv')\n"
+        "metrics = pd.read_csv('eda/tables/composite_B_v3llm_ai_subcluster_metrics.csv')\n"
+        "theme   = pd.read_csv('eda/tables/composite_B_v3llm_ai_theme_growth.csv')\n"
+        "print('Density sweep (cluster counts stable at 2 across coarse settings):')\n"
+        "print(sweep.to_string(index=False))\n"
+        "print()\n"
+        "print('Separation + stability metrics:')\n"
+        "m = metrics.iloc[0]\n"
+        "print(f\"  silhouette (5D)                   = {m['silhouette_5d']:.3f}\")\n"
+        "print(f\"  inter/intra ratio (384D cosine)   = {m['inter_intra_ratio_384d']:.3f}\")\n"
+        "print(f\"  ARI seed 42 vs 1337               = {m['ari_42_vs_1337']:.3f}\")\n"
+        "print(f\"  ARI seed 42 vs 2026               = {m['ari_42_vs_2026']:.3f}\")\n"
+        "print(f\"  ARI seed 1337 vs 2026             = {m['ari_1337_vs_2026']:.3f}\")\n"
+        "print(f\"  ARI mean                          = {m['ari_mean']:.3f}\")"
+    ))
+
+    cells.append(md(
+        "**Reading the numbers.** The density sweep finds two stable "
+        "clusters — a small island of about 250 postings and one "
+        "large blob of about 4,600 — at `min_cluster_size` 20, 40, and "
+        "80. At the finer setting (mcs = 10) the algorithm produces 63 "
+        "fragments with over half the points unassigned; that level of "
+        "fragmentation indicates the finer pockets the algorithm is "
+        "finding are too small to trust as role categories.\n\n"
+        "The silhouette score of 0.27 is weak; the inter-centroid to "
+        "intra-cluster ratio of 0.68 is a red flag — it means that "
+        "distances between a point and its nearest neighbour within the "
+        "main blob are typically *larger* than the distance between the "
+        "blob's centroid and the island's centroid. The blob is so "
+        "heterogeneous that it doesn't have a meaningful centre. "
+        "Seed stability is bimodal: two of the three seeds agree "
+        "almost perfectly (ARI 0.96); the third fragments into eighteen "
+        "clusters and recovers none of the structure. Taken together, "
+        "the 2-cluster finding is real but fragile, sitting right at "
+        "HDBSCAN's detection threshold rather than revealing obvious "
+        "role categories."
+    ))
+
+    cells.append(md(
+        "**What the geometry does separate: a healthcare island.** "
+        "At the stable settings, one cluster separates cleanly from the "
+        "rest of the AI cohort. Top firms in it are BioSpace, Optum, "
+        "Genentech, CVS Health, GE HealthCare, WHOOP, and MD Anderson; "
+        "top distinctive terms are *clinical*, *healthcare*, *medical*, "
+        "*biology*, *patient*, and *discovery*. This is a "
+        "**vertical** specialisation — a domain — not a **horizontal** "
+        "one (a technical role). The embedding separates it because the "
+        "healthcare vocabulary dominates the text. It grew 34 → 219 "
+        "postings (6.4×) between 2024 and 2026, roughly in line with "
+        "the overall AI-cohort growth rate.\n\n"
+        "**What the geometry does not separate, but the vocabulary "
+        "does.** This is the striking finding. If we force fragmentation "
+        "(mcs = 10) and then aggregate the 63 micro-clusters by regex "
+        "theme, the growth rates inside the AI cohort spread "
+        "dramatically:"
+    ))
+    cells.append(code(
+        "theme_display = theme.copy()\n"
+        "theme_display = theme_display[theme_display['theme'] != 'noise']\n"
+        "theme_display = theme_display.sort_values('growth_ratio', ascending=False)\n"
+        "theme_display"
+    ))
+
+    cells.append(md(
+        "Inside a cohort that grew 8.5× overall, **LLM / agents / RAG / "
+        "agentic infrastructure grew fifty times** — from 11 postings in "
+        "2024 to over 550 in 2026. Foundation-model research grew only "
+        "5×; ML ops grew 6×; classical data science grew 11×. The "
+        "composition inside 'AI engineer' has tilted hard toward "
+        "agents-and-LLM infrastructure. But the job descriptions write "
+        "that content in language overlapping with generic AI-engineer "
+        "postings — Python, cloud, deployment — so the embedding places "
+        "them in the same neighbourhood as non-agent ML work. The "
+        "vocabulary split is real; the geometric split is not.\n\n"
+        "**Verdict.** Internal specialisation is emerging but not yet "
+        "crystallised. In 2026, 'AI engineer' is still mostly one "
+        "undifferentiated job at the embedding level, with two "
+        "qualifications: a domain-specific healthcare / biotech pocket "
+        "that the method isolates cleanly, and a vocabulary-level surge "
+        "in LLM and agent language within the otherwise-continuous blob. "
+        "If AI engineering is going to split the way web development "
+        "did, we would expect ARI ≥ 0.8 and centroid ratio ≥ 3 across "
+        "multiple scales on a future re-run. We see 0.35 and 0.68. This "
+        "is a 'watch next year' finding, not a 'the split has already "
+        "happened' finding."
+    ))
+
     cells.append(md(
         "### Methods footnote — Article B\n\n"
         "**Panels 1 and 2 (v2).** BERTopic was fit on `description_core_llm` "
