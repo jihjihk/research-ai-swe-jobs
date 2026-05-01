@@ -66,9 +66,9 @@ The machine has a 31 GB RAM limit. The primary analysis file (`data/unified.parq
 
 ### Start with `data/unified_core.parquet`
 
-A curated **core file** has been produced: **`/home/jihgaboot/gabor/job-research/data/unified_core.parquet`** (193 MB, 110,000 rows, 42 columns). It contains the most-used columns across all 38 task reports: identity, source, period, title, description, description_core_llm, description_length, company fields (effective + canonical + aggregator flag + industry + size), SWE / seniority / YOE fields, location / metro / remote fields, quality flags, LLM coverage flags, and ghost assessment.
+A curated **core file** is at **`/home/jihgaboot/gabor/job-research/data/unified_core.parquet`**. It is the intersection of the Stage 9 balanced core frame and rows with a confirmed cohort label (LLM-SWE or rule-control); see `docs/preprocessing-schema.md` for the exact row filter and column list. The column set covers identity, source, period, title, description / description_core_llm, company fields, SWE / seniority / YOE fields, location / metro / remote fields, quality flags, and LLM-coverage booleans. The SWE column in this file (`is_swe`) is the LLM combined verdict, not the Stage 5 narrow rule column.
 
-**Start all ad-hoc queries here.** Switch to `unified.parquet` only when you need columns not present in the core file (e.g., search metadata, `skills_raw`, Stage 5 YOE provenance, pipeline lineage fields). Row counts may differ — the core is a curated subset; if you need a full-population count, query `unified.parquet`.
+**Start all ad-hoc queries here.** Switch to `unified.parquet` only when you need columns not present in the core file (e.g., search metadata, `skills_raw`, Stage 5 YOE provenance, the rule-based narrow `is_swe`/`is_swe_adjacent` columns, pipeline lineage fields). Row counts differ — the core is a curated subset; if you need a full-population count, query `unified.parquet`.
 
 ### Read the schema before querying
 
@@ -335,7 +335,7 @@ You are free to propose different angles, combine these, or discard all of them 
 
 You work in rounds. Each round has a research phase (delegate to investigators), a drafting phase (you write), and a verification phase (delegate to fact-checkers and a critic). Pipeline the rounds — do not serialize.
 
-1. **Read the evidence body in the order above.** Take notes as you go. Look for: direction reversals, numbers that contradict intuition, rejections of plausible hypotheses, findings that evolved across waves, findings the authors under-sell. Also: read `docs/preprocessing-schema.md` before running any query; confirm `data/unified_core.parquet` is your starting point (193 MB, 110,000 rows).
+1. **Read the evidence body in the order above.** Take notes as you go. Look for: direction reversals, numbers that contradict intuition, rejections of plausible hypotheses, findings that evolved across waves, findings the authors under-sell. Also: read `docs/preprocessing-schema.md` before running any query; confirm `data/unified_core.parquet` is your starting point (the analysis-ready cohort-confirmed subset).
 
 2. **Identify 10-15 candidate angles.** For each, jot down: the core surprising claim, the specific numbers anchoring it, the conventional wisdom it challenges, and which segmentations (firm-type, geographic, archetype, etc.) the piece needs.
 

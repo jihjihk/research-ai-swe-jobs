@@ -149,12 +149,14 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
         is_swe=True,
         is_control=False,
         is_swe_adjacent=False,
+        analysis_group="swe_combined",
         seniority_final="entry",
         seniority_final_source="llm",
         is_aggregator=False,
         date_flag="ok",
         is_english=True,
         ghost_job_risk="low",
+        ghost_assessment_llm="realistic",
     )
     unified_rows.to_parquet(stage10_integrated, index=False)
 

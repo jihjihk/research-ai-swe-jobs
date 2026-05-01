@@ -305,6 +305,7 @@ def test_build_results_row_maps_classification_payload():
     assert out["classification_input_hash"] == "hash-a"
     assert out["classification_row_count"] == 2
     assert out["swe_classification_llm"] == "SWE"
+    assert out["is_swe_combined_llm"] is True
     # Seniority is no longer surfaced as a separate seniority_llm column;
     # the LLM seniority value lives in the cached classification payload and
     # is integrated into seniority_final by integrate_chunk.
@@ -656,7 +657,7 @@ def test_run_stage10_reuses_current_prompt_cache_for_supplemental_rows_outside_c
     integrated_path = tmp_path / "stage10_integrated.parquet"
     stage10.run_stage10(
         llm_budget=0,
-        llm_budget_split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        llm_budget_split={"swe_combined": 1.0, "control": 0.0},
         input_path=input_path,
         results_path=results_path,
         integrated_path=integrated_path,
@@ -721,7 +722,7 @@ def test_run_stage10_gates_supplemental_cache_reuse_on_prompt_version(tmp_path):
     integrated_path = tmp_path / "stage10_integrated.parquet"
     stage10.run_stage10(
         llm_budget=0,
-        llm_budget_split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        llm_budget_split={"swe_combined": 1.0, "control": 0.0},
         input_path=input_path,
         results_path=results_path,
         integrated_path=integrated_path,
@@ -836,8 +837,8 @@ def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, 
     monkeypatch.setattr(stage10, "select_fresh_call_tasks", fake_select_fresh_call_tasks)
 
     stage10.run_stage10(
-        llm_budget=6,
-        llm_budget_split={"swe": 0.5, "swe_adjacent": 0.3, "control": 0.2},
+        llm_budget=10,
+        llm_budget_split={"swe_combined": 0.7, "control": 0.3},
         input_path=input_path,
         results_path=tmp_path / "stage10_results.parquet",
         integrated_path=tmp_path / "stage10_integrated.parquet",
@@ -848,8 +849,10 @@ def test_run_stage10_applies_budget_split_before_fresh_task_selection(tmp_path, 
         enabled_engines=("codex",),
     )
 
+    # 5 swe_combined uncached (3 SWE + 2 SWE-adjacent), 1 control uncached.
+    # 70% of 10 = 7 → capped at 5; surplus cascades to control. Control gets
+    # the remaining 5 budget but is capped at its capacity of 1.
     assert calls == [
-        {"groups": ("swe",), "llm_budget": 3, "count": 3},
-        {"groups": ("swe_adjacent",), "llm_budget": 2, "count": 2},
+        {"groups": ("swe_combined",), "llm_budget": 5, "count": 5},
         {"groups": ("control",), "llm_budget": 1, "count": 1},
     ]

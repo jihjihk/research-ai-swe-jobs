@@ -1109,12 +1109,13 @@ def ensure_cache_schema(conn: sqlite3.Connection) -> None:
 # Budget-constrained LLM selection
 # ---------------------------------------------------------------------------
 # Stages 9/10 accept a --llm-budget that caps NEW LLM calls across all data.
-# The budget is split across SWE / SWE-adjacent / control categories, then
-# balanced across sources by absolute labeled counts. Scraped rows are further
-# water-filled across scrape_date buckets so budget flows to thin days first.
-BUDGET_CATEGORIES = ("swe", "swe_adjacent", "control")
-DEFAULT_BUDGET_SPLIT = "0.4,0.3,0.3"
-ANALYSIS_GROUP_PRIORITY = ("swe", "swe_adjacent", "control")
+# The budget is split across the combined-SWE (SWE union SWE-adjacent) and
+# control cohorts, then balanced across sources by absolute labeled counts.
+# Scraped rows are further water-filled across scrape_date buckets so budget
+# flows to thin days first.
+BUDGET_CATEGORIES = ("swe_combined", "control")
+DEFAULT_BUDGET_SPLIT = "0.7,0.3"
+ANALYSIS_GROUP_PRIORITY = ("swe_combined", "control")
 CORE_FRAME_MANIFEST_VERSION = 1
 
 
@@ -1309,9 +1310,9 @@ def select_rows_by_budget(
 
 
 def parse_budget_split(raw: str) -> dict[str, float]:
-    """Parse a comma-separated split like '0.4,0.3,0.3' into BUDGET_CATEGORIES.
+    """Parse a comma-separated split like '0.7,0.3' into BUDGET_CATEGORIES.
 
-    Values are normalized to sum to 1.0, so inputs like '40,30,30' also work.
+    Values are normalized to sum to 1.0, so inputs like '70,30' also work.
     """
     parts = [p.strip() for p in raw.split(",") if p.strip()]
     if len(parts) != len(BUDGET_CATEGORIES):
@@ -1334,14 +1335,13 @@ def parse_budget_split(raw: str) -> dict[str, float]:
 def categorize_budget_candidate(row: dict) -> str | None:
     """Assign a candidate to one of BUDGET_CATEGORIES.
 
-    Priority: SWE > SWE-adjacent > control. Returns None if the row matches
-    none of the three flags (should not happen for routed candidates).
+    Priority: combined-SWE (is_swe or is_swe_adjacent) > control. Returns None
+    if the row matches none of the flags (should not happen for routed
+    candidates).
     """
-    if bool(row.get("is_swe")):
-        return "swe"
-    if bool(row.get("is_swe_adjacent")):
-        return "swe_adjacent"
-    if bool(row.get("selected_for_control_cohort")):
+    if bool(row.get("is_swe")) or bool(row.get("is_swe_adjacent")):
+        return "swe_combined"
+    if bool(row.get("is_control")) or bool(row.get("selected_for_control_cohort")):
         return "control"
     return None
 
@@ -1357,23 +1357,20 @@ def log_budget_plan(
 ) -> None:
     """Emit the budget/allocation summary before LLM calls start."""
     log.info(
-        "Budget plan | budget=%s | split=swe:%.2f/adj:%.2f/ctrl:%.2f",
+        "Budget plan | budget=%s | split=swe_combined:%.2f/ctrl:%.2f",
         f"{budget:,}",
-        split.get("swe", 0.0),
-        split.get("swe_adjacent", 0.0),
+        split.get("swe_combined", 0.0),
         split.get("control", 0.0),
     )
     log.info(
-        "Uncached | swe=%s | swe_adjacent=%s | control=%s | total=%s",
-        f"{uncached_per_category.get('swe', 0):,}",
-        f"{uncached_per_category.get('swe_adjacent', 0):,}",
+        "Uncached | swe_combined=%s | control=%s | total=%s",
+        f"{uncached_per_category.get('swe_combined', 0):,}",
         f"{uncached_per_category.get('control', 0):,}",
         f"{sum(uncached_per_category.values()):,}",
     )
     log.info(
-        "Allocation | swe=%s | swe_adjacent=%s | control=%s | total=%s",
-        f"{category_allocation.get('swe', 0):,}",
-        f"{category_allocation.get('swe_adjacent', 0):,}",
+        "Allocation | swe_combined=%s | control=%s | total=%s",
+        f"{category_allocation.get('swe_combined', 0):,}",
         f"{category_allocation.get('control', 0):,}",
         f"{sum(category_allocation.values()):,}",
     )
@@ -1390,8 +1387,8 @@ def select_rows_with_budget(
 ) -> tuple[list[dict], dict[str, int], dict[str, int]]:
     """Budget-constrained selection of candidate rows, two-level allocation.
 
-    Level 1: split the budget across categories (40/30/30 by default), with
-    surplus from capped categories cascading to others.
+    Level 1: split the budget across categories (70/30 swe_combined/control by
+    default), with surplus from capped categories cascading to others.
     Level 2: water-fill each category's allocation across scrape_date buckets.
 
     Each uncached candidate is normalized (scrape_date coerced to string) so
@@ -1480,11 +1477,13 @@ def select_rows_with_budget(
 
 
 def derive_analysis_group(row: dict | pd.Series) -> str | None:
-    """Collapse the existing booleans into one three-way analysis group."""
-    if bool(row.get("is_swe")):
-        return "swe"
-    if bool(row.get("is_swe_adjacent")):
-        return "swe_adjacent"
+    """Collapse the Stage 5 booleans into the two-way analysis group.
+
+    Returns "swe_combined" when either is_swe or is_swe_adjacent fires,
+    "control" for control rows, and None for rows outside the analysis frame.
+    """
+    if bool(row.get("is_swe")) or bool(row.get("is_swe_adjacent")):
+        return "swe_combined"
     if bool(row.get("is_control")) or bool(row.get("selected_for_control_cohort")):
         return "control"
     return None
@@ -1509,13 +1508,11 @@ def _selection_group_cycle(groups: tuple[str, ...]) -> list[str]:
 
     The exact remainder is small (< number of source x group cells), so a short
     deterministic cycle is enough and easier to reason about than a more
-    general weighted allocator.
+    general weighted allocator. Cycle weights mirror the 70/30 budget split.
     """
     cycle: list[str] = []
-    if "swe" in groups:
-        cycle.extend(["swe", "swe"])
-    if "swe_adjacent" in groups:
-        cycle.append("swe_adjacent")
+    if "swe_combined" in groups:
+        cycle.extend(["swe_combined", "swe_combined"])
     if "control" in groups:
         cycle.append("control")
     return cycle or list(groups)
@@ -1653,22 +1650,32 @@ def write_core_frame_manifest(
 def select_task_frame(
     candidates: list[dict],
     *,
-    selection_target: int,
+    selection_target: int = 0,
+    selection_targets: dict[str, int] | None = None,
     hash_key: str,
     groups: tuple[str, ...] = BUDGET_CATEGORIES,
 ) -> tuple[list[dict], dict[str, object]]:
     """Select a deterministic task frame across source x group x date.
 
+    Pass `selection_target` (int) for an even split across groups, or
+    `selection_targets` (dict[group → int]) to set per-group targets directly.
+    When both are provided, `selection_targets` wins.
+
     Selection is independent of cache and fresh-call budget. Cache and budget
     should be applied later as resolution methods over the selected frame.
     """
+    if selection_targets is not None:
+        effective_target = int(sum(selection_targets.values()))
+    else:
+        effective_target = int(selection_target)
+
     normalized = normalize_frame_candidates(candidates, hash_key=hash_key)
-    if selection_target <= 0 or not normalized:
+    if effective_target <= 0 or not normalized:
         return [], {
-            "selection_target": int(selection_target),
+            "selection_target": effective_target,
             "candidate_count": int(len(normalized)),
             "selected_count": 0,
-            "unfilled_count": int(max(selection_target, 0)),
+            "unfilled_count": max(effective_target, 0),
             "source_group_targets": {},
             "cell_targets": {},
         }
@@ -1682,21 +1689,37 @@ def select_task_frame(
         cell_rows.setdefault(cell, []).append(row)
         source_group_capacities[(row["source"], row["analysis_group"])] += 1
 
-    total_cells = len(source_group_cells) or 1
-    base = selection_target // total_cells
-    remainder = selection_target % total_cells
-    initial_targets = {cell: base for cell in source_group_cells}
+    if selection_targets is not None:
+        # Per-group: spread each group's target evenly across its sources.
+        initial_targets = {cell: 0 for cell in source_group_cells}
+        for group in groups:
+            group_target = int(selection_targets.get(group, 0))
+            if group_target <= 0:
+                continue
+            sources_with_capacity = [s for s in sources if source_group_capacities[(s, group)] > 0]
+            if not sources_with_capacity:
+                continue
+            base = group_target // len(sources_with_capacity)
+            remainder = group_target % len(sources_with_capacity)
+            for idx, source in enumerate(sources_with_capacity):
+                initial_targets[(source, group)] = base + (1 if idx < remainder else 0)
+    else:
+        # Even split across all (source, group) cells with weighted remainder.
+        total_cells = len(source_group_cells) or 1
+        base = effective_target // total_cells
+        remainder = effective_target % total_cells
+        initial_targets = {cell: base for cell in source_group_cells}
 
-    remainder_cycle = _selection_group_cycle(groups)
-    cycle_index = 0
-    while remainder > 0 and remainder_cycle:
-        group = remainder_cycle[cycle_index % len(remainder_cycle)]
-        for source in sources:
-            initial_targets[(source, group)] += 1
-            remainder -= 1
-            if remainder == 0:
-                break
-        cycle_index += 1
+        remainder_cycle = _selection_group_cycle(groups)
+        cycle_index = 0
+        while remainder > 0 and remainder_cycle:
+            group = remainder_cycle[cycle_index % len(remainder_cycle)]
+            for source in sources:
+                initial_targets[(source, group)] += 1
+                remainder -= 1
+                if remainder == 0:
+                    break
+            cycle_index += 1
 
     source_group_targets = _rebalance_source_group_targets(
         initial_targets=initial_targets,
@@ -1730,10 +1753,10 @@ def select_task_frame(
         selected.extend(scored_rows[:target])
 
     summary = {
-        "selection_target": int(selection_target),
+        "selection_target": effective_target,
         "candidate_count": int(len(normalized)),
         "selected_count": int(len(selected)),
-        "unfilled_count": int(max(selection_target - len(selected), 0)),
+        "unfilled_count": int(max(effective_target - len(selected), 0)),
         "source_group_targets": {
             f"{source}|{group}": int(target)
             for (source, group), target in source_group_targets.items()
@@ -1751,7 +1774,8 @@ def select_task_frame(
 def select_sticky_task_frame(
     candidates: list[dict],
     *,
-    selection_target: int,
+    selection_target: int = 0,
+    selection_targets: dict[str, int] | None = None,
     hash_key: str,
     manifest_path: Path,
     groups: tuple[str, ...] = BUDGET_CATEGORIES,
@@ -1778,27 +1802,50 @@ def select_sticky_task_frame(
     retained_rows = [eligible_by_hash[hash_value] for hash_value in retained_hashes]
 
     retained_hash_set = set(retained_hashes)
-    top_up_rows, top_up_summary = select_task_frame(
-        [
-            row
-            for hash_value, row in eligible_by_hash.items()
-            if hash_value not in retained_hash_set
-        ],
-        selection_target=max(int(selection_target) - len(retained_rows), 0),
-        hash_key=hash_key,
-        groups=groups,
-    )
+    if selection_targets is not None:
+        effective_target = int(sum(selection_targets.values()))
+        retained_by_group: dict[str, int] = {group: 0 for group in groups}
+        for row in retained_rows:
+            group = row.get("analysis_group")
+            if group in retained_by_group:
+                retained_by_group[group] += 1
+        top_up_targets = {
+            group: max(int(selection_targets.get(group, 0)) - retained_by_group[group], 0)
+            for group in groups
+        }
+        top_up_rows, top_up_summary = select_task_frame(
+            [
+                row
+                for hash_value, row in eligible_by_hash.items()
+                if hash_value not in retained_hash_set
+            ],
+            selection_targets=top_up_targets,
+            hash_key=hash_key,
+            groups=groups,
+        )
+    else:
+        effective_target = int(selection_target)
+        top_up_rows, top_up_summary = select_task_frame(
+            [
+                row
+                for hash_value, row in eligible_by_hash.items()
+                if hash_value not in retained_hash_set
+            ],
+            selection_target=max(effective_target - len(retained_rows), 0),
+            hash_key=hash_key,
+            groups=groups,
+        )
 
     selected_rows = retained_rows + top_up_rows
     selected_hashes = [str(row["_selection_hash"]) for row in selected_rows]
 
     summary = {
-        "selection_target": int(selection_target),
+        "selection_target": effective_target,
         "candidate_count": int(len(eligible_by_hash)),
         "selected_count": int(len(selected_rows)),
         "retained_count": int(len(retained_rows)),
         "top_up_count": int(len(top_up_rows)),
-        "unfilled_count": int(max(selection_target - len(selected_rows), 0)),
+        "unfilled_count": int(max(effective_target - len(selected_rows), 0)),
         "reset": bool(reset),
         "manifest_selected_count": int(len(manifest.get("selected_hashes", []))),
         "manifest_retained_count": int(len(retained_rows)),

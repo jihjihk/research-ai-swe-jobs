@@ -470,8 +470,7 @@ def summarize_stage9_routing(
         "routed_rows": int(reason_counts.get("routed", 0)),
         "not_selected_rows": int(reason_counts.get("not_selected", 0)),
         "unique_tasks": unique_task_count,
-        "swe_tasks": int(analysis_group_counts.get("swe", 0)),
-        "swe_adjacent_tasks": int(analysis_group_counts.get("swe_adjacent", 0)),
+        "swe_combined_tasks": int(analysis_group_counts.get("swe_combined", 0)),
         "control_tasks": int(analysis_group_counts.get("control", 0)),
         "duplicate_rows_collapsed": int(routed_row_count - unique_task_count),
         "cached_tasks": int(cached_task_count),
@@ -494,13 +493,12 @@ def log_stage9_plan(log: logging.Logger, summary: dict[str, int], *, max_workers
         f"{summary['control_scope_rows']:,}",
     )
     log.info(
-        "Extraction volume | routed_rows=%s | short_skips=%s | not_selected=%s | unique_tasks=%s | swe_tasks=%s | swe_adjacent_tasks=%s | control_tasks=%s | deduped_rows=%s",
+        "Extraction volume | routed_rows=%s | short_skips=%s | not_selected=%s | unique_tasks=%s | swe_combined_tasks=%s | control_tasks=%s | deduped_rows=%s",
         f"{summary['routed_rows']:,}",
         f"{summary['short_skip_rows']:,}",
         f"{summary['not_selected_rows']:,}",
         f"{summary['unique_tasks']:,}",
-        f"{summary['swe_tasks']:,}",
-        f"{summary['swe_adjacent_tasks']:,}",
+        f"{summary['swe_combined_tasks']:,}",
         f"{summary['control_tasks']:,}",
         f"{summary['duplicate_rows_collapsed']:,}",
     )
@@ -582,6 +580,7 @@ def run_stage9(
     llm_budget: int,
     llm_budget_split: dict[str, float],
     selection_target: int | None = None,
+    selection_targets: dict[str, int] | None = None,
     input_path: Path = DEFAULT_INPUT_PATH,
     candidates_path: Path = DEFAULT_CANDIDATES_PATH,
     results_path: Path = DEFAULT_RESULTS_PATH,
@@ -606,6 +605,10 @@ def run_stage9(
         raise ValueError(f"llm_budget must be >= 0, got {llm_budget}")
     if selection_target is not None and selection_target < 0:
         raise ValueError(f"selection_target must be >= 0, got {selection_target}")
+    if selection_targets is not None:
+        bad = {g: v for g, v in selection_targets.items() if v < 0}
+        if bad:
+            raise ValueError(f"selection_targets values must be >= 0, got {bad}")
     log = configure_logging()
     t0 = time.time()
     runtime = LLMEngineRuntime(
@@ -643,10 +646,14 @@ def run_stage9(
 
     # ---- Pass 2: build candidate records (streams from parquet again)
     candidate_rows = build_candidate_records(input_path)
-    effective_selection_target = llm_budget if selection_target is None else selection_target
+    if selection_targets is not None:
+        effective_selection_target = int(sum(selection_targets.values()))
+    else:
+        effective_selection_target = llm_budget if selection_target is None else selection_target
     selected_rows, selection_summary = select_sticky_task_frame(
         candidate_rows,
-        selection_target=effective_selection_target,
+        selection_target=effective_selection_target if selection_targets is None else 0,
+        selection_targets=selection_targets,
         hash_key="extraction_input_hash",
         manifest_path=core_frame_manifest_path,
         groups=ANALYSIS_GROUP_PRIORITY,
@@ -671,9 +678,8 @@ def run_stage9(
         if str(row["extraction_input_hash"]) not in preexisting_core_cached_hashes
     ]
     uncached_per_category = {
-        "swe": sum(1 for row in fresh_candidates if row.get("analysis_group") == "swe"),
-        "swe_adjacent": sum(1 for row in fresh_candidates if row.get("analysis_group") == "swe_adjacent"),
-        "control": sum(1 for row in fresh_candidates if row.get("analysis_group") == "control"),
+        group: sum(1 for row in fresh_candidates if row.get("analysis_group") == group)
+        for group in ANALYSIS_GROUP_PRIORITY
     }
     category_targets = split_budget_by_category(llm_budget, uncached_per_category, llm_budget_split)
     rows_to_process = []
@@ -689,9 +695,8 @@ def run_stage9(
         )
         rows_to_process.extend(selected_group_rows)
     category_allocation = {
-        "swe": sum(1 for row in rows_to_process if row.get("analysis_group") == "swe"),
-        "swe_adjacent": sum(1 for row in rows_to_process if row.get("analysis_group") == "swe_adjacent"),
-        "control": sum(1 for row in rows_to_process if row.get("analysis_group") == "control"),
+        group: sum(1 for row in rows_to_process if row.get("analysis_group") == group)
+        for group in ANALYSIS_GROUP_PRIORITY
     }
     deferred = len(fresh_candidates) - len(rows_to_process)
 
@@ -955,7 +960,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_BUDGET_SPLIT,
         help=(
             "Fractional split of the fresh-call budget across categories: "
-            "swe,swe_adjacent,control. Default '0.4,0.3,0.3'."
+            "swe_combined,control. Default '0.7,0.3'."
         ),
     )
     parser.add_argument(
@@ -963,8 +968,18 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help=(
-            "Minimum unique-task size for the persisted Stage 9 core frame. "
-            "Defaults to llm-budget when omitted."
+            "Minimum unique-task size for the persisted Stage 9 core frame, "
+            "split evenly across analysis groups. Defaults to llm-budget when "
+            "omitted. Mutually exclusive with --selection-targets."
+        ),
+    )
+    parser.add_argument(
+        "--selection-targets",
+        type=str,
+        default=None,
+        help=(
+            "Per-group selection targets, e.g. 'swe_combined=75000,control=55000'. "
+            "Overrides --selection-target when provided."
         ),
     )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT_PATH)
@@ -997,10 +1012,22 @@ if __name__ == "__main__":
     enabled_engines = parse_engine_list(args.engines)
     if args.remote and "openai" in enabled_engines:
         raise SystemExit("--remote is not supported when using the openai engine")
+    parsed_selection_targets: dict[str, int] | None = None
+    if args.selection_targets:
+        parsed_selection_targets = {}
+        for piece in args.selection_targets.split(","):
+            piece = piece.strip()
+            if not piece:
+                continue
+            if "=" not in piece:
+                raise SystemExit(f"--selection-targets entry must be 'group=N': {piece!r}")
+            key, value = piece.split("=", 1)
+            parsed_selection_targets[key.strip()] = int(value.strip())
     run_stage9(
         llm_budget=args.llm_budget,
         llm_budget_split=parse_budget_split(args.llm_budget_split),
         selection_target=args.selection_target,
+        selection_targets=parsed_selection_targets,
         input_path=args.input,
         candidates_path=args.candidates_output,
         results_path=args.results_output,

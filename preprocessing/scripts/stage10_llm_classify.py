@@ -257,6 +257,11 @@ def build_results_row(row_meta: dict, classification_input_hash: str, classifica
             else float(classification_cached["tokens_used"])
         ),
         "swe_classification_llm": payload.get("swe_classification"),
+        "is_swe_combined_llm": (
+            None
+            if payload.get("swe_classification") is None
+            else payload.get("swe_classification") in ("SWE", "SWE_ADJACENT")
+        ),
         "ghost_assessment_llm": payload.get("ghost_assessment"),
         "yoe_min_years_llm": payload.get("yoe_min_years"),
     }
@@ -295,6 +300,14 @@ def integrate_chunk(
         prompt_values.append(None if cached is None else cached["prompt_version"])
 
     out["swe_classification_llm"] = swe_values
+    out["is_swe_combined_llm"] = pd.Series(
+        [
+            None if value is None else (value in ("SWE", "SWE_ADJACENT"))
+            for value in swe_values
+        ],
+        index=out.index,
+        dtype="boolean",
+    )
     out["ghost_assessment_llm"] = ghost_values
     out["yoe_min_years_llm"] = pd.Series(yoe_values, dtype="Int64")
     out["llm_model_classification"] = model_values
@@ -410,18 +423,14 @@ def log_stage10_selection_debug(
     rows_to_process: list[dict],
     deferred: int,
 ) -> None:
-    core_by_group = Counter(
-        "swe" if row.get("is_swe") else "swe_adjacent" if row.get("is_swe_adjacent") else "control"
-        for row in candidate_rows
-    )
-    supplemental_by_group = Counter(
-        "swe" if row.get("is_swe") else "swe_adjacent" if row.get("is_swe_adjacent") else "control"
-        for row in supplemental_candidate_rows
-    )
-    fresh_by_group = Counter(
-        "swe" if row.get("is_swe") else "swe_adjacent" if row.get("is_swe_adjacent") else "control"
-        for row in fresh_candidates
-    )
+    def _group(row: dict) -> str:
+        if row.get("is_swe") or row.get("is_swe_adjacent"):
+            return "swe_combined"
+        return "control"
+
+    core_by_group = Counter(_group(row) for row in candidate_rows)
+    supplemental_by_group = Counter(_group(row) for row in supplemental_candidate_rows)
+    fresh_by_group = Counter(_group(row) for row in fresh_candidates)
     log.info(
         "Frame inheritance | core_tasks=%s | core_cached=%s | supplemental_candidates=%s | supplemental_cached=%s",
         f"{len(candidate_rows):,}",
@@ -439,7 +448,7 @@ def log_stage10_selection_debug(
         _format_top_counts(
             dict(
                 Counter(
-                    "swe" if row.get("is_swe") else "swe_adjacent" if row.get("is_swe_adjacent") else "control"
+                    _group(row)
                     for row in supplemental_candidate_rows
                     if str(row.get("classification_input_hash")) in supplemental_cached_rows
                 )
@@ -621,22 +630,20 @@ def run_stage10(
         row for row in candidate_rows
         if str(row["classification_input_hash"]) not in cached_hash_set
     ]
+
+    def _row_group(row: dict) -> str:
+        if row.get("is_swe") or row.get("is_swe_adjacent"):
+            return "swe_combined"
+        return "control"
+
     uncached_per_category = {
-        "swe": sum(1 for row in fresh_candidates if row.get("is_swe")),
-        "swe_adjacent": sum(1 for row in fresh_candidates if row.get("is_swe_adjacent")),
-        "control": sum(1 for row in fresh_candidates if row.get("is_control")),
+        group: sum(1 for row in fresh_candidates if _row_group(row) == group)
+        for group in ANALYSIS_GROUP_PRIORITY
     }
     category_targets = split_budget_by_category(llm_budget, uncached_per_category, llm_budget_split)
     rows_to_process = []
     for analysis_group in ANALYSIS_GROUP_PRIORITY:
-        group_rows = [
-            row for row in fresh_candidates
-            if (
-                (analysis_group == "swe" and row.get("is_swe"))
-                or (analysis_group == "swe_adjacent" and row.get("is_swe_adjacent"))
-                or (analysis_group == "control" and row.get("is_control"))
-            )
-        ]
+        group_rows = [row for row in fresh_candidates if _row_group(row) == analysis_group]
         if not group_rows:
             continue
         selected_group_rows, _fresh_summary = select_fresh_call_tasks(
@@ -647,9 +654,8 @@ def run_stage10(
         )
         rows_to_process.extend(selected_group_rows)
     category_allocation = {
-        "swe": sum(1 for row in rows_to_process if row.get("is_swe")),
-        "swe_adjacent": sum(1 for row in rows_to_process if row.get("is_swe_adjacent")),
-        "control": sum(1 for row in rows_to_process if row.get("is_control")),
+        group: sum(1 for row in rows_to_process if _row_group(row) == group)
+        for group in ANALYSIS_GROUP_PRIORITY
     }
     deferred = len(fresh_candidates) - len(rows_to_process)
 
@@ -822,7 +828,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_BUDGET_SPLIT,
         help=(
             "Fractional split of the budget across categories: "
-            "swe,swe_adjacent,control. Default '0.4,0.3,0.3'. Values are "
+            "swe_combined,control. Default '0.7,0.3'. Values are "
             "normalized to sum to 1.0."
         ),
     )

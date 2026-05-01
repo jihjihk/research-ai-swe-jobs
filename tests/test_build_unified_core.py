@@ -15,34 +15,29 @@ build_core_mod = load_module(
 )
 
 
-# Every non-CORE column we need to carry through the fixture so the row filter
-# and observations join have something to work with. Keep minimal.
-EXTRA_NON_CORE_COLS = ["selected_for_llm_frame"]
-
-
 def _typed_defaults() -> dict[str, object]:
-    """Concrete values for every CORE_COLUMNS field. Using non-null defaults
-    avoids pyarrow inferring all-null columns as ``pa.null()`` which trips up
-    the DuckDB filter. Fixture rows override whatever they care about.
+    """Concrete values for every source column the projection depends on.
+    Using non-null defaults avoids pyarrow inferring all-null columns as
+    ``pa.null()`` which trips up the DuckDB filter. Fixture rows override
+    whatever they care about.
     """
     str_cols = {
-        "uid", "source", "source_platform", "period", "date_posted", "scrape_date",
-        "title", "description", "description_core_llm", "company_name",
+        "uid", "source", "period", "date_posted", "scrape_date",
+        "title", "description", "description_core_llm",
         "company_name_effective", "company_name_canonical", "company_industry",
-        "analysis_group", "swe_classification_tier", "swe_classification_llm",
-        "seniority_final", "seniority_final_source", "seniority_3level",
+        "seniority_final", "seniority_final_source",
         "seniority_rule", "seniority_rule_source", "seniority_native",
         "location", "city_extracted", "state_normalized", "metro_area",
-        "date_flag", "ghost_job_risk", "ghost_assessment_llm",
+        "date_flag", "ghost_assessment_llm",
         "llm_extraction_coverage", "llm_classification_coverage",
     }
     bool_cols = {
-        "is_aggregator", "is_swe", "is_swe_adjacent", "is_control",
-        "is_remote_inferred", "is_multi_location", "is_english",
+        "is_aggregator", "is_swe_combined_llm", "is_control",
+        "is_remote_inferred", "is_multi_location",
     }
-    int_cols = {"description_length", "yoe_extracted", "yoe_min_years_llm", "company_size"}
+    int_cols = {"yoe_extracted", "yoe_min_years_llm", "company_size"}
     out: dict[str, object] = {}
-    for col in build_core_mod.CORE_COLUMNS:
+    for col in build_core_mod.SOURCE_COLUMNS_REQUIRED:
         if col in str_cols:
             out[col] = "x"
         elif col in bool_cols:
@@ -50,7 +45,7 @@ def _typed_defaults() -> dict[str, object]:
         elif col in int_cols:
             out[col] = 0
         else:
-            raise AssertionError(f"Unclassified CORE column in test defaults: {col}")
+            raise AssertionError(f"Unclassified source column in test defaults: {col}")
     return out
 
 
@@ -58,9 +53,7 @@ def _make_row(uid: str, *, selected: bool, **overrides) -> dict:
     row = _typed_defaults()
     row["uid"] = uid
     row["source"] = "kaggle_arshkon"
-    row["source_platform"] = "linkedin"
     row["scrape_date"] = "2024-01-15"
-    row["is_english"] = True
     row["date_flag"] = "ok"
     row.update(overrides)
     row["selected_for_llm_frame"] = selected
@@ -74,11 +67,14 @@ def _write_parquet(path: Path, rows: list[dict]) -> None:
 
 def _write_unified_and_obs(tmp_path: Path) -> tuple[Path, Path]:
     rows = [
-        _make_row("u1", selected=True, is_swe=True, analysis_group="swe"),
-        _make_row("u2", selected=True, is_control=True, analysis_group="control"),
-        _make_row("u3", selected=False, is_swe=True, analysis_group="swe"),  # dropped
-        _make_row("u4", selected=False, is_swe=True, analysis_group="swe"),  # dropped
-        _make_row("u5", selected=True, is_swe_adjacent=True, analysis_group="swe_adjacent"),
+        _make_row("u1", selected=True, is_swe_combined_llm=True),
+        _make_row("u2", selected=True, is_control=True),
+        _make_row("u3", selected=False, is_swe_combined_llm=True),  # not selected
+        _make_row("u4", selected=False, is_swe_combined_llm=True),  # not selected
+        _make_row("u5", selected=True, is_swe_combined_llm=True),
+        # In-frame but neither LLM-SWE nor rule-control (LLM rejected rule-SWE):
+        # must be dropped from unified_core under the new analysis-frame filter.
+        _make_row("u6", selected=True, is_swe_combined_llm=False, is_control=False),
     ]
     unified_path = tmp_path / "unified.parquet"
     _write_parquet(unified_path, rows)
@@ -104,15 +100,22 @@ def test_core_row_count_matches_filter(tmp_path):
 
     summary = build_core_mod.build_core(unified_path, obs_path, core_path, core_obs_path)
 
+    # Filter keeps selected_for_llm_frame rows that are LLM-SWE OR rule-control.
     expected = duckdb.execute(
-        f"SELECT count(*) FROM read_parquet('{unified_path}') WHERE selected_for_llm_frame = TRUE"
+        f"""
+        SELECT count(*) FROM read_parquet('{unified_path}')
+        WHERE selected_for_llm_frame = TRUE
+          AND (is_swe_combined_llm = TRUE OR is_control = TRUE)
+        """
     ).fetchone()[0]
     actual = duckdb.execute(
         f"SELECT count(*) FROM read_parquet('{core_path}')"
     ).fetchone()[0]
+    # u1, u2, u5 pass; u6 (in-frame but LLM-rejected rule-SWE) is dropped.
     assert actual == expected == 3
     assert summary["core_rows"] == actual
-    assert summary["row_filter"] == "selected_for_llm_frame = TRUE"
+    assert "selected_for_llm_frame = TRUE" in summary["row_filter"]
+    assert "is_swe_combined_llm = TRUE OR is_control = TRUE" in summary["row_filter"]
 
 
 @pytest.mark.unit
@@ -179,7 +182,7 @@ def test_build_core_raises_when_filter_column_missing(tmp_path):
 
 @pytest.mark.unit
 def test_build_core_raises_when_required_column_missing(tmp_path):
-    row = _make_row("u1", selected=True, is_swe=True, analysis_group="swe")
+    row = _make_row("u1", selected=True, is_swe_combined_llm=True)
     row.pop("description_core_llm")
     unified_path = tmp_path / "unified.parquet"
     _write_parquet(unified_path, [row])
@@ -198,7 +201,7 @@ def test_build_core_raises_when_required_column_missing(tmp_path):
 def test_has_core_filter_column(tmp_path):
     # With the column
     unified_with = tmp_path / "with.parquet"
-    _write_parquet(unified_with, [_make_row("u1", selected=True, is_swe=True, analysis_group="swe")])
+    _write_parquet(unified_with, [_make_row("u1", selected=True, is_swe_combined_llm=True)])
     assert build_core_mod.has_core_filter_column(unified_with) is True
 
     # Without the column

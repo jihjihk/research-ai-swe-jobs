@@ -35,8 +35,8 @@ def _candidate(
 
 @pytest.mark.unit
 def test_derive_analysis_group_and_date_bin_use_existing_flags_and_source_dates():
-    assert llm_shared.derive_analysis_group({"is_swe": True}) == "swe"
-    assert llm_shared.derive_analysis_group({"is_swe_adjacent": True}) == "swe_adjacent"
+    assert llm_shared.derive_analysis_group({"is_swe": True}) == "swe_combined"
+    assert llm_shared.derive_analysis_group({"is_swe_adjacent": True}) == "swe_combined"
     assert llm_shared.derive_analysis_group({"is_control": True}) == "control"
     assert llm_shared.derive_analysis_group({}) is None
 
@@ -103,6 +103,103 @@ def test_select_task_frame_ignores_cache_like_fields_when_building_the_frame():
 
 
 @pytest.mark.unit
+def test_select_task_frame_per_group_targets_yield_exact_group_counts():
+    """selection_targets={swe_combined: N1, control: N2} returns exactly N1+N2 rows
+    with N1 from swe_combined and N2 from control, balanced across sources."""
+    candidates = []
+    # 200 swe_combined candidates across 2 sources / 2 dates
+    for source in ("scraped", "kaggle_arshkon"):
+        for day in ("2026-03-20", "2026-03-21"):
+            for idx in range(50):
+                candidates.append(
+                    _candidate(
+                        f"swe-{source}-{day}-{idx}",
+                        input_hash=f"swe-{source}-{day}-{idx}",
+                        source=source,
+                        scrape_date=day if source == "scraped" else None,
+                        date_posted=None if source == "scraped" else day,
+                        is_swe=True,
+                    )
+                )
+    # 200 control candidates similarly distributed
+    for source in ("scraped", "kaggle_arshkon"):
+        for day in ("2026-03-20", "2026-03-21"):
+            for idx in range(50):
+                candidates.append(
+                    _candidate(
+                        f"ctrl-{source}-{day}-{idx}",
+                        input_hash=f"ctrl-{source}-{day}-{idx}",
+                        source=source,
+                        scrape_date=day if source == "scraped" else None,
+                        date_posted=None if source == "scraped" else day,
+                        is_control=True,
+                    )
+                )
+
+    selected, summary = llm_shared.select_task_frame(
+        candidates,
+        selection_targets={"swe_combined": 60, "control": 20},
+        hash_key="task_hash",
+    )
+    by_group: dict[str, int] = {}
+    for row in selected:
+        by_group[row["analysis_group"]] = by_group.get(row["analysis_group"], 0) + 1
+    assert by_group == {"swe_combined": 60, "control": 20}
+    assert summary["selected_count"] == 80
+    assert summary["selection_target"] == 80
+
+
+@pytest.mark.unit
+def test_select_sticky_task_frame_per_group_targets_retain_existing_and_top_up_only_one_group(tmp_path):
+    """Sticky retention with per-group targets adds new rows only on the group
+    whose target exceeds its retained count."""
+    manifest_path = tmp_path / "manifest.json"
+    candidates = []
+    # 50 swe_combined and 50 control candidates
+    for idx in range(50):
+        candidates.append(
+            _candidate(f"swe-{idx}", input_hash=f"swe-{idx}", source="scraped",
+                       scrape_date="2026-03-20", is_swe=True)
+        )
+        candidates.append(
+            _candidate(f"ctrl-{idx}", input_hash=f"ctrl-{idx}", source="scraped",
+                       scrape_date="2026-03-20", is_control=True)
+        )
+
+    # Step 1: build initial manifest with even split, target=20
+    initial, _ = llm_shared.select_sticky_task_frame(
+        candidates, selection_target=20, hash_key="task_hash",
+        manifest_path=manifest_path,
+    )
+    initial_swe = [r for r in initial if r["analysis_group"] == "swe_combined"]
+    initial_ctrl = [r for r in initial if r["analysis_group"] == "control"]
+    assert len(initial_swe) == 10 and len(initial_ctrl) == 10
+    llm_shared.write_core_frame_manifest(
+        manifest_path,
+        selected_hashes=[row["task_hash"] for row in initial],
+        hash_key="task_hash",
+    )
+
+    # Step 2: bump swe_combined target to 30, keep control at 10.
+    # Expect: 10 retained swe + 10 retained ctrl + 20 new swe top-ups = 40 total.
+    next_selected, summary = llm_shared.select_sticky_task_frame(
+        candidates,
+        selection_targets={"swe_combined": 30, "control": 10},
+        hash_key="task_hash",
+        manifest_path=manifest_path,
+    )
+    by_group: dict[str, int] = {}
+    for row in next_selected:
+        by_group[row["analysis_group"]] = by_group.get(row["analysis_group"], 0) + 1
+    assert by_group == {"swe_combined": 30, "control": 10}
+    assert summary["retained_count"] == 20  # all initial rows kept
+    assert summary["top_up_count"] == 20    # only swe topped up
+    # The original 10 control rows are still there.
+    initial_ctrl_hashes = {r["task_hash"] for r in initial_ctrl}
+    assert initial_ctrl_hashes <= {r["task_hash"] for r in next_selected}
+
+
+@pytest.mark.unit
 def test_select_task_frame_balances_dates_within_source_group_and_spills_to_available_capacity():
     candidates = []
     for idx, day in enumerate(("2026-03-20", "2026-03-21", "2026-03-22")):
@@ -135,7 +232,7 @@ def test_select_task_frame_balances_dates_within_source_group_and_spills_to_avai
     scraped_swe_counts = {}
     control_count = 0
     for row in selected:
-        if row["source"] == "scraped" and row["analysis_group"] == "swe":
+        if row["source"] == "scraped" and row["analysis_group"] == "swe_combined":
             scraped_swe_counts[row["date_bin"]] = scraped_swe_counts.get(row["date_bin"], 0) + 1
         if row["analysis_group"] == "control":
             control_count += 1

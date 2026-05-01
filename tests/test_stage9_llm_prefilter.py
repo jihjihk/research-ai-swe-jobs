@@ -69,7 +69,7 @@ def test_annotate_stage9_chunk_derives_frame_fields_and_short_skip():
 
     out = stage9.annotate_stage9_chunk(df).set_index("job_id")
 
-    assert out.loc["s9_r1", "analysis_group"] == "swe"
+    assert out.loc["s9_r1", "analysis_group"] == "swe_combined"
     assert out.loc["s9_r1", "selection_date_bin"] == "2026-03-20"
     assert out.loc["s9_r1", "eligible_for_extraction"]
     assert out.loc["s9_r1", "llm_text_skip_reason"] is None
@@ -79,7 +79,7 @@ def test_annotate_stage9_chunk_derives_frame_fields_and_short_skip():
     assert out.loc["s9_r2", "eligible_for_extraction"]
 
     assert out.loc["s9_r3", "raw_description_word_count"] == 3
-    assert out.loc["s9_r3", "analysis_group"] == "swe_adjacent"
+    assert out.loc["s9_r3", "analysis_group"] == "swe_combined"
     assert out.loc["s9_r3", "llm_text_skip_reason"] == "short_description_under_15_words"
     assert not out.loc["s9_r3", "eligible_for_extraction"]
     assert out.loc["s9_r3", "description_core_llm"] == ""
@@ -163,7 +163,7 @@ def test_build_extraction_candidates_collapses_duplicates_inside_selected_frame(
     assert bool(control["selected_for_control_cohort"])
     assert control["source_row_count"] == 1
 
-    swe = candidates[candidates["analysis_group"] == "swe"].iloc[0]
+    swe = candidates[candidates["analysis_group"] == "swe_combined"].iloc[0]
     assert bool(swe["selected_for_llm_frame"])
     assert not bool(swe["selected_for_control_cohort"])
     assert swe["source_row_count"] == 2
@@ -281,7 +281,7 @@ def test_resolve_description_core_llm_returns_empty_string_when_ok_response_drop
         {
             "description": "see our Careers page on our website for further information.\nShow more\nShow less",
             "short_description_skip": False,
-            "analysis_group": "swe",
+            "analysis_group": "swe_combined",
             "selected_for_llm_frame": True,
             "extraction_input_hash": "hash-1",
         }
@@ -304,14 +304,14 @@ def test_summarize_stage9_routing_reports_frame_metrics():
             {
                 "is_linkedin": True,
                 "is_english": True,
-                "analysis_group": "swe",
+                "analysis_group": "swe_combined",
                 "is_control": False,
                 "llm_extraction_reason": "routed",
             },
             {
                 "is_linkedin": True,
                 "is_english": True,
-                "analysis_group": "swe_adjacent",
+                "analysis_group": "swe_combined",
                 "is_control": False,
                 "llm_extraction_reason": "short_description",
             },
@@ -326,7 +326,7 @@ def test_summarize_stage9_routing_reports_frame_metrics():
     )
     candidate_summary = pd.DataFrame(
         [
-            {"analysis_group": "swe", "source_row_count": 2},
+            {"analysis_group": "swe_combined", "source_row_count": 2},
             {"analysis_group": "control", "source_row_count": 1},
         ]
     )
@@ -348,8 +348,7 @@ def test_summarize_stage9_routing_reports_frame_metrics():
         "routed_rows": 1,
         "not_selected_rows": 1,
         "unique_tasks": 2,
-        "swe_tasks": 1,
-        "swe_adjacent_tasks": 0,
+        "swe_combined_tasks": 1,
         "control_tasks": 1,
         "duplicate_rows_collapsed": 1,
         "cached_tasks": 1,
@@ -445,7 +444,7 @@ def test_run_stage9_reuses_supplemental_cache_outside_core_without_expanding_cor
 
     stage9.run_stage9(
         llm_budget=0,
-        llm_budget_split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        llm_budget_split={"swe_combined": 1.0, "control": 0.0},
         selection_target=1,
         input_path=input_path,
         candidates_path=candidates_path,
@@ -566,7 +565,7 @@ def test_run_stage9_supplemental_cache_requires_current_prompt_version(tmp_path,
 
     stage9.run_stage9(
         llm_budget=0,
-        llm_budget_split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        llm_budget_split={"swe_combined": 1.0, "control": 0.0},
         selection_target=1,
         input_path=input_path,
         candidates_path=tmp_path / "stage9_candidates.parquet",

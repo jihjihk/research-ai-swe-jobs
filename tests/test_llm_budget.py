@@ -13,27 +13,27 @@ llm_shared = load_module("llm_shared_budget", "preprocessing/scripts/llm_shared.
 
 @pytest.mark.unit
 def test_category_split_normal_case():
-    # When all categories have plenty of uncached rows, split 40/30/30.
+    # When both categories have plenty of uncached rows, split 70/30.
     result = llm_shared.split_budget_by_category(
         budget=100,
-        uncached_per_category={"swe": 10000, "swe_adjacent": 10000, "control": 10000},
-        shares={"swe": 0.4, "swe_adjacent": 0.3, "control": 0.3},
+        uncached_per_category={"swe_combined": 10000, "control": 10000},
+        shares={"swe_combined": 0.7, "control": 0.3},
     )
-    assert result == {"swe": 40, "swe_adjacent": 30, "control": 30}
+    assert result == {"swe_combined": 70, "control": 30}
     assert sum(result.values()) == 100
 
 
 @pytest.mark.unit
 def test_category_surplus_cascades_when_one_saturated():
-    # SWE is capped at 800; surplus should cascade to other categories.
+    # swe_combined is capped at 800; surplus should cascade to control.
     result = llm_shared.split_budget_by_category(
         budget=10000,
-        uncached_per_category={"swe": 800, "swe_adjacent": 5000, "control": 20000},
-        shares={"swe": 0.4, "swe_adjacent": 0.3, "control": 0.3},
+        uncached_per_category={"swe_combined": 800, "control": 20000},
+        shares={"swe_combined": 0.7, "control": 0.3},
     )
-    assert result["swe"] == 800
+    assert result["swe_combined"] == 800
+    assert result["control"] == 9200
     assert sum(result.values()) == 10000
-    assert result["swe_adjacent"] == result["control"]
 
 
 @pytest.mark.unit
@@ -41,34 +41,33 @@ def test_category_all_saturated_budget_exceeds_total():
     # When total capacity < budget, allocate all and return less than budget.
     result = llm_shared.split_budget_by_category(
         budget=50000,
-        uncached_per_category={"swe": 100, "swe_adjacent": 200, "control": 300},
-        shares={"swe": 0.4, "swe_adjacent": 0.3, "control": 0.3},
+        uncached_per_category={"swe_combined": 100, "control": 300},
+        shares={"swe_combined": 0.7, "control": 0.3},
     )
-    assert result == {"swe": 100, "swe_adjacent": 200, "control": 300}
-    assert sum(result.values()) == 600
+    assert result == {"swe_combined": 100, "control": 300}
+    assert sum(result.values()) == 400
 
 
 @pytest.mark.unit
 def test_category_budget_zero_returns_zero():
     result = llm_shared.split_budget_by_category(
         budget=0,
-        uncached_per_category={"swe": 100, "swe_adjacent": 100, "control": 100},
-        shares={"swe": 0.4, "swe_adjacent": 0.3, "control": 0.3},
+        uncached_per_category={"swe_combined": 100, "control": 100},
+        shares={"swe_combined": 0.7, "control": 0.3},
     )
-    assert result == {"swe": 0, "swe_adjacent": 0, "control": 0}
+    assert result == {"swe_combined": 0, "control": 0}
 
 
 @pytest.mark.unit
-def test_category_cascades_when_two_categories_saturated():
-    # Both swe and swe_adjacent are capped small; all surplus flows to control.
+def test_category_cascades_when_swe_saturated():
+    # swe_combined is capped small; surplus flows to control.
     result = llm_shared.split_budget_by_category(
         budget=1000,
-        uncached_per_category={"swe": 50, "swe_adjacent": 50, "control": 10000},
-        shares={"swe": 0.4, "swe_adjacent": 0.3, "control": 0.3},
+        uncached_per_category={"swe_combined": 50, "control": 10000},
+        shares={"swe_combined": 0.7, "control": 0.3},
     )
-    assert result["swe"] == 50
-    assert result["swe_adjacent"] == 50
-    assert result["control"] == 900
+    assert result["swe_combined"] == 50
+    assert result["control"] == 950
     assert sum(result.values()) == 1000
 
 
@@ -77,33 +76,55 @@ def test_category_cascades_when_two_categories_saturated():
 
 @pytest.mark.unit
 def test_parse_budget_split_default():
-    result = llm_shared.parse_budget_split("0.4,0.3,0.3")
-    assert result == {"swe": 0.4, "swe_adjacent": 0.3, "control": 0.3}
+    result = llm_shared.parse_budget_split("0.7,0.3")
+    assert result == {"swe_combined": 0.7, "control": 0.3}
 
 
 @pytest.mark.unit
 def test_parse_budget_split_normalizes_percentages():
-    # Percentages like "40,30,30" should be normalized to sum to 1.0.
-    result = llm_shared.parse_budget_split("40,30,30")
-    assert result == {"swe": 0.4, "swe_adjacent": 0.3, "control": 0.3}
+    # Percentages like "70,30" should be normalized to sum to 1.0.
+    result = llm_shared.parse_budget_split("70,30")
+    assert result == {"swe_combined": 0.7, "control": 0.3}
 
 
 @pytest.mark.unit
 def test_parse_budget_split_rejects_wrong_count():
-    with pytest.raises(ValueError, match="3 comma-separated"):
-        llm_shared.parse_budget_split("0.5,0.5")
+    with pytest.raises(ValueError, match="2 comma-separated"):
+        llm_shared.parse_budget_split("0.4,0.3,0.3")
 
 
 @pytest.mark.unit
 def test_parse_budget_split_rejects_negative():
     with pytest.raises(ValueError, match="non-negative"):
-        llm_shared.parse_budget_split("0.5,-0.2,0.7")
+        llm_shared.parse_budget_split("0.7,-0.3")
 
 
 @pytest.mark.unit
 def test_parse_budget_split_rejects_all_zero():
     with pytest.raises(ValueError, match="sum to > 0"):
-        llm_shared.parse_budget_split("0,0,0")
+        llm_shared.parse_budget_split("0,0")
+
+
+# --- derive_analysis_group --------------------------------------------------
+
+
+@pytest.mark.unit
+def test_derive_analysis_group_collapses_swe_and_adjacent():
+    # Both is_swe and is_swe_adjacent map to the same swe_combined cohort.
+    assert llm_shared.derive_analysis_group({"is_swe": True}) == "swe_combined"
+    assert (
+        llm_shared.derive_analysis_group({"is_swe_adjacent": True}) == "swe_combined"
+    )
+
+
+@pytest.mark.unit
+def test_derive_analysis_group_returns_control():
+    assert llm_shared.derive_analysis_group({"is_control": True}) == "control"
+
+
+@pytest.mark.unit
+def test_derive_analysis_group_returns_none_when_no_flags():
+    assert llm_shared.derive_analysis_group({}) is None
 
 
 # --- Stage 9/10 fresh-call budget flow -------------------------------------
@@ -143,7 +164,7 @@ def _select_fresh_calls_like_stages(
     hash_key="extraction_input_hash",
 ):
     cached_hashes = set() if cached_hashes is None else set(cached_hashes)
-    split = {"swe": 0.4, "swe_adjacent": 0.3, "control": 0.3} if split is None else split
+    split = {"swe_combined": 0.7, "control": 0.3} if split is None else split
     fresh_candidates = [
         row for row in candidates if str(row.get(hash_key)) not in cached_hashes
     ]
@@ -188,17 +209,16 @@ def _count_by(rows, key):
 @pytest.mark.unit
 def test_runtime_fresh_budget_applies_category_split_after_cache_filtering():
     candidates = (
-        [_make_frame_candidate(f"swe-{i}", "d1", "swe") for i in range(100)]
-        + [_make_frame_candidate(f"adj-{i}", "d1", "swe_adjacent") for i in range(100)]
+        [_make_frame_candidate(f"swe-{i}", "d1", "swe") for i in range(50)]
+        + [_make_frame_candidate(f"adj-{i}", "d1", "swe_adjacent") for i in range(50)]
         + [_make_frame_candidate(f"ctrl-{i}", "d1", "control") for i in range(100)]
     )
     selected, targets, uncached = _select_fresh_calls_like_stages(candidates, budget=100)
 
-    assert targets == {"swe": 40, "swe_adjacent": 30, "control": 30}
-    assert uncached == {"swe": 100, "swe_adjacent": 100, "control": 100}
+    assert targets == {"swe_combined": 70, "control": 30}
+    assert uncached == {"swe_combined": 100, "control": 100}
     assert _count_by(selected, "analysis_group") == {
-        "swe": 40,
-        "swe_adjacent": 30,
+        "swe_combined": 70,
         "control": 30,
     }
 
@@ -212,11 +232,11 @@ def test_runtime_fresh_budget_counts_only_uncached_selected_rows():
         candidates,
         cached_hashes={"swe-0", "swe-1", "swe-2"},
         budget=100,
-        split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        split={"swe_combined": 1.0, "control": 0.0},
     )
 
-    assert targets == {"swe": 7, "swe_adjacent": 0, "control": 0}
-    assert uncached == {"swe": 7, "swe_adjacent": 0, "control": 0}
+    assert targets == {"swe_combined": 7, "control": 0}
+    assert uncached == {"swe_combined": 7, "control": 0}
     assert len(selected) == 7
     assert {row["extraction_input_hash"] for row in selected}.isdisjoint(
         {"swe-0", "swe-1", "swe-2"}
@@ -236,10 +256,10 @@ def test_runtime_fresh_selection_uses_frame_balancing_within_group():
     selected, targets, _ = _select_fresh_calls_like_stages(
         candidates,
         budget=4,
-        split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        split={"swe_combined": 1.0, "control": 0.0},
     )
 
-    assert targets == {"swe": 4, "swe_adjacent": 0, "control": 0}
+    assert targets == {"swe_combined": 4, "control": 0}
     assert _count_by(selected, "source") == {"kaggle_arshkon": 2, "scraped": 2}
     assert _count_by([row for row in selected if row["source"] == "scraped"], "date_bin") == {
         "d1": 1,
@@ -261,10 +281,10 @@ def test_runtime_fresh_selection_accepts_classification_hash_key():
     selected, targets, _ = _select_fresh_calls_like_stages(
         candidates,
         budget=3,
-        split={"swe": 1.0, "swe_adjacent": 0.0, "control": 0.0},
+        split={"swe_combined": 1.0, "control": 0.0},
         hash_key="classification_input_hash",
     )
 
-    assert targets == {"swe": 3, "swe_adjacent": 0, "control": 0}
+    assert targets == {"swe_combined": 3, "control": 0}
     assert len(selected) == 3
     assert all("classification_input_hash" in row for row in selected)

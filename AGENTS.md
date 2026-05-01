@@ -28,7 +28,7 @@ Pipeline that transforms raw job-posting data into analysis-ready datasets.
 - **Schema:** [`docs/preprocessing-schema.md`](docs/preprocessing-schema.md) — column definitions and stage availability
 - **Testing:** pytest suite in `tests/`
 - **Outputs:** `data/unified.parquet`, `data/unified_observations.parquet`
-- **LLM budget (REQUIRED):** Stages 9 and 10 require `--llm-budget N` (no default). The budget caps all new LLM calls across all data sources, split 40% SWE / 30% SWE-adjacent / 30% control by default. See the "Budget-Constrained LLM Processing" section in `docs/preprocessing-schema.md`.
+- **LLM budget (REQUIRED):** Stages 9 and 10 require `--llm-budget N` (no default). The budget caps all new LLM calls across all data sources, split 70% combined SWE (Stage 5 `is_swe OR is_swe_adjacent`) / 30% control by default. See the "Budget-Constrained LLM Processing" section in `docs/preprocessing-schema.md`.
 - **Backup:** After a full pipeline run, back up outputs + LLM cache to S3: `python preprocessing/scripts/backup_to_s3.py` (or `--backup` flag on `run_pipeline.py`)
 - Do not touch: `scraper/`, research writing files
 
@@ -51,8 +51,8 @@ Formal hypothesis testing and robustness checks for RQ1-RQ3. Formal analysis pla
 **Navigation index — where existing work lives, where to look for new questions:**
 
 - **Latest full exploration:** `exploration-archive/v9_final_opus_47/` — the 8-wave orchestrator run. Start with `reports/SYNTHESIS.md` (paper backbone), `reports/INDEX.md` (task catalog T01-T38), and `memos/gate_{0,1,2,3}.md` (narrative evolution). If a later version exists (v10, v11, …), prefer it.
-- **Targeted follow-up analysis:** `eda/` — open-ended, hypothesis-driven notebooks that extend the exploration. Current entry point: `eda/reports/open_ended_v2.md` and `eda/notebooks/findings_consolidated_2026-04-21.ipynb`. Composite article B (role landscape) memo: `eda/research_memos/composite_B_v2.md` (BERTopic rerun, 95-topic taxonomy on 37k SWE postings, archetype labels at `eda/artifacts/composite_B_archetype_labels.parquet`). See `eda/README.md` for structure.
-- **Primary data for new queries:** `data/unified_core.parquet` — 193 MB, ~110k rows, 42 columns, covers the columns most analyses need. Start here. Switch to `data/unified.parquet` (7.4 GB) only when you need columns not in the core.
+- **Archived exploration follow-ups:** `eda_archive/` — frozen archival material from the exploration phase (renamed from `eda/` on 2026-04-30). **Not part of active analysis.** A new analysis workspace will replace it; consult `eda_archive/` only for historical context, not for current findings or column conventions. Anything written for `unified_core.parquet` post-2026-04-30 will not match this archive's notebooks.
+- **Primary data for new queries:** `data/unified_core.parquet` — analysis-ready subset, the intersection of the Stage 9 balanced core frame and rows with a confirmed cohort label (LLM-SWE or rule-control). See `docs/preprocessing-schema.md` for the exact filter and column list. Start here. Switch to `data/unified.parquet` only when you need rows or columns outside the analysis frame.
 - **Data schema:** `docs/preprocessing-schema.md` — column definitions, stage availability, source-specific gaps, enum values. Read before writing any SQL.
 - **Research design:** `docs/1-research-design.md` through `docs/6-methods-learning.md` — RQs, constructs, interview protocol, literature, publication targets, methods notes.
 - **RAM:** 31 GB limit. Use DuckDB / pyarrow — never `pd.read_parquet` on the full `unified.parquet`.

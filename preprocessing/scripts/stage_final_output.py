@@ -91,22 +91,20 @@ def compute_core_summary(core_path: Path, core_obs_path: Path) -> dict:
         f"""
         SELECT
           count(*) AS n,
-          sum(CASE WHEN is_swe THEN 1 ELSE 0 END) AS n_swe,
-          sum(CASE WHEN is_swe_adjacent THEN 1 ELSE 0 END) AS n_adjacent,
+          sum(CASE WHEN is_swe THEN 1 ELSE 0 END) AS n_swe_llm,
           sum(CASE WHEN is_control THEN 1 ELSE 0 END) AS n_control,
-          sum(CASE WHEN llm_classification_coverage = 'labeled' THEN 1 ELSE 0 END) AS n_labeled,
-          sum(CASE WHEN llm_classification_coverage = 'deferred' THEN 1 ELSE 0 END) AS n_deferred,
-          sum(CASE WHEN llm_classification_coverage = 'skipped_short' THEN 1 ELSE 0 END) AS n_skipped_short
+          sum(CASE WHEN has_llm_classification THEN 1 ELSE 0 END) AS n_classification_labeled,
+          sum(CASE WHEN has_llm_extraction THEN 1 ELSE 0 END) AS n_extraction_labeled
         FROM read_parquet('{core_path}')
         """
     ).fetchone()
 
     by_source = duckdb.execute(
         f"""
-        SELECT source, source_platform, count(*) AS n
+        SELECT source, count(*) AS n
         FROM read_parquet('{core_path}')
-        GROUP BY 1, 2
-        ORDER BY 1, 2
+        GROUP BY 1
+        ORDER BY 1
         """
     ).fetchall()
 
@@ -115,19 +113,17 @@ def compute_core_summary(core_path: Path, core_obs_path: Path) -> dict:
         "n_columns": len(CORE_COLUMNS),
         "rows": totals[0],
         "observations_rows": parquet_rows(core_obs_path),
-        "by_analysis_group": {
-            "swe": totals[1],
-            "swe_adjacent": totals[2],
-            "control": totals[3],
+        "by_cohort": {
+            "swe_llm": totals[1],
+            "control": totals[2],
         },
-        "classification_coverage": {
-            "labeled": totals[4],
-            "deferred": totals[5],
-            "skipped_short": totals[6],
+        "llm_coverage": {
+            "classification_labeled": totals[3],
+            "extraction_labeled": totals[4],
         },
         "by_source": [
-            {"source": source, "source_platform": platform, "rows": n}
-            for source, platform, n in by_source
+            {"source": source, "rows": n}
+            for source, n in by_source
         ],
     }
 
@@ -144,9 +140,8 @@ def compute_quality_report(
     )
     SELECT
       count(*) AS total_rows,
-      sum(CASE WHEN is_swe THEN 1 ELSE 0 END) AS total_swe,
-      sum(CASE WHEN is_control THEN 1 ELSE 0 END) AS total_control,
-      sum(CASE WHEN is_swe_adjacent THEN 1 ELSE 0 END) AS total_adjacent,
+      sum(CASE WHEN analysis_group = 'swe_combined' THEN 1 ELSE 0 END) AS total_swe_combined,
+      sum(CASE WHEN analysis_group = 'control' THEN 1 ELSE 0 END) AS total_control,
       sum(CASE WHEN seniority_final = 'unknown' THEN 1 ELSE 0 END) AS seniority_unknown,
       sum(CASE WHEN seniority_final_source = 'llm' THEN 1 ELSE 0 END) AS seniority_from_llm,
       sum(CASE WHEN seniority_final_source IN ('title_keyword', 'title_manager') THEN 1 ELSE 0 END) AS seniority_from_rule,
@@ -154,7 +149,7 @@ def compute_quality_report(
       sum(CASE WHEN is_aggregator THEN 1 ELSE 0 END) AS aggregators,
       sum(CASE WHEN date_flag != 'ok' THEN 1 ELSE 0 END) AS date_flagged,
       sum(CASE WHEN is_english = false THEN 1 ELSE 0 END) AS non_english,
-      sum(CASE WHEN ghost_job_risk != 'low' THEN 1 ELSE 0 END) AS ghost_flagged
+      sum(CASE WHEN ghost_assessment_llm IN ('inflated', 'ghost_likely') THEN 1 ELSE 0 END) AS ghost_flagged_llm
     FROM unified
     """
     totals = duckdb.execute(q).fetchone()
@@ -172,7 +167,7 @@ def compute_quality_report(
         f"""
         SELECT source, source_platform, count(*) AS n
         FROM read_parquet('{unified_path}')
-        WHERE is_swe
+        WHERE analysis_group = 'swe_combined'
         GROUP BY 1, 2
         ORDER BY 1, 2
         """
@@ -182,7 +177,7 @@ def compute_quality_report(
         f"""
         SELECT seniority_final, count(*) AS n
         FROM read_parquet('{unified_path}')
-        WHERE is_swe
+        WHERE analysis_group = 'swe_combined'
         GROUP BY 1
         ORDER BY n DESC, seniority_final
         """
@@ -217,21 +212,20 @@ def compute_quality_report(
         "funnel": {
             "final_unified": totals[0],
             "final_observations": parquet_rows(observations_path),
-            "final_swe": totals[1],
+            "final_swe_combined": totals[1],
             "final_control": totals[2],
-            "final_adjacent": totals[3],
         },
         "classification_rates": {
-            "seniority_unknown_rate": round(totals[4] / totals[0], 4) if totals[0] else None,
-            "seniority_from_llm_rate": round(totals[5] / totals[0], 4) if totals[0] else None,
-            "seniority_from_rule_rate": round(totals[6] / totals[0], 4) if totals[0] else None,
-            "description_core_llm_coverage": round(totals[7] / totals[0], 4) if totals[0] else None,
+            "seniority_unknown_rate": round(totals[3] / totals[0], 4) if totals[0] else None,
+            "seniority_from_llm_rate": round(totals[4] / totals[0], 4) if totals[0] else None,
+            "seniority_from_rule_rate": round(totals[5] / totals[0], 4) if totals[0] else None,
+            "description_core_llm_coverage": round(totals[6] / totals[0], 4) if totals[0] else None,
         },
         "quality_flags": {
-            "aggregators": totals[8],
-            "date_flagged": totals[9],
-            "non_english": totals[10],
-            "ghost_flagged": totals[11],
+            "aggregators": totals[7],
+            "date_flagged": totals[8],
+            "non_english": totals[9],
+            "ghost_flagged_llm": totals[10],
         },
         "source_counts": [
             {
@@ -284,11 +278,10 @@ def build_log_text(report: dict) -> str:
             "",
             "FINAL OUTPUTS",
             "-------------",
-            f"unified.parquet rows:             {report['funnel']['final_unified']:>10,}",
-            f"unified_observations.parquet rows:{report['funnel']['final_observations']:>10,}",
-            f"SWE postings:                     {report['funnel']['final_swe']:>10,}",
-            f"Control postings:                 {report['funnel']['final_control']:>10,}",
-            f"SWE-adjacent postings:            {report['funnel']['final_adjacent']:>10,}",
+            f"unified.parquet rows:              {report['funnel']['final_unified']:>10,}",
+            f"unified_observations.parquet rows: {report['funnel']['final_observations']:>10,}",
+            f"SWE-combined postings:             {report['funnel']['final_swe_combined']:>10,}",
+            f"Control postings:                  {report['funnel']['final_control']:>10,}",
             "",
             "QUALITY FLAGS",
             "-------------",
@@ -299,7 +292,7 @@ def build_log_text(report: dict) -> str:
             f"Aggregators:                   {report['quality_flags']['aggregators']:>10,}",
             f"Date flagged:                  {report['quality_flags']['date_flagged']:>10,}",
             f"Non-English:                   {report['quality_flags']['non_english']:>10,}",
-            f"Ghost flagged:                 {report['quality_flags']['ghost_flagged']:>10,}",
+            f"Ghost flagged (LLM):           {report['quality_flags']['ghost_flagged_llm']:>10,}",
             "",
             "SOURCE COUNTS",
             "-------------",
@@ -311,13 +304,13 @@ def build_log_text(report: dict) -> str:
             f"{row['source']} | {row['source_platform']:<9} {row['rows']:>10,}"
         )
 
-    lines.extend(["", "SWE BY SOURCE", "-------------"])
+    lines.extend(["", "SWE-COMBINED BY SOURCE", "----------------------"])
     for row in report["swe_by_source"]:
         lines.append(
             f"{row['source']} | {row['source_platform']:<9} {row['rows']:>10,}"
         )
 
-    lines.extend(["", "SENIORITY (SWE ONLY)", "--------------------"])
+    lines.extend(["", "SENIORITY (SWE-COMBINED ONLY)", "-----------------------------"])
     for row in report["seniority_distribution_swe"]:
         lines.append(f"{row['seniority_final']:<12} {row['rows']:>10,}")
 
@@ -332,12 +325,10 @@ def build_log_text(report: dict) -> str:
                 f"Columns:                        {core['n_columns']}",
                 f"unified_core.parquet rows:      {core['rows']:>10,}",
                 f"core_observations rows:         {core['observations_rows']:>10,}",
-                f"  SWE:                          {core['by_analysis_group']['swe']:>10,}",
-                f"  SWE-adjacent:                 {core['by_analysis_group']['swe_adjacent']:>10,}",
-                f"  Control:                      {core['by_analysis_group']['control']:>10,}",
-                f"  classification labeled:       {core['classification_coverage']['labeled']:>10,}",
-                f"  classification deferred:      {core['classification_coverage']['deferred']:>10,}",
-                f"  classification skipped_short: {core['classification_coverage']['skipped_short']:>10,}",
+                f"  SWE (LLM):                    {core['by_cohort']['swe_llm']:>10,}",
+                f"  Control (rule):               {core['by_cohort']['control']:>10,}",
+                f"  classification labeled:       {core['llm_coverage']['classification_labeled']:>10,}",
+                f"  extraction labeled:           {core['llm_coverage']['extraction_labeled']:>10,}",
             ]
         )
 

@@ -60,12 +60,14 @@ def test_final_helpers_join_observations_and_report_counts(tmp_path, monkeypatch
                 "is_swe": idx == 1,
                 "is_control": False,
                 "is_swe_adjacent": idx == 2,
+                "analysis_group": "swe_combined" if idx in (1, 2) else None,
                 "seniority_final": row["seniority_final"],
                 "seniority_final_source": row["seniority_final_source"],
                 "is_aggregator": False,
                 "date_flag": "ok",
                 "is_english": True,
                 "ghost_job_risk": "low",
+                "ghost_assessment_llm": "realistic",
             }
         )
         obs_rows.append({"uid": uid, "scrape_date": "2026-03-20"})

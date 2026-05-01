@@ -1,8 +1,16 @@
 # Preprocessing Schema Reference
 
-Last updated: 2026-04-20
+Last updated: 2026-04-30
 
-**Changelog — 2026-04-20:** Added `data/unified_core.parquet` and `data/unified_core_observations.parquet` — strict analysis-ready projections of the main outputs, filtered to `selected_for_llm_frame = TRUE` and pruned to the columns that are actually used in analysis. Audit/routing/cache-internal columns are dropped. See the "`unified_core.parquet` — analysis-ready subset" section below.
+**Changelog — 2026-04-30 (later):** `unified_core.parquet` row filter tightened. The analysis frame is now the intersection of the Stage 9 balanced core frame **and** rows with a confirmed cohort label (`is_swe_combined_llm = TRUE OR is_control = TRUE`). In-frame rows where the rule flagged SWE / SWE_adjacent but the LLM disagreed (NOT_SWE) are dropped from `unified_core` — they remain in `unified.parquet` for audit. The same restriction applies to deferred/short-skipped rows the LLM never labelled. `unified_core` is now a strictly cohort-confirmed analysis surface; `unified.parquet` retains the full balanced frame for diagnostic work.
+
+`select_task_frame` / `select_sticky_task_frame` now accept per-group selection targets (`selection_targets={swe_combined: N1, control: N2}`) for asymmetric frame growth, surfaced via Stage 9's `--selection-targets` CLI flag (e.g. `--selection-targets swe_combined=75000,control=55000`). The original `--selection-target` flag still exists for symmetric splits.
+
+**Changelog — 2026-04-30:** SWE and SWE-adjacent are merged into a single `swe_combined` cohort for frame selection and budget allocation. `analysis_group` enum simplified to `swe_combined` / `control`; `--llm-budget-split` is now `0.7,0.3` (combined SWE / control). Stage 10 derives a new boolean `is_swe_combined_llm` from the unchanged LLM `swe_classification` output (cache stays valid). `unified_core.parquet` is restructured for minimalism: the SWE-side columns collapse to a single `is_swe` (renamed `is_swe_combined_llm` at projection); the two `*_coverage` enums are replaced by `has_llm_extraction` / `has_llm_classification` booleans; columns that are uniformly fixed by the row filter (`source_platform`, `is_english`) are dropped, and so are several redundant columns (`description_length`, `seniority_3level`, raw `company_name`, `swe_classification_tier`, `ghost_job_risk`, the rule-based `is_swe` / `is_swe_adjacent` pair, the `swe_classification_llm` enum, `analysis_group`). The full splits and audit columns remain in `unified.parquet`.
+
+**Note:** in `unified.parquet`, `is_swe` is the Stage 5 narrow rule column (SWE only). In `unified_core.parquet`, `is_swe` is the LLM combined verdict (SWE union SWE_ADJACENT). Same column name, different semantics — analyses joining the two files must map accordingly.
+
+**Changelog — 2026-04-20:** Added `data/unified_core.parquet` and `data/unified_core_observations.parquet` — strict analysis-ready projections of the main outputs, derived by intersecting the Stage 9 balanced core frame with rows that have a confirmed cohort label (LLM-SWE or rule-control). Audit/routing/cache-internal columns are dropped. See the "`unified_core.parquet` — analysis-ready subset" section below.
 
 **Changelog — 2026-04-18:** Stage 10 skip-logic removed. Every in-frame eligible row (LinkedIn, English, ≥15 words, `selected_for_llm_frame = True`) now routes to the LLM; there is no rule-based shortcut. `llm_classification_coverage` enum simplified from 5 values to 4: `rule_sufficient` dropped. Stage 5 now writes two new append-only columns: `seniority_rule` (immutable rule-based seniority output) and `seniority_rule_source` (provenance of that label), preserved through Stage 10 overrides of `seniority_final`.
 
@@ -19,7 +27,7 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 - **Seniority — use `seniority_final`.** This is the single primary seniority column. Stage 5 fills it from high-confidence title keywords; Stage 10 overwrites it with the LLM result for rows the router sent to the LLM. `seniority_final_source` records which path produced the value (`title_keyword`, `title_manager`, `llm`, or `unknown`). See Section 4 for details.
 - `ghost_assessment_llm`: Primary ghost indicator (`realistic`/`inflated`/`ghost_likely`). Richer than rule-based `ghost_job_risk`. Use `ghost_job_risk` as fallback.
 - `yoe_min_years_llm`: **Primary YOE column** within the LLM frame (`llm_classification_coverage = 'labeled'`); rule-based `yoe_extracted` is the audit/fallback. See Section 6.
-- `swe_classification_llm`: Cross-check against `is_swe`.
+- `is_swe_combined_llm`: Primary LLM-side SWE flag in `unified.parquet` — True when `swe_classification_llm ∈ {SWE, SWE_ADJACENT}`. Available as `is_swe` in `unified_core.parquet`. The Stage 5 rule-based `is_swe` / `is_swe_adjacent` columns remain in `unified.parquet` for fallback / ablation; the underlying `swe_classification_llm` enum is preserved in `unified.parquet` only.
 
 Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. For raw Stage 9/Stage 10 LLM columns (including `description_core_llm`), filter to `labeled`. Seniority is the exception: `seniority_final` is already the combined best-available column and should be used directly without filtering by coverage.
 
@@ -34,13 +42,21 @@ Balanced-sample claims apply only to `selected_for_llm_frame = true`. Supplement
 1. **Rows that are not usable for most analyses** — postings that were never routed to the LLM (Indeed, non-English, short descriptions, outside the balanced core frame) do not have `description_core_llm`, LLM seniority, `yoe_min_years_llm`, or LLM ghost/SWE classifications. They dominate the row count in the full file.
 2. **Columns that are audit / routing / cache internals** — ~40 columns in `unified.parquet` exist for pipeline debugging and lineage but are never referenced in analysis.
 
-### Row filter
+### Row filter — how the analysis frame is derived
 
 ```sql
 WHERE selected_for_llm_frame = TRUE
+  AND (is_swe_combined_llm = TRUE OR is_control = TRUE)
 ```
 
-This is the Stage 9 deterministic balanced core frame: LinkedIn, English, raw description ≥ 15 words, assigned to an `analysis_group` (`swe` / `swe_adjacent` / `control`), and selected into the sticky balanced core over `source × analysis_group × date_bin`. Indeed is removed entirely. Balanced-sample claims apply to this filter by construction.
+The analysis frame is the **intersection** of two filters:
+
+1. **Stage 9 deterministic balanced core frame** (`selected_for_llm_frame = TRUE`): LinkedIn, English, raw description ≥ 15 words, assigned to an `analysis_group` (`swe_combined` / `control`), and selected into the sticky balanced core over `source × analysis_group × date_bin`. Indeed is removed entirely. Balanced-sample claims apply to this filter by construction.
+2. **Confirmed cohort label**: keep rows where the LLM classified them as SWE / SWE_ADJACENT (`is_swe_combined_llm = TRUE`, surfaced as `is_swe` in this file), OR the Stage 5 rule labelled them as control (`is_control = TRUE`).
+
+Filter (2) drops in-frame rows where Stage 5 flagged them as SWE/SWE_adjacent but the LLM disagreed and said NOT_SWE. These rows are kept in `unified.parquet` for audit but are not part of the analysis cohort. The deferred and short-skipped tail (rows the LLM never labelled) is also excluded.
+
+A small overlap exists where `is_swe = TRUE` and `is_control = TRUE` simultaneously: rule said control, LLM said SWE/SWE_adjacent. Treat these case-by-case in analysis (filter to `is_swe AND NOT is_control` or `is_control AND NOT is_swe` to get clean cohorts).
 
 Rows inside the core can still have `llm_classification_coverage = 'deferred'` (budget-capped in the current run) or `'skipped_short'`. Filter to `labeled` when reading LLM columns the same way you would in the full file.
 
@@ -51,25 +67,27 @@ The authoritative list is the `CORE_COLUMNS` constant in [`preprocessing/scripts
 | Group | Columns |
 |---|---|
 | Identity | `uid` |
-| Source & time | `source`, `source_platform`, `period`, `date_posted`, `scrape_date` |
-| Job content | `title`, `description`, `description_core_llm`, `description_length` |
-| Company | `company_name`, `company_name_effective`, `company_name_canonical`, `is_aggregator`, `company_industry`, `company_size` |
-| Occupation | `is_swe`, `is_swe_adjacent`, `is_control`, `analysis_group`, `swe_classification_tier`, `swe_classification_llm` |
-| Seniority | `seniority_final`, `seniority_final_source`, `seniority_3level`, `seniority_rule`, `seniority_rule_source`, `seniority_native` |
+| Source & time | `source`, `period`, `date_posted`, `scrape_date` |
+| Job content | `title`, `description`, `description_core_llm` |
+| Company | `company_name_effective`, `company_name_canonical`, `is_aggregator`, `company_industry`, `company_size` |
+| Occupation | `is_swe` (LLM combined; renamed from `is_swe_combined_llm`), `is_control` (Stage 5 rule) |
+| Seniority | `seniority_final`, `seniority_final_source`, `seniority_rule`, `seniority_rule_source`, `seniority_native` |
 | YOE | `yoe_extracted`, `yoe_min_years_llm` |
 | Geography | `location`, `city_extracted`, `state_normalized`, `metro_area`, `is_remote_inferred`, `is_multi_location` |
-| Quality | `is_english`, `date_flag`, `ghost_job_risk`, `ghost_assessment_llm` |
-| LLM coverage | `llm_extraction_coverage`, `llm_classification_coverage` |
+| Quality | `date_flag`, `ghost_assessment_llm` |
+| LLM coverage | `has_llm_extraction`, `has_llm_classification` |
 
 ### Columns dropped (and why)
 
-- **Uniform inside the core frame, so redundant** — `selected_for_llm_frame`, `selected_for_control_cohort`, `llm_extraction_sample_tier`, `llm_classification_sample_tier`, `analysis_in_scope`, `eligible_for_extraction`, `needs_llm_classification`.
+- **SWE-side collapse** — the rule-based pair `is_swe` / `is_swe_adjacent` and the LLM `swe_classification_llm` enum + `swe_classification_tier` provenance are dropped from core. The single `is_swe` column (renamed from `is_swe_combined_llm`) carries the LLM SWE-or-adjacent verdict; the full splits remain in `unified.parquet`. `analysis_group` is dropped because it's redundant with `is_swe` / `is_control` inside the core filter.
+- **Uniform inside the core frame, so redundant** — `selected_for_llm_frame`, `selected_for_control_cohort`, `llm_extraction_sample_tier`, `llm_classification_sample_tier`, `analysis_in_scope`, `eligible_for_extraction`, `needs_llm_classification`, `source_platform` (always `linkedin` in core), `is_english` (always True).
+- **Coverage enums collapsed** — `llm_extraction_coverage` and `llm_classification_coverage` are replaced by booleans `has_llm_extraction` and `has_llm_classification`. The `deferred` vs `skipped_short` distinction (a budget-planning concern) remains in `unified.parquet`.
 - **Routing reasons / cache internals** — `llm_text_skip_reason`, `llm_extraction_reason`, `llm_classification_reason`, `extraction_input_hash`, `classification_input_hash`, `llm_extraction_resolution`, `llm_classification_resolution`, `llm_model_classification`, `llm_prompt_version_classification`, `selection_date_bin`.
 - **Rule-based YOE audit trail** — `yoe_min_extracted`, `yoe_max_extracted`, `yoe_match_count`, `yoe_resolution_rule`, `yoe_all_mentions_json`, `yoe_seniority_contradiction`. Kept: `yoe_extracted` (fallback) and `yoe_min_years_llm` (primary).
 - **Pipeline metadata / provenance** — `description_raw`, `description_hash`, `preprocessing_version`, `dedup_method`, `company_name_canonical_method`.
 - **Redundant normalized/raw pairs** — `title_normalized`, `location_normalized`, `company_name_normalized`, `site` (duplicates `source_platform`), `company_size_raw`, `company_size_category`.
 - **Scraper search metadata** (query context, not posting location; use `metro_area`) — `search_query`, `query_tier`, `search_metro_id`, `search_metro_name`, `search_metro_region`, `search_location`.
-- **Rarely used** — `job_id`, `country_extracted`, `metro_source`, `metro_confidence`, `is_remote` (0% on 2024 sources — use `is_remote_inferred`), `skills_raw`, `asaniczka_skills`, `work_type`, `job_url`, `company_id_kaggle`, `real_employer` (subsumed by `company_name_effective`), `description_quality_flag` (short-desc rows already filtered), `posting_age_days`, `scrape_week`, `swe_confidence`.
+- **Rarely used** — `job_id`, `country_extracted`, `metro_source`, `metro_confidence`, `is_remote` (0% on 2024 sources — use `is_remote_inferred`), `skills_raw`, `asaniczka_skills`, `work_type`, `job_url`, `company_id_kaggle`, `real_employer` (subsumed by `company_name_effective`), `description_quality_flag` (short-desc rows already filtered), `posting_age_days`, `scrape_week`, `swe_confidence`, `description_length` (one `len(description)` away), `seniority_3level` (a 4-entry mapping from `seniority_final`), `company_name` (raw — use `company_name_effective` or `company_name_canonical`), `ghost_job_risk` (rule-based; the LLM verdict in `ghost_assessment_llm` is the analysis surface).
 
 ### When to use which file
 
@@ -117,7 +135,7 @@ This table shows when each column category first becomes available:
 | Pipeline metadata | Stage 8 | 2 | `preprocessing_version`, `dedup_method` |
 | LLM frame + cleaned text | Stage 9 | 5 | `description_core_llm`, `selected_for_llm_frame`, `selection_date_bin`, `selected_for_control_cohort`, `llm_extraction_sample_tier` |
 | LLM coverage tracking | Stage 9-10 | 4 | `llm_extraction_coverage`, `llm_extraction_resolution`, `llm_classification_coverage`, `llm_classification_resolution` |
-| LLM classification | Stage 10 | 4 | `swe_classification_llm`, `ghost_assessment_llm`, `yoe_min_years_llm`, `llm_classification_sample_tier` (LLM seniority writes back to `seniority_final`; there is no separate `seniority_llm` column) |
+| LLM classification | Stage 10 | 5 | `swe_classification_llm`, `is_swe_combined_llm` (derived), `ghost_assessment_llm`, `yoe_min_years_llm`, `llm_classification_sample_tier` (LLM seniority writes back to `seniority_final`; there is no separate `seniority_llm` column) |
 
 Row and column counts change as scraped data grows. Query the current artifacts before analysis. The 2026-04-10 removal of the rule-based boilerplate stage dropped `description_core`, `core_length`, `boilerplate_flag`, and `boilerplate_removed`.
 
@@ -131,7 +149,7 @@ Work from `data/unified.parquet` (the final output with all rule-based and avail
 
 | Analysis need | Primary column | Ablation / fallback | Notes |
 |---|---|---|---|
-| SWE sample | `is_swe` | `swe_classification_llm` where labeled | `is_swe_adjacent` for broader tech sample. |
+| SWE sample | `is_swe_combined_llm` (where `llm_classification_coverage = 'labeled'`) | `is_swe` OR `is_swe_adjacent` (rule baseline) | LLM column unifies SWE and SWE-adjacent. Rule fallback is the union of the two narrow rule columns. |
 | Seniority | `seniority_final` | `seniority_native` (arshkon-only diagnostic), `yoe_min_years_llm` (LLM YOE, primary proxy), `yoe_extracted` (rule ablation) | `seniority_final` is the combined high-confidence rule + LLM column. Always validate entry-level findings with the YOE-based proxy (LLM primary, rule ablation). |
 | Seniority (coarse) | `seniority_3level` | — | junior/mid/senior/unknown |
 | Time period | `period` | `date_posted`, `scrape_date` | Query current `period` values and source date ranges before temporal analysis. |
@@ -167,12 +185,12 @@ Work from `preprocessing/intermediate/stage10_llm_integrated.parquet` or `data/u
 
 | Analysis need | Primary column | Fallback / ablation |
 |---|---|---|
-| SWE sample | `swe_classification_llm` (for routed rows) | `is_swe` |
+| SWE sample | `is_swe_combined_llm` (for routed rows) | `is_swe OR is_swe_adjacent` (rule baseline) |
 | Seniority | `seniority_final` | `seniority_native` (arshkon-only), `yoe_min_years_llm` (primary proxy), `yoe_extracted` (rule ablation) |
 | Clean text | `description_core_llm` | raw `description` (boilerplate-insensitive analyses only) |
 | Ghost / inflation | `ghost_assessment_llm` | `ghost_job_risk` |
 
-LLM columns are null for rows the LLM did not process. **Seniority is the exception:** `seniority_final` is always populated (from a strong rule, from the LLM, or `'unknown'`) and should be used directly without coverage filtering. For `swe_classification_llm` and `ghost_assessment_llm`, filter on `llm_classification_coverage = 'labeled'` and fall back to the corresponding rule-based columns (`is_swe`, `ghost_job_risk`) where the LLM was not called. For `description_core_llm`, filter on `llm_extraction_coverage = 'labeled'`; there is no rule-based cleaned-text fallback — analyses that need cleaned text for unlabeled rows must either restrict the sample or accept raw `description`.
+LLM columns are null for rows the LLM did not process. **Seniority is the exception:** `seniority_final` is always populated (from a strong rule, from the LLM, or `'unknown'`) and should be used directly without coverage filtering. For `is_swe_combined_llm` and `ghost_assessment_llm`, filter on `llm_classification_coverage = 'labeled'` and fall back to the rule-based union (`is_swe OR is_swe_adjacent`) or rule ghost (`ghost_job_risk`) where the LLM was not called. For `description_core_llm`, filter on `llm_extraction_coverage = 'labeled'`; there is no rule-based cleaned-text fallback — analyses that need cleaned text for unlabeled rows must either restrict the sample or accept raw `description`.
 
 ---
 
@@ -299,12 +317,13 @@ The LLM classifier looks for **explicit seniority signals only** — title keywo
 
 | Column | Type | Stage | Values | Meaning |
 |---|---|---|---|---|
-| `is_swe` | BOOL | 5 | true/false | Primary SWE flag. True if the role's primary function is writing/maintaining software. |
-| `is_swe_adjacent` | BOOL | 5 | true/false | Technical roles involving some code but not primarily software development. |
+| `is_swe` | BOOL | 5 | true/false | Stage 5 narrow rule SWE flag. True if the role's primary function is writing/maintaining software. **In `unified_core.parquet`, the column named `is_swe` is the LLM combined verdict (see `is_swe_combined_llm` below), not this rule column.** |
+| `is_swe_adjacent` | BOOL | 5 | true/false | Stage 5 narrow rule. Technical roles involving some code but not primarily software development. |
 | `is_control` | BOOL | 5 | true/false | Control occupation group for cross-occupation comparisons. |
 | `swe_confidence` | DOUBLE | 5 | 0.0-1.0 | Classification confidence score. |
 | `swe_classification_tier` | VARCHAR | 5 | `regex`, `embedding_high`, `title_lookup_llm`, `embedding_adjacent` | Which method fired. |
-| `swe_classification_llm` | VARCHAR | 10 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM-based classification. Null for unrouted rows. |
+| `swe_classification_llm` | VARCHAR | 10 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM-based classification. Underlies `is_swe_combined_llm`; lives in `unified.parquet` only. |
+| `is_swe_combined_llm` | BOOL | 10 | true / false / null | **Primary LLM SWE flag for analysis.** True iff `swe_classification_llm ∈ {SWE, SWE_ADJACENT}`. Null when the LLM did not run. The prompt was deliberately not changed — the LLM still emits the 3-way enum so the cache stays valid; this column is a downstream collapse. Available as `is_swe` in `unified_core.parquet`. |
 
 **Classification tiers (Stage 5):**
 - **Tier 1 (regex):** Pattern matching on title (software engineer, full-stack, DevOps, etc.). Highest precision.
@@ -397,7 +416,8 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 
 | Column | Type | Stage | Values | Meaning |
 |---|---|---|---|---|
-| `swe_classification_llm` | VARCHAR | 10 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM occupation classification. Null for rows where rule-based confidence was high. |
+| `swe_classification_llm` | VARCHAR | 10 | `SWE`, `SWE_ADJACENT`, `NOT_SWE` | LLM occupation classification. Underlies `is_swe_combined_llm`. Null for unrouted rows. Lives in `unified.parquet` only. |
+| `is_swe_combined_llm` | BOOL | 10 | true / false / null | True iff `swe_classification_llm ∈ {SWE, SWE_ADJACENT}`. The primary LLM SWE flag for analysis; renamed to `is_swe` in `unified_core.parquet`. |
 | `ghost_assessment_llm` | VARCHAR | 10 | `realistic`, `inflated`, `ghost_likely` | LLM ghost-job assessment. |
 | `yoe_min_years_llm` | INT64 | 10 | Numeric or null | Primary LLM-extracted YOE floor within the LLM frame. See Section 6. |
 | `description_core_llm` | VARCHAR | 9 | Text | LLM-cleaned description. Empty string for short-description skips. |
@@ -423,13 +443,12 @@ Stages 9 and 10 require an explicit `--llm-budget` parameter (no default). This 
 **Selection frame vs budget:**
 Stage 9 accepts an optional `--selection-target` for the core-frame size. When omitted, it defaults to `--llm-budget`. Stage 10 inherits the Stage 9 core frame and does not have a separate selection target. Supplemental cache rows can expand the usable LLM set, but they do not change the balanced core frame.
 
-**Category split (default 40/30/30):**
-Fresh-call budget is split across three categories via `--llm-budget-split swe,swe_adjacent,control`:
-- SWE: 40% (primary study target)
-- SWE-adjacent: 30%
+**Category split (default 70/30):**
+Fresh-call budget is split across two categories via `--llm-budget-split swe_combined,control`:
+- Combined SWE (Stage 5 `is_swe OR is_swe_adjacent`): 70%
 - Control: 30%
 
-If a category has fewer uncached rows than its share, the surplus cascades to the other categories proportionally to their shares.
+If a category has fewer uncached rows than its share, the surplus cascades to the other category.
 
 **Fresh-call selection:**
 Stage 9 first selects and persists the sticky core frame across `source × analysis_group × date_bin`. Stage 10 inherits that frame. For each task, cached selected rows are resolved without consuming budget; the fresh-call budget is split across unresolved selected rows by `analysis_group` via `split_budget_by_category`; each group then calls `select_fresh_call_tasks(...)`, which applies the same deterministic frame selector within that group. Supplemental cache rows can expand usable coverage, but they do not change the selected core frame or consume fresh-call budget.
