@@ -1,0 +1,88 @@
+{
+  "section_types": [
+    "role_summary",
+    "responsibilities",
+    "requirements",
+    "preferred",
+    "benefits",
+    "about_company",
+    "legal_eeo",
+    "unclassified"
+  ],
+  "core_text_for_T12": [
+    "responsibilities",
+    "requirements",
+    "preferred"
+  ],
+  "heading_patterns": {
+    "role_summary": [
+      "\\b(about the role|role overview|position summary|job summary|overview|summary)\\b",
+      "\\b(introduction|opportunity|job description)\\b"
+    ],
+    "responsibilities": [
+      "\\b(responsibilities|duties|what you(?:'|\u2019)ll do|what you will do)\\b",
+      "\\b(key responsibilities|essential functions|accountabilities|day[- ]to[- ]day)\\b",
+      "\\b(the role|role responsibilities|your impact|in this role)\\b"
+    ],
+    "requirements": [
+      "\\b(requirements?|qualifications?|minimum qualifications|basic qualifications)\\b",
+      "\\b(required skills?|what you(?:'|\u2019)ll need|what you will need|must have)\\b",
+      "\\b(skills and experience|experience and skills|who you are)\\b"
+    ],
+    "preferred": [
+      "\\b(preferred|nice[- ]?to[- ]?have|bonus points?|desired|plus|extra credit)\\b",
+      "\\b(preferred qualifications|preferred skills|preferred experience)\\b"
+    ],
+    "benefits": [
+      "\\b(benefits?|perks?|compensation|salary|pay range|base pay|total rewards)\\b",
+      "\\b(what we offer|rewards package|employee rewards|paid time off)\\b"
+    ],
+    "about_company": [
+      "\\b(about us|about the company|about our company|company overview)\\b",
+      "\\b(who we are|our mission|our company|life at|our story)\\b"
+    ],
+    "legal_eeo": [
+      "\\b(equal opportunity|eeo|eoe|nondiscrimination|non-discrimination)\\b",
+      "\\b(accommodation|reasonable accommodation|background check|drug screen)\\b",
+      "\\b(work authorization|sponsorship|visa sponsorship|right to work)\\b",
+      "\\b(pay transparency|privacy notice|applicant privacy)\\b"
+    ],
+    "unclassified": []
+  },
+  "tone_patterns": {
+    "imperative": [
+      "\\byou\\s+will\\b",
+      "\\byou(?:'|\u2019)ll\\b",
+      "\\bmust\\b",
+      "\\bshould\\b",
+      "\\brequired\\s+to\\b",
+      "\\bwill\\s+be\\s+responsible\\s+for\\b"
+    ],
+    "inclusive": [
+      "\\bwe\\b",
+      "\\bour\\b",
+      "\\bour\\s+team\\b",
+      "\\bjoin\\s+(?:us|our\\s+team)\\b",
+      "\\byou(?:'|\u2019)ll\\s+join\\b",
+      "\\bwe(?:'|\u2019)re\\b|\\bwe\\s+are\\b"
+    ],
+    "passive_formal": [
+      "\\b(?:is|are|was|were|be|been|being)\\s+(?:[a-z]{3,}ed|required|expected|provided|included|considered|performed|managed)\\b"
+    ],
+    "direct_address": [
+      "\\byou\\b",
+      "\\byour\\b",
+      "\\byou(?:'|\u2019)ll\\b"
+    ],
+    "marketing": [
+      "\\b(exciting|innovative|cutting[- ]edge|world[- ]class|fast[- ]paced)\\b",
+      "\\b(passionate|mission[- ]driven|best[- ]in[- ]class|impactful|dynamic)\\b",
+      "\\b(disrupt|revolutioni[sz]e|transformative|industry[- ]leading)\\b"
+    ]
+  },
+  "notes": [
+    "Pre-heading text is role_summary only when at least one explicit heading is detected.",
+    "Unheaded descriptions are classified as unclassified.",
+    "T12 should filter to text_source='llm' for boilerplate-sensitive corpus comparisons."
+  ]
+}

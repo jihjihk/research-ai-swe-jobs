@@ -1,0 +1,49 @@
+{
+  "people_management_strict": {
+    "description": "V1-refined (already validated in T11/V1)",
+    "pattern": "\\b(mentor|coach|hire|headcount|performance[- ]?review)\\w*",
+    "source": "V1 verification \u2014 these 5 sub-patterns at >=80% precision"
+  },
+  "technical_orchestration_strict": {
+    "description": "Start from full spec; drop sub-patterns failing T21 precision check",
+    "pattern": null,
+    "subterm_verdicts": {
+      "agent": {
+        "AMBIG": 25,
+        "FP": 3,
+        "TP": 22,
+        "n": 50,
+        "precision_strict": 0.44,
+        "precision_relaxed": 0.88
+      },
+      "pipeline": {
+        "AMBIG": 4,
+        "FP": 0,
+        "TP": 46,
+        "n": 50,
+        "precision_strict": 0.92,
+        "precision_relaxed": 1.0
+      },
+      "stakeholder": {
+        "AMBIG": 29,
+        "FP": 0,
+        "TP": 21,
+        "n": 50,
+        "precision_strict": 0.42,
+        "precision_relaxed": 1.0
+      },
+      "team_building": {
+        "AMBIG": 27,
+        "FP": 0,
+        "TP": 3,
+        "n": 30,
+        "precision_strict": 0.1,
+        "precision_relaxed": 1.0
+      }
+    }
+  },
+  "strategic_scope_strict": {
+    "description": "Start from full spec; refine stakeholder per T21 precision check",
+    "pattern": null
+  }
+}

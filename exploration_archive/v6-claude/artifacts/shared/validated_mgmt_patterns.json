@@ -1,0 +1,664 @@
+{
+  "generated_by": "T21_validate_patterns.py",
+  "gate": "Gate 2 post-corrections",
+  "validation_method": "50-row stratified sample (25/25 per period), rule-based validator on description_core_llm",
+  "threshold": 0.8,
+  "profiles": {
+    "people_mgmt": {
+      "regex": "(?:\\bmentor(?:s|ed|ing|ship)?\\b)|(?:\\bdirect\\s+reports?\\b)|(?:\\bperformance\\s+review(?:s|ing)?\\b)|(?:\\b(?:1:1|1-on-1|one[-\\s]on[-\\s]one)s?\\b)|(?:\\bheadcount\\b)|(?:\\bteam[\\s-]building\\b)|(?:\\b(?:grow|growing|build|building|scale|scaling)\\s+(?:the|your|a|our)\\s+(?:engineering\\s+)?team\\b)|(?:\\bdevelop(?:ing)?\\s+talent\\b)|(?:\\bmanag(?:e|es|ed|ing)\\s+(?:a|the|your|our)\\s+(?:team|group|engineering\\s+team|team\\s+of)\\b)|(?:\\bmanag(?:e|es|ed|ing)\\s+(?:people|direct\\s+reports|engineers|the\\s+engineering)\\b)|(?:\\blead(?:s|ing)?\\s+(?:a|the|your|our)\\s+(?:team|engineering|group)\\b)|(?:\\bpeople\\s+management\\b)|(?:\\bline\\s+manag(?:e|es|ed|ing|er|ement)\\b)",
+      "kept_patterns": [
+        "mentor",
+        "direct_reports",
+        "performance_review",
+        "one_on_one",
+        "headcount",
+        "team_building",
+        "grow_team",
+        "develop_talent",
+        "manage_team",
+        "manage_people",
+        "lead_team",
+        "people_management_phrase",
+        "line_manage"
+      ],
+      "dropped_patterns": [
+        "coach",
+        "hiring_decisions",
+        "career_development"
+      ]
+    },
+    "tech_orch": {
+      "regex": "(?:\\barchitectur(?:e|al)\\s+reviews?\\b)|(?:\\bcode\\s+reviews?\\b)|(?:\\bsystem\\s+design\\b)|(?:\\btechnical\\s+direction\\b)|(?:\\btechnical\\s+leadership\\b)|(?:\\btech(?:nical)?\\s+lead\\b)|(?:\\bagent(?:ic)?\\s+(?:workflow|pipeline|systems?|architecture)s?\\b)|(?:\\bworkflow\\s+automation\\b)|(?:\\bquality\\s+gates?\\b)|(?:\\bprompt\\s+engineering\\b)|(?:\\b(?:evals?|eval\\s+harness(?:es)?|evaluation\\s+(?:framework|suite|harness)s?|validation\\s+suite)\\b)|(?:\\bdesign\\s+reviews?\\b)|(?:\\btechnical\\s+vision\\b)|(?:\\b(?:set|setting|establish|establishing|define|defining)\\s+(?:technical|engineering)\\s+standards\\b)",
+      "kept_patterns": [
+        "architecture_review",
+        "code_review",
+        "system_design",
+        "technical_direction",
+        "technical_leadership",
+        "tech_lead",
+        "agent_workflow",
+        "workflow_automation",
+        "quality_gate",
+        "prompt_engineering",
+        "evals",
+        "design_review",
+        "technical_vision",
+        "set_technical_standards"
+      ],
+      "dropped_patterns": [
+        "guardrails"
+      ]
+    },
+    "strategic": {
+      "regex": "(?:\\bbusiness\\s+(?:impact|outcomes?|value|goals?)\\b)|(?:\\bproduct\\s+strategy\\b)|(?:\\bresource\\s+allocation\\b)|(?:\\b(?:own(?:s|ed|ing)?|manag(?:e|es|ed|ing)|plan(?:s|ned|ning)?)\\s+(?:the\\s+)?budget(?:s|ing)?\\b)|(?:\\b(?:drive|drives|driving|grow|growing|increase|increasing)\\s+revenue\\b)|(?:\\b(?:executive|c[-\\s]?level|leadership\\s+team)\\s+(?:partner|stakeholders?|alignment)s?\\b)|(?:\\bbusiness\\s+requirements?\\b)|(?:\\bstrategic\\s+initiatives?\\b)|(?:\\binfluenc(?:e|es|ed|ing)\\s+(?:the\\s+)?(?:direction|strategy|roadmap|priorities)\\b)",
+      "kept_patterns": [
+        "business_impact",
+        "product_strategy",
+        "resource_allocation",
+        "budget_ownership",
+        "drive_revenue",
+        "executive_partner",
+        "business_requirements",
+        "strategic_initiative",
+        "influence_direction"
+      ],
+      "dropped_patterns": [
+        "roadmap",
+        "cross_functional_alignment",
+        "stakeholder",
+        "prioritization"
+      ]
+    }
+  },
+  "mgmt_combined_regex": "(?:\\bmentor(?:s|ed|ing|ship)?\\b)|(?:\\bdirect\\s+reports?\\b)|(?:\\bperformance\\s+review(?:s|ing)?\\b)|(?:\\b(?:1:1|1-on-1|one[-\\s]on[-\\s]one)s?\\b)|(?:\\bheadcount\\b)|(?:\\bteam[\\s-]building\\b)|(?:\\b(?:grow|growing|build|building|scale|scaling)\\s+(?:the|your|a|our)\\s+(?:engineering\\s+)?team\\b)|(?:\\bdevelop(?:ing)?\\s+talent\\b)|(?:\\bmanag(?:e|es|ed|ing)\\s+(?:a|the|your|our)\\s+(?:team|group|engineering\\s+team|team\\s+of)\\b)|(?:\\bmanag(?:e|es|ed|ing)\\s+(?:people|direct\\s+reports|engineers|the\\s+engineering)\\b)|(?:\\blead(?:s|ing)?\\s+(?:a|the|your|our)\\s+(?:team|engineering|group)\\b)|(?:\\bpeople\\s+management\\b)|(?:\\bline\\s+manag(?:e|es|ed|ing|er|ement)\\b)",
+  "precision_table": [
+    {
+      "pattern": "mentor",
+      "profile": "people_mgmt",
+      "n_matches_2024": 3454,
+      "n_matches_2026": 2426,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "direct_reports",
+      "profile": "people_mgmt",
+      "n_matches_2024": 60,
+      "n_matches_2026": 15,
+      "sample_size": 40,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "performance_review",
+      "profile": "people_mgmt",
+      "n_matches_2024": 15,
+      "n_matches_2026": 8,
+      "sample_size": 23,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "one_on_one",
+      "profile": "people_mgmt",
+      "n_matches_2024": 17,
+      "n_matches_2026": 18,
+      "sample_size": 35,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "headcount",
+      "profile": "people_mgmt",
+      "n_matches_2024": 1,
+      "n_matches_2026": 2,
+      "sample_size": 3,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "team_building",
+      "profile": "people_mgmt",
+      "n_matches_2024": 79,
+      "n_matches_2026": 52,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "grow_team",
+      "profile": "people_mgmt",
+      "n_matches_2024": 49,
+      "n_matches_2026": 46,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "develop_talent",
+      "profile": "people_mgmt",
+      "n_matches_2024": 4,
+      "n_matches_2026": 7,
+      "sample_size": 11,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "manage_team",
+      "profile": "people_mgmt",
+      "n_matches_2024": 59,
+      "n_matches_2026": 19,
+      "sample_size": 44,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "manage_people",
+      "profile": "people_mgmt",
+      "n_matches_2024": 11,
+      "n_matches_2026": 4,
+      "sample_size": 15,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "lead_team",
+      "profile": "people_mgmt",
+      "n_matches_2024": 483,
+      "n_matches_2026": 120,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "people_management_phrase",
+      "profile": "people_mgmt",
+      "n_matches_2024": 250,
+      "n_matches_2026": 73,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "line_manage",
+      "profile": "people_mgmt",
+      "n_matches_2024": 13,
+      "n_matches_2026": 6,
+      "sample_size": 19,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "coach",
+      "profile": "people_mgmt",
+      "n_matches_2024": 650,
+      "n_matches_2026": 352,
+      "sample_size": 50,
+      "precision": 0.6,
+      "precision_2024": 0.64,
+      "precision_2026": 0.56,
+      "passes_80pct": false
+    },
+    {
+      "pattern": "hiring_decisions",
+      "profile": "people_mgmt",
+      "n_matches_2024": 14,
+      "n_matches_2026": 16,
+      "sample_size": 30,
+      "precision": 0.3333333333333333,
+      "precision_2024": 0.2857142857142857,
+      "precision_2026": 0.375,
+      "passes_80pct": false
+    },
+    {
+      "pattern": "career_development",
+      "profile": "people_mgmt",
+      "n_matches_2024": 76,
+      "n_matches_2026": 51,
+      "sample_size": 50,
+      "precision": 0.1,
+      "precision_2024": 0.08,
+      "precision_2026": 0.12,
+      "passes_80pct": false
+    },
+    {
+      "pattern": "business_impact",
+      "profile": "strategic",
+      "n_matches_2024": 334,
+      "n_matches_2026": 437,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "product_strategy",
+      "profile": "strategic",
+      "n_matches_2024": 75,
+      "n_matches_2026": 44,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "resource_allocation",
+      "profile": "strategic",
+      "n_matches_2024": 25,
+      "n_matches_2026": 29,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "budget_ownership",
+      "profile": "strategic",
+      "n_matches_2024": 12,
+      "n_matches_2026": 2,
+      "sample_size": 14,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "drive_revenue",
+      "profile": "strategic",
+      "n_matches_2024": 9,
+      "n_matches_2026": 14,
+      "sample_size": 23,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "executive_partner",
+      "profile": "strategic",
+      "n_matches_2024": 6,
+      "n_matches_2026": 20,
+      "sample_size": 26,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "business_requirements",
+      "profile": "strategic",
+      "n_matches_2024": 820,
+      "n_matches_2026": 297,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "strategic_initiative",
+      "profile": "strategic",
+      "n_matches_2024": 27,
+      "n_matches_2026": 31,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "influence_direction",
+      "profile": "strategic",
+      "n_matches_2024": 17,
+      "n_matches_2026": 28,
+      "sample_size": 42,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "roadmap",
+      "profile": "strategic",
+      "n_matches_2024": 704,
+      "n_matches_2026": 658,
+      "sample_size": 50,
+      "precision": 0.7,
+      "precision_2024": 0.68,
+      "precision_2026": 0.72,
+      "passes_80pct": false
+    },
+    {
+      "pattern": "cross_functional_alignment",
+      "profile": "strategic",
+      "n_matches_2024": 2029,
+      "n_matches_2026": 1695,
+      "sample_size": 50,
+      "precision": 0.7,
+      "precision_2024": 0.76,
+      "precision_2026": 0.64,
+      "passes_80pct": false
+    },
+    {
+      "pattern": "stakeholder",
+      "profile": "strategic",
+      "n_matches_2024": 2190,
+      "n_matches_2026": 1653,
+      "sample_size": 50,
+      "precision": 0.5,
+      "precision_2024": 0.4,
+      "precision_2026": 0.6,
+      "passes_80pct": false
+    },
+    {
+      "pattern": "prioritization",
+      "profile": "strategic",
+      "n_matches_2024": 878,
+      "n_matches_2026": 392,
+      "sample_size": 50,
+      "precision": 0.12,
+      "precision_2024": 0.12,
+      "precision_2026": 0.12,
+      "passes_80pct": false
+    },
+    {
+      "pattern": "architecture_review",
+      "profile": "tech_orch",
+      "n_matches_2024": 55,
+      "n_matches_2026": 72,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "code_review",
+      "profile": "tech_orch",
+      "n_matches_2024": 1517,
+      "n_matches_2026": 1245,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "system_design",
+      "profile": "tech_orch",
+      "n_matches_2024": 782,
+      "n_matches_2026": 676,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "technical_direction",
+      "profile": "tech_orch",
+      "n_matches_2024": 288,
+      "n_matches_2026": 450,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "technical_leadership",
+      "profile": "tech_orch",
+      "n_matches_2024": 867,
+      "n_matches_2026": 825,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "tech_lead",
+      "profile": "tech_orch",
+      "n_matches_2024": 456,
+      "n_matches_2026": 291,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "agent_workflow",
+      "profile": "tech_orch",
+      "n_matches_2024": 6,
+      "n_matches_2026": 259,
+      "sample_size": 31,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "workflow_automation",
+      "profile": "tech_orch",
+      "n_matches_2024": 19,
+      "n_matches_2026": 55,
+      "sample_size": 44,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "quality_gate",
+      "profile": "tech_orch",
+      "n_matches_2024": 16,
+      "n_matches_2026": 39,
+      "sample_size": 41,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "prompt_engineering",
+      "profile": "tech_orch",
+      "n_matches_2024": 26,
+      "n_matches_2026": 212,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "evals",
+      "profile": "tech_orch",
+      "n_matches_2024": 1,
+      "n_matches_2026": 110,
+      "sample_size": 26,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "design_review",
+      "profile": "tech_orch",
+      "n_matches_2024": 560,
+      "n_matches_2026": 425,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "technical_vision",
+      "profile": "tech_orch",
+      "n_matches_2024": 54,
+      "n_matches_2026": 124,
+      "sample_size": 50,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "set_technical_standards",
+      "profile": "tech_orch",
+      "n_matches_2024": 13,
+      "n_matches_2026": 61,
+      "sample_size": 38,
+      "precision": 1.0,
+      "precision_2024": 1.0,
+      "precision_2026": 1.0,
+      "passes_80pct": true
+    },
+    {
+      "pattern": "guardrails",
+      "profile": "tech_orch",
+      "n_matches_2024": 43,
+      "n_matches_2026": 176,
+      "sample_size": 50,
+      "precision": 0.62,
+      "precision_2024": 0.68,
+      "precision_2026": 0.56,
+      "passes_80pct": false
+    }
+  ],
+  "scope": {
+    "end_to_end": {
+      "pattern_source": "T22",
+      "regex": "\\bend[\\s\\-]to[\\s\\-]end\\b",
+      "precision": 1.0,
+      "sample_n": 50,
+      "hits_all": 3646,
+      "pass": true,
+      "recommendation": "keep"
+    },
+    "cross_functional": {
+      "pattern_source": "T22",
+      "regex": "\\bcross[\\s\\-]functional\\b",
+      "precision": 1.0,
+      "sample_n": 50,
+      "hits_all": 6171,
+      "pass": true,
+      "recommendation": "keep"
+    },
+    "ownership_bare": {
+      "pattern_source": "T22",
+      "regex": "\\bownership\\b",
+      "precision": 0.6,
+      "sample_n": 50,
+      "hits_all": 3067,
+      "pass": false,
+      "recommendation": "drop"
+    },
+    "ownership_qualified": {
+      "pattern_source": "T22",
+      "regex": "(?:end[\\s\\-]to[\\s\\-]end\\s+ownership|ownership\\s+of\\s+(?:the|our|a|your)|ownership\\s+mindset|take\\s+ownership|full\\s+ownership|strong\\s+ownership)",
+      "precision": 1.0,
+      "sample_n": 50,
+      "hits_all": 1373,
+      "pass": true,
+      "recommendation": "keep"
+    },
+    "stakeholder": {
+      "pattern_source": "T22",
+      "regex": "\\bstakeholder(?:s)?\\b",
+      "precision": 1.0,
+      "sample_n": 50,
+      "hits_all": 6320,
+      "pass": true,
+      "recommendation": "keep"
+    },
+    "autonomous": {
+      "pattern_source": "T22",
+      "regex": "\\bautonom(?:y|ous|ously)\\b",
+      "precision": 0.86,
+      "sample_n": 50,
+      "hits_all": 1584,
+      "pass": true,
+      "recommendation": "keep"
+    },
+    "strategy": {
+      "pattern_source": "T22",
+      "regex": "\\bstrateg(?:y|ic|ically)\\b",
+      "precision": 1.0,
+      "sample_n": 50,
+      "hits_all": 4450,
+      "pass": true,
+      "recommendation": "keep"
+    },
+    "roadmap": {
+      "pattern_source": "T22",
+      "regex": "\\broadmap\\b",
+      "precision": 1.0,
+      "sample_n": 50,
+      "hits_all": 1377,
+      "pass": true,
+      "recommendation": "keep"
+    },
+    "drive_impact": {
+      "pattern_source": "T22",
+      "regex": "\\b(?:high[\\s\\-]impact|drive\\s+impact|business\\s+impact|drive\\s+(?:the\\s+)?roadmap)\\b",
+      "precision": 1.0,
+      "sample_n": 50,
+      "hits_all": 1155,
+      "pass": true,
+      "recommendation": "keep"
+    },
+    "vision": {
+      "pattern_source": "T22",
+      "regex": "\\bvision(?:ing)?\\b",
+      "precision": 0.74,
+      "sample_n": 50,
+      "hits_all": 2076,
+      "pass": false,
+      "recommendation": "drop"
+    },
+    "initiative": {
+      "pattern_source": "T22",
+      "regex": "\\binitiative(?:s)?\\b",
+      "precision": 1.0,
+      "sample_n": 50,
+      "hits_all": 4081,
+      "pass": true,
+      "recommendation": "keep"
+    }
+  },
+  "meta": {
+    "last_updated_by_T22": "2026-04-15"
+  }
+}

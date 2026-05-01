@@ -1,0 +1,9 @@
+severity,area,finding,evidence,downstream_action
+high,text coverage,Scraped LinkedIn cleaned-text coverage is limited.,Mean scraped LinkedIn llm_extraction_labeled_share across periods = 0.307.,Treat archetype/text findings as labeled-subset evidence unless LLM coverage is expanded.
+high,seniority,Scraped seniority unknown pool is large.,Mean scraped LinkedIn seniority_unknown_share = 0.534.,Report known/all denominators and use J3/J4 and S4 validators.
+high,native label quality,Arshkon native-entry labels are YOE-noisy.,"Among YOE-known native-entry arshkon rows, YOE>=5 share = 0.426.",Use native labels only as diagnostic; do not treat them as ground truth.
+medium,description length,Description length increase is above within-2024 source variation.,Mid-senior arshkon-to-scraped / arshkon-to-asaniczka ratio = 3.62.,Normalize text metrics by posting and by length; avoid raw term counts.
+medium,AI keywords,AI keyword prevalence has one of the clearest calibrated increases.,Mid-senior calibration ratio = 10.86.,Validate semantic precision before making AI requirement claims.
+medium,domain decomposition,T09 archetype labels cover only a subset of scraped rows.,Mean scraped archetype coverage across periods = 0.303.,Use domain results as LLM-cleaned labeled-subset evidence.
+medium,metric changes,Largest absolute period changes are dominated by text coverage/length and tech indicators.,description_length_median: +1268.500; description_length_mean: +1148.936; tech_count_mean: +2.062; llm_text_labeled_share: -0.645; yoe_mean_known: -0.644,Gate 2 should separate real market movement from pipeline coverage and source-instrument movement.
+low,numeric tail,company_size is heavy-tailed for 2024-04 / mid-senior.,"p50=819.00, p99=435078.00.",Use robust summaries or winsorized checks for this variable.

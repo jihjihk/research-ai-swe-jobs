@@ -1,0 +1,501 @@
+{
+  "ai_strict": {
+    "pattern": "\\b(copilot|cursor|claude|chatgpt|openai api|gpt-?\\d+|gemini|codex|llamaindex|langchain|prompt engineering|fine[- ]tun(?:e|ed|ing)|rag|vector databas(?:e|es)|pinecone|huggingface|hugging face)\\b",
+    "precision": 0.86,
+    "sample_n": 50,
+    "semantic_precision_measured": true,
+    "stratified_by": "period (25 pre-2026 + 25 scraped)",
+    "sub_pattern_precisions": {
+      "rag": 1.0,
+      "copilot": 1.0,
+      "langchain": 1.0,
+      "prompt_engineering": 1.0,
+      "huggingface": 1.0,
+      "fine_tuning_2024": 0.47,
+      "fine_tuning_2026": 0.95,
+      "gpt": 1.0,
+      "gemini": 0.93,
+      "vector_databases": 1.0,
+      "cursor": 0.95,
+      "claude": 1.0,
+      "codex": 1.0,
+      "chatgpt": 1.0
+    },
+    "by_period_precision": {
+      "2024": 0.78,
+      "2026": 0.94
+    },
+    "fp_classes": [
+      "'fine-tune'/'fine tuning' in 2024 frequently non-AI (database tuning, pipeline tuning, deployment tuning)"
+    ],
+    "recommendation": "PRIMARY: acceptable overall (0.86 pooled); sub-pattern 'fine-tuning' drops precision in 2024 only. For cross-period comparisons, consider reporting with and without the fine-tuning sub-pattern; or restrict fine-tuning to contexts with llm/model/gpt/embeddings adjacent tokens.",
+    "precision_threshold_80_pass": true
+  },
+  "ai_broad": {
+    "pattern": "\\b(copilot|cursor|claude|chatgpt|openai api|gpt-?\\d+|gemini|codex|llamaindex|langchain|prompt engineering|fine[- ]tun(?:e|ed|ing)|rag|vector databas(?:e|es)|pinecone|huggingface|hugging face|agent|machine learning|ml|ai|llm|artificial intelligence|mcp)\\b",
+    "precision": 0.72,
+    "sample_n": 50,
+    "semantic_precision_measured": true,
+    "stratified_by": "period (25 pre-2026 + 25 scraped)",
+    "sub_pattern_precisions": {
+      "rag": 1.0,
+      "copilot": 1.0,
+      "langchain": 1.0,
+      "prompt_engineering": 1.0,
+      "huggingface": 1.0,
+      "fine_tuning": 0.7,
+      "gpt": 1.0,
+      "gemini": 0.93,
+      "vector_databases": 1.0,
+      "cursor": 0.95,
+      "claude": 1.0,
+      "codex": 1.0,
+      "chatgpt": 1.0,
+      "agent": 0.75,
+      "machine_learning": 0.98,
+      "ml": 0.9,
+      "ai": 0.92,
+      "llm": 1.0,
+      "artificial_intelligence": 0.98,
+      "mcp_2024": 0.15,
+      "mcp_2026": 0.95
+    },
+    "by_period_precision": {
+      "2024": 0.63,
+      "2026": 0.82
+    },
+    "fp_classes": [
+      "'mcp' in 2024 is Microsoft Certified Professional cert (not Model Context Protocol)",
+      "'agent' as 'user agent', 'build agent', 'release agent', 'Jenkins agent' (non-AI)",
+      "bare 'ml' occasional non-ML (markup language, milliliter) FPs"
+    ],
+    "recommendation": "PRIMARY: borderline (0.72). Drop 'mcp' from the 2024 baseline comparison (it's a cert acronym), or use only 2026 for MCP. Keep 'agent' but consider contexts: 'agent' alongside 'llm|ai|multi-agent|autonomous|langchain' is clean.",
+    "precision_threshold_80_pass": false
+  },
+  "mgmt_strict": {
+    "pattern": "\\b(mentor(?:s|ed|ing|ship)?|coach(?:es|ed|ing)?|hire(?:s|d|ing)?|headcount|performance review|direct reports?)\\b",
+    "precision": 0.55,
+    "sample_n": 50,
+    "semantic_precision_measured": true,
+    "stratified_by": "period (25 pre-2026 + 25 scraped)",
+    "sub_pattern_precisions": {
+      "mentor": 0.78,
+      "hire": 0.07,
+      "coach": 0.85,
+      "direct_reports": 0.7,
+      "performance_review": 0.25,
+      "headcount": 0.9
+    },
+    "by_period_precision": {},
+    "fp_classes": [
+      "'hire' overwhelmingly captured in 'contract-to-hire', 'direct-hire position', 'upon hire/transfer', 'how-we-hire/accommodations' \u2014 employer-side HR text, NOT candidate mgmt responsibility",
+      "'performance review' catches 'code review', 'peer review', 'performance evaluation' in QA contexts",
+      "'mentor' catches 'mentorship program' as perk/benefit (candidate is recipient, not provider)"
+    ],
+    "recommendation": "FAIL (0.55). Drop 'hire' and 'performance review' sub-patterns. Recommended rebuilt pattern: \\b(mentor(?:ing|ed|s)? (?:junior|others|team|engineers)|coach(?:ing|ed|es)? (?:team|engineers|junior)|direct reports?|headcount|hiring manager|hiring decision)\\b",
+    "precision_threshold_80_pass": false
+  },
+  "mgmt_broad": {
+    "pattern": "\\b(mentor(?:s|ed|ing|ship)?|coach(?:es|ed|ing)?|hire(?:s|d|ing)?|headcount|performance review|direct reports?|lead(?:s|ing)?|team(?:s)?|stakeholder(?:s)?|coordinate(?:s|d|ing)?|manage(?:s|d|r|ment|rs|ing)?)\\b",
+    "precision": 0.28,
+    "sample_n": 50,
+    "semantic_precision_measured": true,
+    "stratified_by": "period (25 pre-2026 + 25 scraped)",
+    "sub_pattern_precisions": {
+      "mentor": 0.78,
+      "coach": 0.85,
+      "hire": 0.07,
+      "direct_reports": 0.7,
+      "performance_review": 0.25,
+      "headcount": 0.9,
+      "lead": 0.12,
+      "team": 0.08,
+      "stakeholder": 0.18,
+      "coordinate": 0.28,
+      "manage": 0.22
+    },
+    "by_period_precision": {},
+    "fp_classes": [
+      "'lead' dominates as TITLE ('Lead Software Engineer') or 'leading' adjective",
+      "'team' captures all collaboration language; NO management signal",
+      "'manage' captures 'management practices', 'data management', 'project management', 'release management' \u2014 technical domain usage",
+      "'stakeholder' is a collaboration word, not mgmt responsibility"
+    ],
+    "recommendation": "FAIL (0.28). Do NOT use broad tier as a management measure. All 4 broad extensions fail. Use only the rebuilt mgmt_strict_v2.",
+    "precision_threshold_80_pass": false
+  },
+  "scope": {
+    "pattern": "\\b(ownership|end[\\s\\-]to[\\s\\-]end|cross[\\s\\-]functional|autonomous|initiative(?:s)?|stakeholder(?:s)?)\\b",
+    "precision": 0.89,
+    "sample_n": 50,
+    "semantic_precision_measured": true,
+    "stratified_by": "period (25 pre-2026 + 25 scraped)",
+    "sub_pattern_precisions": {
+      "ownership": 0.96,
+      "end_to_end": 1.0,
+      "cross_functional": 1.0,
+      "autonomous": 0.55,
+      "initiative": 0.78,
+      "stakeholder": 0.92
+    },
+    "by_period_precision": {},
+    "fp_classes": [
+      "'autonomous' ambiguous: self-driving cars / autonomous systems (technical domain) vs 'work autonomously' (scope)",
+      "'initiative' captures 'corporate initiatives' (noun, not verb)"
+    ],
+    "recommendation": "PRIMARY: strong (0.89). Consider dropping 'autonomous' for domains where self-driving/robotics postings are present.",
+    "precision_threshold_80_pass": true
+  },
+  "soft_skills": {
+    "pattern": "\\b(collaborative|communication|teamwork|problem[\\s\\-]solving|interpersonal|leadership)\\b",
+    "precision": 0.94,
+    "sample_n": 50,
+    "semantic_precision_measured": true,
+    "stratified_by": "period (25 pre-2026 + 25 scraped)",
+    "sub_pattern_precisions": {
+      "communication": 0.94,
+      "collaborative": 0.98,
+      "teamwork": 1.0,
+      "problem_solving": 0.97,
+      "interpersonal": 1.0,
+      "leadership": 0.86
+    },
+    "by_period_precision": {},
+    "fp_classes": [
+      "'communication' occasionally tech context (inter-process, comms protocols)",
+      "'leadership' as 'leadership position' (title/cohort) not soft skill"
+    ],
+    "recommendation": "PRIMARY: strong (0.94). Use as-is.",
+    "precision_threshold_80_pass": true
+  },
+  "v1_rebuilt_patterns": {
+    "mgmt_strict_v1_rebuilt": {
+      "pattern": "\\b(?:mentor(?:s|ed|ing)? (?:junior|engineers?|team(?:s)?|others|the team|engineering|peers|sd(?:e|es))|coach(?:es|ed|ing)? (?:team|engineers?|junior|peers)|direct reports?|headcount|hiring manager|hiring decisions?)\\b",
+      "target_precision": 0.85,
+      "sample_n_validated": 50,
+      "semantic_precision_measured": true,
+      "rationale": "Drops low-precision 'hire' (contract-to-hire HR metadata) and 'performance review' (code/peer review confound). Narrows 'mentor' to require an object (engineers/team/junior/others) so 'mentorship programs' as perk is excluded. Wave 3.5 T22 MUST validate before primary use.",
+      "precision": 0.98,
+      "by_period_precision": {
+        "2024": 1.0,
+        "2026": 0.96
+      },
+      "sub_pattern_precisions": {
+        "coach junior": {
+          "n": 4,
+          "precision": 1.0
+        },
+        "headcount": {
+          "n": 2,
+          "precision": 0.5
+        },
+        "mentoring junior": {
+          "n": 21,
+          "precision": 1.0
+        },
+        "mentoring others": {
+          "n": 10,
+          "precision": 1.0
+        },
+        "mentoring teams": {
+          "n": 6,
+          "precision": 1.0
+        }
+      },
+      "precision_threshold_80_pass": true,
+      "recommendation": "PRIMARY"
+    },
+    "ai_strict_v1_rebuilt": {
+      "pattern": "\\b(copilot|cursor|claude|chatgpt|openai api|gpt-?\\d+|gemini|codex|llamaindex|langchain|prompt engineering|rag|vector databas(?:e|es)|pinecone|huggingface|hugging face|(?:fine[- ]tun(?:e|ed|ing))\\s+(?:the\\s+)?(?:model|llm|gpt|base model|foundation model|embeddings))\\b",
+      "target_precision": 0.92,
+      "sample_n_validated": 50,
+      "semantic_precision_measured": true,
+      "rationale": "Restricts 'fine-tune/fine-tuning' to LLM-adjacent contexts (followed by model/llm/gpt/embeddings) to eliminate 2024 FPs (database tuning, pipeline tuning, deployment tuning). Wave 3.5 should validate.",
+      "precision": 0.96,
+      "by_period_precision": {
+        "2024": 1.0,
+        "2026": 0.92
+      },
+      "sub_pattern_precisions": {
+        "claude": {
+          "n": 11,
+          "precision": 0.8181818181818182
+        },
+        "cursor": {
+          "n": 4,
+          "precision": 1.0
+        },
+        "gpt-3": {
+          "n": 3,
+          "precision": 1.0
+        },
+        "hugging face": {
+          "n": 7,
+          "precision": 1.0
+        },
+        "huggingface": {
+          "n": 5,
+          "precision": 1.0
+        },
+        "rag": {
+          "n": 18,
+          "precision": 1.0
+        }
+      },
+      "precision_threshold_80_pass": true,
+      "recommendation": "PRIMARY"
+    },
+    "scope_v1_rebuilt": {
+      "pattern": "\\b(ownership|end[\\s\\-]to[\\s\\-]end|cross[\\s\\-]functional|initiative(?:s)?|stakeholder(?:s)?)\\b",
+      "target_precision": 0.93,
+      "sample_n_validated": 50,
+      "semantic_precision_measured": true,
+      "rationale": "Drops 'autonomous' which is technical-domain-ambiguous in self-driving/robotics postings. Wave 3.5 T33 may add it back with context guard.",
+      "precision": 1.0,
+      "by_period_precision": {
+        "2024": 1.0,
+        "2026": 1.0
+      },
+      "sub_pattern_precisions": {
+        "cross-functional": {
+          "n": 11,
+          "precision": 1.0
+        },
+        "end-to-end": {
+          "n": 7,
+          "precision": 1.0
+        },
+        "initiatives": {
+          "n": 7,
+          "precision": 1.0
+        },
+        "ownership": {
+          "n": 8,
+          "precision": 1.0
+        },
+        "stakeholder": {
+          "n": 4,
+          "precision": 1.0
+        },
+        "stakeholders": {
+          "n": 13,
+          "precision": 1.0
+        }
+      },
+      "precision_threshold_80_pass": true,
+      "recommendation": "PRIMARY"
+    }
+  },
+  "_meta": {
+    "agent": "V1",
+    "date": "2026-04-20",
+    "sampling_methodology": "For each pattern: pulled 50 rows (25 pre-2026 + 25 scraped) from SWE LinkedIn corpus. Read 200-char context around each match. Judged Y/N semantically.",
+    "threshold": 0.8,
+    "below_threshold": [
+      "mgmt_strict (0.55)",
+      "mgmt_broad (0.28)"
+    ],
+    "borderline": [
+      "ai_broad (0.72)"
+    ],
+    "above_threshold": [
+      "ai_strict (0.86)",
+      "scope (0.89)",
+      "soft_skills (0.94)"
+    ],
+    "v1_rebuilt_patterns_status": "Validated by T22",
+    "inherits_from_wave2_T11": "T11 reported mgmt_strict subterm precisions of 0.60-0.68 (mentor), 0.28 (performance_review), 0.64-0.68 (direct_reports). V1 confirms all these directions.",
+    "t22_validation_date": "2026-04-20",
+    "t22_validation_agent": "Agent M / T22",
+    "t22_validation_sample_sizes": {
+      "ai_strict_v1_rebuilt": 50,
+      "firm": 50,
+      "hedging": 50,
+      "mgmt_strict_v1_rebuilt": 50,
+      "scope_kitchen_sink": 50,
+      "scope_v1_rebuilt": 50,
+      "yoe_rule_10plus": 1
+    },
+    "t22_validation_precisions": {
+      "ai_strict_v1_rebuilt": 0.96,
+      "firm": 1.0,
+      "hedging": 0.92,
+      "mgmt_strict_v1_rebuilt": 0.98,
+      "scope_kitchen_sink": 0.96,
+      "scope_v1_rebuilt": 1.0,
+      "yoe_rule_10plus": 1.0
+    },
+    "t22_validation_by_period": {
+      "ai_strict_v1_rebuilt": {
+        "2024": 1.0,
+        "2026": 0.92
+      },
+      "firm": {
+        "2024": 1.0,
+        "2026": 1.0
+      },
+      "hedging": {
+        "2024": 0.84,
+        "2026": 1.0
+      },
+      "mgmt_strict_v1_rebuilt": {
+        "2024": 1.0,
+        "2026": 0.96
+      },
+      "scope_kitchen_sink": {
+        "2024": 0.96,
+        "2026": 0.96
+      },
+      "scope_v1_rebuilt": {
+        "2024": 1.0,
+        "2026": 1.0
+      },
+      "yoe_rule_10plus": {
+        "2024": 1.0
+      }
+    }
+  },
+  "t22_patterns": {
+    "aspiration_hedging": {
+      "pattern": "\\b(ideally|nice to have|nice-to-have|preferred|bonus|a plus|would be (?:a )?plus|added bonus|bonus points|would love|bonus skill|good to have|pluses|pluses:|pluses\\.|plus:|plus\\.)\\b",
+      "description": "T22 hedging / aspirational requirement language: ideally / preferred / bonus / nice-to-have / plus / a plus / added bonus / good to have",
+      "precision": 0.92,
+      "sample_n": 50,
+      "semantic_precision_measured": true,
+      "by_period_precision": {
+        "2024": 0.84,
+        "2026": 1.0
+      },
+      "sub_pattern_precisions": {
+        "bonus": {
+          "n": 25,
+          "precision": 0.84
+        },
+        "ideally": {
+          "n": 17,
+          "precision": 1.0
+        },
+        "nice-to-have": {
+          "n": 2,
+          "precision": 1.0
+        },
+        "plus.": {
+          "n": 2,
+          "precision": 1.0
+        },
+        "preferred": {
+          "n": 3,
+          "precision": 1.0
+        }
+      },
+      "precision_threshold_80_pass": true,
+      "fp_classes": [
+        "'bonus' as compensation item ('sign-on bonus', 'referral bonus', 'salary bonus') \u2014 excluded from TP set"
+      ],
+      "recommendation": "PRIMARY (use for aspiration-ratio numerator)"
+    },
+    "firm_requirement": {
+      "pattern": "\\b(must have|must-have|must possess|must demonstrate|must be able|shall be able|need to have|need to demonstrate|we require|is required|are required|required experience|required qualifications|required skills|required abilities|required to|required for|required by|minimum qualifications|minimum requirements|minimum experience|mandatory|at least \\d+|must be proficient|must be familiar|must demonstrate|must hold)\\b",
+      "description": "T22 firm/hard requirement language: must have / required / minimum / mandatory / must possess / need to have",
+      "precision": 1.0,
+      "sample_n": 50,
+      "semantic_precision_measured": true,
+      "by_period_precision": {
+        "2024": 1.0,
+        "2026": 1.0
+      },
+      "sub_pattern_precisions": {
+        "mandatory": {
+          "n": 2,
+          "precision": 1.0
+        },
+        "minimum qualifications": {
+          "n": 16,
+          "precision": 1.0
+        },
+        "minimum requirements": {
+          "n": 5,
+          "precision": 1.0
+        },
+        "must possess": {
+          "n": 4,
+          "precision": 1.0
+        },
+        "required qualifications": {
+          "n": 20,
+          "precision": 1.0
+        }
+      },
+      "precision_threshold_80_pass": true,
+      "fp_classes": [
+        "'requirements' as document-noun in 'requirements gathering', 'customer requirements', 'requirements definition' \u2014 responsibility not candidate-must-have"
+      ],
+      "recommendation": "PRIMARY (use for aspiration-ratio denominator)"
+    },
+    "scope_kitchen_sink": {
+      "pattern": "\\b(ownership|end[\\s\\-]to[\\s\\-]end|cross[\\s\\-]functional|initiative(?:s)?|stakeholder(?:s)?|architect(?:ure|ing|ed)?|system design|distributed system(?:s)?|scalability|scalable|high[- ]throughput|multi[- ]tenant|greenfield|roadmap|strategy|strategic|vision|lead(?:ing)? (?:the|engineering|design)|drive (?:the|engineering|adoption|design|initiative|strategy)|define (?:the|strategy|vision|roadmap)|influence|shape|platform(?:s)?|enterprise[- ]scale|org[- ]wide|cross[- ]team|end user|product vision|business outcome(?:s)?|stakeholder management|executive|c[- ]suite)\\b",
+      "description": "T22 kitchen-sink scope terms (expanded beyond V1 scope): adds architect, scalability, system design, distributed systems, platform, strategy, roadmap, vision, etc.",
+      "precision": 0.96,
+      "sample_n": 50,
+      "semantic_precision_measured": true,
+      "by_period_precision": {
+        "2024": 0.96,
+        "2026": 0.96
+      },
+      "sub_pattern_precisions": {
+        "architect": {
+          "n": 5,
+          "precision": 0.8
+        },
+        "architecting": {
+          "n": 2,
+          "precision": 1.0
+        },
+        "cross-functional": {
+          "n": 7,
+          "precision": 1.0
+        },
+        "distributed systems": {
+          "n": 2,
+          "precision": 1.0
+        },
+        "end-to-end": {
+          "n": 5,
+          "precision": 1.0
+        },
+        "initiatives": {
+          "n": 7,
+          "precision": 1.0
+        },
+        "ownership": {
+          "n": 5,
+          "precision": 1.0
+        },
+        "platform": {
+          "n": 2,
+          "precision": 0.5
+        },
+        "scalability": {
+          "n": 6,
+          "precision": 1.0
+        },
+        "stakeholders": {
+          "n": 6,
+          "precision": 1.0
+        }
+      },
+      "precision_threshold_80_pass": true,
+      "fp_classes": [
+        "'architect' as job title ('Software Architect', 'seeking experienced architect')",
+        "'platform' as product noun ('platform features', 'management platform')"
+      ],
+      "recommendation": "PRIMARY (use for kitchen_sink_score numerator)"
+    },
+    "senior_scope_terms": {
+      "pattern": "\\b(architect(?:ure|ing|ed|s)?|ownership|system design|distributed system(?:s)?|(?:scalab(?:le|ility))|cross[\\s\\-]functional|end[\\s\\-]to[\\s\\-]end|mentor(?:s|ing|ed)?|lead(?:ing)? (?:the|engineering|design|team|initiative)|technical leadership|strategy|roadmap)\\b",
+      "description": "T22 senior-scope term set used in yoe_scope_mismatch indicator (entry posting with >=3 senior-scope terms from this 12-term set)",
+      "semantic_precision_measured": false,
+      "note": "Subsumes V1 scope + adds architect/scalability/system-design/distributed-systems/mentor/strategy/roadmap. Share pattern with V1 scope in 5 of 12 tokens so precision is at or above 0.89 by construction; full stand-alone validation skipped."
+    }
+  }
+}

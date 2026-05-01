@@ -1,0 +1,5 @@
+method,n_topics,outlier_pct,coherence_npmi_top10,stability_ari_cross_seed,note
+"BERTopic (UMAP+HDBSCAN, min_topic_size=30)",22,27.8,0.1443,0.738,Mean ARI=0.74 over 10 non-collapsed pairs. 3/8 seeds collapsed to <5 topics -- UMAP manifold has two basins. Topology is domain-structured on non-collapsed runs.
+BERTopic (mts=20),35,31.0,0.1738,,More granular; higher outlier share.
+BERTopic (mts=50),2,0.3,0.1347,,Collapsed to 2 topics -- uninformative.
+"NMF (TF-IDF, k=22)",22,0.0,,,Deterministic (given init=nndsvd). ARI vs BERTopic reduced = 0.315. Top-term Jaccard median = 0.25. Isolated GenAI/LLM as its own topic; BERTopic merged into broader ai_ml_engineering.

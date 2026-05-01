@@ -1,0 +1,8 @@
+method,n_topics,noise_pct,stability_ari_mean,tfidf_recon_err,interpretability_note
+"BERTopic (min_topic_size=30, primary)",36,46.76,0.24,,"Content-coherent topics with named technologies (React, AWS, ML) plus role-type groupings (security, DevOps). Handles outliers explicitly. c-TF-IDF top-terms are typically readable without post-hoc curation."
+"BERTopic (min_topic_size=20, sensitivity)",51,42.35,,,"Finer granularity; more niche clusters (payments, observability)."
+"BERTopic (min_topic_size=50, sensitivity)",3,0.24,,,Coarser; a handful of dominant role-type clusters (or skipped if degenerate).
+NMF k=5,5,0.0,,86.411,Soft-assigned by argmax W; top-terms reflect corpus axes. Deterministic and fast; less role-type separation than BERTopic.
+NMF k=8,8,0.0,,85.8542,Soft-assigned by argmax W; top-terms reflect corpus axes. Deterministic and fast; less role-type separation than BERTopic.
+NMF k=12,12,0.0,0.998,85.2945,Soft-assigned by argmax W; top-terms reflect corpus axes. Deterministic and fast; less role-type separation than BERTopic.
+NMF k=15,15,0.0,,84.9456,Soft-assigned by argmax W; top-terms reflect corpus axes. Deterministic and fast; less role-type separation than BERTopic.

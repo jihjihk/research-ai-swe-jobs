@@ -1,0 +1,8 @@
+method,n_topics,pct_noise,stability_ari_core,mean_coherence,interpretability
+BERTopic (mts=20),58,36.56,,,Too fragmented: many duplicate industry-niche topics.
+"BERTopic (mts=30, primary)",23,27.79,0.926,-1.342,"Clean domain clusters (AI/ML, cloud/devops, web, data eng, mobile, embedded, QA)."
+BERTopic (mts=50),5,5.56,,,"Over-merged: only 5 coarse clusters, loses domain structure."
+NMF k=5,5,0.0,,,"Dominated by company-boilerplate artifacts (chatbots, enthusiastic)."
+NMF k=8,8,0.0,,,"Mixes real clusters (AI/ML, cloud) with boilerplate artifacts."
+NMF k=12,12,0.0,,,"Best NMF config; surfaces AI, data eng, cloud, web, embedded, but 4/12 components are boilerplate signatures."
+NMF k=15,15,0.0,,,Adds clearance/embedded and agentic/govcloud micro-topics; boilerplate artifacts persist.

@@ -3,6 +3,8 @@
 Reference for maintaining the daily scraper alert email.
 If you change scraping logic (new sites, manifest fields, output files), update the parsers here to match.
 
+Note: Indeed and YC (legacy, excluded from current analysis) are still surfaced by the alerting infrastructure where the scraper code paths exist; the parsers and patterns described below remain accurate for those code paths.
+
 ## Design principles
 
 1. **Memory-light.** Never load a full CSV into memory. Stream rows (reservoir sampling for samples, counters for quality). Use binary-mode line counting for row counts. Read cron.log by scanning backwards from EOF — only today's portion, not the whole file.

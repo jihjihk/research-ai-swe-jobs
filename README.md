@@ -1,6 +1,6 @@
-# The AI Restructuring of the SWE Seniority Ladder
+# SWE Job Market Research
 
-Research project studying how AI coding agents are restructuring software engineer roles across the entire seniority ladder. Uses historical LinkedIn benchmark data plus ongoing LinkedIn / Indeed scraping. YC scraper infrastructure exists, but YC data is excluded from the current analysis.
+The SWE job market is changing quickly due to AI. Our goal is to quantify and describe how the role is changing. The pace of change and the lack of clarity can be harmful for both employers and job seekers. We suggest what new skills and requirements are emerging and what a better structure looks like for hiring.
 
 ## Project Structure
 
@@ -11,44 +11,32 @@ research/
 ├── .env                           # Environment config (S3_BUCKET, SNS_TOPIC_ARN) — not in git
 │
 ├── scraper/                       # Scraping pipeline
-│   ├── scrape_linkedin_swe.py     # LinkedIn + Indeed scraper (python-jobspy)
-│   ├── scrape_yc.py               # Y Combinator / Work at a Startup scraper
+│   ├── scrape_linkedin_swe.py     # LinkedIn scraper (python-jobspy)
 │   ├── harmonize.py               # Builds canonical postings + daily observations parquet files
 │   ├── send_alert.py              # Daily summary + SNS alerting
-│   └── run_daily.sh               # Cron wrapper (lock file, retries, log rotation)
+│   ├── run_daily.sh               # Cron wrapper (lock file, retries, log rotation)
 │   └── queue_full_detached.sh     # Durable fallback wrapper for today's full rerun
 │
-├── notebooks/                     # Analysis
-│   └── exploratory-analysis.ipynb # EDA notebook (Kaggle, Revelio, scraped data)
-│
-├── docs/                          # Research documents
-│   ├── 1-research-design.md       # Canonical research design
-│   ├── 2-interview-design-mechanisms.md # Canonical interview / mixed-methods design
-│   ├── 3-literature-review.md     # Literature review
-│   ├── 4-literature-sources.md    # Reference list
-│   ├── 6-methods-learning.md      # Methodology learning guide from prior notes
-│   ├── data-sources-and-prompts.md # Public data options & prompts
-│   ├── infrastructure-setup.md    # EC2 & S3 infrastructure docs
-│   ├── 5-publication-targets-2026-2027.md # Venue strategy and deadlines
-│   └── archive/                   # Historical notes and superseded drafts
+├── preprocessing/                 # Pipeline that transforms raw data into analysis-ready parquet
+├── tests/                         # pytest suite for preprocessing
+├── figures/                       # Scripts/notebooks producing paper figures and tables
+├── paper/                         # LaTeX manuscript workspace
 │
 ├── data/                          # (gitignored)
 │   ├── unified.parquet            # Canonical postings table (global dedupe)
 │   ├── unified_observations.parquet # Daily panel (one row per posting per scrape_date)
+│   ├── unified_core.parquet       # Analysis-ready subset (LLM frame + cohort-confirmed)
 │   ├── scraped/                   # Daily scraper output
-│   │   ├── YYYY-MM-DD_swe_jobs.csv       # LinkedIn/Indeed SWE-matched jobs
-│   │   ├── YYYY-MM-DD_non_swe_jobs.csv   # LinkedIn/Indeed non-SWE jobs
-│   │   ├── YYYY-MM-DD_yc_jobs.csv        # YC jobs (all roles)
-│   │   ├── YYYY-MM-DD_manifest.json      # LinkedIn/Indeed run params
-│   │   ├── YYYY-MM-DD_yc_manifest.json   # YC run params
-│   │   ├── _seen_job_ids.json            # LinkedIn/Indeed dedup index
-│   │   ├── _seen_yc_ids.json             # YC dedup index
-│   │   └── _yc_scraper_state.json        # YC scan position tracker
-│   ├── kaggle-linkedin-jobs-2023-2024/
-│   └── revelio/
+│   │   ├── YYYY-MM-DD_swe_jobs.csv       # LinkedIn SWE-matched jobs
+│   │   ├── YYYY-MM-DD_non_swe_jobs.csv   # LinkedIn non-SWE jobs
+│   │   ├── YYYY-MM-DD_manifest.json      # Run params
+│   │   └── _seen_job_ids.json            # Dedup index
+│   └── kaggle-linkedin-jobs-2023-2024/
 │
 └── logs/                          # Scraper logs (auto-rotated, 30 days)
 ```
+
+Indeed and YC scraper code paths exist in `scraper/` as legacy infrastructure but their data is excluded from current analysis.
 
 ## Quick Start
 
@@ -78,7 +66,6 @@ mkdir -p data/scraped logs
 
 # Test
 python3 scraper/scrape_linkedin_swe.py --test
-python3 scraper/scrape_yc.py --test
 
 # Install cron (runs daily at 6 AM)
 chmod +x scraper/run_daily.sh
@@ -90,11 +77,8 @@ chmod +x scraper/run_daily.sh
 | Source | Scraper | Output | Scope |
 |--------|---------|--------|-------|
 | **LinkedIn** | `scrape_linkedin_swe.py` | `*_swe_jobs.csv`, `*_non_swe_jobs.csv` | SWE + adjacent + control roles across 26 US metro areas |
-| **Indeed** | `scrape_linkedin_swe.py` | (same files) | Same queries / metros, primarily ablation + robustness |
-| **YC (Work at a Startup)** | `scrape_yc.py` | `*_yc_jobs.csv` | Infrastructure output only; excluded from current analysis |
+| **Indeed** | `scrape_linkedin_swe.py` | (same files) | (legacy, not used) Same queries / metros, code path retained |
 | **Kaggle** | (static download) | `kaggle-linkedin-jobs-2023-2024/` | Historical LinkedIn data |
-
-Current analysis uses LinkedIn as the primary platform and Indeed for sensitivity checks. YC is not used.
 
 ## Scraper Usage
 
@@ -135,31 +119,16 @@ python3 scraper/scrape_linkedin_swe.py --sequential
 python3 scraper/scrape_linkedin_swe.py --request-timeout-sec 180 --memory-soft-limit-mb 8192 --memory-hard-limit-mb 10240
 ```
 
-### YC (Work at a Startup)
-
-```bash
-# Test (scan ~70 job IDs — ~3 minutes)
-python3 scraper/scrape_yc.py --test
-
-# Full run (scan ~700+ IDs — ~30 minutes)
-python3 scraper/scrape_yc.py
-
-# Skip harmonization
-python3 scraper/scrape_yc.py --no-harmonize
-```
-
-The YC scraper works by scanning sequential job IDs on workatastartup.com. Each active job page contains structured JSON-LD data (title, company, salary, location, description, YC batch). It tracks the highest scanned ID across runs so it only scans new ranges.
-
 ### Via the cron wrapper
 
 ```bash
-./scraper/run_daily.sh              # Full scraper run; YC output is excluded from analysis
+./scraper/run_daily.sh              # Full scraper run
 ./scraper/run_daily.sh --quick      # Quick mode
 ./scraper/run_daily.sh --catchup    # 48-hour lookback
-./scraper/run_daily.sh --sites linkedin   # LinkedIn only for the LinkedIn/Indeed scraper
+./scraper/run_daily.sh --sites linkedin   # LinkedIn only
 ```
 
-The wrapper runs LinkedIn/Indeed first, then YC as a separate infrastructure step. If YC fails, it doesn't affect the main scrape or current analysis dataset.
+The wrapper handles retries (up to 3 attempts) and uses a lock file to prevent overlapping runs.
 
 The wrapper adds:
 - **Lock file** — prevents overlapping runs; auto-clears stale locks (> 6 hours)
@@ -237,14 +206,14 @@ YC jobs are **not** split — all roles are saved in one file since the dataset 
 
 ### Anti-detection
 
-| Measure | LinkedIn | Indeed | YC |
-|---------|----------|-------|----|
-| Rate cap | 6 req/min | 8 req/min | n/a |
-| Request delay | jobspy / site latency | jobspy / site latency | 1.5–3.5s |
-| User agent rotation | 5 browser UAs | 5 browser UAs | 5 browser UAs |
-| Failure backoff | 60s × failure count | 45s × failure count | n/a |
-| Circuit breaker | 5 consecutive true failures | 5 consecutive true failures | 30 consecutive 404s |
-| Rate-limit alerting | manifest + SNS warning | manifest + SNS warning | n/a |
+| Measure | LinkedIn | Indeed |
+|---------|----------|-------|
+| Rate cap | 6 req/min | 8 req/min |
+| Request delay | jobspy / site latency | jobspy / site latency |
+| User agent rotation | 5 browser UAs | 5 browser UAs |
+| Failure backoff | 60s × failure count | 45s × failure count |
+| Circuit breaker | 5 consecutive true failures | 5 consecutive true failures |
+| Rate-limit alerting | manifest + SNS warning | manifest + SNS warning |
 
 Empty result sets are treated as valid zero-yield tasks, not request failures.
 
@@ -257,17 +226,11 @@ Empty result sets are treated as valid zero-yield tasks, not request failures.
 - `_seen_job_ids.json` is retained for ever-seen bookkeeping, but it does not suppress today's snapshot output
 - Index capped at 500K entries
 
-**YC:**
-- Tracks job IDs (numeric, from URL) in `_seen_yc_ids.json`
-- Expired jobs (HTTP 302) are marked so they aren't re-checked
-- `_yc_scraper_state.json` tracks the highest scanned ID to avoid re-scanning old ranges
-
 ### Output datasets
 
 **Daily raw CSV snapshots**
 - `data/scraped/YYYY-MM-DD_swe_jobs.csv`
 - `data/scraped/YYYY-MM-DD_non_swe_jobs.csv`
-- `data/scraped/YYYY-MM-DD_yc_jobs.csv`
 
 **Canonical parquet**
 - `data/unified.parquet`
@@ -308,25 +271,6 @@ Empty result sets are treated as valid zero-yield tasks, not request failures.
 | `skills` | Listed skills |
 | `scrape_date` | Date this scrape ran |
 
-**YC** (`*_yc_jobs.csv`):
-
-| Column | Description |
-|--------|-------------|
-| `source` | Always `yc_workatastartup` |
-| `id` | Numeric job ID |
-| `title` | Job title |
-| `company` | Company name |
-| `company_url` | Company website |
-| `location` | Location(s), pipe-separated |
-| `is_remote` | Remote flag |
-| `date_posted` | ISO timestamp |
-| `description` | Full description (plain text) |
-| `job_type` | FULL_TIME, PART_TIME, etc. |
-| `salary_currency` / `salary_min` / `salary_max` / `salary_unit` | Salary details |
-| `job_url` | Link to workatastartup.com listing |
-| `yc_batch` | YC batch (e.g., W24, S25) |
-| `scrape_date` | Date this scrape ran |
-
 ## Monitoring
 
 ### Check if scraper is running
@@ -341,12 +285,10 @@ ls -la .scraper.lock 2>/dev/null && echo "Running (PID: $(cat .scraper.lock))" |
 ```bash
 # Latest scrape stats
 tail -20 logs/scrape_$(date +%Y-%m-%d).log
-tail -20 logs/yc_$(date +%Y-%m-%d).log
 
 # Accumulated data summary
 echo "Total daily files: $(ls data/scraped/*_swe_jobs.csv 2>/dev/null | wc -l)"
 echo "Total SWE rows: $(cat data/scraped/*_swe_jobs.csv 2>/dev/null | wc -l)"
-echo "Total YC files: $(ls data/scraped/*_yc_jobs.csv 2>/dev/null | wc -l)"
 echo "Disk usage: $(du -sh data/scraped/)"
 ```
 
@@ -358,14 +300,13 @@ echo "Disk usage: $(du -sh data/scraped/)"
 | Circuit breaker triggered | Too many consecutive failures | Check logs; increase delays in config |
 | Stale lock file | Previous run crashed | Auto-clears after 6h, or `rm .scraper.lock` |
 | Missing cron output | Cron environment issue | Check `logs/cron.log`; ensure absolute paths |
-| YC scraper gets 0 jobs | Site structure changed | Check `logs/yc_*.log`; may need parser update |
 
 ## Alerts
 
 After each daily run, the scraper sends a summary email via AWS SNS with:
 
 - **Status**: success/failure/warning, retry count
-- **Today's counts**: SWE jobs, control jobs, YC jobs, total
+- **Today's counts**: SWE jobs, control jobs, total
 - **Trend**: comparison to yesterday and 7-day average
 - **Data quality**: fill rates for key fields (seniority, location, company)
 - **Sample postings**: 5 random job titles from today's scrape
@@ -415,7 +356,7 @@ python scraper/send_alert.py --status success --swe-count "$SWE_COUNT" --total-c
 
 ## Infrastructure
 
-The scraper runs daily on EC2 with S3 for durable storage. See `docs/infrastructure-setup.md` for full details.
+The scraper runs daily on EC2 with S3 for durable storage. See `scraper/infrastructure-setup.md` for full details.
 
 - **EC2:** t3.small in us-east-2, Amazon Linux 2023, cron at 6 AM UTC
 - **S3:** `s3://swe-labor-research` — stores daily CSVs, manifests, and scraper status
@@ -569,20 +510,4 @@ done
 
 ## Research context
 
-This project studies how AI coding agents are restructuring SWE roles across the entire seniority ladder. See:
-
-- `docs/1-research-design.md` — Canonical research questions and empirical strategy
-- `docs/2-interview-design-mechanisms.md` — Canonical interview design for mechanism evidence
-- `docs/3-literature-review.md` — Literature review
-- `docs/4-literature-sources.md` — Reference list
-- `docs/5-publication-targets-2026-2027.md` — Conference and venue strategy
-- `docs/6-methods-learning.md` — Methodology learning guide tied to the March 6 notes
-- `docs/infrastructure-setup.md` — Scraper infrastructure and operations
-- `docs/archive/2026-03/analysis-validation-plan.md` — Archived measurement / validation plan
-
-### Research questions
-
-1. How did employer-side SWE requirements restructure across seniority levels from 2023 to 2026?
-2. Which requirements moved downward into junior postings, and which senior-role responsibilities shifted toward AI-enabled orchestration?
-3. Do employer-side AI requirements outpace observed workplace AI usage?
-4. How do workers and hiring-side actors explain these changes?
+For current project context, work-area boundaries, data sources, and the active analysis pipeline, see `AGENTS.md` at the repo root. That file is kept up to date as the project evolves and is the authoritative pointer for downstream agents and collaborators.

@@ -1,0 +1,69 @@
+{
+  "basis": "LinkedIn SWE, section-filtered core text from t13_section_spans, validated spot-check summary",
+  "sample_protocol": {
+    "note": "These are spot-check precision estimates used for downstream filtering. Broad management is intentionally excluded from primary claims.",
+    "sample_size_per_set": 50,
+    "stratification": "period-balanced when available"
+  },
+  "sets": [
+    {
+      "keep": true,
+      "name": "scope_strict",
+      "note": "Core scope language; use for scope density and kitchen-sink measures.",
+      "patterns": {
+        "autonomous": "\\bautonomous(ly)?\\b",
+        "cross_functional": "cross[- ]functional",
+        "end_to_end": "end[- ]to[- ]end|\\be2e\\b",
+        "initiative": "\\binitiative\\b",
+        "ownership": "\\bownership\\b",
+        "roadmap": "\\broadmap\\b",
+        "strategic": "\\bstrategic\\b"
+      },
+      "precision": 0.94
+    },
+    {
+      "keep": true,
+      "name": "senior_scope",
+      "note": "Used for entry-level YOE/scope mismatch and senior-role forensics.",
+      "patterns": {
+        "architecture": "\\barchitecture\\b|\\barchitect(ure|ing|ed|s)?\\b",
+        "distributed_systems": "distributed systems?",
+        "ownership": "\\bownership\\b",
+        "system_design": "system design"
+      },
+      "precision": 0.96
+    },
+    {
+      "keep": true,
+      "name": "management_strong",
+      "note": "Explicit management language; retained as a substantive signal.",
+      "patterns": {
+        "coach": "\\bcoach(ing|es|ed)?\\b",
+        "direct_reports": "direct reports?",
+        "headcount": "\\bheadcount\\b",
+        "hire": "\\bhire(d|s|ing)?\\b",
+        "manage": "\\bmanage(d|r|rs|ing)?\\b",
+        "mentor": "\\bmentor(ship|ing)?\\b",
+        "people_manager": "\\bpeople manager\\b",
+        "performance_review": "performance review(s)?",
+        "supervise": "\\bsupervis(e|ion|or|ory)\\b"
+      },
+      "precision": 0.98
+    },
+    {
+      "keep": false,
+      "name": "management_broad",
+      "note": "Generic collaboration/leadership language. Valid as sensitivity only.",
+      "patterns": {
+        "collaborate": "\\bcollaborat(e|es|ed|ing|ion|ive)\\b",
+        "coordinate": "\\bcoordinate(d|s|ing)?\\b",
+        "lead": "\\blead(s|er|ing)?\\b",
+        "partner": "\\bpartner(s|ed|ing)?\\b",
+        "stakeholder": "\\bstakeholder(s)?\\b",
+        "team": "\\bteam(s)?\\b"
+      },
+      "precision": 0.68
+    }
+  ],
+  "version": "2026-04-11"
+}

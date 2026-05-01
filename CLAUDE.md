@@ -4,8 +4,7 @@ Read `AGENTS.md` first — it has the project context, pipeline status, data sou
 
 ## Claude-specific behavior
 
-- Use DuckDB for data inspection (see `.claude/skills/data-inspection.md` for query patterns).
-- For research methodology tasks, follow `.claude/skills/workflows/research.md`.
+- Use DuckDB for parquet/CSV inspection.
 - After completing work, update `AGENTS.md` with what changed. The next agent (Claude or Codex) depends on it being current.
 
 ## EC2 access

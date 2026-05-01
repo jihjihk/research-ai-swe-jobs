@@ -1,0 +1,12 @@
+analysis_type,comparison,n_group1,n_group2,MDE_binary_p50,MDE_binary_p20,MDE_continuous_d,verdict,notes
+seniority-stratified,entry: arshkon vs scraped,175,1275,0.1129,0.0903,0.2258,underpowered,Uses seniority_final='entry'. Arshkon entry is rule-based; scraped entry mostly LLM.
+seniority-stratified,senior (mid-senior): arshkon vs scraped,2064,17418,0.0326,0.0261,0.0652,well-powered,Uses seniority_final='mid-senior'.
+all-SWE,all SWE: arshkon vs scraped,4691,40881,0.0216,0.0173,0.0432,well-powered,All is_swe rows regardless of seniority.
+all-SWE,pooled 2024 vs scraped,22820,40881,0.0116,0.0093,0.0232,well-powered,kaggle_arshkon + kaggle_asaniczka vs scraped. Caveat: asaniczka is a different instrument (no native entry labels).
+seniority-stratified,entry: pooled 2024 vs scraped,379,1275,0.082,0.0656,0.1639,marginal,Asaniczka entry signal comes from LLM only (no native entry labels).
+seniority-stratified,mid-senior: pooled 2024 vs scraped,13490,17418,0.0161,0.0129,0.0321,well-powered,
+seniority-stratified,unknown-seniority: arshkon vs scraped,2424,21841,0.03,0.024,0.06,well-powered,Residual category; high in scraped because many rows weren't routed to LLM.
+seniority-stratified (3-level),junior (entry+assoc): arshkon vs scraped,190,1327,0.1087,0.0869,0.2173,underpowered,seniority_3level='junior'.
+metro-level,"smallest qualifying metro (n=18 metros, >=50 threshold)",51,51,0.2774,0.2219,0.5548,underpowered,Per-metro comparison; worst-case metro pair. Typical metro has much larger n.
+metro-level,"smallest qualifying metro (n=8 metros, >=100 threshold)",121,121,0.1801,0.1441,0.3602,underpowered,Same as above but tighter threshold.
+company panel,"company overlap panel (>=3 SWE both sources, N=240 companies)",240,240,0.1279,0.1023,0.2557,underpowered,"Unit of analysis is the company, not the posting. N here is the number of companies in the panel."

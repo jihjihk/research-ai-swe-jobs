@@ -1,0 +1,7 @@
+analysis_category,concentration_risk,evidence,recommended_default
+entry share,high,scraped_linkedin top-20 company share=0.181; >=5-posting companies with zero J1 rows=0.794; entry-specialist flagged companies=196,report J1-J4; add company-weighted estimate; exclude entry_specialist_employers as a required sensitivity
+AI mention rate,medium,"scraped_linkedin top-50 company share=0.269; AI is binary raw-description prevalence, so repeated templates and prolific employers can move rates",use row-level rate plus company-clustered/company-weighted sensitivity; cap prolific firms for corpus summaries
+description length,medium,"scraped_linkedin top-20 company share=0.181; length differs by aggregator status, new-entrant status, and source composition","use row-level distribution tests, then report company-weighted median/mean and aggregator-excluded sensitivity"
+term frequencies,high,scraped_linkedin top-50 company share=0.269; largest residual exact-template share among top duplicate-template employers=0.875,cap at 20-50 postings per company and deduplicate exact description_hash within company before term ranking
+topic models,high,topic models over postings will learn employer/template clusters when prolific firms are uncapped,deduplicate exact templates; cap per company; inspect topic employer concentration before interpretation
+co-occurrence networks,high,skill co-occurrence edges are sensitive to repeated employer stacks and template duplication,construct company-capped network and require terms/edges to appear across >=20 distinct companies

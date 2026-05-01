@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+exec /home/jihgaboot/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome \
+  --no-sandbox \
+  --disable-setuid-sandbox \
+  "$@"
