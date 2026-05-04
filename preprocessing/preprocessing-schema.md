@@ -1,6 +1,8 @@
 # Preprocessing Schema Reference
 
-Last updated: 2026-04-30
+Last updated: 2026-05-04
+
+**Changelog — 2026-05-04:** Added Stage 11 OpenAI embeddings. `job_description_embedding` is computed from `title + "\n\n" + description_core_llm`, cached in `preprocessing/cache/openai_embeddings.db`, and written to posting-level outputs (`unified.parquet` and `unified_core.parquet`). The daily observation files intentionally omit the embedding vector column because it is posting-level and large.
 
 **Changelog — 2026-04-30 (later):** `unified_core.parquet` row filter tightened. The analysis frame is now the intersection of the Stage 9 balanced core frame **and** rows with a confirmed cohort label (`is_swe_combined_llm = TRUE OR is_control = TRUE`). In-frame rows where the rule flagged SWE / SWE_adjacent but the LLM disagreed (NOT_SWE) are dropped from `unified_core` — they remain in `unified.parquet` for audit. The same restriction applies to deferred/short-skipped rows the LLM never labelled. `unified_core` is now a strictly cohort-confirmed analysis surface; `unified.parquet` retains the full balanced frame for diagnostic work.
 
@@ -28,6 +30,7 @@ Complete column reference for the preprocessing pipeline. For architecture, oper
 - `ghost_assessment_llm`: Primary ghost indicator (`realistic`/`inflated`/`ghost_likely`). Richer than rule-based `ghost_job_risk`. Use `ghost_job_risk` as fallback.
 - `yoe_min_years_llm`: **Primary YOE column** within the LLM frame (`llm_classification_coverage = 'labeled'`); rule-based `yoe_extracted` is the audit/fallback. See Section 6.
 - `is_swe_combined_llm`: Primary LLM-side SWE flag in `unified.parquet` — True when `swe_classification_llm ∈ {SWE, SWE_ADJACENT}`. Available as `is_swe` in `unified_core.parquet`. The Stage 5 rule-based `is_swe` / `is_swe_adjacent` columns remain in `unified.parquet` for fallback / ablation; the underlying `swe_classification_llm` enum is preserved in `unified.parquet` only.
+- `job_description_embedding`: Stage 11 embedding of `title + description_core_llm`. Use only where non-null; null means the row did not have cleaned text to embed.
 
 Always check `llm_extraction_coverage` and `llm_classification_coverage` to confirm which rows have LLM results. For raw Stage 9/Stage 10 LLM columns (including `description_core_llm`), filter to `labeled`. Seniority is the exception: `seniority_final` is already the combined best-available column and should be used directly without filtering by coverage.
 
@@ -68,7 +71,7 @@ The authoritative list is the `CORE_COLUMNS` constant in [`preprocessing/scripts
 |---|---|
 | Identity | `uid` |
 | Source & time | `source`, `period`, `date_posted`, `scrape_date` |
-| Job content | `title`, `description`, `description_core_llm` |
+| Job content | `title`, `description`, `description_core_llm`, `job_description_embedding` |
 | Company | `company_name_effective`, `company_name_canonical`, `is_aggregator`, `company_industry`, `company_size` |
 | Occupation | `is_swe` (LLM combined; renamed from `is_swe_combined_llm`), `is_control` (Stage 5 rule) |
 | Seniority | `seniority_final`, `seniority_final_source`, `seniority_rule`, `seniority_rule_source`, `seniority_native` |
@@ -102,7 +105,7 @@ The authoritative list is the `CORE_COLUMNS` constant in [`preprocessing/scripts
 
 ### Companion observation file
 
-`data/unified_core_observations.parquet` is the daily-panel equivalent: one row per posting × scrape_date, inner-joined on the core `uid` set, with the same column list (and `scrape_date` replaced by the per-observation value). Use when posting duration / daily repost behavior matters.
+`data/unified_core_observations.parquet` is the daily-panel equivalent: one row per posting × scrape_date, inner-joined on the core `uid` set. It mirrors the core column list except that `job_description_embedding` is omitted to avoid repeating a large posting-level vector on every observation row. Use when posting duration / daily repost behavior matters.
 
 ### Rebuilding standalone
 
@@ -136,6 +139,7 @@ This table shows when each column category first becomes available:
 | LLM frame + cleaned text | Stage 9 | 5 | `description_core_llm`, `selected_for_llm_frame`, `selection_date_bin`, `selected_for_control_cohort`, `llm_extraction_sample_tier` |
 | LLM coverage tracking | Stage 9-10 | 4 | `llm_extraction_coverage`, `llm_extraction_resolution`, `llm_classification_coverage`, `llm_classification_resolution` |
 | LLM classification | Stage 10 | 5 | `swe_classification_llm`, `is_swe_combined_llm` (derived), `ghost_assessment_llm`, `yoe_min_years_llm`, `llm_classification_sample_tier` (LLM seniority writes back to `seniority_final`; there is no separate `seniority_llm` column) |
+| Embeddings | Stage 11 | 1 | `job_description_embedding` |
 
 Row and column counts change as scraped data grows. Query the current artifacts before analysis. The 2026-04-10 removal of the rule-based boilerplate stage dropped `description_core`, `core_length`, `boilerplate_flag`, and `boilerplate_removed`.
 
@@ -192,6 +196,13 @@ Work from `preprocessing/intermediate/stage10_llm_integrated.parquet` or `data/u
 
 LLM columns are null for rows the LLM did not process. **Seniority is the exception:** `seniority_final` is always populated (from a strong rule, from the LLM, or `'unknown'`) and should be used directly without coverage filtering. For `is_swe_combined_llm` and `ghost_assessment_llm`, filter on `llm_classification_coverage = 'labeled'` and fall back to the rule-based union (`is_swe OR is_swe_adjacent`) or rule ghost (`ghost_job_risk`) where the LLM was not called. For `description_core_llm`, filter on `llm_extraction_coverage = 'labeled'`; there is no rule-based cleaned-text fallback — analyses that need cleaned text for unlabeled rows must either restrict the sample or accept raw `description`.
 
+### At Stage 11 (embeddings complete)
+
+Work from `preprocessing/intermediate/stage11_embeddings_integrated.parquet`, `data/unified.parquet`, or `data/unified_core.parquet`.
+
+New column available:
+- `job_description_embedding`: OpenAI embedding of `title + description_core_llm`. The input uses the boilerplate-removed Stage 9 description. Rows without cleaned text have null embeddings. The column is posting-level and is not repeated in observation files.
+
 ---
 
 ## Source Composition
@@ -231,6 +242,7 @@ Query `data/unified.parquet` for current row counts, date ranges, and SWE rows b
 | `description` | VARCHAR | 1 | Working copy: whitespace-normalized, Unicode-cleaned. Used by most downstream stages. |
 | `description_length` | BIGINT | 1 | Character count of `description`. |
 | `description_core_llm` | VARCHAR | 9 | LLM-based boilerplate removal. Reconstructed from validated extraction output. Empty string for short-description hard skips (< 15 words). **The only cleaned-text column in the pipeline.** Filter on `llm_extraction_coverage = 'labeled'` to identify rows where it is populated. |
+| `job_description_embedding` | LIST<FLOAT> | 11 | OpenAI embedding of `title + "\n\n" + description_core_llm`, using the Stage 9 cleaned description rather than raw boilerplate-heavy text. Null when `description_core_llm` is null or empty. Present in posting-level outputs only (`unified.parquet`, `unified_core.parquet`). |
 
 **Recommended text column priority:**
 1. `description_core_llm` (where `llm_extraction_coverage = 'labeled'`) — the only boilerplate-removed text column.
@@ -238,7 +250,7 @@ Query `data/unified.parquet` for current row counts, date ranges, and SWE rows b
 
 The rule-based `description_core` column (and its `core_length` / `boilerplate_flag` siblings) was retired on 2026-04-10 because the regex-based extractor performed at a low accuracy that was misleading downstream agents into mixing rule-based and LLM text.
 
-**Usage guidance:** For binary keyword presence (does the posting mention X?), raw `description` is acceptable and may improve recall. For density/frequency metrics (mentions per 1K chars), embeddings, topic modeling, and corpus comparison, use `description_core_llm` — restrict the sample to rows where it is labeled rather than backfilling with raw text.
+**Usage guidance:** For binary keyword presence (does the posting mention X?), raw `description` is acceptable and may improve recall. For density/frequency metrics, topic modeling, and corpus comparison, use `description_core_llm` — restrict the sample to rows where it is labeled rather than backfilling with raw text. For semantic similarity, clustering, retrieval, or nearest-neighbor checks, use `job_description_embedding`.
 
 ---
 
@@ -408,7 +420,7 @@ The LLM classifier looks for **explicit seniority signals only** — title keywo
 
 ---
 
-### 10. LLM Columns (Stages 9-10)
+### 10. LLM and Embedding Columns (Stages 9-11)
 
 These columns are null for rows not routed to LLM processing. Rule-based columns serve as fallback. **Seniority is the exception:** LLM seniority writes back to `seniority_final` (see Section 4) — there is no separate `seniority_llm` column.
 
@@ -435,6 +447,8 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 **Extraction (Stage 9):** Routes rows that are LinkedIn, English, have a raw description, and are in the Stage 9 selected core frame. Hard-skips descriptions under 15 words.
 
 **Classification (Stage 10):** Routes every row where `selected_for_llm_frame == True`, `source_platform == 'linkedin'`, `is_english == True`, and the raw description has ≥15 words. There is no rule-based shortcut. For routed rows, the LLM seniority result overwrites `seniority_final` and `seniority_final_source = 'llm'` (see Section 4). Rows outside the inherited Stage 9 core frame are `not_selected`. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
+
+**Embeddings (Stage 11):** Embeds every row with non-empty `description_core_llm`, using `title + "\n\n" + description_core_llm`. Calls are deduplicated by input hash and cached separately from LLM responses. Stage 11 does not define a sample, does not call the Stage 9/10 engines, and does not add routing metadata to final outputs.
 
 #### Budget-Constrained LLM Processing
 

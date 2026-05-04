@@ -9,7 +9,6 @@ Outputs:
   - preprocessing/cache/llm_responses.db
   - preprocessing/intermediate/stage10_llm_classification_results.parquet
   - preprocessing/intermediate/stage10_llm_integrated.parquet
-  - optionally preprocessing/intermediate/stage11_llm_integrated.parquet
 """
 
 from __future__ import annotations
@@ -78,7 +77,7 @@ LOG_DIR = PROJECT_ROOT / "preprocessing" / "logs"
 DEFAULT_INPUT_PATH = INTERMEDIATE_DIR / "stage9_llm_cleaned.parquet"
 DEFAULT_RESULTS_PATH = INTERMEDIATE_DIR / "stage10_llm_classification_results.parquet"
 DEFAULT_INTEGRATED_PATH = INTERMEDIATE_DIR / "stage10_llm_integrated.parquet"
-DEFAULT_COMPAT_OUTPUT_PATH = INTERMEDIATE_DIR / "stage11_llm_integrated.parquet"
+DEFAULT_COMPAT_OUTPUT_PATH = None
 DEFAULT_CACHE_DB = CACHE_DIR / "llm_responses.db"
 DEFAULT_ERROR_LOG = LOG_DIR / "llm_errors.jsonl"
 

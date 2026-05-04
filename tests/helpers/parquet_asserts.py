@@ -5,7 +5,7 @@ import pyarrow.parquet as pq
 
 
 def parquet_columns(path: Path) -> list[str]:
-    return pq.ParquetFile(path).schema.names
+    return pq.ParquetFile(path).schema_arrow.names
 
 
 def assert_parquet_readable(path: Path) -> None:

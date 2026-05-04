@@ -22,7 +22,7 @@ def test_runner_rejects_retired_stage_3_resume(monkeypatch):
 @pytest.mark.unit
 def test_runner_declares_expected_stage_contracts():
     stage_numbers = [stage["num"] for stage in run_pipeline.STAGES]
-    assert stage_numbers == [1, 2, 4, 5, "6-8", 9, 10, "final"]
+    assert stage_numbers == [1, 2, 4, 5, "6-8", 9, 10, 11, "final"]
 
     expected_checks = {
         2: "company_name_effective",
@@ -31,6 +31,7 @@ def test_runner_declares_expected_stage_contracts():
         "6-8": "period",
         9: "extraction_input_hash",
         10: "classification_input_hash",
+        11: "job_description_embedding",
     }
     for stage in run_pipeline.STAGES:
         if stage["num"] in expected_checks:
@@ -68,6 +69,7 @@ def test_final_helpers_join_observations_and_report_counts(tmp_path, monkeypatch
                 "is_english": True,
                 "ghost_job_risk": "low",
                 "ghost_assessment_llm": "realistic",
+                "job_description_embedding": [0.1, 0.2, 0.3],
             }
         )
         obs_rows.append({"uid": uid, "scrape_date": "2026-03-20"})
@@ -89,4 +91,5 @@ def test_final_helpers_join_observations_and_report_counts(tmp_path, monkeypatch
     assert report["columns"]["unified_observations"] == pd.read_parquet(output_path).shape[1]
     assert output_path.exists()
     assert set(pd.read_parquet(output_path)["uid"]) == {"uid-1", "uid-2"}
+    assert "job_description_embedding" not in pd.read_parquet(output_path).columns
     assert "final_observations" in report["funnel"]

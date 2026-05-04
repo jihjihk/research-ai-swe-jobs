@@ -6,6 +6,8 @@ unified_core.parquet is the analysis-ready subset of unified.parquet:
   rows: selected_for_llm_frame = TRUE (Stage 9 balanced core frame)
   cols: the columns that are actually used in analysis; audit/routing
         internals are dropped.
+unified_core_observations.parquet omits posting-level embedding vectors to
+avoid repeating large arrays on each daily observation row.
 
 Can be called in-process from stage_final_output.py or run standalone
 to rebuild the core without re-running the final stage:
@@ -77,6 +79,7 @@ CORE_PASSTHROUGH: list[tuple[str, str]] = [
     ("title", "title"),
     ("description", "description"),
     ("description_core_llm", "description_core_llm"),
+    ("job_description_embedding", "job_description_embedding"),
     # --- Company ---
     ("company_name_effective", "company_name_effective"),
     ("company_name_canonical", "company_name_canonical"),
@@ -129,6 +132,9 @@ CORE_COLUMNS: list[str] = (
     [name for name, _ in CORE_PASSTHROUGH]
     + [name for name, _, _ in CORE_COMPUTED]
 )
+CORE_OBSERVATION_COLUMNS: list[str] = [
+    col for col in CORE_COLUMNS if col != "job_description_embedding"
+]
 
 # Source columns from unified.parquet that the projection depends on.
 SOURCE_COLUMNS_REQUIRED: set[str] = (
@@ -158,7 +164,7 @@ def validate_columns_present(unified_path: Path) -> None:
     if missing:
         raise ValueError(
             f"unified parquet at {unified_path} is missing source columns: {missing}. "
-            "Update CORE_COLUMNS or rerun the pipeline through stage 10."
+            "Update CORE_COLUMNS or rerun the pipeline through stage 11."
         )
     if CORE_ROW_FILTER_COLUMN not in available:
         raise ValueError(
@@ -191,7 +197,7 @@ def _observations_select_exprs() -> str:
     the core file (alias `u`).
     """
     parts = []
-    for output_name in CORE_COLUMNS:
+    for output_name in CORE_OBSERVATION_COLUMNS:
         if output_name == "scrape_date":
             parts.append("o.scrape_date AS scrape_date")
         else:
@@ -245,6 +251,7 @@ def build_core(
     return {
         "row_filter": CORE_ROW_FILTER,
         "columns": list(CORE_COLUMNS),
+        "observation_columns": list(CORE_OBSERVATION_COLUMNS),
         "n_columns": len(CORE_COLUMNS),
         "core_rows": core_rows,
         "core_observations_rows": core_obs_rows,

@@ -184,6 +184,20 @@ STAGES = [
         "timeout_seconds": 24 * 3600,
     },
     {
+        "num": 11,
+        "name": "OpenAI Description Embeddings",
+        "script": "stage11_embeddings.py",
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage11_embeddings_integrated.parquet",
+                "kind": "parquet",
+                "min_rows": 1_000_000,
+                "check_col": "job_description_embedding",
+            }
+        ],
+        "timeout_seconds": 48 * 3600,
+    },
+    {
         "num": "final",
         "name": "Final Output Generation",
         "script": "stage_final_output.py",
@@ -221,7 +235,8 @@ def validate_output(stage: dict) -> bool:
                 return False
 
             check_col = output_spec.get("check_col")
-            if check_col and check_col not in pf.schema.names:
+            schema_names = pf.schema_arrow.names
+            if check_col and check_col not in schema_names:
                 log.error(f"  Missing expected column in {output.name}: {check_col}")
                 return False
 
@@ -297,8 +312,16 @@ def main():
                         help="Comma-separated provider=tier assignments for stages 9-10")
     parser.add_argument("--engine-timezone", type=str, default=DEFAULT_ENGINE_TIMEZONE,
                         help=f"Timezone used for engine slot windows (default: {DEFAULT_ENGINE_TIMEZONE})")
+    parser.add_argument("--embedding-model", type=str, default="text-embedding-3-large",
+                        help="OpenAI embedding model for stage 11")
+    parser.add_argument("--embedding-dimensions", type=int, default=3072,
+                        help="Embedding dimensions for stage 11")
+    parser.add_argument("--embedding-max-workers", type=int, default=10,
+                        help="Concurrent OpenAI embedding workers for stage 11")
+    parser.add_argument("--embedding-batch-size", type=int, default=128,
+                        help="Max inputs per OpenAI embeddings request for stage 11")
     parser.add_argument("--backup", action="store_true", default=False,
-                        help="Back up final outputs and LLM cache to S3 after successful run")
+                        help="Back up final outputs and LLM/embedding caches to S3 after successful run")
     args = parser.parse_args()
 
     enabled_engines = parse_engine_list(args.engines)
@@ -365,6 +388,11 @@ def main():
             extra_args.extend(["--engine-timezone", args.engine_timezone])
             if args.engine_tiers is not None:
                 extra_args.extend(["--engine-tiers", args.engine_tiers])
+        elif stage["num"] == 11:
+            extra_args.extend(["--embedding-model", args.embedding_model])
+            extra_args.extend(["--embedding-dimensions", str(args.embedding_dimensions)])
+            extra_args.extend(["--max-workers", str(args.embedding_max_workers)])
+            extra_args.extend(["--batch-size", str(args.embedding_batch_size)])
         if not run_stage(stage, extra_args=extra_args or None):
             log.error(f"\nPIPELINE FAILED at Stage {stage_num}")
             return 1

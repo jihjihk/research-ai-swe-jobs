@@ -1,6 +1,6 @@
 # Preprocessing Pipeline Guide
 
-Last updated: 2026-04-30
+Last updated: 2026-05-04
 
 This document is the primary reference for the preprocessing pipeline that transforms raw job-posting data into the analysis-ready `unified.parquet` and `unified_observations.parquet` datasets. It covers architecture, operations, and development practices.
 
@@ -16,6 +16,7 @@ The pipeline has two layers:
 
 1. **Rule-based baseline (Stages 1-8):** Deterministic, fast (~30 min end-to-end), reproducible. Produces a usable corpus with rule-based classification labels for occupation, seniority, YOE, location, temporal, and quality fields. Every column from this layer is preserved after LLM augmentation runs. Note: boilerplate removal is **not** part of the rule-based baseline — it is LLM-only (Stage 9). Text-dependent analyses should use `description_core_llm`; raw `description` is the only acceptable fallback when `description_core_llm` is unavailable.
 2. **LLM augmentation (Stages 9-10):** Adds higher-quality classification and cleaned text via Codex (GPT) calls by default; Claude and OpenAI API execution can be enabled via `--engines ...`. Takes hours to days depending on corpus size and API quotas. Stage 9 and Stage 10 use separate caches, so coverage can differ row-by-row. Results are cached in SQLite for resumability.
+3. **Embedding augmentation (Stage 11):** Embeds `title + description_core_llm` with the OpenAI embeddings API. The stage is row-preserving, uses its own SQLite cache, and writes only the `job_description_embedding` column into the posting-level parquet artifacts.
 
 The rule-based layer always runs first and its outputs serve as both the classification fallback labels and the cache keys for the LLM layer. The intended production dataset includes both layers, but the Stage 8 output is independently usable for non-text exploration while LLM stages are in progress.
 
@@ -41,9 +42,10 @@ Raw Data (3 sources)
   │
   ├── Stage 9: LLM Boilerplate Removal
   ├── Stage 10: LLM Classification + Final Integration
+  ├── Stage 11: OpenAI Description Embeddings
   │
   ▼
-  preprocessing/intermediate/stage10_llm_integrated.parquet
+  preprocessing/intermediate/stage11_embeddings_integrated.parquet
   │
   ├── Final Output Stage
   │
@@ -62,10 +64,10 @@ Stage 3 is intentionally absent — the original stage 3 has been removed becaus
 
 | Artifact | Unit of observation | Purpose |
 |---|---|---|
-| `unified.parquet` | One row per unique posting | Full schema; use for audits and out-of-LLM-frame rows |
-| `unified_observations.parquet` | One row per posting per scrape_date | Full-schema daily panel |
-| `unified_core.parquet` | One row per unique posting | **Default analysis dataset.** Strict projection filtered to `selected_for_llm_frame = TRUE`; curated column set. See `preprocessing-schema.md` for the filter and column list. |
-| `unified_core_observations.parquet` | One row per posting per scrape_date | Daily panel for the core subset |
+| `unified.parquet` | One row per unique posting | Full schema; use for audits and out-of-LLM-frame rows. Includes `job_description_embedding`. |
+| `unified_observations.parquet` | One row per posting per scrape_date | Daily panel. Posting-level embedding vectors are intentionally omitted to avoid repeating large arrays. |
+| `unified_core.parquet` | One row per unique posting | **Default analysis dataset.** Strict projection filtered to `selected_for_llm_frame = TRUE`; curated column set including `job_description_embedding`. See `preprocessing-schema.md` for the filter and column list. |
+| `unified_core_observations.parquet` | One row per posting per scrape_date | Daily panel for the core subset. Posting-level embedding vectors are omitted. |
 | `quality_report.json` | Pipeline-level | Funnel metrics, quality summaries by source |
 | `preprocessing_log.txt` | Pipeline-level | Human-readable run summary |
 
@@ -84,6 +86,7 @@ Stage 3 is intentionally absent — the original stage 3 has been removed becaus
 | 6-8 | `stage678_normalize_temporal_flags.py` | Preserved | Location, temporal, quality flags |
 | 9 | `stage9_llm_prefilter.py` | Preserved | Core-frame selection, LLM boilerplate removal, cleaned text |
 | 10 | `stage10_llm_classify.py` | Preserved | LLM classification + posting-level integration |
+| 11 | `stage11_embeddings.py` | Preserved | OpenAI embeddings for title + `description_core_llm` |
 | final | `stage_final_output.py` | Preserved | Produces `data/unified*.parquet` + reports |
 
 "Preserved" means the stage does not change row count. Only Stage 4 (dedup) reduces rows.
@@ -107,7 +110,9 @@ Stage 3 is intentionally absent — the original stage 3 has been removed becaus
 **Stage 10 — LLM Classification + Final Integration.** Reuses the Stage 9 core frame and routes every eligible row (LinkedIn, English, ≥15 words, `selected_for_llm_frame = True`) to LLM classification: SWE type, seniority, ghost-job assessment, and YOE extraction (the primary YOE signal for in-frame analysis; rule-based `yoe_extracted` from Stage 5 serves as audit/fallback). There is no rule-based shortcut. For routed rows the LLM seniority result overwrites `seniority_final` and `seniority_final_source = 'llm'`; `seniority_rule` and `seniority_rule_source` are unchanged. After the LLM responds, Stage 10 derives `is_swe_combined_llm` = (`swe_classification_llm` ∈ {SWE, SWE_ADJACENT}) — a downstream collapse, not a prompt change, so the LLM cache stays valid. Merges all LLM results back to the full posting table. The output `stage10_llm_integrated.parquet` is the canonical LLM-augmented artifact. Stage 10 uses its own cache, so row-level coverage can differ from Stage 9 even on the same posting.
 Inside the selected core frame, rows can resolve by rules, cache reuse, fresh LLM calls, or defer due to budget. Supplemental cache rows may be usable outside the core frame, but they are not part of the balanced frame.
 
-**Final Output.** Reads the Stage 10 integrated artifact, applies final column selection, and writes `data/unified.parquet`, `data/unified_observations.parquet`, `data/quality_report.json`, and `data/preprocessing_log.txt`.
+**Stage 11 — OpenAI Description Embeddings.** Builds `title + "\n\n" + description_core_llm`, embeds unique non-empty texts with `text-embedding-3-large` by default, and caches vectors in `preprocessing/cache/openai_embeddings.db`. The only output column added to the posting table is `job_description_embedding`. Rows without cleaned text receive a null embedding. The daily observation files omit the vector column because embeddings are posting-level and large.
+
+**Final Output.** Reads the Stage 11 integrated artifact, applies final column selection, and writes `data/unified.parquet`, `data/unified_observations.parquet`, `data/quality_report.json`, and `data/preprocessing_log.txt`.
 
 ---
 
@@ -270,9 +275,27 @@ Stage 9 extraction coverage and Stage 10 classification coverage are independent
 
 This is the longest-running stage (hours to days). See "LLM Stage Operations" below for monitoring and recovery.
 
+### Running Stage 11 (OpenAI embeddings)
+
+After Stage 10 completes, Stage 11 embeds `title + description_core_llm` and writes the posting-level embedding column. It uses the OpenAI embeddings API directly and a separate cache from the Stage 9/10 LLM response cache:
+
+```bash
+./.venv/bin/python preprocessing/scripts/stage11_embeddings.py \
+  --max-workers 10 \
+  --batch-size 128
+```
+
+Useful knobs:
+- `--embedding-model` defaults to `text-embedding-3-large`.
+- `--embedding-dimensions` defaults to `3072`.
+- `--max-workers` controls concurrent API batches and defaults to `10`.
+- `--batch-size` controls the maximum number of input strings per request.
+
+Rows where `description_core_llm` is null or empty get a null `job_description_embedding`. Reruns are cache-first, so completed chunks do not call the API again.
+
 ### Running Final Output
 
-After Stage 10 completes:
+After Stage 11 completes:
 
 ```bash
 ./.venv/bin/python preprocessing/scripts/stage_final_output.py
@@ -297,6 +320,7 @@ For a full end-to-end run including LLM stages:
 ./.venv/bin/python preprocessing/run_pipeline.py                  # Full run (local LLM)
 ./.venv/bin/python preprocessing/run_pipeline.py --remote         # Full run (remote LLM on EC2)
 ./.venv/bin/python preprocessing/run_pipeline.py --from-stage 4   # Resume from stage 4
+./.venv/bin/python preprocessing/run_pipeline.py --from-stage 11  # Resume at embeddings
 ./.venv/bin/python preprocessing/run_pipeline.py --dry-run        # Validate existing outputs
 ```
 
@@ -304,7 +328,7 @@ The runner validates each stage's output (row counts, required columns) before p
 
 ### S3 backup
 
-After a successful pipeline run, back up final outputs and the LLM cache to S3 with a timestamped prefix so previous backups are never overwritten:
+After a successful pipeline run, back up final outputs and the LLM/embedding caches to S3 with a timestamped prefix so previous backups are never overwritten:
 
 ```bash
 # Standalone (after any manual run)
@@ -318,9 +342,10 @@ After a successful pipeline run, back up final outputs and the LLM cache to S3 w
 ```
 
 Uploads to `s3://swe-labor-research/backups/<YYYY-MM-DD_HHMMSS>/`:
-- `unified.parquet`, `unified_observations.parquet` — final analysis datasets
+- `unified.parquet`, `unified_observations.parquet`, `unified_core.parquet`, `unified_core_observations.parquet` — final analysis datasets
 - `quality_report.json`, `preprocessing_log.txt` — pipeline reports
 - `llm_responses.db` — LLM cache (expensive to regenerate)
+- `openai_embeddings.db` — embedding cache
 
 Missing files are skipped with a warning. Backup failure does not fail the pipeline run. Always back up after completing a full pipeline run, especially after LLM stages.
 
@@ -337,6 +362,7 @@ Each stage writes to `preprocessing/logs/`:
 | `stage678.log` | Stages 6-8 |
 | `stage9_llm.log` | Stage 9 |
 | `stage10_llm.log` | Stage 10 |
+| `stage11_embeddings.log` | Stage 11 |
 | `pipeline_run.log` | Full pipeline runner |
 
 ---
@@ -422,8 +448,9 @@ The pipeline runs on a machine with 31 GB RAM. Every stage is designed to stay w
 
 | Pattern | Chunk size | Used by |
 |---|---|---|
-| Standard processing | 200,000 rows | Stages 1, 3, 4, 5, 6-8 |
+| Standard processing | 200,000 rows | Stages 1, 2, 4, 5, 6-8 |
 | LLM processing | 50,000 rows | Stages 9, 10 |
+| Embedding output | 2,000 rows | Stage 11; chunks are smaller because each row may carry a 3,072-float vector |
 | Lightweight dedup pass | Key columns + raw description (hashed per chunk, then dropped) | Stage 4 Pass 1 |
 
 ### Key patterns
@@ -439,7 +466,7 @@ The pipeline runs on a machine with 31 GB RAM. Every stage is designed to stay w
 - Never load a full parquet file into pandas with `pd.read_parquet()` unless the data volume is known to be safe. Use PyArrow chunked iteration instead.
 - Stage 1 processing asaniczka is the peak memory point for deterministic stages.
 - Stage 4 uses a two-pass design specifically to keep memory under control during dedup.
-- The LLM cache DB (`llm_responses.db`) grows to hundreds of MB during long runs. This is expected and necessary for resumability.
+- The LLM and embedding cache DBs (`llm_responses.db`, `openai_embeddings.db`) grow during long runs. This is expected and necessary for resumability.
 
 ---
 
@@ -538,7 +565,7 @@ Each stage has a strict contract about what it owns and must not do. These rules
 - **Stage 4:** Posting-level deduplication. Reads directly from Stage 2 output. Canonicalizes `company_name_effective` into `company_name_canonical`, handles exact/near-duplicate removal and `is_multi_location` flagging. Dedup hashes are computed over the raw `description`, not a cleaned variant. May use normalized fields and description-derived support signals for dedup decisions, but must not redefine daily observations or analytical samples. Must not take over Stage 1, 2, or 5 responsibilities.
 - **Stage 5:** First occupation-classification boundary. `is_swe`, `is_swe_adjacent`, and `is_control` belong here. Analytical samples are defined after classification, in later stages.
 - **Stages 6-8:** Row-preserving enrichment only. Language detection and `description_quality_flag` operate on the raw `description`. May add normalization, temporal, quality, and provenance columns, but must not change row cardinality or define analytical samples.
-- **Stages 9-10:** LLM augmentation only. Stage 9 is the **only** place where boilerplate removal happens, and it produces `description_core_llm`. Stage 10 may deduplicate LLM *calls* by cache key to reduce API volume, but that is call deduplication, not posting deduplication. If row counts change in LLM stages, treat it as a bug.
+- **Stages 9-11:** LLM/API augmentation only. Stage 9 is the **only** place where boilerplate removal happens, and it produces `description_core_llm`. Stage 10 may deduplicate LLM *calls* by cache key to reduce API volume, and Stage 11 deduplicates embedding calls by title + cleaned-description hash. These are call deduplications, not posting deduplication. If row counts change in these stages, treat it as a bug.
 
 ### Regenerating reference data
 
@@ -571,4 +598,4 @@ All intermediate outputs live in `preprocessing/intermediate/`. These are rebuil
 | `stage9_llm_cleaned.parquet` | 9 | Full dataset with `description_core_llm` |
 | `stage10_llm_classification_results.parquet` | 10 | Raw LLM classification outputs |
 | `stage10_llm_integrated.parquet` | 10 | Full dataset with all LLM columns |
-
+| `stage11_embeddings_integrated.parquet` | 11 | Full dataset with `job_description_embedding` |

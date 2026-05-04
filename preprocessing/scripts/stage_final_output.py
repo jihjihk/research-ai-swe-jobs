@@ -7,6 +7,8 @@ Outputs:
   - data/unified_observations.parquet
   - data/quality_report.json
   - data/preprocessing_log.txt
+
+Posting-level embedding vectors are omitted from observation files.
 """
 
 from __future__ import annotations
@@ -37,7 +39,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
 DATA_DIR = PROJECT_ROOT / "data"
 
-UNIFIED_INPUT = INTERMEDIATE_DIR / "stage10_llm_integrated.parquet"
+UNIFIED_INPUT = INTERMEDIATE_DIR / "stage11_embeddings_integrated.parquet"
 OBS_INPUT = INTERMEDIATE_DIR / "stage1_observations.parquet"
 UNIFIED_OUTPUT = DATA_DIR / "unified.parquet"
 OBS_OUTPUT = DATA_DIR / "unified_observations.parquet"
@@ -45,6 +47,7 @@ CORE_OUTPUT = DATA_DIR / "unified_core.parquet"
 CORE_OBS_OUTPUT = DATA_DIR / "unified_core_observations.parquet"
 QUALITY_OUTPUT = DATA_DIR / "quality_report.json"
 LOG_OUTPUT = DATA_DIR / "preprocessing_log.txt"
+POSTING_LEVEL_ONLY_COLUMNS = {"job_description_embedding"}
 
 STAGE_INPUTS = {
     "stage1_unified": INTERMEDIATE_DIR / "stage1_unified.parquet",
@@ -59,6 +62,7 @@ STAGE_INPUTS = {
     "stage9_control_cohort": INTERMEDIATE_DIR / "stage9_control_cohort.parquet",
     "stage10_classification_results": INTERMEDIATE_DIR / "stage10_llm_classification_results.parquet",
     "stage10_integrated": INTERMEDIATE_DIR / "stage10_llm_integrated.parquet",
+    "stage11_embeddings": INTERMEDIATE_DIR / "stage11_embeddings_integrated.parquet",
 }
 
 def build_unified_observations(unified_path: Path, output_path: Path) -> int:
@@ -68,6 +72,8 @@ def build_unified_observations(unified_path: Path, output_path: Path) -> int:
 
     select_exprs = []
     for col_name, *_ in unified_cols:
+        if col_name in POSTING_LEVEL_ONLY_COLUMNS:
+            continue
         if col_name == "scrape_date":
             select_exprs.append("o.scrape_date AS scrape_date")
         else:
@@ -353,7 +359,7 @@ def main() -> None:
     build_core_this_run = False
 
     try:
-        print(f"[1/5] Copying {UNIFIED_INPUT} -> {tmp_unified_output}")
+        print(f"[1/5] Copying Stage 11 output {UNIFIED_INPUT} -> {tmp_unified_output}")
         shutil.copy2(UNIFIED_INPUT, tmp_unified_output)
 
         print(f"[2/5] Building {OBS_OUTPUT.name}")

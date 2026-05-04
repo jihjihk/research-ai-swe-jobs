@@ -36,6 +36,7 @@ def _typed_defaults() -> dict[str, object]:
         "is_remote_inferred", "is_multi_location",
     }
     int_cols = {"yoe_extracted", "yoe_min_years_llm", "company_size"}
+    list_cols = {"job_description_embedding"}
     out: dict[str, object] = {}
     for col in build_core_mod.SOURCE_COLUMNS_REQUIRED:
         if col in str_cols:
@@ -44,6 +45,8 @@ def _typed_defaults() -> dict[str, object]:
             out[col] = False
         elif col in int_cols:
             out[col] = 0
+        elif col in list_cols:
+            out[col] = [0.1, 0.2, 0.3]
         else:
             raise AssertionError(f"Unclassified source column in test defaults: {col}")
     return out
@@ -127,8 +130,8 @@ def test_core_columns_exactly_match_core_columns_constant(tmp_path):
     build_core_mod.build_core(unified_path, obs_path, core_path, core_obs_path)
 
     assert parquet_columns(core_path) == list(build_core_mod.CORE_COLUMNS)
-    # Observations share the same column set (scrape_date is just overridden).
-    assert parquet_columns(core_obs_path) == list(build_core_mod.CORE_COLUMNS)
+    assert parquet_columns(core_obs_path) == list(build_core_mod.CORE_OBSERVATION_COLUMNS)
+    assert "job_description_embedding" not in parquet_columns(core_obs_path)
 
 
 @pytest.mark.unit

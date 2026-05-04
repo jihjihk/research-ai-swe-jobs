@@ -160,6 +160,16 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
     )
     unified_rows.to_parquet(stage10_integrated, index=False)
 
+    stage11_integrated = tmp_path / "stage11_embeddings_integrated.parquet"
+    stage11_rows = unified_rows.assign(
+        job_description_embedding=[[
+            0.1,
+            0.2,
+            0.3,
+        ]]
+    )
+    stage11_rows.to_parquet(stage11_integrated, index=False)
+
     obs_path = tmp_path / "stage1_observations.parquet"
     unified_obs_path = tmp_path / "unified_observations.parquet"
     quality_path = tmp_path / "quality_report.json"
@@ -187,6 +197,11 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
             {"path": stage10_integrated, "kind": "parquet", "min_rows": 1, "check_col": "description_core_llm"},
         ],
     }
+    stage11_spec = {
+        "outputs": [
+            {"path": stage11_integrated, "kind": "parquet", "min_rows": 1, "check_col": "job_description_embedding"},
+        ],
+    }
     final_spec = {
         "outputs": [
             {"path": stage10_integrated, "kind": "parquet", "min_rows": 1},
@@ -198,5 +213,6 @@ def test_validate_output_accepts_fixture_generated_stage_contracts(tmp_path, mon
 
     assert run_pipeline.validate_output(stage9_spec)
     assert run_pipeline.validate_output(stage10_spec)
+    assert run_pipeline.validate_output(stage11_spec)
     assert run_pipeline.validate_output(final_spec)
     assert report["funnel"]["final_unified"] == 1

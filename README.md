@@ -236,12 +236,13 @@ Empty result sets are treated as valid zero-yield tasks, not request failures.
 - `data/unified.parquet`
 - One row per globally unique posting
 - Best analog to the Kaggle / Hugging Face LinkedIn postings corpus
-- Includes quality / audit fields such as `date_posted_raw`, `date_posted_quality_flag`, `work_type_raw`, `opening_fingerprint`, `is_aggregator_posting`, and `aggregator_name`
+- Includes preprocessing, LLM, and posting-level embedding fields.
 
 **Daily observations parquet**
 - `data/unified_observations.parquet`
 - One row per posting per `scrape_date`
 - Use this for survival / repost / duration analyses, not as the primary public benchmark table
+- Posting-level embedding vectors are omitted from this daily panel to avoid repeating large arrays
 
 ### Output schema
 

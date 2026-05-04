@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Back up final pipeline outputs and LLM cache to S3 with timestamped paths.
+Back up final pipeline outputs and LLM/embedding caches to S3 with timestamped paths.
 
 Uploads to: s3://swe-labor-research/backups/<YYYY-MM-DD_HHMMSS>/
     unified.parquet
@@ -10,6 +10,7 @@ Uploads to: s3://swe-labor-research/backups/<YYYY-MM-DD_HHMMSS>/
     quality_report.json
     preprocessing_log.txt
     llm_responses.db
+    openai_embeddings.db
 
 Usage:
     python preprocessing/scripts/backup_to_s3.py            # Back up now
@@ -39,6 +40,7 @@ BACKUP_MANIFEST = [
     (DATA_DIR / "quality_report.json", "quality_report.json"),
     (DATA_DIR / "preprocessing_log.txt", "preprocessing_log.txt"),
     (CACHE_DIR / "llm_responses.db", "llm_responses.db"),
+    (CACHE_DIR / "openai_embeddings.db", "openai_embeddings.db"),
 ]
 
 logging.basicConfig(

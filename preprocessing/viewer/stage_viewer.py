@@ -76,8 +76,14 @@ DATASET_SPECS = [
     DatasetSpec(
         key="stage10",
         label="Stage 10 integrated",
-        description="Post-LLM integrated artifact that feeds final canonical output.",
+        description="Post-LLM classification artifact before embeddings.",
         path=ROOT / "preprocessing" / "intermediate" / "stage10_llm_integrated.parquet",
+    ),
+    DatasetSpec(
+        key="stage11",
+        label="Stage 11 embeddings",
+        description="Posting-level artifact with OpenAI job-description embeddings.",
+        path=ROOT / "preprocessing" / "intermediate" / "stage11_embeddings_integrated.parquet",
     ),
     DatasetSpec(
         key="unified",
@@ -687,7 +693,7 @@ def main() -> None:
         st.markdown(
             f"""
             - Bind this app to the network with `--server.address 0.0.0.0` and browse to `http://<tailscale-ip>:{DEFAULT_PORT}`.
-            - `Stage 8 final` is the current primary artifact in this repo. `Stage 11 integrated` appears automatically once the LLM integration output exists.
+            - `Stage 8 final` is the deterministic baseline. `Stage 11 embeddings` appears once the embedding stage has run.
             - Distinct-value filters query the file directly and intentionally cap the list at the top {MAX_FACET_VALUES} values under the current filter context.
             - Random mode uses a deterministic hash shuffle over the filtered result set, which is stable for a given seed and does not materialize the full file into pandas.
             """

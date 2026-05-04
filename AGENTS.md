@@ -42,12 +42,15 @@ Pipeline that transforms raw job-posting data into analysis-ready datasets.
 - **Testing:** pytest suite in `tests/`
 - **Outputs:** `data/unified.parquet`, `data/unified_observations.parquet`, `data/unified_core.parquet`, `data/unified_core_observations.parquet`. `data/unified_core.parquet` is the integration handoff to downstream analysis (figures, paper).
 - **LLM budget (REQUIRED):** Stages 9 and 10 require `--llm-budget N` (no default). The budget caps all new LLM calls across all data sources, split 70% combined SWE (Stage 5 `is_swe OR is_swe_adjacent`) / 30% control by default. See the "Budget-Constrained LLM Processing" section in `preprocessing/preprocessing-schema.md`.
-- **Backup:** After a full pipeline run, back up outputs + LLM cache to S3: `python preprocessing/scripts/backup_to_s3.py` (or `--backup` flag on `run_pipeline.py`)
+- **Embeddings:** Stage 11 computes `job_description_embedding` from `title + description_core_llm` via the OpenAI embeddings API. 
+- **Backup:** After a full pipeline run, back up outputs + LLM/embedding caches to S3: `python preprocessing/scripts/backup_to_s3.py` (or `--backup` flag on `run_pipeline.py`)
 - Do not touch: `scraper/`, `figures/`, `paper/`
 
 ### 3. Figures (`figures/`)
 
-Scripts and notebooks that produce the figures and tables for the paper. Reads from `data/unified_core.parquet`. 
+Scripts and notebooks that produce the figures and tables for the paper. Reads from `data/unified_core.parquet`.
+
+**Before writing any figure script, read [`figures/style.md`](figures/style.md).** All figures must use `figures/style.py` (matplotlib + SciencePlots, sized for AAAI 2026 two-column, Type 1/TrueType fonts) — do not introduce other plotting libraries or override `rcParams` in scripts.
 
 ### 4. Paper (`paper/`)
 
