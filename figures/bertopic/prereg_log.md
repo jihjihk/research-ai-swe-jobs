@@ -242,3 +242,37 @@ advocacy. None of the six showed advocacy; all spot-checks passed.
 ### Wave 2 (T-bootstrap, T-method) — running
 First Agent invocations crashed early; relaunched as background python
 modules (PIDs 257374, 257375). Memos pending.
+
+## 2026-05-06 — Stage 2 wave 2 (T-bootstrap, T-method) and T-ablations decision
+
+**T-bootstrap** memo at `memos/t_bootstrap.md`. Key numbers verified
+against `data/bertopic/stability.parquet`: bootstrap ARIs 0.498/0.562/0.528
+(all clear 0.4 floor), per-period centroid alignment 0.909 / 0.917 (clear
+0.85), within-2024 cross-source alignment **0.846** (just above 0.85
+threshold by 0.004). The arshkon-2024 fit (n=5,293) crashed the §4.2
+strict vectorizer — patched `pipeline.fit_topic_model` with a
+`permissive_vectorizer=True` flag and restarted §7.6 only (other fits
+were cached). recommend `yes (caveated)`.
+
+**T-method** memo at `memos/t_method.md`. Numbers verified against
+`data/bertopic/method_comparison.parquet` and `method_cluster_alignment
+.parquet`: NMF vs OpenAI ARI 0.107 / 0.175 (excl noise); MiniLM-BERTopic
+vs OpenAI ARI 0.085 / 0.190 (both non-noise). Both well below the
+§7.5 ≥ 0.5 floor; per the §7.5 decision rule, the paper must name the
+embedding in every claim. The AI Software Engineering cluster (c0) is
+the most embedding-specific — its NMF best-match is a "generic SWE
+craft" cluster (overlap 0.31), and its MiniLM best-match is a robotics
+cluster (overlap 0.50). The OpenAI 3072-d embedding is what isolates AI
+engineering as its own cluster at K=10. recommend `yes (with embedding
+disclosure)`.
+
+**T-ablations: deferred.** Per the §8.2 / §9.5 spec the ablations table
+is a 3-hour compute job. Given (a) eight other Stage-2 findings already
+on disk, (b) the embedding-sensitivity question (§8.2's biggest
+ablation) is already answered by T-method, (c) most of the other
+ablations are fine-grained (sample cap variants, length-floor variants,
+UMAP n_components) and would inform appendix robustness rather than
+headline claims, and (d) the autonomous run's compute / memory budget
+favours a clean Stage 3 synthesis over a partial T6 matrix, T-ablations
+is queued for a follow-up session. The orchestrator's Stage 3 synthesis
+flags this as an open task for the human authors.

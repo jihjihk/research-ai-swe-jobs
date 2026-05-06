@@ -421,12 +421,16 @@ def run_within_2024(sample: SampleA) -> list[dict]:
         else:
             print(f"  {source_name} (n={n}): fitting…")
             t0 = perf_counter()
+            # Permissive vectorizer for small subsets — strict min_df=10 fails
+            # on the few-cluster c-TF-IDF corpus (e.g. arshkon 2024 SWE = 5,293
+            # rows produces ≤ 9 raw topics).
             fit = pipeline.fit_topic_model(
                 min_cluster_size=HEADLINE_MCS,
                 seed=SEED,
                 uids=sub_uids,
                 docs=sub_docs,
                 embeddings=sub_emb,
+                permissive_vectorizer=True,
             )
             fit.topic_model.save(
                 str(model_path),

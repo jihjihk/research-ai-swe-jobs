@@ -177,10 +177,18 @@ def fit_topic_model(
     uids: tuple[str, ...] | None = None,
     docs: tuple[str, ...] | None = None,
     embeddings: np.ndarray | None = None,
+    permissive_vectorizer: bool = False,
 ) -> FitResult:
+    """Fit BERTopic. Set `permissive_vectorizer=True` for small subsets where
+    the §4.2 strict vectorizer (min_df=10, max_df=0.4) blows up because the
+    cluster-level corpus has < 10 topics — which can happen on subsets of a
+    few thousand rows.
+    """
     if uids is None or docs is None or embeddings is None:
         uids, docs, embeddings = load_sample(sample_path=sample_path)
     topic_model = build_topic_model(min_cluster_size=min_cluster_size, seed=seed)
+    if permissive_vectorizer:
+        topic_model.vectorizer_model = make_permissive_vectorizer()
     topics, _ = topic_model.fit_transform(list(docs), embeddings)
     return FitResult(
         topic_model=topic_model,
