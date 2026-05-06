@@ -89,7 +89,7 @@ DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_MAX_5XX_RETRIES = 5
 # Hardcoded, not a CLI knob. Baked into prompt_version below so any change here
 # automatically invalidates the cache.
-REASONING_EFFORT = "medium"
+REASONING_EFFORT = "low"
 MIN_DESCRIPTION_WORDS = 15  # matches stages 9/10
 
 SKILL_THEMES_COL = "skill_themes"

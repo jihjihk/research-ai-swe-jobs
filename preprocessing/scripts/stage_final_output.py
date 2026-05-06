@@ -49,6 +49,18 @@ QUALITY_OUTPUT = DATA_DIR / "quality_report.json"
 LOG_OUTPUT = DATA_DIR / "preprocessing_log.txt"
 POSTING_LEVEL_ONLY_COLUMNS = {"job_description_embedding"}
 
+# Cap DuckDB memory + give it a spill directory so the unified × observations
+# join (each side ~5 GB) can fall back to disk under the 31 GB system limit.
+DUCKDB_MEMORY_LIMIT = "20GB"
+DUCKDB_TEMP_DIR = "/tmp/duckdb_stage_final"
+
+
+def _configure_duckdb() -> None:
+    Path(DUCKDB_TEMP_DIR).mkdir(parents=True, exist_ok=True)
+    duckdb.execute(f"PRAGMA memory_limit='{DUCKDB_MEMORY_LIMIT}'")
+    duckdb.execute(f"PRAGMA temp_directory='{DUCKDB_TEMP_DIR}'")
+    duckdb.execute("PRAGMA threads=8")
+
 STAGE_INPUTS = {
     "stage1_unified": INTERMEDIATE_DIR / "stage1_unified.parquet",
     "stage1_observations": INTERMEDIATE_DIR / "stage1_observations.parquet",
@@ -67,24 +79,53 @@ STAGE_INPUTS = {
 }
 
 def build_unified_observations(unified_path: Path, output_path: Path) -> int:
-    unified_cols = duckdb.execute(
-        f"DESCRIBE SELECT * FROM read_parquet('{unified_path}')"
-    ).fetchall()
+    unified_cols = [
+        row[0]
+        for row in duckdb.execute(
+            f"DESCRIBE SELECT * FROM read_parquet('{unified_path}')"
+        ).fetchall()
+    ]
 
-    select_exprs = []
-    for col_name, *_ in unified_cols:
-        if col_name in POSTING_LEVEL_ONLY_COLUMNS:
+    # Columns we keep on the unified side. Drop posting-level-only blobs (the
+    # 3072-float embedding) AND drop columns the observations side supplies
+    # (scrape_date) — keeping both copies inflates the join's hash side.
+    unified_keep = [
+        col for col in unified_cols
+        if col not in POSTING_LEVEL_ONLY_COLUMNS and col != "scrape_date"
+    ]
+    if "uid" not in unified_keep:
+        raise ValueError(f"unified parquet at {unified_path} is missing 'uid'")
+
+    # Preserve the original column order from the unified parquet — replace
+    # scrape_date in-place with the observations side's value, otherwise emit
+    # u.<col>. Tests assert parity with the unified column list.
+    outer_parts = []
+    for col in unified_cols:
+        if col in POSTING_LEVEL_ONLY_COLUMNS:
             continue
-        if col_name == "scrape_date":
-            select_exprs.append("o.scrape_date AS scrape_date")
+        if col == "scrape_date":
+            outer_parts.append("o.scrape_date AS scrape_date")
         else:
-            select_exprs.append(f"u.{col_name}")
+            outer_parts.append(f'u."{col}"')
+    outer_select = ", ".join(outer_parts)
+
+    # Build the projected unified side via a sub-select so DuckDB does not pull
+    # the embedding column into the hash table even if its projection-pushdown
+    # heuristic misses the outer SELECT list. Memory caps in _configure_duckdb
+    # let DuckDB spill to disk if the join still doesn't fit in RAM.
+    unified_proj = ", ".join(f'"{c}"' for c in unified_keep)
 
     sql = f"""
     COPY (
-      SELECT {", ".join(select_exprs)}
-      FROM read_parquet('{OBS_INPUT}') AS o
-      INNER JOIN read_parquet('{unified_path}') AS u USING (uid)
+      SELECT {outer_select}
+      FROM (
+        SELECT uid, scrape_date
+        FROM read_parquet('{OBS_INPUT}')
+      ) AS o
+      INNER JOIN (
+        SELECT {unified_proj}
+        FROM read_parquet('{unified_path}')
+      ) AS u USING (uid)
     )
     TO '{output_path}'
     (FORMAT PARQUET, COMPRESSION ZSTD);
@@ -345,10 +386,12 @@ def build_log_text(report: dict) -> str:
 def main() -> None:
     t0 = time.time()
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    _configure_duckdb()
 
     print("=" * 70)
     print("FINAL OUTPUT: unified.parquet + unified_observations.parquet + unified_core.parquet")
     print("=" * 70)
+    print(f"DuckDB memory cap: {DUCKDB_MEMORY_LIMIT}, spill dir: {DUCKDB_TEMP_DIR}")
 
     tmp_unified_output = prepare_temp_output(UNIFIED_OUTPUT)
     tmp_obs_output = prepare_temp_output(OBS_OUTPUT)

@@ -30,6 +30,12 @@ figures/bertopic/intermediate/
 # Preprocessing caches
 preprocessing/cache/
 
+# DuckDB spill files. Created by the default temp_directory at the repo root
+# when a query needs to spill to disk and no explicit pragma is set. Stage 12 /
+# stage_final_output now point DuckDB at /tmp explicitly, but a crashed run can
+# still leave a stray .tmp/ directory behind.
+.tmp/
+
 # Preprocessing reference artifacts
 preprocessing/reference/raw/
 preprocessing/reference/*.parquet
@@ -39,6 +45,11 @@ exploration/
 
 # Generated figures (bulk, outside tracked directories)
 *.png
+
+# figures/output/: regeneratable data outputs (parquet/csv tables produced by
+# scripts in figures/). PDFs are paper-final and stay trackable.
+figures/output/*.parquet
+figures/output/*.csv
 
 # Exploration archive — only track built static sites (exploration-archive/<ver>/site/site/).
 # Source markdown, raw artifacts, figures, tables, scripts stay out of git.

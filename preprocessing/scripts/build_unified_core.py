@@ -232,12 +232,21 @@ def build_core(
     )
 
     select_exprs = _observations_select_exprs()
+    # Explicit sub-select on the unified-core side to drop the posting-level
+    # embedding before joining; keeps the hash table small and matches the
+    # memory-capped pattern used by stage_final_output.build_unified_observations.
+    core_obs_keep = [c for c in CORE_OBSERVATION_COLUMNS if c != "scrape_date"]
+    core_obs_proj = ", ".join(f'"{c}"' for c in core_obs_keep)
     duckdb.execute(
         f"""
         COPY (
           SELECT {select_exprs}
-          FROM read_parquet('{observations_path}') AS o
-          INNER JOIN read_parquet('{core_path}') AS u USING (uid)
+          FROM (
+            SELECT uid, scrape_date FROM read_parquet('{observations_path}')
+          ) AS o
+          INNER JOIN (
+            SELECT {core_obs_proj} FROM read_parquet('{core_path}')
+          ) AS u USING (uid)
         )
         TO '{core_observations_path}'
         (FORMAT PARQUET, COMPRESSION ZSTD);

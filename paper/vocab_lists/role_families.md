@@ -3,7 +3,6 @@
 - **Multi-label.** A posting can be assigned multiple families when warranted (e.g. "Senior Backend Engineer, ML Platform" → Backend + ML Engineer).
 - **Software Engineer (General) is a residual fallback.** Apply only when no more specific family fits.
 - **Full-stack tie-break.** Full-stack roles are tagged as Frontend/Web Engineer.
-- **Tech Lead label** applies only to non-IC cross-functional leads. IC tech leads are tagged with their topical family alone.
 
 ## Families
 
