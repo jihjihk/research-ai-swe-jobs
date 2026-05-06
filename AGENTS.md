@@ -53,6 +53,8 @@ Scripts and notebooks that produce the figures and tables for the paper. Reads f
 
 **Before writing any figure script, read [`figures/style.md`](figures/style.md).** All figures must use `figures/style.py` (matplotlib + SciencePlots, sized for AAAI 2026 two-column, Type 1/TrueType fonts) — do not introduce other plotting libraries or override `rcParams` in scripts.
 
+**BERTopic + embedding-space analysis (`figures/bertopic/`).** Discovery layer (L3) for the role-landscape claims. `design.md` is the canonical specification; `orchestrator_prompt.md` drives the multi-stage workflow (Stage 0 infrastructure → Stage 1 core BERTopic → Stage 1.5 freeze memo → Stage 2 parallel sub-agent fan-out → Stage 3 cull synthesis → Stage 4 reproducible notebook). Stage 1 frozen 2026-05-06 at `git tag stage1-freeze-2026-05-06` (headline mcs=70, K=10, 9 clusters). Stage 3 synthesis lives at `figures/bertopic/memos/synthesis.md`; the audit trail is `figures/bertopic/prereg_log.md`. Per-task memos (`memos/t_*.md`) record each sub-agent's three-gate evaluation. T-l1l2 crosstab is queued for once Stage-12 L1/L2 columns land in `unified_core.parquet`; T-ablations is queued for a follow-up session.
+
 ### 4. Paper (`paper/`)
 
 LaTeX manuscript workspace for the publication itself.
