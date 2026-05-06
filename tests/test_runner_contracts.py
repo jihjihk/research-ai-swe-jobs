@@ -22,7 +22,7 @@ def test_runner_rejects_retired_stage_3_resume(monkeypatch):
 @pytest.mark.unit
 def test_runner_declares_expected_stage_contracts():
     stage_numbers = [stage["num"] for stage in run_pipeline.STAGES]
-    assert stage_numbers == [1, 2, 4, 5, "6-8", 9, 10, 11, "final"]
+    assert stage_numbers == [1, 2, 4, 5, "6-8", 9, 10, 11, 12, "final"]
 
     expected_checks = {
         2: "company_name_effective",
@@ -32,6 +32,7 @@ def test_runner_declares_expected_stage_contracts():
         9: "extraction_input_hash",
         10: "classification_input_hash",
         11: "job_description_embedding",
+        12: "skill_themes",
     }
     for stage in run_pipeline.STAGES:
         if stage["num"] in expected_checks:

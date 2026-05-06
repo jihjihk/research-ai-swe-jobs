@@ -37,6 +37,7 @@ def _typed_defaults() -> dict[str, object]:
     }
     int_cols = {"yoe_extracted", "yoe_min_years_llm", "company_size"}
     list_cols = {"job_description_embedding"}
+    list_str_cols = {"skill_themes", "role_families"}
     out: dict[str, object] = {}
     for col in build_core_mod.SOURCE_COLUMNS_REQUIRED:
         if col in str_cols:
@@ -47,6 +48,8 @@ def _typed_defaults() -> dict[str, object]:
             out[col] = 0
         elif col in list_cols:
             out[col] = [0.1, 0.2, 0.3]
+        elif col in list_str_cols:
+            out[col] = []
         else:
             raise AssertionError(f"Unclassified source column in test defaults: {col}")
     return out

@@ -1,6 +1,8 @@
 # Preprocessing Schema Reference
 
-Last updated: 2026-05-04
+Last updated: 2026-05-05
+
+**Changelog — 2026-05-05:** Added Stage 12 multi-label LLM classification. Two new columns are written: `skill_themes` (list of 0-8 enum values) and `role_families` (list of 0-17 enum values). Both are populated only on rows where Stage 10's LLM said `is_swe_combined_llm = TRUE`; control rows and short-description rows have NULL columns by construction. Stage 12 calls `gpt-5.4-mini` 3 times per row and majority-votes (>50%) per axis; per-rep cache lives at `preprocessing/cache/llm_classify_axes.db` keyed by `(description_hash, prompt_version, model, rep_index)`. The frozen prompt is `preprocessing/scripts/stage12_classify_axes_prompt_v1.md`. Both columns are propagated through the trim into `unified_core.parquet` (NULL on control rows there).
 
 **Changelog — 2026-05-04:** Added Stage 11 OpenAI embeddings. `job_description_embedding` is computed from `title + "\n\n" + description_core_llm`, cached in `preprocessing/cache/openai_embeddings.db`, and written to posting-level outputs (`unified.parquet` and `unified_core.parquet`). The daily observation files intentionally omit the embedding vector column because it is posting-level and large.
 
@@ -74,6 +76,7 @@ The authoritative list is the `CORE_COLUMNS` constant in [`preprocessing/scripts
 | Job content | `title`, `description`, `description_core_llm`, `job_description_embedding` |
 | Company | `company_name_effective`, `company_name_canonical`, `is_aggregator`, `company_industry`, `company_size` |
 | Occupation | `is_swe` (LLM combined; renamed from `is_swe_combined_llm`), `is_control` (Stage 5 rule) |
+| Multi-label classification (Stage 12) | `skill_themes`, `role_families` (NULL on control rows) |
 | Seniority | `seniority_final`, `seniority_final_source`, `seniority_rule`, `seniority_rule_source`, `seniority_native` |
 | YOE | `yoe_extracted`, `yoe_min_years_llm` |
 | Geography | `location`, `city_extracted`, `state_normalized`, `metro_area`, `is_remote_inferred`, `is_multi_location` |
@@ -140,6 +143,7 @@ This table shows when each column category first becomes available:
 | LLM coverage tracking | Stage 9-10 | 4 | `llm_extraction_coverage`, `llm_extraction_resolution`, `llm_classification_coverage`, `llm_classification_resolution` |
 | LLM classification | Stage 10 | 5 | `swe_classification_llm`, `is_swe_combined_llm` (derived), `ghost_assessment_llm`, `yoe_min_years_llm`, `llm_classification_sample_tier` (LLM seniority writes back to `seniority_final`; there is no separate `seniority_llm` column) |
 | Embeddings | Stage 11 | 1 | `job_description_embedding` |
+| Multi-label classification | Stage 12 | 2 | `skill_themes`, `role_families` — populated only when `is_swe_combined_llm = TRUE` |
 
 Row and column counts change as scraped data grows. Query the current artifacts before analysis. The 2026-04-10 removal of the rule-based boilerplate stage dropped `description_core`, `core_length`, `boilerplate_flag`, and `boilerplate_removed`.
 
@@ -202,6 +206,16 @@ Work from `preprocessing/intermediate/stage11_embeddings_integrated.parquet`, `d
 
 New column available:
 - `job_description_embedding`: OpenAI embedding of `title + description_core_llm`. The input uses the boilerplate-removed Stage 9 description. Rows without cleaned text have null embeddings. The column is posting-level and is not repeated in observation files.
+
+### At Stage 12 (multi-label classification complete)
+
+Work from `preprocessing/intermediate/stage12_llm_classified.parquet`, `data/unified.parquet`, or `data/unified_core.parquet`.
+
+New columns available:
+- `skill_themes`: list of zero or more skill themes (8-enum). NULL on non-SWE rows; `[]` on SWE rows where the LLM found no skill theme appearing in ≥2 of 3 reps.
+- `role_families`: list of zero or more role families (17-enum). NULL on non-SWE rows; `[]` is uncommon (most postings have at least one role family attached) but possible.
+
+Filter to `skill_themes IS NOT NULL` to scope analysis to the SWE cohort with usable Stage 12 output.
 
 ---
 
@@ -420,7 +434,7 @@ The LLM classifier looks for **explicit seniority signals only** — title keywo
 
 ---
 
-### 10. LLM and Embedding Columns (Stages 9-11)
+### 10. LLM and Embedding Columns (Stages 9-12)
 
 These columns are null for rows not routed to LLM processing. Rule-based columns serve as fallback. **Seniority is the exception:** LLM seniority writes back to `seniority_final` (see Section 4) — there is no separate `seniority_llm` column.
 
@@ -449,6 +463,15 @@ These columns are null for rows not routed to LLM processing. Rule-based columns
 **Classification (Stage 10):** Routes every row where `selected_for_llm_frame == True`, `source_platform == 'linkedin'`, `is_english == True`, and the raw description has ≥15 words. There is no rule-based shortcut. For routed rows, the LLM seniority result overwrites `seniority_final` and `seniority_final_source = 'llm'` (see Section 4). Rows outside the inherited Stage 9 core frame are `not_selected`. A row may have usable Stage 9 text without Stage 10 classification, or vice versa.
 
 **Embeddings (Stage 11):** Embeds every row with non-empty `description_core_llm`, using `title + "\n\n" + description_core_llm`. Calls are deduplicated by input hash and cached separately from LLM responses. Stage 11 does not define a sample, does not call the Stage 9/10 engines, and does not add routing metadata to final outputs.
+
+**Multi-label classification (Stage 12):** Routes every row where `is_swe_combined_llm = TRUE` AND `len(description_core_llm.split()) >= 15`. For each row, makes 3 independent OpenAI Responses API calls on `gpt-5.4-mini` against a strict 8-enum × 17-enum JSON schema, then majority-votes (>50% of successful reps required, minimum 2 successful reps) per axis. Cache key: `(description_hash, prompt_version, model, rep_index)`. The frozen prompt artefact is `preprocessing/scripts/stage12_classify_axes_prompt_v1.md` and the cache version embeds its sha256, so editing the prompt invalidates prior entries. Output columns:
+
+| Column | Type | Values |
+|---|---|---|
+| `skill_themes` | LIST<VARCHAR> | Subset of {`people_management`, `orchestration`, `verification`, `mentorship`, `performance`, `process_scaffolding`, `legacy_stack`, `context_infrastructure`} |
+| `role_families` | LIST<VARCHAR> | Subset of {`software_engineer_general`, `frontend_web`, `backend_api`, `mobile`, `embedded`, `data_engineer`, `ml_engineer`, `ai_llm_engineer`, `devops_sre_platform`, `security`, `qa_test`, `solutions_field`, `legacy_specialist`, `data_analytics`, `research`, `infra_ops_admin`, `people_manager`} |
+
+Rows where Stage 12 ran but the LLM returned no labels in either axis get an empty list `[]` (still non-NULL — distinguishes "classified but empty" from "not classified"). Rows where Stage 10 classified the row as control or NOT_SWE, where the description is too short, or where all 3 reps failed, get NULL on both columns. Per-rep failures are logged in `preprocessing/logs/stage12_classify_axes_errors.jsonl`.
 
 #### Budget-Constrained LLM Processing
 

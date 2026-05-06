@@ -198,6 +198,20 @@ STAGES = [
         "timeout_seconds": 48 * 3600,
     },
     {
+        "num": 12,
+        "name": "LLM Multi-Label Classification (skill themes + role families)",
+        "script": "stage12_llm_classify_axes.py",
+        "outputs": [
+            {
+                "path": INTERMEDIATE_DIR / "stage12_llm_classified.parquet",
+                "kind": "parquet",
+                "min_rows": 1_000_000,
+                "check_col": "skill_themes",
+            }
+        ],
+        "timeout_seconds": 48 * 3600,
+    },
+    {
         "num": "final",
         "name": "Final Output Generation",
         "script": "stage_final_output.py",
@@ -320,6 +334,12 @@ def main():
                         help="Concurrent OpenAI embedding workers for stage 11")
     parser.add_argument("--embedding-batch-size", type=int, default=128,
                         help="Max inputs per OpenAI embeddings request for stage 11")
+    parser.add_argument("--classify-axes-model", type=str, default="gpt-5.4-mini",
+                        help="OpenAI model for stage 12 (default: gpt-5.4-mini)")
+    parser.add_argument("--classify-axes-reps", type=int, default=3,
+                        help="Reps per posting for stage 12 majority voting (default: 3)")
+    parser.add_argument("--classify-axes-max-workers", type=int, default=15,
+                        help="Concurrent OpenAI workers for stage 12 (default: 15)")
     parser.add_argument("--backup", action="store_true", default=False,
                         help="Back up final outputs and LLM/embedding caches to S3 after successful run")
     args = parser.parse_args()
@@ -393,6 +413,13 @@ def main():
             extra_args.extend(["--embedding-dimensions", str(args.embedding_dimensions)])
             extra_args.extend(["--max-workers", str(args.embedding_max_workers)])
             extra_args.extend(["--batch-size", str(args.embedding_batch_size)])
+        elif stage["num"] == 12:
+            extra_args.extend(["--model", args.classify_axes_model])
+            extra_args.extend(["--reps", str(args.classify_axes_reps)])
+            extra_args.extend(["--max-workers", str(args.classify_axes_max_workers)])
+            extra_args.extend(["--quota-wait-hours", str(args.quota_wait_hours)])
+            if args.llm_budget is not None:
+                extra_args.extend(["--llm-budget", str(args.llm_budget)])
         if not run_stage(stage, extra_args=extra_args or None):
             log.error(f"\nPIPELINE FAILED at Stage {stage_num}")
             return 1

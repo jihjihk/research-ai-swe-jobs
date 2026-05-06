@@ -39,7 +39,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 INTERMEDIATE_DIR = PROJECT_ROOT / "preprocessing" / "intermediate"
 DATA_DIR = PROJECT_ROOT / "data"
 
-UNIFIED_INPUT = INTERMEDIATE_DIR / "stage11_embeddings_integrated.parquet"
+UNIFIED_INPUT = INTERMEDIATE_DIR / "stage12_llm_classified.parquet"
 OBS_INPUT = INTERMEDIATE_DIR / "stage1_observations.parquet"
 UNIFIED_OUTPUT = DATA_DIR / "unified.parquet"
 OBS_OUTPUT = DATA_DIR / "unified_observations.parquet"
@@ -63,6 +63,7 @@ STAGE_INPUTS = {
     "stage10_classification_results": INTERMEDIATE_DIR / "stage10_llm_classification_results.parquet",
     "stage10_integrated": INTERMEDIATE_DIR / "stage10_llm_integrated.parquet",
     "stage11_embeddings": INTERMEDIATE_DIR / "stage11_embeddings_integrated.parquet",
+    "stage12_classified": INTERMEDIATE_DIR / "stage12_llm_classified.parquet",
 }
 
 def build_unified_observations(unified_path: Path, output_path: Path) -> int:
@@ -359,7 +360,7 @@ def main() -> None:
     build_core_this_run = False
 
     try:
-        print(f"[1/5] Copying Stage 11 output {UNIFIED_INPUT} -> {tmp_unified_output}")
+        print(f"[1/5] Copying Stage 12 output {UNIFIED_INPUT} -> {tmp_unified_output}")
         shutil.copy2(UNIFIED_INPUT, tmp_unified_output)
 
         print(f"[2/5] Building {OBS_OUTPUT.name}")

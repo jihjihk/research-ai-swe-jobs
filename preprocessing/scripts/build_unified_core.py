@@ -90,6 +90,9 @@ CORE_PASSTHROUGH: list[tuple[str, str]] = [
     # is_swe here is the LLM combined verdict.
     ("is_swe", "is_swe_combined_llm"),
     ("is_control", "is_control"),
+    # --- Stage 12 multi-label classification (SWE rows only; NULL elsewhere) ---
+    ("skill_themes", "skill_themes"),
+    ("role_families", "role_families"),
     # --- Seniority ---
     ("seniority_final", "seniority_final"),
     ("seniority_final_source", "seniority_final_source"),

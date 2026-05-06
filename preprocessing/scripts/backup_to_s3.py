@@ -11,6 +11,7 @@ Uploads to: s3://swe-labor-research/backups/<YYYY-MM-DD_HHMMSS>/
     preprocessing_log.txt
     llm_responses.db
     openai_embeddings.db
+    llm_classify_axes.db
 
 Usage:
     python preprocessing/scripts/backup_to_s3.py            # Back up now
@@ -41,6 +42,7 @@ BACKUP_MANIFEST = [
     (DATA_DIR / "preprocessing_log.txt", "preprocessing_log.txt"),
     (CACHE_DIR / "llm_responses.db", "llm_responses.db"),
     (CACHE_DIR / "openai_embeddings.db", "openai_embeddings.db"),
+    (CACHE_DIR / "llm_classify_axes.db", "llm_classify_axes.db"),
 ]
 
 logging.basicConfig(
