@@ -56,6 +56,9 @@ Scripts and notebooks that produce the figures and tables for the paper. Reads f
 
 LaTeX manuscript workspace for the publication itself.
 
+- `paper/vocab_lists/` — keyword-density vocabulary lists used by the Methodology > Vocabulary Lists analyses (people-management, orchestration, verification, mentorship, performance/depth, process-scaffolding, legacy-stack, context-infrastructure). `task_spec.md` documents the sub-agent prompt template and topic list; `vocab_lists.json` is the consolidated output (8 topics, 88 core concepts, ~3.3k keyword variants). Each topic has `core_concepts[].keywords` (literal strings, case-insensitive, word-boundary unless `regex_notes` says otherwise), an `exclusions` list of false-positive guards, and `calibration_recommendations` flagging concepts that need spot-check before trusting trends. Counting convention: a hit on any variant counts as one hit on its parent concept; a hit on any concept counts as one hit on the parent topic.
+- `paper/vocab_lists/calibration/` — corpus-grounded review of the v1 vocab lists. `run_calibration.py` matches every keyword against a 19,433-row stratified SWE sample (kaggle_arshkon 2024-04, kaggle_asaniczka 2024-01, scraped 2026-04) and emits per-keyword hit rate + up-to-5 example sentences as `<slug>_calibration.json`, plus `summary.json` and `collisions.json`. `consolidate_review.py` merges per-topic sub-agent reviews into `edit_recommendations.json` (machine-readable, 893 drops / 268 guards / 86 adds / 6 cross-list reconciliation rules) and `review.md` (human-readable narrative). Both scripts are re-runnable. Edits are NOT yet applied to `vocab_lists.json` — that's the next step, gated on user review of `review.md`.
+
 
 ### 5. Legacy Archives
 `exploration_archive/` and `eda_archive/` are frozen archival material from the earlier exploration phase. Do not consult or modify unless explicitly instructed.
