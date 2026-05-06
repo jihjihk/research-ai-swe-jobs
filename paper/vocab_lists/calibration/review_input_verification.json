@@ -3,6 +3,20 @@
   "topic_name": "Verification",
   "topic_definition": "Language in job descriptions that signals the expectation of verifying that engineering work is correct, safe, and trustworthy before and after deployment. Covers classical software testing/QA, CI/CD-driven quality gates, code review as a correctness-checking activity, static analysis and compliance, reproducibility and artifact-based proof (logs, screenshots, recordings), evaluation harnesses for AI output, and post-deployment observability used to confirm behavior in production.",
   "sample_size": 19433,
+  "strata": [
+    {
+      "source": "kaggle_arshkon",
+      "period": "2024-04"
+    },
+    {
+      "source": "kaggle_asaniczka",
+      "period": "2024-01"
+    },
+    {
+      "source": "scraped",
+      "period": "2026-04"
+    }
+  ],
   "concepts": [
     {
       "name": "Automated testing",
@@ -14446,203 +14460,5 @@
         }
       ]
     }
-  ],
-  "topic_exclusions": [
-    {
-      "pattern": "test",
-      "reason": "Matches 'beta tester role', 'tested for drugs', 'A/B test' (marketing), 'testimonial', 'protest'.",
-      "guard": "Require multi-token compound ('unit test', 'test plan', 'integration test') or co-occurrence with 'code', 'unit', 'integration', 'regression', 'pipeline'. Block matches inside 'testimonial', 'protest', 'attest'."
-    },
-    {
-      "pattern": "CI",
-      "reason": "Matches 'Cincinnati', 'Cote d'Ivoire (CI)', and stray two-letter tokens; also French 'ci'.",
-      "guard": "Only count uppercase 'CI' when adjacent to '/', '-', ' CD', 'pipeline', 'build', 'continuous'. Otherwise require full 'continuous integration'."
-    },
-    {
-      "pattern": "CD",
-      "reason": "Compact disc, 'cd' shell command in unrelated context, 'candidate (cd.)'.",
-      "guard": "Only count when paired with CI ('CI/CD', 'CI-CD', 'CICD') or with 'continuous'."
-    },
-    {
-      "pattern": "QA",
-      "reason": "Mostly clean in tech JDs but can match 'Q&A session', 'Doha (Qatar QA)'.",
-      "guard": "Block when followed by '&A', 'session', or when part of an acronym list of countries."
-    },
-    {
-      "pattern": "eval",
-      "reason": "Matches 'evaluation period for benefits', 'performance evaluation' (HR review), 'evaluate candidates'.",
-      "guard": "Require AI/ML/model/test co-token within +/- 8 tokens; or only count 'evals', 'eval harness', 'eval suite', 'eval framework'. Exclude 'benefits', 'performance review', 'salary' co-tokens."
-    },
-    {
-      "pattern": "validation",
-      "reason": "Matches 'data validation' (good) but also 'validation of identity', 'background validation', 'requires validation of right to work'.",
-      "guard": "Block within 5 tokens of 'identity', 'right to work', 'employment eligibility', 'background'."
-    },
-    {
-      "pattern": "audit",
-      "reason": "Matches financial audit, internal audit (HR/finance), 'audited by E&Y'.",
-      "guard": "Require security/compliance/log/code co-token, or count only compound forms ('audit log', 'security audit', 'compliance audit', 'audit trail')."
-    },
-    {
-      "pattern": "monitor",
-      "reason": "Matches 'monitor team performance' (mgmt), 'monitor budgets', 'heart monitor' (medical roles).",
-      "guard": "Prefer 'monitoring' / 'production monitoring' / co-tokens with 'metrics', 'alert', 'dashboard'."
-    },
-    {
-      "pattern": "log / logs",
-      "reason": "Matches 'log hours', 'log into the system', 'travel log', 'blog'.",
-      "guard": "Only count 'logging', 'audit log', 'log evidence', 'log aggregation', or co-occurrence with 'metrics'/'trace'/'observability'."
-    },
-    {
-      "pattern": "review",
-      "reason": "Matches 'performance review' (HR), 'salary review', 'annual review' — strongly HR-flavored.",
-      "guard": "Only count 'code review', 'PR review', 'design review', 'peer review', 'security review' as multi-token phrases."
-    },
-    {
-      "pattern": "compliance",
-      "reason": "Matches 'EEO compliance', 'tax compliance', 'employment compliance' (HR boilerplate).",
-      "guard": "Block within 6 tokens of 'EEO', 'equal opportunity', 'employment', 'tax', 'I-9', 'background check'."
-    },
-    {
-      "pattern": "PCI",
-      "reason": "Matches 'PCI bus' / 'PCIe' in hardware/embedded JDs.",
-      "guard": "Require 'DSS' or 'compliance'/'payment' co-token; block when adjacent to 'bus', 'express', 'slot', 'lane'."
-    },
-    {
-      "pattern": "SLA",
-      "reason": "Mostly safe; can match 'Bratislava (SLA airport code)' rarely.",
-      "guard": "Word boundary + uppercase usually sufficient."
-    },
-    {
-      "pattern": "Sonar",
-      "reason": "Naval/automotive sonar tech.",
-      "guard": "Prefer 'SonarQube', 'SonarCloud', 'Sonar scanner'."
-    },
-    {
-      "pattern": "lint",
-      "reason": "Generally safe but can appear in 'lint roller' (rare in tech).",
-      "guard": "Word boundary; in tech JDs essentially clean."
-    },
-    {
-      "pattern": "trace",
-      "reason": "Matches 'trace amounts', 'no trace of' in non-tech roles.",
-      "guard": "Require dev/observability co-token ('distributed', 'request', 'stack', 'span', 'OpenTelemetry')."
-    },
-    {
-      "pattern": "QA",
-      "concept": "QA and validation",
-      "reason": "Genuinely a QA-function reference in 95% of snippets, but two-letter acronym risks Q&A confusion. Spot-check shows clean usage in this corpus.",
-      "guard": "Require uppercase 'QA' as token (case-sensitive); reject 'Q&A' and 'Q & A' contexts. Optionally require co-occurrence with 'test|quality|engineer|tester' within 50 chars."
-    },
-    {
-      "pattern": "validation",
-      "concept": "QA and validation",
-      "reason": "Heavy noise from systems-engineering V&V ('verification and validation', 'validation of customer needs'), data-science 'cross-validation', identity 'validation', and form/input validation in app code.",
-      "guard": "Require co-occurrence with 'test|QA|automated|software|code|build|CI' within 80-char window, or require collocation 'data validation|input validation|unit validation' to be excluded. Consider only counting validation when paired with test/automation context."
-    },
-    {
-      "pattern": "validate",
-      "concept": "QA and validation",
-      "reason": "Often generic ('validate assumptions', 'validate model effectiveness', 'validate customer requirements') — not software correctness gating.",
-      "guard": "Same as 'validation'; require software/test co-occurrence."
-    },
-    {
-      "pattern": "validating",
-      "concept": "QA and validation",
-      "reason": "Same generic-validation FP pattern.",
-      "guard": "Require software-test context."
-    },
-    {
-      "pattern": "validated",
-      "concept": "QA and validation",
-      "reason": "Mostly generic.",
-      "guard": "Require software-test context."
-    },
-    {
-      "pattern": "verification",
-      "concept": "QA and validation",
-      "reason": "Systems-engineering V&V boilerplate ('design verification', 'systems integration, verification and validation') and identity/passport verification dominate the high-volume hits.",
-      "guard": "Require co-occurrence with 'test|software|code|automated|CI|build|integration test' within 80 chars, or exclude 'design verification' / 'identity verification' / 'systems verification' / 'requirements verification' as standalone."
-    },
-    {
-      "pattern": "verify",
-      "concept": "QA and validation",
-      "reason": "Generic ('verify products against specifications', 'verify if customer requirements can be fulfilled', 'verify information integrity').",
-      "guard": "Same as 'verification' — require software-test co-occurrence."
-    },
-    {
-      "pattern": "verifying",
-      "concept": "QA and validation",
-      "reason": "Includes 'verifying U.S.-person status' (employment law boilerplate) and 'verifying product selection'.",
-      "guard": "Require software/test/code context."
-    },
-    {
-      "pattern": "tested",
-      "concept": "QA and validation",
-      "reason": "Mostly fine ('well-tested code', 'tested before release') but also some generic 'tested in production' usage. Lower-risk guard.",
-      "guard": "Require co-occurrence with 'code|software|unit|integration|automated' or collocation 'well-tested|fully-tested|tested code'."
-    },
-    {
-      "pattern": "testers",
-      "concept": "QA and validation",
-      "reason": "Mixed — also matches 'electromechanical automated testers' (hardware test machines) in defense JDs.",
-      "guard": "Exclude when followed by 'and systems' or preceded by 'electromechanical|hardware'."
-    },
-    {
-      "pattern": "eval",
-      "concept": "Evaluations and AI output verification",
-      "reason": "25 hits — examples are mostly legit AI-eval contexts (eval pipelines, eval-driven, Eval AI Testing, Rivian's 'Data, Eval & Triage Team') but also could match 'evaluation' substring scans. Confirm whole-word match.",
-      "guard": "Whole-word match only (\\beval\\b); reject 'eval' as substring of 'evaluation/evaluate/evaluating'."
-    },
-    {
-      "pattern": "evals",
-      "concept": "Evaluations and AI output verification",
-      "reason": "27 hits, scraped 2026-04 examples are uniformly legit AI evals (LLM evals, OpenAI Evals, writing evals). Lower FP risk.",
-      "guard": "Whole-word match (\\bevals\\b)."
-    },
-    {
-      "pattern": "evaluations",
-      "concept": "Evaluations and AI output verification",
-      "reason": "189 hits — same FP pattern: 'performance evaluations for assigned staff', 'field evaluations'.",
-      "guard": "Same as 'evaluation' — require AI/ML/model co-occurrence."
-    },
-    {
-      "pattern": "red team",
-      "concept": "Evaluations and AI output verification",
-      "reason": "Mostly cyber-security red-team (penetration testing) not AI red-teaming. Belongs in security verification or compliance not AI-eval.",
-      "guard": "Restrict to AI red-teaming: require co-occurrence with 'AI|LLM|model|generative' within 50 chars; otherwise route to compliance/security concept."
-    },
-    {
-      "pattern": "log",
-      "concept": "Reproducibility and artifact proof",
-      "reason": "315 hits — substantially split between observability ('log files for root cause', 'log analysis', 'Azure Log Analytics') and unrelated ('log into', 'change log', 'log4j' substring risk).",
-      "guard": "Whole-word match; require co-occurrence with 'file|files|analysis|aggregat|monitor' or move to observability concept. Currently mis-bucketed in 'reproducibility'."
-    },
-    {
-      "pattern": "logs",
-      "concept": "Reproducibility and artifact proof",
-      "reason": "325 hits — same as 'log'; also catches 'work logs/activity logs/changelogs'.",
-      "guard": "Move to observability concept; the snippets are pure observability ('OpenTelemetry traces, metrics, logs')."
-    },
-    {
-      "pattern": "logging",
-      "concept": "Reproducibility and artifact proof",
-      "reason": "750 hits — clearly observability ('logging, monitoring, error handling'), not artifact-proof.",
-      "guard": "Move to Post-deployment observability concept."
-    },
-    {
-      "pattern": "compliance",
-      "concept": "Compliance and security verification",
-      "reason": "2515 hits — includes 'code compliance' (building codes), 'data compliance' (general policy), 'compliance with internal standards' — broad organizational use, not just security.",
-      "guard": "Acceptable as broad signal; optionally require pairing with 'SOC|ISO|HIPAA|GDPR|PCI|FedRAMP|NIST|audit|regulatory|security' within 80 chars to tighten."
-    },
-    {
-      "pattern": "audit",
-      "concept": "Compliance and security verification",
-      "reason": "348 hits — includes generic 'audit of User Security Access Rights', 'partner with Audit (internal/external)' (i.e., the Audit department), and 'audit requirements'. Mostly on-topic but bleeds into general business audit.",
-      "guard": "Require co-occurrence with 'security|compliance|SOC|trail|log|code|vulnerability' within 50 chars."
-    }
-  ],
-  "topic_calibration_recommendations": "After first pass, sample 100 random matches per concept stratified by year and role family. Specifically validate: (1) bare 'CI' / 'CD' / 'eval' / 'audit' / 'monitor' / 'review' / 'log' false-positive rates; if any exceeds ~5% drop the bare form and keep only compound forms. (2) Cross-tab 'code review' matches with the Mentorship topic — report co-occurrence rate and decide assignment policy at analysis time rather than at extraction time (i.e., extract once, label twice). (3) Spot-check 'evaluation' in benefits/HR sections: if >10% are HR-flavored, drop bare 'evaluation' and keep only 'eval', 'evals', 'eval harness', 'evaluation framework', 'evaluation pipeline', 'model evaluation', 'LLM evaluation'. (4) Confirm tooling brand names (Datadog, Sentry, etc.) are mentioned with verification intent and not just in a generic tech-stack list — if needed, count tooling separately as a distinct sub-feature.",
-  "topic_notes": "Code-review overlap with Mentorship is intentional and flagged here per the prompt. Recommendation: do not double-count at extraction time; instead, store a per-mention 'topics' multilabel and resolve at the analysis layer using context (mentorship-context tokens like 'mentor', 'coach', 'grow junior engineers' nearby tip toward Mentorship; defect/bug/quality tokens tip toward Verification). The 'Evaluations and AI output verification' concept is the key 2024->2026 shift signal — evals/HITL/red-teaming/LLM-as-a-judge vocabulary should be tracked as its own sub-index in addition to rolling up to Verification, since that is a hypothesized growth area in the AI transition. [code_review] canonical home for: code review, code reviews, pr review, pull request review, review pull requests. Aliased-out from: mentorship."
+  ]
 }

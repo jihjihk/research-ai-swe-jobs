@@ -3,6 +3,20 @@
   "topic_name": "Orchestration",
   "topic_definition": "Markers indicating the senior-engineer archetype of orchestrating work — both classical task decomposition, architecture, and specification authorship, and the emerging practice of directing AI/agent systems through context engineering, agent harnesses, repository instructions, memory, and multi-agent coordination. Each concept captures a distinguishable facet of how a human breaks down, plans, and steers execution (human or machine) toward an outcome.",
   "sample_size": 19433,
+  "strata": [
+    {
+      "source": "kaggle_arshkon",
+      "period": "2024-04"
+    },
+    {
+      "source": "kaggle_asaniczka",
+      "period": "2024-01"
+    },
+    {
+      "source": "scraped",
+      "period": "2026-04"
+    }
+  ],
   "concepts": [
     {
       "name": "Specifications and Requirements Authoring",
@@ -8591,110 +8605,5 @@
         }
       ]
     }
-  ],
-  "topic_exclusions": [
-    {
-      "pattern": "memory",
-      "reason": "Bare 'memory' overwhelmingly refers to RAM, memory leaks, memory-safe languages, memory profiling, etc. It will dominate the AI-memory signal if counted alone.",
-      "guard": "Only count when adjacent to 'agent', 'long-term', 'short-term', 'persistent', 'episodic', 'semantic', 'working', 'conversation', 'session', 'vector', 'scratchpad', or paired with LLM/agent context."
-    },
-    {
-      "pattern": "Cursor",
-      "reason": "Matches database cursors, UI cursors, and pagination cursors.",
-      "guard": "Require 'Cursor IDE', 'Cursor editor', 'Cursor agent', 'Cursor Composer', or co-occurrence within ~50 chars of another AI-tool token (Copilot, Claude, GPT)."
-    },
-    {
-      "pattern": "spec",
-      "reason": "Substring match would catch 'specifically', 'specialty', 'specialized', 'speculation', 'aspect'.",
-      "guard": "Word boundaries on both sides; safer to require 'spec ' or 'specs ' or attach to qualifiers ('tech spec', 'design spec', 'product spec')."
-    },
-    {
-      "pattern": "RFC",
-      "reason": "RFC also denotes IETF protocol documents (RFC 1918, RFC 2616) referenced in networking JDs, not internal design RFCs.",
-      "guard": "Optionally negative-guard if followed by a number (e.g., 'RFC 2616'). Otherwise accept noise — both senses signal seniority somewhat."
-    },
-    {
-      "pattern": "PRD",
-      "reason": "Could match 'PRDxxx' codes; also rare false positives.",
-      "guard": "Require all-caps with word boundaries."
-    },
-    {
-      "pattern": "ADR",
-      "reason": "ADR is also 'American Depositary Receipt' (finance) — irrelevant in SWE JDs but possible at fintechs.",
-      "guard": "Word boundary, all-caps; accept negligible noise."
-    },
-    {
-      "pattern": "DAG",
-      "reason": "Bare DAG could match acronyms in unrelated contexts.",
-      "guard": "Require all-caps and word boundaries; accept overlap with workflow/data topics."
-    },
-    {
-      "pattern": "scope",
-      "reason": "Generic word; 'scope of work', 'in scope', 'out of scope' are vague.",
-      "guard": "Use only the explicit 'scoping' / 'scoping work' / 'scope out' phrases listed."
-    },
-    {
-      "pattern": "pipeline",
-      "reason": "Used heavily for data pipelines, sales pipelines, CI pipelines — high baseline count.",
-      "guard": "Accept the noise but report concept density rather than absolute counts; consider sub-tagging the qualifier."
-    },
-    {
-      "pattern": "architect",
-      "reason": "Frequent as a job title noun ('Solutions Architect') rather than verb.",
-      "guard": "No guard needed — both senses signal the orchestration archetype, but track verb forms ('architecting', 'architected') separately if disambiguation matters."
-    },
-    {
-      "pattern": "workflow",
-      "reason": "Used generically for any business process; will inflate the workflow concept.",
-      "guard": "Accept; pair with 'workflow design', 'workflow orchestration', 'workflow engine' for tighter signal."
-    },
-    {
-      "pattern": "A2A",
-      "reason": "Could be Application-to-Application or unrelated abbreviation.",
-      "guard": "Require all-caps with word boundaries and co-occurrence with 'agent'."
-    },
-    {
-      "pattern": "prompt",
-      "reason": "Generic English word ('prompt response', 'prompt action').",
-      "guard": "Only count compound forms: 'prompt engineering', 'prompt design', 'system prompt', 'prompts' (plural), 'prompting'."
-    },
-    {
-      "pattern": "HITL",
-      "concept": "AI Tool and Agent Evaluation/Steering",
-      "reason": "Almost all 28 hits, especially from 2024-01/2024-04 defense/embedded postings, mean 'Hardware-In-The-Loop' (test rigs, SITL/HITL, target platforms), not 'human-in-the-loop' for AI. Only the 2026-04 examples align with the AI-steering meaning.",
-      "guard": "Require co-occurrence with 'AI', 'LLM', 'agent', 'model', 'human-in-the-loop', or 'review' within ~80 chars; explicitly exclude when 'Hardware in the Loop', 'SITL', 'HOOTL', 'target platform', 'flight test', or 'radar' appear in the same posting."
-    },
-    {
-      "pattern": "memory management",
-      "concept": "Agent Memory and State Management",
-      "reason": "All shown 153 hits are about C++/embedded heap memory (multithreading, GDB, CPU architectures, Node.js event loop), not agent memory. The agentic meaning appears only with phrases like 'agentic memory management' or 'memory/context management for agents'.",
-      "guard": "Require co-occurrence with 'agent', 'agentic', 'LLM', 'context', 'conversation', or 'long-term/short-term' within ~80 chars; exclude when 'multithreading', 'GDB', 'C++', 'event loop', 'embedded' appear in the same posting."
-    },
-    {
-      "pattern": "A2A",
-      "concept": "Multi-Agent Coordination",
-      "reason": "2024 hits are 'A2A/B2B integration' (application-to-application middleware/SOA), not Agent-to-Agent protocol. 2026-04 hits are dominantly the agentic meaning (paired with MCP, AutoGen, LangChain).",
-      "guard": "Require co-occurrence with 'agent', 'MCP', 'protocol', 'multi-agent', 'AutoGen', 'LangChain', 'CrewAI', or 'agentic' within ~80 chars; exclude when 'B2B' or 'SOA' is in the same snippet."
-    },
-    {
-      "pattern": "Cursor",
-      "concept": "Agent Harnesses and Coding Agents",
-      "reason": "Risk of collision with database 'cursor' (e.g., 'cursor-based pagination', 'DB cursor'). In sampled 2026-04 examples it's clean (capitalized vendor name in 'GitHub Copilot, Cursor' lists) — but case-insensitive matching would explode false positives.",
-      "guard": "Match case-sensitively as 'Cursor' (capitalized) AND require co-occurrence with one of 'Copilot', 'Claude', 'AI tool', 'AI-assisted', 'Windsurf', 'IDE', 'coding tool', 'AI coding' within ~60 chars; exclude when 'cursor-based', 'cursor pagination', 'DB cursor', 'paginat' is nearby."
-    },
-    {
-      "pattern": "evals",
-      "concept": "AI Tool and Agent Evaluation/Steering",
-      "reason": "27 hits are nearly all legitimate (LLM evals, OpenAI Evals, agent evals) but the bare token risks colliding with the noun-form of 'evaluations'. All shown examples are 2026-04 and AI-related.",
-      "guard": "Require co-occurrence with 'LLM', 'AI', 'agent', 'model', 'OpenAI', 'LangSmith', 'Promptfoo', or 'evaluation' within ~60 chars."
-    },
-    {
-      "pattern": "prompts",
-      "concept": "Context Engineering and Prompt/Spec Authorship for Agents",
-      "reason": "Generic; 'prompts' alone catches everything from 'writing prompts for users' to 'CLI prompts'. Most 2024 hits are legit LLM prompts but the term is broad.",
-      "guard": "Require co-occurrence with 'LLM', 'AI', 'agent', 'model', 'GPT', 'Claude', 'system', 'engineering', 'design', or 'library of' within ~50 chars."
-    }
-  ],
-  "topic_calibration_recommendations": "Highest-noise concepts: Workflow Design and Pipeline Orchestration (pipeline/workflow are generic), Software Architecture and System Design (architect-as-title vs activity), and Specifications/Requirements Authoring (spec/RFC/PRD ambiguity). The novel-AI concepts (Repo Instructions, Context Engineering, Agent Memory, Multi-Agent Coordination, Agent Harnesses) will be very sparse in 2024 and grow dramatically by 2026 — this is the strongest temporal signal in the topic and should be reported separately from the classical-orchestration concepts. Run separate calibration on Memory (huge baseline) and on agent-tool brand names (network effects: a JD listing one tool tends to list several).",
-  "topic_notes": "Overlaps to coordinate with sibling vocabularies: (1) 'AI Tool and Agent Evaluation/Steering' overlaps with any 'AI Adoption' or 'Code Review' vocab — pick one home. (2) 'Workflow Design and Pipeline Orchestration' overlaps with any 'Data Engineering / MLOps' vocab — the tools (Airflow, Dagster, Temporal) belong in both contextually; recommend keeping here for the orchestration archetype but expect double-attribution. (3) 'guardrails' overlaps with AI safety/responsible-AI vocab. (4) 'roadmap'/'roadmapping' overlaps with product management vocab. (5) Repository instructions filenames (CLAUDE.md, AGENTS.md) require substring match rather than word-boundary tokenization because of the period. (6) The 'Architecture' concept intentionally subsumes both classical and AI-system architecture; if you want to split AI-system-architecture out, do so as a sub-axis rather than a separate concept here. [spec_authoring_activity] canonical home for: write specs, author specifications, decompose requirements, task decomposition, scope decomposition. Aliased-out from: process_scaffolding."
+  ]
 }

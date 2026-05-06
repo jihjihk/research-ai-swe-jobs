@@ -195,7 +195,8 @@ def main():
         if r["adds"]:
             md.append("**Top suggested additions** (grounded in corpus snippets):")
             for a in r["adds"][:5]:
-                md.append(f"- `{a.get('suggested_keyword','?')}` → {a.get('concept','?')}")
+                kw = a.get("suggested_keyword") or a.get("keyword") or a.get("keyword_or_pattern") or "?"
+                md.append(f"- `{kw}` → {a.get('concept','?')}")
             md.append("")
         # Concept redefines
         if r.get("concept_redefines"):
