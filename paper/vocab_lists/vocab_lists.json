@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-06T00:57:40+00:00",
+  "generated_at": "2026-05-06T01:10:09+00:00",
   "spec_version": "50d6b587ae78",
   "spec_path": "paper/vocab_lists/task_spec.md",
   "topics": {
@@ -19,8 +19,7 @@
             "reporting line",
             "reporting lines",
             "managing direct reports",
-            "no direct reports",
-            "engineers who report to you"
+            "no direct reports"
           ],
           "regex_notes": "Word-boundary fine. The phrasal forms ('reports directly to you') need multi-word matching, not just \\breports\\b which would false-positive on 'status reports' or 'bug reports'.",
           "redefine_proposal": {
@@ -47,7 +46,9 @@
             "player-coach",
             "player coach",
             "hands-on manager",
-            "Tech-Lead-Manager"
+            "Tech-Lead-Manager",
+            "people-management experience",
+            "engineering manager role"
           ],
           "regex_notes": "'EM role' should require the 'role' suffix or other context — bare 'EM' is too noisy. 'manager' alone is intentionally NOT included here; it lives under Supervisory verbs / Team leadership where it has firmer context."
         },
@@ -58,7 +59,6 @@
             "team lead",
             "team leads",
             "team-lead",
-            "team leader",
             "team leadership",
             "lead a team",
             "leads a team",
@@ -68,24 +68,19 @@
             "leads the team",
             "leading the team",
             "head of engineering",
-            "tech lead",
-            "tech leads",
             "tech-lead",
-            "technical lead",
             "technical leads",
-            "engineering lead",
             "engineering leads",
             "squad lead",
             "pod lead",
             "group lead",
-            "lead engineer",
             "lead developer",
             "lead software engineer"
           ],
           "regex_notes": "Bare 'lead' MUST NOT be matched alone — it appears constantly as a verb ('lead the design', 'lead initiatives') without people-management implication. All variants here are multi-word. 'tech lead' is borderline (often IC-with-influence rather than people manager) but conventionally counted in this concept; flagged in notes.",
           "redefine_proposal": {
-            "issue": "Bundles formal team-lead phrases ('lead a team', 'manage a team') with senior-IC job titles ('tech lead', 'lead engineer', 'lead software engineer', 'technical lead', 'lead developer'). The IC-vs-manager mix is itself the dimension the paper wants to measure 2024->2026, so conflating them defeats the purpose.",
-            "suggested_fix": "Split into two concepts: (a) 'Team leadership (formal)' containing 'lead a team', 'leading a team', 'manage a team', 'team leader', 'head of engineering', etc.; (b) 'Lead-titled roles (ambiguous IC/manager)' containing 'tech lead', 'lead engineer', 'lead developer', 'lead software engineer', 'technical lead', 'engineering lead'. Treat (b) as a separate variable, not as additive evidence for people_management.",
+            "issue": "Concept conflates IC-senior titles ('lead software engineer', 'technical lead', 'lead engineer', 'lead developer') with actual team-leadership phrasings. The IC titles dominate by volume (lead software engineer n=294, technical lead n=338, tech lead n=181) and most are pure technical-leadership roles without people-management duties. The topic definition acknowledges 'tech-lead/lead-engineer hybrid roles that imply some people responsibility' but the keyword list does not enforce the 'imply some people responsibility' part.",
+            "suggested_fix": "Split into (a) 'Title-only team-lead markers' (team lead, team leader, head of engineering) treated as WEAK signals requiring confirmation from another concept hit, and (b) 'Action-verb team leadership' (lead a team of, leading a team of, manage a team of, managing a team of, led a team of) as STRONG signals. Move all 'lead software engineer'/'lead developer'/'lead engineer'/'technical lead'/'tech lead'/'engineering lead' OUT of people-management and into a separate 'technical leadership' topic.",
             "applied": false
           }
         },
@@ -93,16 +88,7 @@
           "name": "Supervisory verbs",
           "definition": "Verbs and verb phrases denoting oversight, supervision, or directing of staff.",
           "keywords": [
-            "supervise",
             "supervises",
-            "supervised",
-            "supervising",
-            "supervision",
-            "supervisor",
-            "supervisory",
-            "oversee",
-            "oversees",
-            "oversight",
             "manage the team",
             "manages the team",
             "managing the team",
@@ -121,8 +107,8 @@
           ],
           "regex_notes": "Bare 'manage' is excluded because 'manage projects', 'manage stakeholders', 'manage your time' dominate JD usage. Restrict to the multi-word forms where the object is clearly people. 'oversee' is acceptable bare — but watch for 'oversee the architecture' / 'oversee delivery' which is technical, not people, oversight; consider reviewing collocations on the 100-post sample.",
           "redefine_proposal": {
-            "issue": "Concept hit rate 11.08% is the second-highest in the topic but is dominated by false positives: 'supervision' fires on 'minimal supervision' boilerplate, 'oversee/oversight' fires on technical scope, 'supervised' collides with ML jargon. Without guards, this concept overstates people-management roughly 5-10x.",
-            "suggested_fix": "Either (a) restrict the concept to verb+human-object bigrams only ('manage/lead/supervise/oversee + the team / a team / engineers / staff / direct reports / employees') and drop the bare verb forms, or (b) split into 'Supervisory verbs (high-precision: object=people)' and 'Generic oversight verbs (low-precision)' and only use the high-precision split as a positive people-mgmt signal.",
+            "issue": "Three of the highest-volume keywords are net-negative for the topic: 'supervised' is dominantly 'supervised learning' (ML term), 'supervision' is dominantly 'minimal supervision' (autonomy framing — opposite meaning), and 'oversee/oversight' is dominantly process oversight. The concept as a whole has a 10.5% hit rate but most of those are false positives.",
+            "suggested_fix": "Split into (a) 'Direct supervisory verbs' = supervise/manage with required people-object cooccurrence and (b) drop oversee/oversight/supervision/supervised entirely from people-management (these are project-leadership / ML / autonomy phrases). After the prune, expected hit rate drops to ~1-2% but precision rises sharply.",
             "applied": false
           }
         },
@@ -130,7 +116,6 @@
           "name": "1:1 meetings",
           "definition": "Recurring one-on-one meetings between manager and report, a hallmark of people-management cadence.",
           "keywords": [
-            "1:1",
             "1:1s",
             "one-on-one",
             "one-on-ones",
@@ -140,8 +125,8 @@
           ],
           "regex_notes": "'1:1' contains a colon which is non-word; default \\b…\\b will fail. Recommend matching '1:1' WITHOUT word boundaries on the colon side — use lookarounds: (?<!\\d)1:1(?!\\d) so it doesn't match '1:10' timestamps or '1:1 ratio'. Same caution for '1-on-1'. The bare numeric '1:1' will also hit 'load balancer 1:1 mapping' and 'aspect ratio 1:1' — see exclusions.",
           "redefine_proposal": {
-            "issue": "Concept hit rate 0.18% — '1:1 meetings' as a JD term is rarely mentioned even though the practice is universal. The keyword '1:1' is also noisy (collides with ratios, basis, mappings).",
-            "suggested_fix": "Acknowledge low base rate; restrict to the high-precision compounds 'one-on-one', 'one-on-ones', 'regular one-on-ones', '1:1 meeting(s)', 'weekly 1:1', and treat absence as uninformative. Do not use this concept as a primary classifier — only as supporting evidence.",
+            "issue": "Bare '1:1' catches non-meeting uses ('1:1 financial planners', '1:1 basis', '1:1 feature implementations'); concept hit rate is already low (0.2%) so it does not poison the topic, but it adds noise.",
+            "suggested_fix": "Replace bare '1:1' with phrase forms only: '1:1 meeting(s)', '1:1s with', 'weekly 1:1', 'regular 1:1'. Keep one-on-one(s) as-is.",
             "applied": false
           }
         },
@@ -149,17 +134,18 @@
           "name": "Performance management",
           "definition": "Conducting performance reviews, calibrations, ratings, and performance-improvement processes for staff.",
           "keywords": [
-            "performance reviews",
             "performance evaluations",
             "performance appraisals",
-            "performance management",
             "performance feedback",
             "performance improvement plans",
             "annual reviews",
             "360 feedback",
             "compensation decisions",
             "compensation recommendations",
-            "compensation planning"
+            "compensation planning",
+            "performance discussions",
+            "promotion assessments",
+            "promotion decisions"
           ],
           "regex_notes": "Bare 'PIP' should NOT be matched (Python Package Installer collision). Require 'PIP process' / 'on a PIP' / 'PIP plan' as multi-word. 'performance' alone is excluded — it appears in 'performance optimization', 'system performance', 'high-performance computing' constantly. Always require the full bigram."
         },
@@ -184,7 +170,9 @@
             "expand the team",
             "expanding the team",
             "interview loops",
-            "hire and develop"
+            "hire and develop",
+            "hire and onboard",
+            "recruiting and interviewing"
           ],
           "regex_notes": "'build the team' / 'grow the team' overlap with general team-building rhetoric in startup JDs that may not imply formal headcount authority — flag for spot-check. 'interview' alone is excluded as too generic."
         },
@@ -193,19 +181,9 @@
           "definition": "Career growth, coaching, mentoring, and professional development of subordinates — the developmental side of people management.",
           "keywords": [
             "career development",
-            "career growth",
-            "professional development",
-            "professional growth",
-            "mentor",
-            "mentors",
-            "mentored",
-            "mentoring",
-            "mentorship",
             "mentoring engineers",
             "mentor engineers",
             "mentor junior",
-            "coach",
-            "coaches",
             "coached",
             "coaching",
             "coaching engineers",
@@ -216,12 +194,13 @@
             "develop your team",
             "individual development plan",
             "career progression plans",
-            "career progression"
+            "career progression",
+            "career direction"
           ],
           "regex_notes": "'coach' as a bare verb is fine but watch for noun-compound noise (rare in SWE JDs). 'mentor' is sometimes used by staff/principal IC roles WITHOUT formal management — this concept overlaps with informal-mentorship; treated here as people-mgmt-adjacent. 'IDP' bare is too short — require 'IDP process' or 'IDPs'.",
           "redefine_proposal": {
-            "issue": "Concept hit rate 23.88% is by far the highest in the topic, but the dominant keyword 'mentor' (and 'mentoring', 'mentorship', 'mentor junior', 'mentor engineers') fires heavily in senior-IC contexts where the candidate is asked to mentor peers without any people-mgmt authority. As-is, this concept will mark the majority of staff/principal IC postings as people-management.",
-            "suggested_fix": "Split into two concepts: (a) 'Informal mentorship' (mentor, mentoring, mentorship, mentor junior, mentor engineers, coaching engineers) — explicitly NOT a people-mgmt indicator on its own, OR (b) 'Career development of subordinates' (career development, career growth, professional development, professional growth, talent development, develop talent, grow engineers, develop your team, individual development plan, career progression plans). Only count (b) toward people_management; or require (a) to co-occur with a high-precision marker.",
+            "issue": "This concept is the highest-volume in the topic (24% hit rate, n=4,640) but its top keywords (mentor 13%, mentoring 7.5%, mentorship 3.8%, coach 2.1%) are explicitly excluded by the topic definition as informal mentorship / senior-IC behavior. As constructed, this concept measures senior-IC duties, not people management.",
+            "suggested_fix": "Either (a) drop the entire concept from people-management and move it under a separate 'senior-IC mentorship' topic, or (b) narrow to manager-only phrasings: 'career development of [their|your team]', 'develop talent', 'talent development', 'grow engineers' (with possessive), 'develop your team', 'grow your team', 'individual development plan'. Drop bare mentor*/coach* tokens entirely.",
             "applied": false
           }
         },
@@ -229,7 +208,6 @@
           "name": "Team-size signals",
           "definition": "Explicit references to the size of the team being managed — quantitative signal of management scope.",
           "keywords": [
-            "team of",
             "manage a team of",
             "managing a team of",
             "lead a team of",
@@ -237,12 +215,12 @@
             "team size",
             "span of control",
             "reports to this role",
-            "team of \\d+"
+            "team of (?:[2-9]|\\d{2,})"
           ],
           "regex_notes": "'team of' is high-recall but must be paired with a number or 'engineers' to be a real signal — recommend a downstream regex like 'team of \\d+' or 'team of [a-z]+ engineers'. Treat raw 'team of' counts as a noisy upper bound and flag in calibration.",
           "redefine_proposal": {
-            "issue": "Concept hit rate 8.0% is dominated by bare 'team of' (1,527 hits), which mostly captures IC team-membership ('part of a team of engineers') rather than management scope. The intended signal — quantified mgmt scope — is buried.",
-            "suggested_fix": "Drop bare 'team of'. Replace with regex 'team of \\d+' for quantified scope, plus the existing verb-prefixed forms ('manage/managing/lead/leading a team of'). Reframe the concept as 'Quantified team-size mgmt scope'.",
+            "issue": "'team of' alone is far too generic; it captures collaborator/peer-team references, not management scope. Only the verb-anchored variants ('manage/managing/lead/leading a team of') signal management.",
+            "suggested_fix": "Drop bare 'team of'. Keep only verb-anchored variants and explicit numeric/size phrasings (team size, span of control, headcount of, team of [N]). Fix the broken regex 'team of \\d+' (currently zero hits) — replace with proper regex pattern.",
             "applied": false
           }
         },
@@ -427,6 +405,78 @@
           "concept": "Coaching, mentoring, and career development",
           "reason": "551 hits but examples consistently come from senior-IC role descriptions ('Technical Lead and mentor junior engineers', 'opportunity to mentor junior engineers') — this is informal IC mentorship, not a people-mgmt authority signal. Per the topic's own calibration_recommendations, this concept over-counts when used standalone.",
           "guard": "Either bucket the 'mentor*' family as informal-mentorship (not people-mgmt) OR require co-occurrence with a high-precision people-mgmt marker (engineering manager, direct reports, performance reviews, hiring decisions, line manager) before counting toward people_management."
+        },
+        {
+          "pattern": "supervises",
+          "concept": "Supervisory verbs",
+          "reason": "'supervises the design, development, and maintenance' / 'supervises change control processes' — process not people.",
+          "guard": "Require people object: 'supervises ' + ('staff'|'engineers'|'team'|'employees'|'developers'|'analysts'|'reports')."
+        },
+        {
+          "pattern": "team leads",
+          "concept": "Team leadership",
+          "reason": "Plural form mostly refers to OTHER people the candidate collaborates with: 'collaborate with team leads', 'partner with product owners, tech leads, designers' — not the role itself.",
+          "guard": "Drop, or require possessive/role framing ('as team leads', 'team leads will'); plural form is dominated by collaborator references."
+        },
+        {
+          "pattern": "technical leads",
+          "concept": "Team leadership",
+          "reason": "Plural form refers to collaborators or peer roles ('partner with technical leads', 'mentor technical leads').",
+          "guard": "Drop."
+        },
+        {
+          "pattern": "engineering leads",
+          "concept": "Team leadership",
+          "reason": "Plural collaborator reference.",
+          "guard": "Drop."
+        },
+        {
+          "pattern": "lead developer",
+          "concept": "Team leadership",
+          "reason": "Senior-IC title with no implied people management ('be an architect and lead developer who will transform pieces of silicon').",
+          "guard": "Drop."
+        },
+        {
+          "pattern": "lead software engineer",
+          "concept": "Team leadership",
+          "reason": "Job-title prefix in the SWE labeling itself; 'As a Lead Software Engineer, you will be responsible for administering...' — duties are technical, not managerial.",
+          "guard": "Drop. The title alone is too noisy; people management for these requires explicit people-mgmt language elsewhere in the JD."
+        },
+        {
+          "pattern": "team lead",
+          "concept": "Team leadership",
+          "reason": "Often used as a third-party reference ('as directed by team lead'); also frequently an IC senior label.",
+          "guard": "Require role-defining context: 'as the team lead', 'as a team lead' OR people-mgmt cooccurrence."
+        },
+        {
+          "pattern": "team leadership",
+          "concept": "Team leadership",
+          "reason": "Frequently a soft-skill listing ('Team leadership skills.') without explicit people-mgmt duties.",
+          "guard": "Acceptable but weak; consider weighting lower or requiring it to co-fire with another concept hit before counting."
+        },
+        {
+          "pattern": "career development",
+          "concept": "Coaching, mentoring, and career development",
+          "reason": "Mixed: sometimes a duty ('invest in the career development of your employees'), sometimes a benefit ('career development - internal mobility, mentoring opportunities').",
+          "guard": "Require the phrase 'career development of'/'their career development'/'your team's career development'."
+        },
+        {
+          "pattern": "career progression",
+          "concept": "Coaching, mentoring, and career development",
+          "reason": "Often the candidate's own progression ('career progression from Software Engineer to the Architect level').",
+          "guard": "Require co-occurrence with 'team members'/'reports'/'your team'/'engineers' within same sentence."
+        },
+        {
+          "pattern": "compensation decisions",
+          "concept": "Performance management",
+          "reason": "Frequently appears in legally-required salary-disclosure boilerplate ('Compensation decisions depend on a wide range of factors...') — not a duty of the candidate.",
+          "guard": "Require active-voice context: 'make compensation decisions', 'own compensation decisions', 'responsible for compensation decisions'."
+        },
+        {
+          "pattern": "compensation planning",
+          "concept": "Performance management",
+          "reason": "Sometimes describes the product the company is building ('compensation bands... compensation planning' — fintech/HR product descriptions).",
+          "guard": "Require manager-duty context: 'lead/responsible for/conduct compensation planning'."
         }
       ],
       "calibration_recommendations": "Spot-check these on a 100-post sample before trusting longitudinal trends: (1) 'Team leadership' — 'tech lead' / 'lead engineer' often denote senior-IC influence rather than formal management, and the IC-vs-manager mix may itself be shifting 2024->2026 (the very thing we want to measure), so distinguish formal-mgmt-lead from tech-lead in calibration; (2) '1:1 meetings' — verify the colon/hyphen variants are matching cleanly and that '1:1' isn't picking up technical ratios; (3) 'Headcount and hiring authority' — 'build the team' / 'grow the team' overlap with generic startup boilerplate; (4) 'Supervisory verbs' — confirm 'oversee' isn't dominated by 'oversee the architecture/delivery/migration' which is technical leadership not people supervision; (5) 'Coaching, mentoring, and career development' — staff/principal IC roles often claim 'mentor junior engineers' without people-mgmt authority, so this concept may over-count if used as a sole indicator.",
@@ -440,7 +490,6 @@
           "name": "Specifications and Requirements Authoring",
           "definition": "Producing written specs, requirements, design docs, RFCs, or PRDs that define what is to be built before implementation begins.",
           "keywords": [
-            "spec",
             "specs",
             "specification",
             "specifications",
@@ -475,7 +524,6 @@
             "problem decomposition",
             "break down",
             "break-down",
-            "breakdown",
             "breaking down",
             "breaking down problems",
             "break down complex",
@@ -502,7 +550,6 @@
           "definition": "High-level design of systems, components, and interfaces — the classical staff/principal orchestration of structure.",
           "keywords": [
             "architect",
-            "architects",
             "architecting",
             "architected",
             "architecture",
@@ -533,7 +580,12 @@
             "architectural decisions",
             "ADRs"
           ],
-          "regex_notes": "'architect' is also a job title — risk of matching role names ('Solutions Architect') rather than activity. Recommend not subtracting these (they still indicate the orchestration archetype)."
+          "regex_notes": "'architect' is also a job title — risk of matching role names ('Solutions Architect') rather than activity. Recommend not subtracting these (they still indicate the orchestration archetype).",
+          "redefine_proposal": {
+            "issue": "The 'architect' / 'architects' tokens are job-title-dominated and inflate this concept's hit rate (0.5486) well above the actual architectural-design activity. The concept appears to dominate the topic but a substantial fraction of that signal is noise from job-title self-references.",
+            "suggested_fix": "Either drop 'architect' singular and 'architects' plural and rely on 'architecting'/'architected'/'architecture'/'architectural', or apply the guard described above. Recompute concept_hit_rate after the fix - the true architectural-activity signal is likely closer to 0.40 than 0.55.",
+            "applied": false
+          }
         },
         {
           "name": "Workflow Design and Pipeline Orchestration",
@@ -620,7 +672,6 @@
             "AutoGPT",
             "CrewAI",
             "AutoGen",
-            "MCP",
             "Model Context Protocol",
             "agentic",
             "LangChain",
@@ -631,7 +682,14 @@
             "ADK",
             "Agent Development Kit",
             "tool calling",
-            "tool use"
+            "tool use",
+            "MCP server",
+            "MCP servers",
+            "AgentCore",
+            "Bedrock AgentCore",
+            "Strands Agents",
+            "Codex",
+            "tool dispatch"
           ],
           "regex_notes": "'Cursor' alone may match the database/UI cursor — guard with surrounding 'Cursor IDE', 'Cursor agent', or co-occurrence with other agent tools. 'Aider' is rare so safe."
         },
@@ -642,12 +700,13 @@
             "CLAUDE.md",
             ".cursorrules",
             "cursorrules",
-            "agent configuration"
+            "rules file",
+            "rules files"
           ],
           "regex_notes": "Filenames need literal matching with periods preserved; word-boundary alone won't separate 'CLAUDE.md' from prose. Recommend a tokenizer that treats 'CLAUDE.md' as a unit or use whole-string substring contains for filename markers.",
           "redefine_proposal": {
-            "issue": "Concept fires in only 8 of 19,433 postings (0.04%) and 18 of 23 keywords are zero-hit. The repo-instructions ecosystem (CLAUDE.md, AGENTS.md, .cursorrules, copilot-instructions.md) is essentially absent from job ads — practitioners apparently don't list these in postings even when they use them. As designed, this concept will not support a quantitative claim and risks being misread as 'agent configuration is not a thing' in 2026.",
-            "suggested_fix": "Either (a) merge this concept into 'Context Engineering and Prompt/Spec Authorship for Agents' since the underlying skill is the same (writing structured guidance for agents) and the merged concept then reaches ~510 postings; or (b) keep but reframe as a *qualitative* concept and document in the paper that absence here is itself a finding (mainstream postings haven't yet adopted file-level repo-instruction vocabulary). Do not delete the few keywords that did fire (CLAUDE.md, .cursorrules, agent configuration) — they remain useful as canaries.",
+            "issue": "Only 4 keywords, hit rate 0.0004, and 'agent configuration' is contaminated by ServiceNow Virtual Agent. Concept will struggle to cross the visibility threshold for any quantitative analysis.",
+            "suggested_fix": "Add: 'rules file', 'rules files', 'AGENTS.md', '.claude' (directory), 'system prompt file', 'agent rules', 'project rules', 'context file'. Tighten 'agent configuration' with the guard above. Concept is meaningful but data-limited - acknowledge in paper that this is an emerging signal that 2026 corpus barely captures.",
             "applied": false
           }
         },
@@ -659,19 +718,14 @@
             "agentic memory",
             "long-term memory",
             "long term memory",
-            "short-term memory",
-            "short term memory",
-            "memory management",
-            "memory system",
-            "memory systems",
             "context retention",
             "stateful agents",
             "agent state"
           ],
           "regex_notes": "'memory' alone is far too generic (RAM, memory leaks). Only count when paired ('agent memory', 'long-term memory', 'persistent memory', etc.) — bare 'memory' MUST be excluded.",
           "redefine_proposal": {
-            "issue": "Concept fires in 186 postings but 'memory management' alone (which dominates) is essentially all C++ heap management — without a guard the concept's signal is ~80% noise from classical embedded postings.",
-            "suggested_fix": "Add the guard for 'memory management' (see guards section), promote 'agentic memory', 'agent memory', 'long-term memory' (in agent context), and consider adding 'conversation state', 'session state', 'agent state', 'checkpointing' (last is in LangGraph snippet) as the load-bearing keywords. Without a guard the concept will read as tens of times larger than it really is.",
+            "issue": "Concept is overwhelmed by classical-engineering false positives: 'memory management' (C++/Node), 'memory system'/'memory systems' (DDR validation), 'short-term memory'/'short term memory' (LSTM). Removing those four leaves only 6 keywords with very low individual volume, but the resulting hit rate would actually reflect agent memory rather than be polluted by an order of magnitude of unrelated DDR/LSTM/C++ noise.",
+            "suggested_fix": "Drop the four polluted general-memory keywords. Replace with agent-specific phrasing: 'memory store', 'episodic memory', 'memory layer', 'persistent agent memory', 'session memory', 'conversation memory', 'checkpointing' (LangGraph). Keep 'agent memory', 'agentic memory', 'long-term memory' (with guard), 'context retention', 'stateful agents', 'agent state'.",
             "applied": false
           }
         },
@@ -688,12 +742,8 @@
             "multi-agent orchestration",
             "multi-agent workflow",
             "multi-agent workflows",
-            "agent team",
-            "agent teams",
             "agent collaboration",
             "agent-to-agent",
-            "A2A",
-            "agent handoff",
             "agent handoffs",
             "sub-agent",
             "sub-agents",
@@ -702,7 +752,9 @@
             "subagent orchestration",
             "agent routing",
             "agent orchestration",
-            "supervisor-worker"
+            "supervisor-worker",
+            "ACP",
+            "planner/executor"
           ],
           "regex_notes": "'A2A' is a 3-char ambiguous abbrev — require all-caps with word boundaries and surrounding agent context to count.",
           "redefine_proposal": {
@@ -724,13 +776,12 @@
             "AI evaluation",
             "human-in-the-loop",
             "human in the loop",
-            "HITL",
             "AI guardrails"
           ],
           "regex_notes": "'guardrails' overlaps with safety/compliance topics — accept overlap or move to a sibling vocab if double-counted.",
           "redefine_proposal": {
-            "issue": "Two of the three biggest contributors ('guardrails' 205, 'HITL' 28) are dominated by non-AI meanings (security guardrails, hardware-in-the-loop). Without guards the concept hit-rate of 1.7% is overstated by a factor of ~5-10x.",
-            "suggested_fix": "Apply guards on 'guardrails' and 'HITL'; promote 'human-in-the-loop' (which is already mostly correct), 'AI guardrails' (16, all 2026), 'evals', 'LLM evals', 'agent evaluation' as primary signals. Consider adding 'review AI-generated code' variants and 'tracing' / 'observability' if cross-list rules permit.",
+            "issue": "'HITL' is unrecoverable (Hardware-in-the-Loop dominance) and should be dropped, leaving the human-supervision facet under-keyworded. The concept also conflates LLM-output evaluation (LLM evals, evals, AI evaluation) with human-supervision-of-agents (review AI-generated code, human-in-the-loop, AI guardrails).",
+            "suggested_fix": "After dropping 'HITL', add steering-specific keywords observed in snippets: 'agent observability', 'LangSmith' (cross-list aware), 'agent tracing', 'agent telemetry', 'guardrails' (separate from 'AI guardrails'), 'safety controls', 'agent feedback loop'. Consider splitting into two sub-concepts if granularity matters: (a) Output evaluation/evals frameworks, (b) Human steering/review/guardrails.",
             "applied": false
           }
         }
@@ -836,6 +887,36 @@
           "concept": "Context Engineering and Prompt/Spec Authorship for Agents",
           "reason": "Generic; 'prompts' alone catches everything from 'writing prompts for users' to 'CLI prompts'. Most 2024 hits are legit LLM prompts but the term is broad.",
           "guard": "Require co-occurrence with 'LLM', 'AI', 'agent', 'model', 'GPT', 'Claude', 'system', 'engineering', 'design', or 'library of' within ~50 chars."
+        },
+        {
+          "pattern": "architect",
+          "concept": "Software Architecture and System Design",
+          "reason": "Dominantly fires on job titles: 'Java architect', 'AWS Cloud Architect', 'ServiceNow architect', 'Solutions Architect', 'Enterprise Architect', 'Data Architect', etc. The 2,644 hits massively overstate architecture-as-activity.",
+          "guard": "Require verb-form context (e.g., 'architect and build', 'architect, design, and') OR exclude when token sits inside a job-title-style phrase ('Cloud Architect', 'Solutions Architect', '* Architect *' role line). Prefer the inflected forms 'architecting' / 'architected' which are unambiguous."
+        },
+        {
+          "pattern": "architecture",
+          "concept": "Software Architecture and System Design",
+          "reason": "Mostly genuine but a sizable share is 'microservices architecture'/'containerization architecture' as a stack noun rather than design activity. Also 'orchestration architecture' overlaps with the Workflow concept.",
+          "guard": "Accept as-is; the construct is broad by design. Optionally require co-occurrence with a design verb ('design the architecture', 'architecture decisions', 'architectural patterns') if a stricter signal is needed."
+        },
+        {
+          "pattern": "task breakdown",
+          "concept": "Task Decomposition and Planning",
+          "reason": "'Typical task breakdown:' is boilerplate in some contractor job posts that then lists generic responsibilities, not genuine decomposition skill.",
+          "guard": "Accept as-is - even the boilerplate usage signals task-decomposition framing. No change required, just be aware of the duplication."
+        },
+        {
+          "pattern": "roadmap",
+          "concept": "Task Decomposition and Planning",
+          "reason": "Mostly 'product roadmap' / 'technology roadmap' as a strategic-planning artifact rather than personal planning skill. Concept boundary with planning is fine but it inflates Task Decomposition's hit rate well above the actual 'breaking-down' signal.",
+          "guard": "Keep but acknowledge that 'roadmap' indexes strategic planning ownership rather than decomposition. Consider moving to a separate 'Strategic Planning / Roadmapping' sub-concept if granularity matters."
+        },
+        {
+          "pattern": "long-term memory",
+          "concept": "Agent Memory and State Management",
+          "reason": "Mostly clean in 2026-04 but at low volume; potential for LSTM contamination ('Long Short-Term Memory') if used loosely.",
+          "guard": "Require co-occurrence with 'agent', 'conversation', 'persistence', 'state', or 'session'. Exclude when adjacent to 'LSTM', 'RNN', or 'CNN'."
         }
       ],
       "calibration_recommendations": "Highest-noise concepts: Workflow Design and Pipeline Orchestration (pipeline/workflow are generic), Software Architecture and System Design (architect-as-title vs activity), and Specifications/Requirements Authoring (spec/RFC/PRD ambiguity). The novel-AI concepts (Repo Instructions, Context Engineering, Agent Memory, Multi-Agent Coordination, Agent Harnesses) will be very sparse in 2024 and grow dramatically by 2026 — this is the strongest temporal signal in the topic and should be reported separately from the classical-orchestration concepts. Run separate calibration on Memory (huge baseline) and on agent-tool brand names (network effects: a JD listing one tool tends to list several).",
@@ -909,7 +990,15 @@
             "acceptance testing",
             "UAT",
             "user acceptance testing",
-            "regression suite"
+            "regression suite",
+            "Selenium",
+            "JUnit",
+            "Cypress",
+            "Jest",
+            "Playwright",
+            "Cucumber",
+            "TestNG",
+            "Mockito"
           ],
           "regex_notes": "Use \\b word boundaries; require 'test' to be embedded in a multi-token phrase or followed by a testing-context noun to avoid 'beta tester role', 'A/B test'."
         },
@@ -950,9 +1039,17 @@
             "defect",
             "defects",
             "defect tracking",
-            "sanity testing"
+            "sanity testing",
+            "TestRail",
+            "test strategy",
+            "test strategies"
           ],
-          "regex_notes": "Bare 'QA' is acceptable as an uppercase token; 'QC' is risky (matches 'Quebec'), require quality-context co-token or full 'quality control'."
+          "regex_notes": "Bare 'QA' is acceptable as an uppercase token; 'QC' is risky (matches 'Quebec'), require quality-context co-token or full 'quality control'.",
+          "redefine_proposal": {
+            "issue": "'validation/validate/validating/verification' are heavily polluted by systems-engineering V&V, statistical model validation, and requirements validation — domains that share the vocabulary but represent different work. This inflates the concept's hit rate disproportionately for medical-device, defense, and data-engineering postings.",
+            "suggested_fix": "Either (i) require a software-test anchor (test/QA/code/defect/build) within a small window for these four keywords, or (ii) split out 'systems-engineering V&V' as a separate concept so the QA concept reflects software-QA expectation specifically.",
+            "applied": false
+          }
         },
         {
           "name": "Evaluations and AI output verification",
@@ -961,7 +1058,6 @@
             "eval",
             "evals",
             "eval harnesses",
-            "evaluations",
             "evaluation framework",
             "evaluation frameworks",
             "evaluation pipeline",
@@ -979,7 +1075,6 @@
             "LLM as a judge",
             "human-in-the-loop",
             "human in the loop",
-            "HITL",
             "human evaluation",
             "human evals",
             "human review",
@@ -1001,17 +1096,17 @@
             "Promptfoo",
             "OpenAI Evals",
             "Braintrust",
-            "Helicone",
-            "Phoenix",
             "Arize",
             "eval-driven",
             "AI evaluation",
-            "judge model"
+            "RAGAS",
+            "TruLens",
+            "DeepEval"
           ],
           "regex_notes": "'eval' / 'evals' frequently mean 'evaluation period' in benefits sections; require nearby AI/ML/test/model token, or only count 'evals'/'eval harness'/'eval suite'.",
           "redefine_proposal": {
-            "issue": "Concept hit-rate of 0.097 is inflated by generic 'evaluation' (1327 hits) and 'evaluations' (189 hits), the majority of which are non-AI ('performance evaluations for assigned staff', 'field evaluations', 'evaluation of third-party libraries'). After guarding those down, the concept's true AI-eval hit-rate is likely <3%, dominated by 'guardrails' (n=205) and 'evaluation framework[s]' (n=109).",
-            "suggested_fix": "Apply AI/ML/model/LLM co-occurrence guard to 'evaluation/evaluations'. Add 2026-vintage tooling (LangSmith, LangFuse, Promptfoo, OpenAI Evals, Braintrust, Helicone, Arize). Expect a sharp 2024->2026 increase that is the headline finding for this topic, not a steady-state hit rate.",
+            "issue": "The concept currently mixes (a) classical-ML evaluation vocabulary (benchmark/benchmarking/model evaluation) and (b) LLM/GenAI-specific evaluation (RAGAS, LangSmith, hallucination, guardrails, LLM-as-a-judge). These are distinct phenomena in the labor-market signal: (a) is decade-old DS/ML, (b) is post-2023 GenAI.",
+            "suggested_fix": "Either split into two sub-concepts ('Classical ML evaluation' vs 'LLM/AI output verification'), or scope the concept tightly to LLM/AI-era and require an LLM/AI/agent/prompt/GenAI anchor for ambiguous keywords (benchmark*, model evaluation*, evaluations, eval). This will give a much more accurate post-2023 GenAI signal.",
             "applied": false
           }
         },
@@ -1051,10 +1146,7 @@
             "Argo CD",
             "ArgoCD",
             "pre-commit",
-            "status check",
-            "status checks",
             "required check",
-            "required checks",
             "release gates",
             "deployment gates"
           ],
@@ -1107,7 +1199,6 @@
             "Prettier",
             "type checking",
             "mypy",
-            "TypeScript",
             "SAST",
             "DAST",
             "IAST",
@@ -1126,8 +1217,8 @@
           ],
           "regex_notes": "'Sonar' alone is risky (sonar tech); prefer 'SonarQube' or 'Sonar Cloud'. 'lint' OK with word boundaries.",
           "redefine_proposal": {
-            "issue": "'TypeScript' (1847 hits) is bundled here as type-safety signal, but TypeScript-as-language overwhelmingly dominates (it's a stack mention, not a verification signal). 'Black' (75 hits) is almost entirely 'black-box testing' and 'Black Duck'.",
-            "suggested_fix": "Drop 'TypeScript' from this concept (it's a language, not a verification practice — keep elsewhere if relevant). Drop 'Black' entirely. Type-safety is better captured by a guarded 'mypy|Pyright|tsc|strict mode' set, which the current zero-hit list shows is too sparse to support a sub-concept.",
+            "issue": "Including 'TypeScript' as static analysis is a category error: it is a language, not a checker. The concept's hit rate is inflated by ~30% because of this single keyword (1847 of 2950 concept-postings include 'TypeScript').",
+            "suggested_fix": "Drop 'TypeScript'. If type-checking-as-verification is in scope, replace with explicit type-checking activity phrases: 'strict types', 'type safety', 'type checks', 'static types' (in addition to existing 'type checking' and 'mypy'). Recompute the concept hit rate after the drop.",
             "applied": false
           }
         },
@@ -1147,7 +1238,6 @@
             "logs",
             "logging",
             "log evidence",
-            "trace",
             "traces",
             "tracing",
             "artifact",
@@ -1162,8 +1252,8 @@
           ],
           "regex_notes": "'log' is high-frequency; only count compound forms ('logging', 'audit log', 'log evidence', 'observability log'), not bare 'log'. 'reproduce' near HR-context 'reproduce in employment' is rare in tech JDs but possible — require dev-context co-token.",
           "redefine_proposal": {
-            "issue": "Concept is 41 keywords with hit_rate 0.103, but the bulk of hits come from 'log', 'logs', 'logging', 'trace', 'traces', 'tracing', 'artifact', 'artifacts' — which are pure observability or build-pipeline terms, not reproducibility/proof. The 'reproducibility' core (reproducible/reproduce/formal verification/proof of correctness) collectively fires on <2% of postings. The concept conflates two unrelated ideas.",
-            "suggested_fix": "Split: (1) move 'log/logs/logging/trace/traces/tracing' to Post-deployment observability; (2) move 'artifact/artifacts/build artifact[s]/audit trail/audit log' to a 'CI/CD artifacts' sub-concept under CI/CD; (3) keep a slim 'Formal verification and reproducibility' concept around 'reproducibility|reproducible|formal verification' — accept that this concept will have <2% hit-rate, and that's the honest finding.",
+            "issue": "The concept conflates two different activities: (a) producing artifacts as evidence of correctness (logs/screenshots/traces submitted with PRs) and (b) generic logging/tracing infrastructure (which overlaps with observability). 'logging', 'logs', 'log', 'tracing', 'traces' are heavily used in the latter sense and largely double-count with the observability concept.",
+            "suggested_fix": "Either narrow this concept to true artifact-as-evidence vocabulary ('reproduce', 'reproducibility', 'reproducible', 'audit trail', 'audit log', 'screenshots', 'recording', 'evidence'), moving 'logging/logs/tracing/traces' wholly to observability; or accept the overlap and document that this concept is largely co-extensive with observability infra.",
             "applied": false
           }
         },
@@ -1218,7 +1308,8 @@
             "threat model",
             "threat models",
             "threat modeling",
-            "threat modelling"
+            "threat modelling",
+            "ATO process"
           ],
           "regex_notes": "'audit' is general English; require compliance/security/log co-token or count compound forms. 'PCI' alone risks 'PCI bus' / hardware contexts; require 'DSS' or 'compliance'/'payment' co-token."
         },
@@ -1227,7 +1318,6 @@
           "definition": "Production observability — monitoring, alerting, dashboards, SLO/SLA tracking — used to verify that deployed systems behave correctly.",
           "keywords": [
             "observable",
-            "monitor",
             "monitors",
             "monitored",
             "alerting",
@@ -1276,9 +1366,16 @@
             "canary release",
             "canary releases",
             "canary deployment",
-            "canary deployments"
+            "canary deployments",
+            "blue-green deployments",
+            "blue/green deployments"
           ],
-          "regex_notes": "'monitor' is broad; prefer 'monitoring' or compound 'production monitoring'. Bare 'SLA' / 'SLO' as uppercase tokens are usually safe in tech JDs."
+          "regex_notes": "'monitor' is broad; prefer 'monitoring' or compound 'production monitoring'. Bare 'SLA' / 'SLO' as uppercase tokens are usually safe in tech JDs.",
+          "redefine_proposal": {
+            "issue": "Bare verbs 'monitor'/'monitored'/'monitors' and the noun 'metrics' are too generic and pull in security-monitoring, business-metrics, and unrelated 'monitor server' usage. The concept's 26% hit rate is partly an artifact of these tokens.",
+            "suggested_fix": "Drop bare 'monitor'/'monitors'/'monitored' or restrict to compound phrases ('production monitoring', 'service monitoring', 'health monitor'). For 'metrics', require co-occurrence with operational anchors ({alert, dashboard, SLI, SLO, latency, error rate, OpenTelemetry, Prometheus, logging}).",
+            "applied": false
+          }
         }
       ],
       "exclusions": [
@@ -1475,6 +1572,72 @@
           "concept": "Compliance and security verification",
           "reason": "348 hits — includes generic 'audit of User Security Access Rights', 'partner with Audit (internal/external)' (i.e., the Audit department), and 'audit requirements'. Mostly on-topic but bleeds into general business audit.",
           "guard": "Require co-occurrence with 'security|compliance|SOC|trail|log|code|vulnerability' within 50 chars."
+        },
+        {
+          "pattern": "validation",
+          "concept": "QA and validation",
+          "reason": "Heavily fires on 'data validation', 'requirement validation', 'model validation' (statistical), 'design validation', 'validation of customer needs' — i.e., systems-engineering/data-quality validation rather than software QA. Of the top 5 snippets, 4 are non-QA contexts.",
+          "guard": "Require co-occurrence with software-test context: keep only when the surrounding window contains one of {test, QA, software, code, build, deploy, release, defect}; otherwise treat as out-of-topic."
+        },
+        {
+          "pattern": "validate",
+          "concept": "QA and validation",
+          "reason": "Captures 'validate assumptions', 'validate hypotheses', 'validate model effectiveness', 'validate results with customer' — generic verb usage outside QA/testing.",
+          "guard": "Same window requirement as 'validation'; or restrict to phrases like 'validate test', 'validate functionality', 'validate fixes', 'validate code'."
+        },
+        {
+          "pattern": "validating",
+          "concept": "QA and validation",
+          "reason": "Fires on 'validating data sources', 'validating statistical models', 'validating results' — research/analytics context, not software QA.",
+          "guard": "Require nearby test/QA/defect/code anchor."
+        },
+        {
+          "pattern": "verification",
+          "concept": "QA and validation",
+          "reason": "Co-occurs heavily with systems-engineering 'verification and validation' (V&V) for hardware/defense/medical-device requirements rather than software test verification. Examples include 'design verification', 'data verification testing', 'systems integration, verification and validation, cost and risk'.",
+          "guard": "If matched alongside 'systems engineering', 'requirements traceability', or 'medical device', consider it systems-engineering V&V rather than software QA. Either tag separately or require software/code/test anchor in the window."
+        },
+        {
+          "pattern": "QA",
+          "concept": "QA and validation",
+          "reason": "Often refers to the QA function/role (cross-functional team mention) rather than QA activity, e.g. 'product management, design, and QA' — informative but not necessarily an expectation that this engineer does QA.",
+          "guard": "Acceptable as is for topic prevalence, but in role-level analysis differentiate 'QA function/team' mentions from 'do QA / write tests / QA process' phrasings."
+        },
+        {
+          "pattern": "benchmark",
+          "concept": "Evaluations and AI output verification",
+          "reason": "All five top snippets are performance benchmarking ('benchmark service performance', 'Benchmark systems, analyze system bottlenecks', 'setting a benchmark for engineering excellence') — not AI/model output evaluation.",
+          "guard": "Restrict to AI context: require nearby {LLM, model, AI, eval, prompt, RAG, agent, hallucination}; otherwise route to a perf-testing concept."
+        },
+        {
+          "pattern": "benchmarks",
+          "concept": "Evaluations and AI output verification",
+          "reason": "Mixed: some are LLM benchmarks ('language models against internal benchmarks'), but many are perf benchmarks ('performance indicators and metrics for key benchmarks', 'performance benchmarks').",
+          "guard": "Same AI-context window requirement as 'benchmark'."
+        },
+        {
+          "pattern": "benchmarking",
+          "concept": "Evaluations and AI output verification",
+          "reason": "Top snippets are GPU kernel benchmarking, device characterization, front-end caching benchmarking — performance work, not AI output evaluation.",
+          "guard": "Require AI/LLM/model context window."
+        },
+        {
+          "pattern": "model evaluation",
+          "concept": "Evaluations and AI output verification",
+          "reason": "Most hits are classical ML 'data preprocessing, feature engineering, and model evaluation' lists for CNN/RNN/GAN training pipelines, not LLM output verification or AI quality eval.",
+          "guard": "Acceptable for the broader concept of 'evaluating model output' if the concept is rescoped to include classical ML eval; otherwise require LLM/GenAI/agent/prompt anchor in window."
+        },
+        {
+          "pattern": "model evaluations",
+          "concept": "Evaluations and AI output verification",
+          "reason": "Same pattern as 'model evaluation'; mix of classical ML and LLM contexts.",
+          "guard": "Same as 'model evaluation'."
+        },
+        {
+          "pattern": "metrics",
+          "concept": "Post-deployment observability",
+          "reason": "Heavily catches 'business metrics' (CSAT, NPS, NDR), 'quality metrics' (in QA/testing context), 'metrics for technology products' generally — many are not post-deployment observability metrics.",
+          "guard": "Restrict to operational/observability metrics: require co-occurrence with {monitor, alert, dashboard, SLI, SLO, latency, error rate, throughput, OpenTelemetry, Prometheus, logging}."
         }
       ],
       "calibration_recommendations": "After first pass, sample 100 random matches per concept stratified by year and role family. Specifically validate: (1) bare 'CI' / 'CD' / 'eval' / 'audit' / 'monitor' / 'review' / 'log' false-positive rates; if any exceeds ~5% drop the bare form and keep only compound forms. (2) Cross-tab 'code review' matches with the Mentorship topic — report co-occurrence rate and decide assignment policy at analysis time rather than at extraction time (i.e., extract once, label twice). (3) Spot-check 'evaluation' in benefits/HR sections: if >10% are HR-flavored, drop bare 'evaluation' and keep only 'eval', 'evals', 'eval harness', 'evaluation framework', 'evaluation pipeline', 'model evaluation', 'LLM evaluation'. (4) Confirm tooling brand names (Datadog, Sentry, etc.) are mentioned with verification intent and not just in a generic tech-stack list — if needed, count tooling separately as a distinct sub-feature.",
@@ -1512,7 +1675,9 @@
             "technical mentorship",
             "peer mentor",
             "informal mentorship",
-            "mentorship program"
+            "mentorship program",
+            "be mentored",
+            "mentor and be mentored"
           ],
           "regex_notes": "Match \\bmentor\\w*\\b broadly; this concept is the strongest signal so generous matching is acceptable."
         },
@@ -1543,9 +1708,15 @@
             "level them up",
             "level up the team",
             "raise the bar for",
-            "raise the quality bar"
+            "raise the quality bar",
+            "elevate engineering"
           ],
-          "regex_notes": "Bare 'coach'/'coaching' is risky — see exclusions. Prefer matching as multiword phrases that target engineers/team."
+          "regex_notes": "Bare 'coach'/'coaching' is risky — see exclusions. Prefer matching as multiword phrases that target engineers/team.",
+          "redefine_proposal": {
+            "issue": "Top-volume 'coach'/'coaching'/'coaches' tokens fire on 'coach business stakeholders', 'coach end users', 'player/coach' metaphor, and on 'receive coaching' (the engineer is the recipient, not the giver). 'Raise the bar' is almost always quality-oriented, not engineer-oriented.",
+            "suggested_fix": "Apply (a) engineer-object guard to coach* tokens (engineer*|developer*|junior*|peer*|team member*|other(s)*); (b) giver-role guard (reject 'receive', 'under coaching of'); (c) require 'team' or engineer-context proximity for 'raise the bar' family. Drop 'support the growth' bare token in favor of 'support the growth of (engineers|peers|team|others|colleagues|teammates)'.",
+            "applied": false
+          }
         },
         {
           "name": "Teaching and knowledge transfer",
@@ -1558,9 +1729,6 @@
             "teach others",
             "instructs",
             "instructing",
-            "educate",
-            "educates",
-            "educating",
             "knowledge sharing",
             "knowledge-sharing",
             "knowledge share",
@@ -1575,20 +1743,21 @@
             "tech talks",
             "brown bags",
             "internal presentations",
-            "internal training",
-            "deliver training",
-            "training sessions",
-            "training materials",
-            "create training"
+            "technical workshops",
+            "share lessons learned"
           ],
-          "regex_notes": "Match 'teach\\w*' but exclude 'teach yourself' / self-teaching. Avoid matching 'machine teaching' or 'teaching hospital' etc."
+          "regex_notes": "Match 'teach\\w*' but exclude 'teach yourself' / self-teaching. Avoid matching 'machine teaching' or 'teaching hospital' etc.",
+          "redefine_proposal": {
+            "issue": "Half the volume comes from 'educate*', 'training sessions', 'training materials', 'deliver training', 'create training' — almost all directed at customers, end users, or business stakeholders rather than fellow engineers. The concept definition restricts to 'fellow engineers' but the keyword list does not.",
+            "suggested_fix": "Drop bare educate* and training* tokens. Replace with engineer-aimed bigrams only: 'tech talks', 'brown bags', 'lunch and learn', 'lunch-and-learns', 'internal presentations', 'engineering wiki', 'knowledge sharing sessions', 'tech sharing sessions', 'engineer-led training', 'technical workshops', 'share lessons learned'. Keep 'knowledge sharing', 'knowledge transfer', 'share knowledge', 'sharing knowledge' (these tend to be engineer-oriented in context).",
+            "applied": false
+          }
         },
         {
           "name": "Guidance and influence",
           "definition": "Guiding, advising, supporting, leading-by-influence (not headcount). Captures the senior IC pattern of shaping work without direct reports.",
           "keywords": [
             "guiding",
-            "guidance",
             "guide engineers",
             "guide the team",
             "guide junior",
@@ -1597,40 +1766,27 @@
             "offer guidance",
             "technical guidance",
             "engineering guidance",
-            "advise",
             "advising",
-            "advisor",
-            "trusted advisor",
-            "technical advisor",
             "act as an advisor",
-            "consulting",
-            "sounding board",
             "lead by example",
             "leading by example",
             "lead through influence",
             "leadership through influence",
             "influence without authority",
             "technical leadership",
-            "tech-lead",
-            "engineering leadership",
-            "thought leader",
-            "thought leadership",
             "be a role model",
             "role model",
             "set an example",
-            "shepherding",
-            "champions",
             "champion engineering",
             "champion best practices",
-            "advocate",
-            "advocate for quality",
             "support junior engineers",
-            "lead by example through"
+            "lead by example through",
+            "tech lead"
           ],
           "regex_notes": "'Guide' and 'lead' are heavily polluted by other senses — see exclusions. Strongly prefer multiword matches like 'guide the team', 'lead by example', 'technical guidance'.",
           "redefine_proposal": {
-            "issue": "This concept conflates four distinct things: (a) mentorship-by-influence ('mentor and guide', 'role model'), (b) people-management/title vocabulary ('tech lead', 'engineering leadership', 'technical leadership'), (c) external/customer-facing thought-leadership ('thought leader', 'advisor', 'consulting'), and (d) generic noun 'guidance/guide' that fires on user guides and missile guidance. Concept hit-rate (29.1%) is therefore meaningless.",
-            "suggested_fix": "Split into: (1) 'Mentorship through influence' (lead by example, leading by example, lead through influence, influence without authority, role model, mentor and guide, shepherd ENGINEERS); (2) 'Senior-IC titles and advisory positioning' (cross-list this with people_management); (3) drop bare 'guide', 'guides', 'guidance', 'consulting', 'consult', 'advise/advisor' OR force engineering-target guards as listed above. The current collisions with people_management (already tagged on 'mentor', 'mentors', 'mentored', 'coach', 'coaches', 'coached') confirm boundary-drift.",
+            "issue": "Concept is presently a catch-all that conflates (a) senior IC mentoring engineers via influence with (b) customer/stakeholder advisory roles ('trusted advisor', 'consulting engineer', 'technical advisor for cloud solution') and (c) generic seniority titles ('technical leadership', 'engineering leadership', 'thought leader'). The concept hit rate (22.4%) is artificially inflated by signals unrelated to engineer development.",
+            "suggested_fix": "Split into two sub-concepts: (1) 'Influence-without-authority over engineers' — keep 'lead by example', 'leading by example', 'lead through influence', 'influence without authority', 'role model', 'be a role model', 'set an example', 'champion engineering', 'support junior engineers', 'guide junior', 'guide engineers', 'guide the team', 'guide others'; (2) move 'consulting', 'advisor*', 'trusted advisor', 'technical advisor', 'thought leader*', 'advocate' OUT (they belong to customer-advisory or seniority topics, not mentorship). Apply human-object guard to remaining 'guidance' phrases.",
             "applied": false
           }
         },
@@ -1649,16 +1805,20 @@
             "mob programming",
             "mobbing",
             "ensemble programming",
-            "swarming",
             "collaborative coding",
             "collaborative programming",
-            "collaborative development",
-            "work side by side",
-            "work side-by-side",
             "pair-program with engineers",
-            "pair program with"
+            "pair program with",
+            "ping-pong programming",
+            "paired / mobbing",
+            "pairing and mobbing"
           ],
-          "regex_notes": "'pairing' alone can match 'device pairing'/'wine pairing'; prefer compound forms or proximity to 'program/code/engineer'."
+          "regex_notes": "'pairing' alone can match 'device pairing'/'wine pairing'; prefer compound forms or proximity to 'program/code/engineer'.",
+          "redefine_proposal": {
+            "issue": "Concept is mostly clean but 'collaborative development' and 'work side by side' bigrams capture generic Git/team collaboration rather than synchronous coding. 'Swarming' fires on incident-response and product names.",
+            "suggested_fix": "Drop 'collaborative development', 'work side by side', 'work side-by-side', 'swarming'. Add synchronous-coding variants from snippets: 'ping-pong programming', 'paired / mobbing', 'pairing and mobbing', 'pair programming sessions'.",
+            "applied": false
+          }
         },
         {
           "name": "Onboarding and ramp-up",
@@ -1681,8 +1841,8 @@
           ],
           "regex_notes": "'Onboarding' can refer to customer or user onboarding — see exclusions; require proximity to engineer/hire/team.",
           "redefine_proposal": {
-            "issue": "Many bare keywords fire on non-people onboarding: 'onboard new datasets', 'tool onboarding', 'API onboarding', 'partner on-boarding', 'on-board sensors' (avionics). Additionally, 'ramp up' / 'up to speed' often describe the candidate's own ability to ramp up rather than the role's responsibility to ramp others up.",
-            "suggested_fix": "Force people-objects on 'onboard*' and directional construction on 'ramp up'/'up to speed' as listed in guards. Without those guards this concept's 2.86% hit-rate is partly spurious.",
+            "issue": "Bare 'onboard'/'onboarding' tokens are heavily polluted by product/data/integration onboarding ('onboarding new datasets', 'onboarding flow', 'onboard integrations', 'clients onboard', 'employee lifecycle onboarding product'). The 'first 30/90 days' tokens hit certification deadlines.",
+            "suggested_fix": "Require human object on all onboarding tokens: 'onboarding (new hires|engineers|developers|colleagues|team members|new team members|new employees)'. Require ramp/learn/plan/orientation context on '30/90 days' tokens; reject when followed by '...of employment to obtain certification'.",
             "applied": false
           }
         },
@@ -1712,12 +1872,13 @@
             "read code",
             "reading code",
             "design discussions",
-            "review that teaches"
+            "review that teaches",
+            "deep-dive code reviews"
           ],
           "regex_notes": "Bare 'review' is heavily overloaded (perf review, security review, business review). Anchor to 'code', 'design', 'architecture', 'PR', 'RFC', 'peer'. Note overlap with Verification — count here only when teaching/feedback framing is present.",
           "redefine_proposal": {
-            "issue": "The bare 'code review/code reviews/peer review/peer reviews/design review/design reviews' keywords (totaling thousands of hits) capture the verification activity of code review, NOT code review framed as teaching. This concept will inflate mentorship hit-rate by sweeping in nearly every SWE posting (since virtually all describe code review as a basic practice). The concept's hit rate of 19.2% is misleading.",
-            "suggested_fix": "Either (a) remove bare review terms and rely only on teaching-framed variants ('thoughtful code review', 'constructive code review', 'review that teaches', 'design discussions', 'pairing-driven review'), with co-occurrence guard requiring mentor/teach/grow within ~50 chars; or (b) split into two sub-concepts and explicitly mark bare review terms as a 'verification overlap' that should be subtracted from the mentorship signal during reconciliation.",
+            "issue": "Most keywords in this concept ('review code', 'reviewing code', 'peer review*', 'architectural review*', 'design discussions', 'provide feedback') overwhelmingly capture review-as-correctness-gate rather than review-as-teaching, duplicating Verification signal. Definition explicitly notes the overlap but the keyword list does not enforce the disambiguation.",
+            "suggested_fix": "Treat the concept as 'review + teaching framing in same sentence'. Either (a) require a teaching/feedback/mentor/grow/learning co-occurrence as a hard rule on review-family tokens, or (b) keep only the explicitly teaching-marked phrases — 'thoughtful code review', 'review that teaches', 'constructive feedback' (with giver-guard), 'actionable feedback', 'thoughtful feedback', 'code review and mentorship' bigrams. Remove or guard the bare review-family tokens.",
             "applied": false
           }
         },
@@ -1725,18 +1886,14 @@
           "name": "Debugging and code-reading as a craft",
           "definition": "Reading and debugging unfamiliar code as a learning/teaching activity (often in mentorship/onboarding context).",
           "keywords": [
-            "debug",
-            "debugs",
-            "debugged",
-            "debugging",
             "code walkthroughs",
             "walkthroughs",
             "reading code"
           ],
           "regex_notes": "Bare 'debugging' is a core engineering skill and not inherently mentorship — count only when paired with collaborative or teaching language ('debug together', 'pair debug', 'walk through', 'walkthrough').",
           "redefine_proposal": {
-            "issue": "Bare 'debug/debugs/debugging/debugged' (combined ~3400 hits driving the 17.6% concept hit-rate) are core SWE activity terms, not mentorship signals. They fire on every 'design, develop, test, debug' boilerplate. The concept's framing — debugging as a learning/teaching activity — is not actually captured by these tokens.",
-            "suggested_fix": "Drop bare debug verbs entirely. Reframe concept around explicitly-pair/teach-context terms only: 'pair debugging', 'walk through code', 'code walkthroughs', 'paired debugging'. If those produce too few hits to support the concept, consider folding the survivors into 'Pair / mob / ensemble programming' and dissolving this concept.",
+            "issue": "The bare 'debug*' family (debug/debugs/debugged/debugging) accounts for nearly all 3,414 hits and almost never carries mentorship/learning framing — it's a baseline coding-duty verb. The concept's claimed framing (debugging as a teaching activity) is not detectable from these tokens alone.",
+            "suggested_fix": "Either drop the concept entirely, or restrict it to bigrams that carry the teaching/learning sense: keep only 'code walkthroughs', 'walkthroughs', 'reading code', 'read code', 'debugging together', 'pair-debugging', 'walk through the code', 'live debugging session'. Drop bare debug/debugs/debugged/debugging. Without this fix the concept will dominate Mentorship hit-rate purely through generic JD verbiage.",
             "applied": false
           }
         },
@@ -1809,7 +1966,11 @@
             "curiosity",
             "intellectual curiosity",
             "intellectually curious",
-            "high-trust"
+            "high-trust",
+            "growth mindset",
+            "learn from each other",
+            "small high-trust team",
+            "engineering culture"
           ],
           "regex_notes": "'Career development' / 'professional development' often appear in benefits sections — context-bound but typically still indicate the company's stated stance toward engineer growth.",
           "redefine_proposal": {
@@ -1839,12 +2000,13 @@
             "force-multiplier",
             "scale yourself",
             "high-feedback culture",
-            "multiply other engineers"
+            "multiply other engineers",
+            "make engineers better"
           ],
           "regex_notes": "'Multiplier' alone can match unrelated tech contexts; require proximity to team/engineers/people.",
           "redefine_proposal": {
-            "issue": "Concept hit-rate is the lowest (1.24%) but two large bare-token entries — 'feedback loops/feedback loop' (107 hits combined) and 'multiplier' (49 hits) — are technical-systems terms, not interpersonal-feedback terms. Removing them will not hurt recall (mentorship-relevant feedback signal already covered by 'constructive feedback', 'give and receive feedback', 'thoughtful feedback') and will shrink false positives.",
-            "suggested_fix": "Drop 'feedback loops', 'feedback loop', and bare 'multiplier'. Keep 'force multiplier' with a guard that excludes product/system descriptions. Add 'high-feedback culture' from 2026 scraped data.",
+            "issue": "Smallest concept (151 hits) and somewhat redundant with 'Code review as teaching'. 'Feedback loop' is captured here but almost always means ML/process feedback loop, not interpersonal feedback. 'Force multiplier' is half product-marketing.",
+            "suggested_fix": "Drop 'feedback loop' (route to ML/process if needed). Apply giver-context guard to 'force multiplier'. Consider merging this concept into 'Code review as teaching' since the surviving tokens (give/receive feedback, constructive criticism, candid feedback, empathy for teammates, make others better) are tightly related to feedback culture.",
             "applied": false
           }
         }
@@ -2322,6 +2484,204 @@
           "concept": "Architecture and design guidance",
           "reason": "Same.",
           "guard": "Same."
+        },
+        {
+          "pattern": "mentor",
+          "concept": "Direct mentorship language",
+          "reason": "Occasionally describes mentoring 'team members on ServiceNow', 'non-technical end users', or appears as the noun 'mentors' in pure noun phrases without engineer object.",
+          "guard": "Require object/context to be engineering-relevant: nearby tokens engineer*|developer*|junior*|peer*|team member*|other engineer* within ~6 words; OR the phrase 'mentor and X' where X in {coach, guide, develop, grow, train, support} also OK."
+        },
+        {
+          "pattern": "mentors",
+          "concept": "Direct mentorship language",
+          "reason": "As noun ('passionate mentors') without verb behavior; ambiguous when standalone.",
+          "guard": "Accept only if used as a verb (preceded by subject pronoun/'who'/'and') or followed by an engineer object; reject pure noun-phrase listings."
+        },
+        {
+          "pattern": "coach",
+          "concept": "Coaching and developing engineers",
+          "reason": "FPs: 'coach team members on ServiceNow development', 'coach business stakeholders', 'coach non-technical end users', 'player/coach' sports metaphor.",
+          "guard": "Require object to be engineer*|developer*|junior*|team*|peer*|other(s)* within window; reject when followed by 'business stakeholders', 'end users', 'non-technical', 'customers', 'students'."
+        },
+        {
+          "pattern": "coaching",
+          "concept": "Coaching and developing engineers",
+          "reason": "FPs: 'receive coaching from senior personnel' (being coached), and 'provide coaching, training, and mentoring to Software Quality Engineers' (OK).",
+          "guard": "Require role to be giver, not receiver: nearby 'provide|deliver|give|offer' coaching; reject 'receive coaching', 'under coaching of'."
+        },
+        {
+          "pattern": "coaches",
+          "concept": "Coaching and developing engineers",
+          "reason": "Possessive 'Coaches' technology communities' refers to industry-of-practice coaching at companies like Discover; ambiguous.",
+          "guard": "Require an engineer/team-of-engineers object: 'coaches the team', 'coaches engineers', 'coaches developers'."
+        },
+        {
+          "pattern": "raise the bar",
+          "concept": "Coaching and developing engineers",
+          "reason": "Most FPs: 'raise the bar on polish', 'raise the bar for quality', 'continuously raise the bar' — quality/excellence not engineer development.",
+          "guard": "Keep only when paired with 'team', 'engineers', 'engineering', or co-occurs with mentor/grow/coach within ~12 tokens."
+        },
+        {
+          "pattern": "grow the team",
+          "concept": "Coaching and developing engineers",
+          "reason": "Frequently means 'help with hiring/recruiting' ('grow the team through interviewing', 'sourcing additional teammates'), not coach existing engineers.",
+          "guard": "Reject when nearby 'interviewing', 'sourcing', 'hire', 'recruit', 'cultural leaders'; keep only with 'mentor', 'grow individuals', 'level up'."
+        },
+        {
+          "pattern": "support the growth",
+          "concept": "Coaching and developing engineers",
+          "reason": "FPs: 'support the growth of Odoo's partner network', 'support the growth of Last Mile technology'.",
+          "guard": "Require object 'of (your|other|junior|team|engineers|peers|colleagues|teammates)'; reject 'of the partner network', 'of the company', 'of the technology'."
+        },
+        {
+          "pattern": "share best practices",
+          "concept": "Teaching and knowledge transfer",
+          "reason": "Often boilerplate JD line about process improvement across sprint teams; engineer-direction is implicit but weak.",
+          "guard": "Treat as soft signal only — require co-occurrence with mentor/teach/knowledge-share/peers/junior in same sentence to count."
+        },
+        {
+          "pattern": "technical guidance",
+          "concept": "Guidance and influence",
+          "reason": "Frequently 'provide technical guidance to onsite/offshore project teams', 'guidance to product/engineering team' — generic seniority advisory; sometimes does include junior engineer but most often not.",
+          "guard": "Keep only when followed by 'to junior|to other engineers|to development team|to engineers|to team members|and mentorship'."
+        },
+        {
+          "pattern": "provide guidance",
+          "concept": "Guidance and influence",
+          "reason": "Common boilerplate 'provide guidance on infrastructure design', 'on best practices', 'on secure practices' — directing technical decisions, not developing engineers.",
+          "guard": "Require human object: 'guidance to junior|to engineers|to the team|to team members'; reject 'guidance on <topic>'."
+        },
+        {
+          "pattern": "technical leadership",
+          "concept": "Guidance and influence",
+          "reason": "Generic seniority marker, often a section header ('Technical Leadership:') or job-level descriptor ('technical leadership role').",
+          "guard": "Require co-occurrence with mentor*|coach*|teach*|develop engineers|grow engineers in the same sentence."
+        },
+        {
+          "pattern": "lead by example",
+          "concept": "Guidance and influence",
+          "reason": "Often a values/culture line ('lead by example living the Pure Values'); not always engineer-development.",
+          "guard": "Keep only when accompanied by mentor/coach/teach/junior/team-development context within ~15 tokens."
+        },
+        {
+          "pattern": "review code",
+          "concept": "Code review as teaching",
+          "reason": "Most uses are 'review code developed by other developers' as a generic correctness-check duty; teaching framing is rare.",
+          "guard": "Require co-occurrence with feedback/teach/mentor/grow/learn/junior in same sentence to qualify as teaching review."
+        },
+        {
+          "pattern": "reviewing code",
+          "concept": "Code review as teaching",
+          "reason": "Frequently a baseline activity ('reviewing teammates' code') without teaching framing.",
+          "guard": "Same — require teaching/feedback/mentor adjective in window."
+        },
+        {
+          "pattern": "peer review",
+          "concept": "Code review as teaching",
+          "reason": "Often a process-only term ('undergo code peer review before deployment', 'peer review of integration design'), aligning with Verification topic, not teaching.",
+          "guard": "Require co-occurrence with feedback/learning/mentor/grow within ~15 tokens; otherwise treat as Verification."
+        },
+        {
+          "pattern": "peer reviews",
+          "concept": "Code review as teaching",
+          "reason": "Same — boilerplate 'participate in peer reviews of solution designs and code'.",
+          "guard": "Same as 'peer review'."
+        },
+        {
+          "pattern": "design discussions",
+          "concept": "Code review as teaching",
+          "reason": "Generic agile activity ('participate in design discussions about architecture, data shape'); not necessarily teaching.",
+          "guard": "Require co-occurrence with mentor/teach/feedback/learning/share-knowledge in same sentence."
+        },
+        {
+          "pattern": "constructive feedback",
+          "concept": "Code review as teaching",
+          "reason": "Sometimes describes the receiver ('apply constructive feedback to improve performance') rather than the giver as mentor.",
+          "guard": "Keep only when role is giver: 'provide|give|offer constructive feedback'; reject 'receive|apply|incorporate constructive feedback'."
+        },
+        {
+          "pattern": "provide feedback",
+          "concept": "Code review as teaching",
+          "reason": "Vast majority is 'provide feedback on existing systems/infrastructure' — process feedback, not engineer-teaching.",
+          "guard": "Require object to be human/engineer ('provide feedback to engineers|to the team|to junior|to developers'); reject 'on systems', 'on infrastructure', 'on existing'."
+        },
+        {
+          "pattern": "architectural review",
+          "concept": "Code review as teaching",
+          "reason": "Refers to formal Architectural Review Board / governance gates and threat-model reviews — closer to Verification than teaching.",
+          "guard": "Move out of Code-review-as-teaching unless paired with mentor/grow/teach/learning context; otherwise route to Architecture or Verification."
+        },
+        {
+          "pattern": "architectural reviews",
+          "concept": "Code review as teaching",
+          "reason": "Same — security/threat-model reviews and ARB process.",
+          "guard": "Same; require teaching/mentoring co-occurrence."
+        },
+        {
+          "pattern": "onboarding",
+          "concept": "Onboarding and ramp-up",
+          "reason": "FPs: 'onboarding new datasets', 'onboarding flow' (product feature), 'onboarding integrations', 'onboarding (employee lifecycle product)'.",
+          "guard": "Require human object: 'onboarding new (hires|engineers|developers|team members|colleagues|employees)'; reject 'onboarding (datasets|integrations|tools|partners|clients|signals|new APIs)'."
+        },
+        {
+          "pattern": "onboard",
+          "concept": "Onboarding and ramp-up",
+          "reason": "FPs: 'onboard new experimental techniques', 'onboard integrations', 'onboard a tool in platform', 'clients onboard'.",
+          "guard": "Same as above — require human object."
+        },
+        {
+          "pattern": "onboarding process",
+          "concept": "Onboarding and ramp-up",
+          "reason": "FPs: 'oversee the onboarding process' for partners/integrations/customers; sometimes generic HR onboarding.",
+          "guard": "Require co-occurrence with engineer|developer|new hire|new employee|team member; or 'engineering onboarding'."
+        },
+        {
+          "pattern": "ramp up",
+          "concept": "Onboarding and ramp-up",
+          "reason": "FPs: 'ramp up our effort to introduce AI', 'ramp up the team accordingly' (capability ramp), 'ramp up on technologies' (self-ramp).",
+          "guard": "Keep when target is new-hire/engineer ramp; reject 'ramp up our effort/initiative/program'. The 'ramp up on technologies' self-ramp is borderline — accept only with explicit help/onboarding context."
+        },
+        {
+          "pattern": "first 30 days",
+          "concept": "Onboarding and ramp-up",
+          "reason": "Sometimes refers to 'obtain Security+ within first 30 days' — clearance/cert deadline, not ramp-up plan.",
+          "guard": "Require co-occurrence with onboarding|ramp|learn|meet|understand|plan; reject 'obtain certification|clearance within first 30 days'."
+        },
+        {
+          "pattern": "first 90 days",
+          "concept": "Onboarding and ramp-up",
+          "reason": "Frequently 'obtain Security+ within first 90 days' or other certification deadline.",
+          "guard": "Same as 'first 30 days'."
+        },
+        {
+          "pattern": "curiosity",
+          "concept": "Explicit learning culture",
+          "reason": "Often a personality trait listed in qualifications ('curiosity, creativity and sense of deliverables'); not a learning-culture statement.",
+          "guard": "Treat as soft signal; require co-occurrence with learn|growth|continuous|culture|environment to count as culture marker."
+        },
+        {
+          "pattern": "feedback loop",
+          "concept": "Communication and feedback skills",
+          "reason": "Almost entirely technical: 'feedback loop in ML lifecycle', 'tighten the feedback loop between product and engineering' (process), 'capturing feedback loop data'.",
+          "guard": "Require co-occurrence with mentor|coach|growth|engineers|peers; otherwise route to non-mentorship process."
+        },
+        {
+          "pattern": "force multiplier",
+          "concept": "Communication and feedback skills",
+          "reason": "FPs: 'force multiplier' as product-marketing term ('cybersecurity force multiplier', 'force multiplier for development teams to focus on delivering value' — productivity, not teaching).",
+          "guard": "Keep when context is 'better engineer for having worked with you' / mentor / multiply other engineers; reject product-feature uses."
+        },
+        {
+          "pattern": "lead by example through",
+          "concept": "Guidance and influence",
+          "reason": "Open-ended phrase whose qualifying clause may not be mentorship-related.",
+          "guard": "Require following clause to include pair*|review*|mentor*|teach*|coach*|workshop*."
+        },
+        {
+          "pattern": "champion best practices",
+          "concept": "Guidance and influence",
+          "reason": "Practice/standard advocacy aimed at code quality and engineering culture broadly, not specifically mentoring.",
+          "guard": "Keep only when nearby 'mentor', 'develop engineering culture', 'within the engineering org', 'develop engineers'."
         }
       ],
       "calibration_recommendations": "1) Sample 200 postings stratified by year (2024/2025/2026) and seniority (junior/mid/senior/staff+); hand-label as mentorship-positive/negative. Compute precision/recall per concept and per keyword to identify weak terms. 2) Pay special attention to 'guide', 'coach', 'lead', 'review', 'onboarding', 'pairing', 'champion' — each has a high false-positive base rate. Implement the proximity guards in `exclusions` before counting. 3) Compute baseline density at junior level: mentorship markers should be near-zero in IC-junior postings and rise sharply at senior/staff/principal. If baseline is non-trivial, guards are too loose. 4) Consider a two-pass approach: Pass 1 unrestricted match -> Pass 2 apply exclusion guards. Report both for sensitivity analysis. 5) Track Tier-1 'Direct mentorship language' (mentor*) as the gold-signal anchor; other concepts should correlate with it within senior cells. If they do not, re-examine guards. 6) For overlap with People-management and Verification, build a co-occurrence matrix and report disjoint vs joint counts so the reader can see how decisions about boundary terms (code review, raise the bar) affect headline numbers.",
@@ -2340,9 +2700,6 @@
             "performance optimizations",
             "performance tuning",
             "performance-tuning",
-            "performance engineering",
-            "performance engineer",
-            "performance engineers",
             "performance critical",
             "performance-critical",
             "performance sensitive",
@@ -2358,18 +2715,17 @@
             "optimise performance",
             "optimizing performance",
             "optimized performance",
-            "high performance",
-            "high-performance",
             "high performance computing",
             "HPC",
             "tune performance",
             "tuning performance",
-            "identifying bottlenecks"
+            "identifying bottlenecks",
+            "performance-oriented"
           ],
           "regex_notes": "Use word boundaries on 'perf' to avoid 'perfect/perform/perfume'; require it to appear in compound forms like 'perf tuning', 'perf work', 'perf engineering' or as standalone token followed by domain word.",
           "redefine_proposal": {
-            "issue": "Conflates technical perf ('high-performance algorithms', 'performance-critical', 'performance bottlenecks', 'performance regression') with HR fluff ('high performance team/culture/environment') under the same 'high performance' / 'high-performance' keywords.",
-            "suggested_fix": "",
+            "issue": "'high performance' / 'high-performance' fire on culture-deck and team-naming boilerplate ('high-performance team', 'high-performance, diverse thought') as much as on actual high-performance computing.",
+            "suggested_fix": "Keep precise variants 'high-performance computing' and 'HPC' only; drop bare 'high performance' / 'high-performance' OR guard them by requiring co-occurrence with 'computing', 'system', 'application', 'database', 'code' within +/- 5 tokens (excluding 'team', 'culture', 'environment').",
             "applied": false
           }
         },
@@ -2395,7 +2751,6 @@
             "dtrace",
             "valgrind",
             "gprof",
-            "benchmark",
             "benchmarks",
             "benchmarking",
             "benchmarked",
@@ -2410,9 +2765,18 @@
             "instrumentation",
             "instrumenting",
             "latency analysis",
-            "performance analysis"
+            "performance analysis",
+            "perf",
+            "Google Benchmark",
+            "JMH",
+            "bcc tools"
           ],
-          "regex_notes": "'profile' alone is ambiguous (LinkedIn profile, user profile) — only count compound forms or '-ing/-er' suffixes in tech contexts."
+          "regex_notes": "'profile' alone is ambiguous (LinkedIn profile, user profile) — only count compound forms or '-ing/-er' suffixes in tech contexts.",
+          "redefine_proposal": {
+            "issue": "'tracing' and 'instrumentation' fire on regulatory/industrial usage; 'benchmark' singular fires figuratively.",
+            "suggested_fix": "Replace 'tracing' with 'distributed tracing'; require 'instrumentation' to co-occur with metrics/observability/profiling terms; drop 'benchmark' singular in favor of 'benchmarks'/'benchmarking'.",
+            "applied": false
+          }
         },
         {
           "name": "latency_throughput_scale",
@@ -2441,7 +2805,6 @@
             "IOPS",
             "high volume",
             "high-volume",
-            "high traffic",
             "high-traffic",
             "high scale",
             "high-scale",
@@ -2453,13 +2816,15 @@
             "millions of users",
             "millions of requests",
             "billions of events",
-            "real time",
             "real-time",
             "realtime",
             "near real time",
             "near-real-time",
             "soft real time",
-            "hard real time"
+            "hard real time",
+            "latency spikes",
+            "p95/p99",
+            "deterministic latency"
           ],
           "regex_notes": "'real time' is broad — keep but flag overlap with streaming/data-engineering vocab."
         },
@@ -2472,15 +2837,8 @@
             "low-level programming",
             "low-level systems",
             "systems programming",
-            "systems-level",
-            "systems level",
-            "systems engineer",
-            "systems engineering",
             "bare metal",
             "bare-metal",
-            "embedded systems",
-            "embedded software",
-            "firmware",
             "kernel programming",
             "kernel development",
             "kernel module",
@@ -2488,14 +2846,11 @@
             "device driver",
             "device drivers",
             "driver development",
-            "assembly",
-            "assembler",
             "x86 assembly",
             "ARM assembly",
             "intrinsics",
             "SIMD",
             "AVX",
-            "SSE",
             "vectorization",
             "vectorized",
             "lock free",
@@ -2509,7 +2864,12 @@
             "zero copy",
             "zero-copy",
             "data-oriented design"
-          ]
+          ],
+          "redefine_proposal": {
+            "issue": "The concept conflates two labor markets: (1) low-level performance/systems work (assembly, SIMD, memory model, lock-free) which is the topic's intent, and (2) embedded/firmware engineering (medical devices, avionics, automotive) which is its own category and brings in 1500+ postings dominating the concept.",
+            "suggested_fix": "Either split into two concepts ('low_level_systems_programming' for SIMD/atomics/memory-model/assembly + 'embedded_firmware' separate), or drop 'firmware', 'embedded systems', 'embedded software', 'systems engineer', 'systems engineering' from this concept and rely on the precise low-level keywords. Also remove the literal-collision keywords 'assembly', 'SSE'.",
+            "applied": false
+          }
         },
         {
           "name": "os_kernel_internals",
@@ -2530,7 +2890,6 @@
             "system call",
             "system calls",
             "process scheduling",
-            "scheduler",
             "context switch",
             "context switching",
             "context-switching",
@@ -2575,7 +2934,8 @@
             "raw sockets",
             "epoll",
             "kqueue",
-            "io_uring"
+            "io_uring",
+            "packet processing pipelines"
           ]
         },
         {
@@ -2619,10 +2979,8 @@
             "synchronization primitives",
             "synchronisation primitives",
             "actor model",
-            "channels",
             "goroutines",
             "green threads",
-            "fiber",
             "fibers",
             "coroutines"
           ],
@@ -2639,7 +2997,6 @@
             "distributed systems internals",
             "distributed systems",
             "distributed-systems",
-            "consensus",
             "consensus algorithm",
             "consensus algorithms",
             "Raft",
@@ -2649,10 +3006,8 @@
             "quorum",
             "replication protocol",
             "replication protocols",
-            "replication",
             "sharding",
             "sharded",
-            "partitioning",
             "consistent hashing",
             "consistency model",
             "consistency models",
@@ -2679,7 +3034,12 @@
             "LSM tree",
             "LSM-tree",
             "B-tree internals"
-          ]
+          ],
+          "redefine_proposal": {
+            "issue": "Generic terms ('consensus', 'replication', 'partitioning') fire heavily on non-internals usage (stakeholder consensus, ETL replication, table partitioning). Meanwhile half the keywords are zero-hit theoretical-CS terms (linearizability, CAP theorem, vector clocks, CRDT singular form, MVCC, LSM tree).",
+            "suggested_fix": "For 'consensus' and 'replication', require neighboring algorithmic context ('Raft', 'Paxos', 'log', 'leader', 'quorum') OR drop them. Drop or merge zero-hit theoretical terms: keep the few that do fire ('CRDTs', 'consistency models', 'two-phase commit', 'WAL') and consider that this concept is a low-recall by-design signal.",
+            "applied": false
+          }
         },
         {
           "name": "hardware_aware_programming",
@@ -2698,9 +3058,7 @@
             "CUDA kernels",
             "CUDA programming",
             "ROCm",
-            "HIP",
             "OpenCL",
-            "Metal",
             "Vulkan",
             "Triton kernels",
             "TensorRT",
@@ -2714,7 +3072,6 @@
             "Verilog",
             "VHDL",
             "SystemVerilog",
-            "RTL",
             "microarchitecture",
             "micro-architecture",
             "CPU microarchitecture",
@@ -2728,15 +3085,20 @@
             "NUMA-aware",
             "pipeline stalls",
             "instruction-level parallelism",
-            "ILP"
-          ]
+            "ILP",
+            "cache coherency",
+            "memory coherence"
+          ],
+          "redefine_proposal": {
+            "issue": "'Metal' has catastrophic literal-match collision (sheet metal, bare metal hosting). 'RTL' collides with React Testing Library. 'HIP' is an acronym fragile. The concept also splits awkwardly between GPU programming (CUDA, cuDNN, ROCm) and FPGA/ASIC hardware design (Verilog, VHDL).",
+            "suggested_fix": "Drop 'Metal', 'RTL', 'HIP'. Consider splitting into 'gpu_programming' (CUDA, GPU kernels, cuDNN, Triton, Vulkan, Metal-API guarded) and 'hardware_design_internals' (FPGA, ASIC, Verilog, SystemVerilog, VHDL, microarchitecture, cache hierarchy, NUMA).",
+            "applied": false
+          }
         },
         {
           "name": "compilers_and_runtimes",
           "definition": "Compiler internals, JITs, garbage collection, runtime tuning.",
           "keywords": [
-            "compiler",
-            "compilers",
             "compiler internals",
             "compiler optimization",
             "compiler optimisation",
@@ -2749,7 +3111,6 @@
             "JIT compilation",
             "JIT compiler",
             "AOT compilation",
-            "code generation",
             "codegen",
             "garbage collection",
             "garbage collector",
@@ -2767,9 +3128,16 @@
             "interpreter internals",
             "bytecode",
             "operator fusion",
-            "optimization passes"
+            "optimization passes",
+            "kernel scheduling",
+            "memory planning"
           ],
-          "regex_notes": "'GC' alone is ambiguous (could mean General Counsel, Google Cloud) — require GC tuning/pauses/collector context or co-occurrence with JVM/heap."
+          "regex_notes": "'GC' alone is ambiguous (could mean General Counsel, Google Cloud) — require GC tuning/pauses/collector context or co-occurrence with JVM/heap.",
+          "redefine_proposal": {
+            "issue": "Bare 'compiler' / 'compilers' / 'code generation' have shifted in meaning: 'compiler' often means 'C++ compiler flags' toolchain mention, and 'code generation' now frequently means 'GitHub Copilot AI code generation'.",
+            "suggested_fix": "Drop bare 'compiler', 'compilers', 'code generation'. Rely on 'compiler internals', 'compiler optimization(s)', 'LLVM', 'MLIR', 'JIT compilation', 'AOT compilation', 'codegen' (which in the data appears mainly in backend-compiler context), 'operator fusion', 'optimization passes', 'JVM tuning', 'JVM internals'.",
+            "applied": false
+          }
         },
         {
           "name": "database_storage_internals",
@@ -2786,7 +3154,6 @@
             "query planner",
             "query plan",
             "query plans",
-            "execution plan",
             "index tuning",
             "index optimization",
             "index optimisation",
@@ -2796,7 +3163,6 @@
             "LSM-tree",
             "write amplification",
             "read amplification",
-            "compaction",
             "buffer pool",
             "page cache",
             "transaction isolation",
@@ -2811,9 +3177,13 @@
             "MySQL internals",
             "InnoDB",
             "Z-ordering",
-            "liquid clustering",
-            "Iceberg"
-          ]
+            "liquid clustering"
+          ],
+          "redefine_proposal": {
+            "issue": "Iceberg/compaction/execution-plan are data-engineering surface-area, not engine-internals. The concept overlaps heavily with data-warehouse tooling.",
+            "suggested_fix": "Drop 'Iceberg', 'compaction', 'execution plan' from this concept (they belong to a data-engineering concept if needed). Keep 'database internals', 'storage engine(s)', 'query optimizer', 'PostgreSQL internals', 'MySQL internals', 'InnoDB' for the internals signal even though hit-counts are low.",
+            "applied": false
+          }
         },
         {
           "name": "depth_claim_language",
@@ -2842,28 +3212,10 @@
             "in depth understanding",
             "in-depth knowledge",
             "in depth knowledge",
-            "expert understanding",
-            "expert knowledge",
-            "expert level",
-            "expert-level",
-            "expert in",
-            "subject matter expert",
-            "subject-matter expert",
-            "SME",
-            "mastery of",
-            "mastery",
-            "fluency in",
-            "fluent in",
             "first principles",
             "first-principles",
             "from first principles",
-            "fundamentals",
-            "fundamental understanding",
-            "fundamental knowledge",
-            "ground up",
             "ground-up",
-            "from the ground up",
-            "from scratch",
             "under the hood",
             "under-the-hood",
             "intimately familiar",
@@ -2878,8 +3230,8 @@
           ],
           "regex_notes": "These are template phrases — recommend pairing with a technical noun within ~5 tokens (e.g., 'deep understanding of distributed systems') to avoid generic 'deep understanding of our customers'. Capture both the phrase and a windowed-cooccurrence variant if possible.",
           "redefine_proposal": {
-            "issue": "Currently mixes three distinct signals: (1) genuine depth-claim language ('deep understanding of X', 'first principles', 'intimate knowledge of', 'mastery of'), (2) recruiter section headers / level markers ('expert level' as standalone), (3) tool-fluency framing ('fluent in JS', 'fluency in SQL', 'mastery of Python'), and (4) greenfield/construction framing ('from scratch', 'from the ground up'). For RQ-relevant trend measurement, signals (1) and (2)/(3)/(4) likely move on different time-axes (HR fluff inflation vs technical-depth shift).",
-            "suggested_fix": "",
+            "issue": "The concept currently mixes three things: (a) genuine depth-of-understanding framings ('deep understanding', 'deep expertise', 'in-depth knowledge', 'first principles', 'rigorous understanding'), (b) generic skill-proficiency boilerplate ('mastery of X', 'fluent in X', 'expert in X', 'fundamentals of X'), and (c) greenfield-project framings ('from scratch', 'ground up'). All three fire on virtually every JD, inflating the topic to ~39% hit-rate without measuring the construct.",
+            "suggested_fix": "Restrict to category (a) only: keep 'deep understanding/knowledge/expertise/familiarity', 'in-depth understanding/knowledge', 'thorough understanding/knowledge', 'rigorous understanding', 'first principles', 'from first principles', 'first-principles', 'intimately familiar', 'intimate knowledge', 'under the hood', 'deeply understand'. Drop all (b) and (c) keywords. Consider also dropping unweighted 'solid understanding' / 'strong understanding' which are universal JD-opener phrasing — they signal nothing distinctive about depth-demand.",
             "applied": false
           }
         },
@@ -2897,11 +3249,7 @@
             "massively scalable",
             "massive scale",
             "massive-scale",
-            "scalability",
             "scalable systems",
-            "highly scalable",
-            "efficiency",
-            "efficient code",
             "efficient algorithms",
             "compute efficiency",
             "memory efficiency",
@@ -2921,8 +3269,8 @@
           ],
           "regex_notes": "'scalability' is broad — keep, but note this concept overlaps with orchestration/architecture topic; treat overlap as additive rather than miscategorization.",
           "redefine_proposal": {
-            "issue": "'efficiency' (2033 hits, hr=0.1046) and 'scalability' (2213 hits, hr=0.1139) are extremely generic JD terms not specific to performance — 'workflow efficiency', 'deployment efficiency', 'efficient delivery' are in the 2024 examples. These two keywords single-handedly drive the concept hit_rate (0.2316) and likely measure JD-length / generic framing more than technical perf.",
-            "suggested_fix": "",
+            "issue": "Universal JD verbiage ('scalability', 'efficiency', 'highly scalable', 'efficient code') accounts for the bulk of the 23% concept hit rate but carries no perf-engineering signal.",
+            "suggested_fix": "Drop 'scalability', 'efficiency', 'highly scalable', 'efficient code'. Keep numeric/quantified forms ('scale to millions', 'scale to billions', 'massive scale', 'horizontal scaling', 'vertical scaling') and resource-specific terms ('CPU utilization', 'memory footprint', 'memory pressure', 'memory leaks', 'capacity planning'). 'Cost optimization' / 'cost efficiency' are FinOps-coded and should arguably be moved to a finops/cost concept rather than performance.",
             "applied": false
           }
         },
@@ -2935,7 +3283,6 @@
             "algorithmic optimization",
             "algorithmic optimisation",
             "algorithm design",
-            "data structures",
             "data structure design",
             "complexity analysis",
             "time complexity",
@@ -2951,7 +3298,12 @@
             "numerical methods",
             "numerical optimization",
             "numerical optimisation"
-          ]
+          ],
+          "redefine_proposal": {
+            "issue": "'data structures' is universal hiring-bar language with no algorithmic-optimization signal. Half of the concept's keywords are zero-hit (Big O variants, asymptotic complexity).",
+            "suggested_fix": "Drop 'data structures'. Keep specific complexity language ('time complexity', 'space complexity', 'computational complexity', 'complexity analysis', 'algorithm optimization', 'numerical optimization', 'numerical methods'). Consider that this concept's true positive rate is small; it may be best merged into performance_optimization_general.",
+            "applied": false
+          }
         }
       ],
       "exclusions": [
@@ -3227,6 +3579,90 @@
           "concept": "networking_internals",
           "reason": "",
           "guard": ""
+        },
+        {
+          "pattern": "tracing",
+          "concept": "profiling_and_benchmarking",
+          "reason": "Hits include 'requirements tracing' (regulatory), 'data tracing' (lineage), and project-level tracing — not distributed tracing.",
+          "guard": "Require neighboring 'distributed tracing', 'OpenTelemetry', 'Jaeger', 'Zipkin', or 'instrumented' OR collapse to 'distributed tracing' as a bigram."
+        },
+        {
+          "pattern": "instrumentation",
+          "concept": "profiling_and_benchmarking",
+          "reason": "Many hits are physical 'PLC instrumentation', 'field instrumentation' (industrial automation), or display-instrumentation hardware — not software instrumentation.",
+          "guard": "Require co-occurrence with 'metrics' / 'tracing' / 'observability' / 'profil*' / 'OpenTelemetry' within the same posting."
+        },
+        {
+          "pattern": "real-time",
+          "concept": "latency_throughput_scale",
+          "reason": "1492 hits — much is generic 'real-time dashboards', 'real-time insights', 'real-time AI'; only some is hard-real-time/low-latency engineering.",
+          "guard": "Require neighboring 'latency', 'embedded', 'firmware', 'streaming', 'kHz', 'ms', 'deterministic', 'RTOS' to count toward this concept."
+        },
+        {
+          "pattern": "realtime",
+          "concept": "latency_throughput_scale",
+          "reason": "Same as above (50 hits) — 'realtime simulations', 'realtime time streaming' is generic.",
+          "guard": "Same guard as 'real-time'."
+        },
+        {
+          "pattern": "high volume",
+          "concept": "latency_throughput_scale",
+          "reason": "'High volume of quality code', 'high volume mobile' — figurative/business volume rather than QPS.",
+          "guard": "Require neighboring digits or 'requests', 'transactions', 'events', 'streaming', 'QPS', 'TPS'."
+        },
+        {
+          "pattern": "high-volume",
+          "concept": "latency_throughput_scale",
+          "reason": "Slightly cleaner but still includes 'high-volume scalable enterprise software' generic.",
+          "guard": "Same as above."
+        },
+        {
+          "pattern": "high scale",
+          "concept": "latency_throughput_scale",
+          "reason": "'high scale applications' — generic.",
+          "guard": "Require co-occurrence with numeric quantifier ('millions', 'billions', 'PB', 'requests/sec')."
+        },
+        {
+          "pattern": "low level",
+          "concept": "low_level_systems_programming",
+          "reason": "104 hits include 'low level (bit/byte) data manipulation' (good) but also 'low level firmware and hardware testing' (security) which already overlaps with embedded; check that hyphen-form covers most signal.",
+          "guard": "Prefer hyphen-form 'low-level' (cleaner); for unhyphenated form require neighboring 'programming', 'code', 'optimization', 'memory'."
+        },
+        {
+          "pattern": "Linux kernel",
+          "concept": "os_kernel_internals",
+          "reason": "Mostly accurate but JD often says 'Linux kernel knowledge' as a checklist item among 50 others — value of the keyword is fine.",
+          "guard": "Keep but down-weight unless 'Linux kernel development', 'kernel module', 'driver development' co-occurs."
+        },
+        {
+          "pattern": "synchronization",
+          "concept": "concurrency_parallelism",
+          "reason": "111 hits include 'data synchronization' (cloud/edge sync), 'mail synchronization' (replication), 'workflow sync' — not concurrency primitives.",
+          "guard": "Require neighboring 'thread', 'lock', 'mutex', 'concurrency', 'memory model', 'primitive'."
+        },
+        {
+          "pattern": "concurrency",
+          "concept": "concurrency_parallelism",
+          "reason": "Mostly fine but bleeds into Java collection-framework concurrency (commodity language feature).",
+          "guard": "Keep as is; concept is not over-counted dominantly."
+        },
+        {
+          "pattern": "BGP",
+          "concept": "networking_internals",
+          "reason": "40 hits dominated by one 'Hardcore Dataplane Engineer' template; precision is fine but coverage is template-skewed.",
+          "guard": "No fix needed — leave as a high-precision low-recall signal."
+        },
+        {
+          "pattern": "deep understanding of",
+          "concept": "depth_claim_language",
+          "reason": "Often used for commodity stacks ('deep understanding of REST APIs', 'deep understanding of Object Oriented principles') — phrase is a frequent JD opener.",
+          "guard": "Acceptable for the depth-claim concept by definition; but the topic should not double-count this with 'deep understanding'."
+        },
+        {
+          "pattern": "scale to",
+          "concept": "scaling_and_efficiency",
+          "reason": "Some 'scale to' hits are 'scale to fit screen', 'scale to meet demand' figurative.",
+          "guard": "Prefer 'scale to millions' / 'scale to billions' compounds; require numeric quantifier."
         }
       ],
       "calibration_recommendations": "1) Run a sample (n=200) of high-match postings and manually classify each as technical-perf vs HR-perf vs business-perf; the depth_claim_language and performance_optimization_general concepts will need the most filtering. 2) Implement co-occurrence guards for ambiguous tokens ('deep understanding of', 'real time', 'profile', 'GC', 'OS', 'scale') by requiring a technical noun within a 5-10 token window. 3) Treat depth_claim_language as a *modifier* concept: report it both raw and as 'depth_claim near technical noun' to separate fluff from genuine depth demand. 4) Track per-concept density (occurrences / 1000 tokens) rather than binary presence; this concept area will show most signal in the *intensity* dimension over 2024-2026. 5) Cross-check overlap with the Orchestration vocabulary: 'distributed systems' appears in both — decide whether to dual-count or assign primary topic by adjacent tokens (internals/consensus/replication => this list; architecture/design/microservices => Orchestration). 6) Validate hardware-aware terms (CUDA, FPGA, GPU) against role-title metadata — they spike in ML/infra roles and may need normalization across role cells.",
@@ -3263,14 +3699,14 @@
             "agile framework",
             "agile frameworks",
             "agile ceremonies",
-            "lean-agile",
             "lean agile",
             "scaled agile",
             "SAFe",
             "SAFe agile",
             "agile/scrum",
             "agile / scrum",
-            "AI-augmented agile"
+            "agilist",
+            "SAFe Agilist"
           ],
           "regex_notes": "Use \\bagile\\b to avoid 'fragile'/'fragility'. Treat 'agile/scrum' and 'agile-scrum' as the same token — strip punctuation before matching."
         },
@@ -3283,7 +3719,6 @@
             "scrum master",
             "scrum masters",
             "scrummaster",
-            "SM",
             "certified scrum master",
             "CSM",
             "scrum team",
@@ -3297,7 +3732,6 @@
             "scrum methodology",
             "product owner",
             "product owners",
-            "PO",
             "stand-up",
             "standup",
             "stand up",
@@ -3314,9 +3748,15 @@
             "sprint planning",
             "sprint demos",
             "backlog grooming",
-            "backlog refinement"
+            "backlog refinement",
+            "grooming"
           ],
-          "regex_notes": "'SM' and 'PO' are dangerous abbreviations; only count when adjacent to scrum-context tokens or expansion already matched. 'Scrum' alone is safe (no common collision)."
+          "regex_notes": "'SM' and 'PO' are dangerous abbreviations; only count when adjacent to scrum-context tokens or expansion already matched. 'Scrum' alone is safe (no common collision).",
+          "redefine_proposal": {
+            "issue": "Two-letter acronym keywords (SM, PO) collide with unrelated SAP/Oracle/AWS terminology and add hundreds of false positives across the broader topic; CSM collides with ServiceNow Customer Service Management which is a strong false-positive cluster.",
+            "suggested_fix": "Drop 'SM' and 'PO' outright. For 'CSM', require co-occurrence with 'scrum'/'agile'/'certified'/'master' in same sentence; otherwise the ServiceNow CSM module dominates.",
+            "applied": false
+          }
         },
         {
           "name": "Sprints and iterations",
@@ -3346,7 +3786,8 @@
             "user stories",
             "epic",
             "epics",
-            "AI-assisted sprint"
+            "AI-assisted sprint",
+            "story grooming"
           ],
           "regex_notes": "'sprint' is largely safe in JD context; avoid only if a fitness/athletics context is suspected (rare in SWE JDs)."
         },
@@ -3363,7 +3804,6 @@
             "waterfall methodology",
             "waterfall model",
             "hybrid agile",
-            "XP",
             "extreme programming",
             "pair programming",
             "mob programming",
@@ -3373,7 +3813,12 @@
             "SAFe",
             "LeSS"
           ],
-          "regex_notes": "'lean' alone is fine; 'XP' is risky (Windows XP, experience points) — require nearby 'extreme programming' or 'agile'/'scrum' context. 'V-model' and 'V model' need word boundaries to avoid 'V model number'."
+          "regex_notes": "'lean' alone is fine; 'XP' is risky (Windows XP, experience points) — require nearby 'extreme programming' or 'agile'/'scrum' context. 'V-model' and 'V model' need word boundaries to avoid 'V model number'.",
+          "redefine_proposal": {
+            "issue": "'SAFe' is duplicated here and in 'Agile methodology' (557 hits each, presumably the same hits), and 'LeSS' captures CSS preprocessor usage rather than Large-Scale Scrum.",
+            "suggested_fix": "Deduplicate 'SAFe' across the two concepts (decide which concept owns it). Apply case-sensitive matching for both 'SAFe' and 'LeSS' with required context words ('framework', 'scrum', 'agile', 'release train').",
+            "applied": false
+          }
         },
         {
           "name": "Requirements engineering",
@@ -3413,14 +3858,14 @@
             "use-case",
             "acceptance criteria",
             "definition of done",
-            "DoD",
             "definition of ready",
             "gather requirements",
             "gathering requirements",
             "elicit requirements",
             "eliciting requirements",
             "translate requirements",
-            "capture requirements"
+            "capture requirements",
+            "DOORS"
           ],
           "regex_notes": "Match 'requirement(s)?' as base form. 'NFR' is safe in technical context; 'DoD' could collide with 'Department of Defense' — require nearby 'definition'/'done' or other agile token.",
           "redefine_proposal": {
@@ -3473,7 +3918,6 @@
             "verify",
             "verifies",
             "verifying",
-            "verified",
             "validate",
             "validates",
             "validating",
@@ -3492,8 +3936,8 @@
           ],
           "regex_notes": "'V&V' should be matched literal (with optional spaces around &). Standalone 'verification'/'validation' will overlap with the Verification topic — recommend reserving the V&V acronym + 'verification and validation' phrasing for this concept and giving the bare verbs to the Verification topic.",
           "redefine_proposal": {
-            "issue": "Concept hit rate 16.4% is dominated by bare verbs validate/verify/validation/verification (all 4 cross-list-collide with the verification topic). Process-level V&V (V&V, IV&V, validation plans, qualification testing, design verification) is the intended signal but quantitatively dwarfed by generic test-level 'data validation', 'input validation' etc. Either reconcile cross-list (out of scope here) or note that bare verbs measure QA-testing prevalence not process-V&V.",
-            "suggested_fix": "",
+            "issue": "The bare verb forms (validate, validating, validates, validated, verify, verifying, verifies, verified, validation) are dominated by data-validation, model-validation, and input-validation usage in DS/ML/backend postings, not process-level V&V. As currently defined the concept double-counts a generic engineering activity that is not the systems-engineering V&V of the topic definition.",
+            "suggested_fix": "Either (a) move the bare verb forms to a guarded list that requires co-occurrence with 'requirements', 'system', 'design', 'qualification', 'IV&V', 'V&V', 'verification', or 'process' within the same sentence/window; or (b) split the concept into 'Process-level V&V' (qualification testing, IV&V, V&V, system verification, design verification, validation plan, qualification test) vs. 'General verify/validate verbs' (which probably should be dropped from process_scaffolding entirely as too generic).",
             "applied": false
           }
         },
@@ -3509,7 +3953,6 @@
             "development life cycle",
             "product lifecycle",
             "product life cycle",
-            "PLC",
             "release management",
             "release manager",
             "release process",
@@ -3518,14 +3961,12 @@
             "release planning",
             "release train",
             "release trains",
-            "ART",
             "agile release train",
             "change management",
             "change control",
             "change-control",
             "change request",
             "change requests",
-            "CAB",
             "change advisory board",
             "configuration management",
             "process improvement",
@@ -3539,12 +3980,14 @@
             "audit",
             "audits",
             "auditable",
-            "RACI"
+            "RACI",
+            "Six Sigma",
+            "CMDB"
           ],
           "regex_notes": "'CR' is too generic — only count if other change-management tokens nearby. 'audit'/'audits' might also appear in security context; tolerate overlap.",
           "redefine_proposal": {
-            "issue": "'governance' (1345 hits) is mostly data/cloud/AI governance, not SDLC governance. 'ART' (515) is mostly 'state-of-the-art'. After guarding/dropping these, this concept's true rate is closer to the SDLC family (15-20%) which is the intended signal.",
-            "suggested_fix": "",
+            "issue": "'ART' (515 hits) and 'PLC' (110 hits) are three-letter tokens whose dominant meanings ('state of the art' and 'Programmable Logic Controller') are unrelated to process governance and inflate the concept by ~600 postings.",
+            "suggested_fix": "Drop both. The intended SAFe Agile Release Train meaning is already captured by 'agile release train' / 'release train' / 'release trains'. The Product Life Cycle meaning is already captured by 'product lifecycle' / 'product life cycle'.",
             "applied": false
           }
         },
@@ -3617,13 +4060,14 @@
             "technology roadmap",
             "gantt",
             "critical path",
-            "CPM",
             "WBS",
             "work breakdown structure",
             "PI planning",
             "program increment",
             "track milestones",
-            "delivery cadence"
+            "delivery cadence",
+            "integrated master schedule",
+            "IMS"
           ],
           "regex_notes": "'schedule' is broad — include only when in project/delivery context if precision is critical, otherwise tolerate."
         },
@@ -3634,15 +4078,12 @@
             "project management",
             "project manager",
             "project managers",
-            "PM",
             "PMs",
             "PMP",
             "PMI",
             "program management",
             "program manager",
             "program managers",
-            "TPM",
-            "TPMs",
             "technical program manager",
             "technical program managers",
             "technical project manager",
@@ -3672,14 +4113,15 @@
             "VersionOne",
             "Azure Boards",
             "Azure DevOps boards",
-            "Linear",
             "ticketing system",
-            "issue tracking"
+            "issue tracking",
+            "release train engineer",
+            "RTE"
           ],
           "regex_notes": "'PM' has many false positives ('a.m./p.m.', 'private message', 'particulate matter', 'PMP'); guard with surrounding tokens. 'Linear' is risky (linear regression / linear algebra) — only count when surrounded by tooling context (Jira, Asana, etc.) or capitalised in product-name form.",
           "redefine_proposal": {
-            "issue": "Several acronym tokens (PM, TPM, TPMs, Linear) catch unrelated meanings dominantly. The Jira/Confluence/Atlassian/JIRA group is a clean signal of process-tooling presence and should be the primary indicator for this concept; PM-role tokens need guards or removal.",
-            "suggested_fix": "",
+            "issue": "Two- and three-letter role acronyms (PM, TPM, TPMs) carry severe semantic collisions (clock time, Trusted Platform Module, Technical Performance Measures) and 'Linear' as a tool name collides with 'linear algebra' which dominates DS/ML postings.",
+            "suggested_fix": "Drop 'PM', 'TPM', 'TPMs', 'Linear'. Spelled-out forms ('project manager', 'project managers', 'technical program manager', 'technical program managers', 'PMs') already cover the role meanings cleanly.",
             "applied": false
           }
         }
@@ -4014,6 +4456,96 @@
           "concept": "Scheduling and milestones",
           "reason": "",
           "guard": ""
+        },
+        {
+          "pattern": "SAFe",
+          "concept": "Agile methodology",
+          "reason": "Case-insensitive matching against the common adjective 'safe' ('safe operation', 'safe deployment practices', 'safe and maintainable'). Top examples are all the 'safe' adjective.",
+          "guard": "Match case-sensitively as the all-caps acronym 'SAFe' (with lowercase 'e'), or require a context word: 'SAFe' near 'agile' / 'framework' / 'release train' / 'PI'."
+        },
+        {
+          "pattern": "SAFe",
+          "concept": "Kanban / Lean / Waterfall and other methodologies",
+          "reason": "Same case-insensitive 'safe' problem as the duplicate in Agile methodology.",
+          "guard": "Same case-sensitive guard or context window. Also consider deduplicating across the two concepts."
+        },
+        {
+          "pattern": "SAFe agile",
+          "concept": "Agile methodology",
+          "reason": "Case-insensitive matches 'safe Agile' as a phrase ('participate in functional ... in a safe Agile environment'), where 'safe' is the adjective.",
+          "guard": "Require exact case 'SAFe' (capital S, capital A, capital F, lowercase e) or anchor to 'SAFe Agile framework'/'SAFe Agile certification'."
+        },
+        {
+          "pattern": "LeSS",
+          "concept": "Kanban / Lean / Waterfall and other methodologies",
+          "reason": "567 hits dominated by the LESS CSS preprocessor ('SASS/LESS', 'Less or Sass') and the comparative 'less experienced'. True Large-Scale Scrum (LeSS) framework hits are essentially zero.",
+          "guard": "Require exact mixed case 'LeSS' (L capital, e lowercase, S capital, S capital) AND a context word like 'scrum'/'framework'/'large-scale'. Without that, the token is unsalvageable."
+        },
+        {
+          "pattern": "lean",
+          "concept": "Kanban / Lean / Waterfall and other methodologies",
+          "reason": "'lean DevOps and automation culture', 'lean toward', 'Lean tools include 5S' (manufacturing) - many hits are non-process uses of 'lean'.",
+          "guard": "Require co-occurrence with 'six sigma' / 'startup' / 'principles' / 'manufacturing' / 'kanban' / 'agile' / 'methodology' in the same window, or count only 'Lean' followed by a methodology noun."
+        },
+        {
+          "pattern": "epic",
+          "concept": "Sprints and iterations",
+          "reason": "'Epic' (the EHR vendor and the Fortnite/Epic Games company) dominates: 'Previous experience with Epic ... given our substantial Epic client base', 'collaborate with ... Epic teams such as Fortnite mobile engineering', 'EPIC platform and applications'.",
+          "guard": "Require lowercase 'epic' OR co-occurrence with 'story'/'user story'/'feature'/'backlog'/'agile'/'sprint' in window. The plural 'epics' is safer but should still guard against 'EPIC platform'."
+        },
+        {
+          "pattern": "epics",
+          "concept": "Sprints and iterations",
+          "reason": "Mostly clean ('write epics and stories', 'managing epics/stories', 'EPICs, Features, Bugs and Tasks'), but some title-case 'EPICs' references to vendor products remain.",
+          "guard": "Require co-occurrence with 'stories'/'features'/'backlog'/'agile'/'sprint' in same sentence to be safe."
+        },
+        {
+          "pattern": "velocity",
+          "concept": "Sprints and iterations",
+          "reason": "Hits dominated by 'developer velocity', 'platform development velocity', 'reliability/velocity' as a generic productivity metric, not Scrum velocity.",
+          "guard": "Require co-occurrence with 'sprint'/'team'/'story points'/'burn-down'/'scrum'/'agile' in same sentence. 'team velocity' is already a clean separate keyword."
+        },
+        {
+          "pattern": "iteration",
+          "concept": "Sprints and iterations",
+          "reason": "Many hits are non-agile 'iteration on feedback', 'solution iteration', 'product decision-making iterations'.",
+          "guard": "Restrict to 'iteration planning' / 'iteration cycle' / 'iteration goal' OR require co-occurrence with 'sprint'/'agile'/'scrum'/'story' in window."
+        },
+        {
+          "pattern": "iterative",
+          "concept": "Sprints and iterations",
+          "reason": "'iterative development', 'iterative process' is a fairly weak signal — many uses are generic ('fast-paced, iterative environment'). However majority are arguably on-topic.",
+          "guard": "Likely keep but down-weight: prefer the existing 'iterative development' / 'iterative delivery' compounds and treat bare 'iterative' as a tier-2 keyword."
+        },
+        {
+          "pattern": "validation",
+          "concept": "Verification & Validation (V&V)",
+          "reason": "1692 hits dominated by 'data validation', 'model validation', 'input validation', 'DB Validations', 'cross-validation' rather than process-level V&V.",
+          "guard": "Require co-occurrence with 'verification'/'V&V'/'qualification'/'system'/'requirements'/'design'/'process' in same sentence. Otherwise the token measures generic data/model validation, which belongs to a different topic."
+        },
+        {
+          "pattern": "validate",
+          "concept": "Verification & Validation (V&V)",
+          "reason": "815 hits dominated by 'validate assumptions', 'validate results', 'validate data sources', 'validate the API'.",
+          "guard": "Same as 'validation': require co-occurrence with verification/qualification/V&V/systems/requirements/design context."
+        },
+        {
+          "pattern": "validating",
+          "concept": "Verification & Validation (V&V)",
+          "reason": "Hits like 'validating data sources', 'validating statistical models', 'validating results' dominate.",
+          "guard": "Same context restriction as 'validate'/'validation'."
+        },
+        {
+          "pattern": "verify",
+          "concept": "Verification & Validation (V&V)",
+          "reason": "Hits include 'verify fixes within each increment' (defect verification), 'Verify information integrity', 'verifying U.S.-person status' (legal). Process-V&V meaning is mixed in.",
+          "guard": "Restrict to occurrences within a window of 'requirements'/'system'/'design'/'qualification'/'validation' to capture process-V&V usage."
+        },
+        {
+          "pattern": "governance",
+          "concept": "SDLC and process governance",
+          "reason": "1345 hits but a substantial share are 'data governance', 'cloud governance', 'AI/LLM model governance', 'API governance' rather than software-process governance per se.",
+          "guard": "Likely keep (process governance is a fuzzy umbrella) but be aware that 'data governance' is the dominant compound and may overlap with the data-platform topic. Consider co-occurrence with 'process'/'change'/'release'/'compliance'/'audit' for stricter scoping."
         }
       ],
       "calibration_recommendations": "1) Run a 200-posting random-sample audit per quarter and flag postings where ambiguous tokens (PM, PO, SM, DoD, XP, spec, lean, retro) fire without their disambiguating context — measure precision per token; drop or re-guard tokens scoring <0.85 precision. 2) Build a co-occurrence guard: count an ambiguous abbreviation only if at least one unambiguous process-scaffolding token (e.g., agile, scrum, sprint, kanban, jira) appears in the same posting. 3) Pre-strip punctuation around '/' '&' '-' so 'agile/scrum', 'agile-scrum', 'V&V', 'V & V', 'change-management' all normalise. 4) Lowercase before matching except for acronyms PM/PO/SM/DoD/XP/ART/CR/PMP/PMO/TPM/SDLC/CMMI/ITIL/SAFe — keep these case-sensitive to reduce false positives. 5) Track per-concept density (occurrences / token-count) AND per-posting binary presence; the binary measure is more robust to JD length variation. 6) Consider weighting Tier 1 concept counts equally rather than summing all variants — it neutralises vocabulary-bloat where 'scrum'-heavy JDs dominate just because they list every ceremony.",
@@ -4028,7 +4560,6 @@
           "definition": "Languages and operating environments tied to IBM mainframe and midrange systems, typically used for legacy financial, insurance, and government workloads.",
           "keywords": [
             "COBOL",
-            "RPG",
             "RPGLE",
             "RPG/400",
             "AS/400",
@@ -4041,7 +4572,6 @@
             "MVS",
             "JCL",
             "CICS",
-            "IMS",
             "VSAM",
             "REXX",
             "PL/I",
@@ -4050,7 +4580,18 @@
             "Adabas",
             "mainframe",
             "main frame",
-            "mainframes"
+            "mainframes",
+            "IDMS",
+            "CA-IDMS",
+            "ISPF",
+            "TSO",
+            "TSO/ISPF",
+            "ENDEVOR",
+            "File Aid",
+            "Xpediter",
+            "Abend Aid",
+            "CLIST",
+            "z/VM"
           ],
           "regex_notes": "RPG must be guarded against role-playing-game and 'RPG' in gaming contexts. Use a co-mention rule (RPG within 100 chars of AS/400, IBM i, COBOL, iSeries, etc.). 'IBM i' is short and risky — require word boundary and 'IBM' prefix."
         },
@@ -4079,8 +4620,8 @@
           ],
           "regex_notes": "Pascal is high-noise (matches names, 'Pascal case'); require co-mention with Delphi or 'Object Pascal'. VBA is moderately current in finance/Excel contexts — treat as ambiguous. Perl alone is borderline; only flag 'Perl 5' or co-mention with mainframe markers.",
           "redefine_proposal": {
-            "issue": "",
-            "suggested_fix": "",
+            "issue": "VBA fires at 0.26% mostly on Excel-VBA in trading/finance JDs. Excel VBA is current ('developing in Excel VBA'), not a legacy-system marker. Python 2 / Perl 5 are correct legacy markers.",
+            "suggested_fix": "Either drop VBA or split into 'Excel VBA' (not legacy) vs 'Access VBA / classic VB6 conversion' (legacy). Consider adding ColdFusion/CFML to a separate concept since they're a distinct legacy web stack.",
             "applied": false
           }
         },
@@ -4088,8 +4629,6 @@
           "name": "Legacy Microsoft .NET stack",
           "definition": "Pre-.NET Core era Microsoft web and application frameworks tied to Windows Server / IIS hosting and the .NET Framework 4.x runtime.",
           "keywords": [
-            ".NET Framework",
-            "dotnet framework",
             ".NET Framework 4",
             ".NET Framework 4.5",
             ".NET Framework 4.8",
@@ -4113,8 +4652,8 @@
           ],
           "regex_notes": "CRITICAL: '.NET' alone matches modern .NET 6/7/8 — DO NOT count bare '.NET' as legacy. Only count '.NET Framework' (with 'Framework' qualifier) or specific legacy sub-products. '.NET' requires custom regex because '.' is non-word boundary; use pattern like (?<![\\w.])\\.NET\\b. ASP.NET MVC (without version) is borderline — only MVC 5 / older is clearly legacy.",
           "redefine_proposal": {
-            "issue": "",
-            "suggested_fix": "",
+            "issue": "Bare '.NET Framework' fires on JDs that list both .NET Framework and .NET Core/.NET 6+ — this is a modern hybrid posture, not legacy. WebForms, WCF, VB.NET, Classic ASP, WPF, WinForms are clean legacy markers.",
+            "suggested_fix": "Drop bare '.NET Framework'. Require version-pinning ('.NET Framework 4.5/4.6/4.7/4.8') OR co-occurrence with at least one specific legacy-MS marker (WebForms, Classic ASP, VB.NET, WCF, ASMX) for legacy classification.",
             "applied": false
           }
         },
@@ -4158,7 +4697,6 @@
             "Oracle WebLogic",
             "WebSphere",
             "Web Sphere",
-            "WAS",
             "JBoss",
             "JBoss EAP",
             "GlassFish",
@@ -4172,7 +4710,8 @@
             "JDK 1.6",
             "Java 7",
             "JAX-WS",
-            "JAX-RPC"
+            "JAX-RPC",
+            "WebSphere Application Server"
           ],
           "regex_notes": "WAS is highly ambiguous (English verb); only count when near 'WebSphere' or 'IBM'. JSP and Servlets are borderline — still appear in current JDs but increasingly legacy; flag as soft signal. 'Java 7' and earlier is clearly legacy; Java 8 is borderline (still widely supported)."
         },
@@ -4180,10 +4719,7 @@
           "name": "Legacy enterprise SOAP / web services",
           "definition": "SOAP-based web service standards and WS-* protocols associated with pre-REST enterprise integration.",
           "keywords": [
-            "SOAP",
             "SOAP web services",
-            "WSDL",
-            "XSD",
             "WS-Security",
             "WS-*",
             "XML-RPC",
@@ -4196,8 +4732,8 @@
           ],
           "regex_notes": "SOAP alone is borderline (still used in some integrations); strongest signal is co-mention with WSDL or 'SOAP web services'. XSD is too generic (XML schemas are current) — drop or require co-mention with SOAP.",
           "redefine_proposal": {
-            "issue": "",
-            "suggested_fix": "",
+            "issue": "The concept conflates 'a JD that mentions SOAP' (overwhelmingly modern integration roles requiring REST AND SOAP) with 'pre-REST SOAP-only legacy stack'. Hit rate of 3% on SOAP alone wildly overstates legacy presence.",
+            "suggested_fix": "Reframe as 'pre-REST SOAP-only stack' and require absence of REST/RESTful/JSON-API in the same JD, OR require co-occurrence of >=2 SOAP-era markers (e.g., WSDL+CXF, JAX-WS+Axis, BPEL+OSB). Drop bare 'SOAP', 'WSDL', 'XSD' as standalone signals.",
             "applied": false
           }
         },
@@ -4210,7 +4746,6 @@
             "Oracle Siebel",
             "Lotus Notes",
             "Lotus Domino",
-            "Domino",
             "Oracle Forms",
             "Oracle Reports",
             "Hyperion",
@@ -4223,7 +4758,10 @@
             "ABAP",
             "Documentum",
             "FileNet",
-            "OpenText"
+            "OpenText",
+            "Oracle ADF",
+            "WebCenter",
+            "Notes Domino"
           ],
           "regex_notes": "'Domino' alone matches Domino's Pizza and DominoDB; require 'Lotus' or 'IBM' prefix or co-mention. 'World' (JDE World) is too generic on its own — require co-mention with JD Edwards. SAP S/4HANA is current; only legacy when 'R/3' or 'ECC' qualifier present. ABAP is still active but is a strong legacy-Microsoft-style signal.",
           "redefine_proposal": {
@@ -4256,7 +4794,12 @@
             "Visual FoxPro",
             "Paradox"
           ],
-          "regex_notes": "DB2, Teradata, Sybase, Informix are still in active use but are strong legacy-stack signals — count them. PL/SQL and T-SQL alone are NOT legacy (current); only count specific old SQL Server / Oracle versions. Oracle generic is current — only old version qualifiers count as legacy."
+          "regex_notes": "DB2, Teradata, Sybase, Informix are still in active use but are strong legacy-stack signals — count them. PL/SQL and T-SQL alone are NOT legacy (current); only count specific old SQL Server / Oracle versions. Oracle generic is current — only old version qualifiers count as legacy.",
+          "redefine_proposal": {
+            "issue": "DB2, Teradata, PL/SQL, Sybase ASE are still actively shipped/supported and appear in modern cloud-DW JDs. PL/SQL alone is one of the most-used DB skills today.",
+            "suggested_fix": "Define 'legacy' more strictly: require version-pinning (DB2 for z/OS, Oracle <=11g, SQL Server <=2008, Sybase ASE <=15) or co-occurrence with a mainframe/on-prem context. Drop bare PL/SQL as a legacy marker.",
+            "applied": false
+          }
         },
         {
           "name": "Legacy virtualization and on-prem infrastructure",
@@ -4277,8 +4820,7 @@
             "Solaris",
             "AIX",
             "HP-UX",
-            "OpenVMS",
-            "VMS"
+            "OpenVMS"
           ],
           "regex_notes": "'Citrix' on its own is the company name; specifically 'Citrix XenApp/XenDesktop/Workspace' indicates the virtualization product. ESX matches in technical contexts but also possibly in chemistry abbreviations — keep word boundary. VMS alone is risky (matches 'CMS', 'LMS', etc.); prefer 'OpenVMS'.",
           "redefine_proposal": {
@@ -4306,8 +4848,8 @@
           ],
           "regex_notes": "'AD' alone is extremely high noise (Anno Domini, advertising, 'ad-hoc', 'add'); ALWAYS require 'Active Directory' spelled out, or 'AD' co-mentioned within 50 chars of 'LDAP', 'GPO', 'domain controller', or 'Kerberos'. LDAP and Kerberos are still in current use but are legacy-leaning signals. 'Azure AD' / 'Entra ID' are MODERN — exclude these from the pattern.",
           "redefine_proposal": {
-            "issue": "",
-            "suggested_fix": "",
+            "issue": "Active Directory, LDAP, Kerberos, Group Policy are all current technologies in hybrid-cloud and security-clearance JDs. Treating them as legacy markers contaminates the topic with cloud-architect and modern-IAM roles.",
+            "suggested_fix": "Restrict the concept to clearly-deprecated identity products (Tivoli, SiteMinder, ADFS-on-prem). Move AD/LDAP/Kerberos/Group Policy to a 'hybrid-cloud / on-prem identity' topic, not 'legacy'.",
             "applied": false
           }
         },
@@ -4320,7 +4862,6 @@
             "TIBCO",
             "TIBCO BusinessWorks",
             "TIBCO EMS",
-            "MuleSoft",
             "Mule ESB",
             "WebMethods",
             "Web Methods",
@@ -4330,13 +4871,18 @@
             "MQ Series",
             "ESB",
             "Enterprise Service Bus",
-            "SOA",
-            "Service Oriented Architecture",
             "Oracle SOA Suite",
             "OSB",
-            "Oracle Service Bus"
+            "Oracle Service Bus",
+            "TIBCO BW",
+            "BWCE"
           ],
-          "regex_notes": "'MQ' alone matches MQ-9 Reaper, McQuarrie, and other unrelated abbreviations — require 'IBM MQ', 'WebSphere MQ', or 'MQSeries' (or co-mention with IBM/messaging). MuleSoft is borderline-legacy (still actively sold but signals integration-heavy enterprise environment). SOA is borderline — pattern is older but term still used."
+          "regex_notes": "'MQ' alone matches MQ-9 Reaper, McQuarrie, and other unrelated abbreviations — require 'IBM MQ', 'WebSphere MQ', or 'MQSeries' (or co-mention with IBM/messaging). MuleSoft is borderline-legacy (still actively sold but signals integration-heavy enterprise environment). SOA is borderline — pattern is older but term still used.",
+          "redefine_proposal": {
+            "issue": "Mixes truly legacy ESBs (TIBCO BW, webMethods, BizTalk, Oracle SOA Suite, Mule ESB community edition) with modern iPaaS/cloud (MuleSoft Anypoint, current Kafka-adjacent ESB framings) and with the architectural pattern 'SOA' itself.",
+            "suggested_fix": "Drop 'SOA' and 'Service Oriented Architecture' as keywords (they describe a pattern, not a legacy product). Move 'MuleSoft' to a separate 'integration platforms' topic. Keep TIBCO/webMethods/BizTalk/IBM MQ/MQSeries as legacy.",
+            "applied": false
+          }
         },
         {
           "name": "Legacy version control and build",
@@ -4346,19 +4892,15 @@
             "Rational ClearCase",
             "Visual SourceSafe",
             "VSS",
-            "CVS",
             "Perforce",
             "PVCS",
             "TFVC",
-            "Ant",
-            "Apache Ant",
-            "GNU Make",
-            "Hudson"
+            "GNU Make"
           ],
           "regex_notes": "Perforce is still actively used in gaming/large monorepos — borderline legacy. CVS is highly ambiguous (CVS pharmacy, curriculum vitae); require 'Concurrent Versions' or co-mention with version control terms. Make / Ant are technically legacy build tools but extremely common — flag as soft signal. Hudson is the pre-fork name of Jenkins; clearly legacy.",
           "redefine_proposal": {
-            "issue": "",
-            "suggested_fix": "",
+            "issue": "Includes Perforce (current dominant VCS in game dev), Hudson (often a generic Jenkins-alternative mention), Ant (current Java build tool), and CVS (frequent collisions with CVS Health). The concept's hit rate is inflated by FPs.",
+            "suggested_fix": "Restrict to ClearCase, PVCS, Visual SourceSafe/VSS, TFVC, MKS, StarTeam — pre-Git enterprise VCS. Drop Perforce and Ant entirely; keep CVS only with surrounding-context guard (within X chars of 'svn'/'subversion'/'version control'). GNU Make and Apache Ant are not legacy.",
             "applied": false
           }
         }
@@ -4612,6 +5154,90 @@
           "concept": "",
           "reason": "",
           "guard": ""
+        },
+        {
+          "pattern": "MVS",
+          "concept": "Mainframe languages and platforms",
+          "reason": "Possible 3-letter collisions, but sampled snippets are clean ('Mvs Cobol', 'MVS JCL', 'CICS, MVS, ISPF'). One snippet 'MVS, VIP, RSI' is ambiguous.",
+          "guard": "Require co-occurrence with mainframe context tokens (z/OS, JCL, COBOL, CICS, ISPF, OS/390) within +/-50 chars to be safe; otherwise it's mostly fine."
+        },
+        {
+          "pattern": "ESX",
+          "concept": "Legacy virtualization and on-prem infrastructure",
+          "reason": "3-letter token. Sampled hits are all VMware ESX, but 'ESX' could match ESXi tail or proper-noun strings.",
+          "guard": "Require word boundary and either 'VMware' within +/-30 chars or membership in a hypervisor list; current data is clean but the surface area is risky."
+        },
+        {
+          "pattern": "AIX",
+          "concept": "Legacy virtualization and on-prem infrastructure",
+          "reason": "Risk of matching as a substring (titles like 'Software Engineer I, AIX'); current sample is clean and refers to IBM AIX UNIX.",
+          "guard": "Word-boundary regex \\bAIX\\b only; keep."
+        },
+        {
+          "pattern": "Solaris",
+          "concept": "Legacy virtualization and on-prem infrastructure",
+          "reason": "Clean in sample; sometimes appears in 'Oracle Solaris (UNIX)' lists alongside Linux/Windows in security-clearance JDs as a legacy-friendly skill rather than current focus.",
+          "guard": "Keep as-is; high precision."
+        },
+        {
+          "pattern": "TFS",
+          "concept": "Legacy Microsoft server / collaboration",
+          "reason": "Clean; TFS is unambiguously Team Foundation Server. Note many snippets describe migrating away from TFS to Azure DevOps — which is itself a legacy-stack signal.",
+          "guard": "Keep; consider weighting 'migrating TFS' contexts as strong legacy-maintenance evidence."
+        },
+        {
+          "pattern": "Active Directory",
+          "concept": "Legacy identity and directory services",
+          "reason": "Heavily co-occurs with 'Azure AD'/'Entra'/cloud IAM in modern hybrid-cloud JDs; not pre-cloud per se. Many snippets are cloud-architect roles integrating with on-prem AD.",
+          "guard": "Require absence of 'Azure AD'/'Entra'/'Okta' co-occurrence, OR require co-occurrence with 'on-prem' / 'Domain Controller' / 'Group Policy'. Otherwise demote weight."
+        },
+        {
+          "pattern": "LDAP",
+          "concept": "Legacy identity and directory services",
+          "reason": "Modern Ping Identity, ForgeRock, Hadoop/Cloudera, and security-engineer JDs mention LDAP as a current protocol; not legacy per se.",
+          "guard": "Demote to weak signal; require co-occurrence with mainframe/legacy-AD context for legacy classification."
+        },
+        {
+          "pattern": "Kerberos",
+          "concept": "Legacy identity and directory services",
+          "reason": "Listed alongside SAML/OAuth/JWT/SSO in modern security-engineer JDs; current Kafka/Hadoop/SRE roles routinely require it.",
+          "guard": "Same as LDAP — demote, or require legacy co-context."
+        },
+        {
+          "pattern": "Group Policy",
+          "concept": "Legacy identity and directory services",
+          "reason": "Common in current Windows-centric DoD/clearance JDs alongside cloud and modern PowerShell. Not specifically legacy.",
+          "guard": "Demote weight or require on-prem AD co-occurrence."
+        },
+        {
+          "pattern": "Hyper-V",
+          "concept": "Legacy virtualization and on-prem infrastructure",
+          "reason": "Hyper-V is current Microsoft hypervisor still shipping with Windows Server 2022/Azure Stack; not strictly legacy.",
+          "guard": "Treat as 'on-prem virtualization' rather than legacy; or require co-occurrence with VMware/ESX/Citrix."
+        },
+        {
+          "pattern": "PL/SQL",
+          "concept": "Legacy database platforms",
+          "reason": "268 hits — Oracle PL/SQL is still widely used in current Oracle-cloud and on-prem Oracle DB jobs; appears in cloud-ready/Docker JDs.",
+          "guard": "Demote; require co-occurrence with another legacy marker (Forms, EBS, WebLogic, mainframe) or Oracle pre-12c."
+        },
+        {
+          "pattern": "Teradata",
+          "concept": "Legacy database platforms",
+          "reason": "Teradata Vantage is a current cloud DW; appears alongside Snowflake/Redshift/BigQuery in modern data-engineer JDs.",
+          "guard": "Demote; not a clean legacy marker without 'Teradata 13/14/15' context."
+        },
+        {
+          "pattern": "DB2",
+          "concept": "Legacy database platforms",
+          "reason": "Mostly listed in 'Oracle, SQL Server, DB2, Teradata' enumerations in current data-warehouse/data-engineer JDs; not specifically legacy unless DB2 for z/OS.",
+          "guard": "Use 'DB2 for z/OS' / 'DB2/400' subvariants for high-precision legacy; keep 'DB2' but at lower weight."
+        },
+        {
+          "pattern": "Perforce",
+          "concept": "Legacy version control and build",
+          "reason": "Perforce Helix is current and dominant in game dev / large binary asset teams (Unity/UE5). Not a legacy SDLC signal in 2024.",
+          "guard": "Demote or move out of legacy; or require co-occurrence with non-game industry context."
         }
       ],
       "calibration_recommendations": "1) Compute per-keyword document frequency on a 1% sample of 2024 vs 2026 JDs and sanity-check the top 20 contributors per concept — drop or guard any keyword whose top-document examples are dominantly false positives. 2) For ambiguous tokens (.NET, AD, MQ, RPG, WAS, CVS, Domino, Pascal, VSS), apply co-mention guards described in `exclusions` and re-measure. 3) Build a 'legacy density score' as count of distinct concepts triggered (not raw keyword count) to dampen vocabulary-size bias across concepts. 4) Hold out a 100-JD calibration set, manually label as legacy/modern/mixed, and tune per-concept weights to maximize agreement with human labels (target Cohen's kappa >= 0.7). 5) Track 'modern .NET' (.NET Core, .NET 6/7/8, ASP.NET Core, Blazor, MAUI) as a SEPARATE concept so the legacy vs modern split inside the Microsoft ecosystem can be measured directly. 6) Run keyword density both as raw count per 1000 tokens and as binary presence per JD; report both in the paper because long JDs in regulated industries can inflate raw counts.",
@@ -4659,14 +5285,11 @@
             "wiki",
             "wikis",
             "confluence",
-            "notion",
             "readme",
             "readmes",
             "readme files",
-            "TSGs",
             "troubleshooting guides",
-            "agent-readable documentation",
-            "context engineering"
+            "agent-readable documentation"
           ],
           "regex_notes": "Require qualifier (technical/engineering/system/design/code/internal/developer/dev/wiki/readme/knowledge base) or a verb pairing (write/maintain/author/update/curate); bare 'documentation' or 'docs' is too generic.",
           "redefine_proposal": {
@@ -4683,13 +5306,10 @@
             "ADRs",
             "architecture decision record",
             "architecture decision records",
-            "RFC",
             "RFCs",
             "RFC process",
             "request for comments",
             "design proposals",
-            "design review",
-            "design reviews",
             "design review process",
             "technical proposal",
             "technical proposals",
@@ -4703,13 +5323,20 @@
             "PRD",
             "PRDs",
             "product requirements document",
-            "ERD",
             "decision logs",
             "architecture review",
             "architecture reviews",
-            "RFC processes"
+            "RFC processes",
+            "BRD",
+            "BRDs",
+            "design artifacts"
           ],
-          "regex_notes": "RFC alone is risky (IETF RFC NNNN cites). Match RFC only when adjacent to 'process', 'document', 'write', 'author', 'review', 'propose', or as 'RFCs' plural; avoid 'RFC \\d+' patterns."
+          "regex_notes": "RFC alone is risky (IETF RFC NNNN cites). Match RFC only when adjacent to 'process', 'document', 'write', 'author', 'review', 'propose', or as 'RFCs' plural; avoid 'RFC \\d+' patterns.",
+          "redefine_proposal": {
+            "issue": "Concept hit-rate (0.065) is dominated by 'design reviews'/'design review'/'technical specifications' which capture electrical-design reviews, security reviews, and functional/technical-spec writing for waterfall delivery — not the deliberative ADR/RFC artifact this concept is meant to measure. Once those three are removed/guarded, the concept is genuinely rare (<1%).",
+            "suggested_fix": "Either (a) accept that ADR/RFC culture is rare in this dataset and rely only on tight terms (ADR, ADRs, RFC, RFCs, architecture decision record(s), request for comments, design proposals, technical proposal(s), one-pagers, decision logs, RFC processes) and report low rate honestly, or (b) split into two sub-concepts: 'ADR/RFC artifacts' (tight) vs 'design-review activity' (broader, but understood to overlap with code/security/electrical review).",
+            "applied": false
+          }
         },
         {
           "name": "Runbooks, playbooks, & operational docs",
@@ -4724,10 +5351,6 @@
             "playbooks",
             "operational documentation",
             "operations documentation",
-            "standard operating procedure",
-            "standard operating procedures",
-            "SOP",
-            "SOPs",
             "postmortem",
             "post-mortem",
             "post mortem",
@@ -4738,16 +5361,21 @@
             "blameless post-mortem",
             "incident report",
             "incident reports",
-            "operational excellence"
+            "incident management",
+            "on-call"
           ],
-          "regex_notes": "Strong signal terms; few false positives. SOP plural form helps disambiguate from unrelated acronyms."
+          "regex_notes": "Strong signal terms; few false positives. SOP plural form helps disambiguate from unrelated acronyms.",
+          "redefine_proposal": {
+            "issue": "Dominant keyword 'operational excellence' is corporate values-language; 'SOP'/'SOPs'/'standard operating procedure(s)' fire mostly in manufacturing/QMS/compliance contexts (ISO 9001, 21CFR820). Net effect: concept rate is inflated and mixes engineering runbooks with manufacturing-QA SOPs.",
+            "suggested_fix": "Drop 'operational excellence', SOP family. Keep tight engineering-runbook terms ('runbook(s)', 'playbook(s)', 'postmortem(s)/post-mortem(s)', 'incident report(s)', 'on-call', 'incident management'). Expect concept rate to drop to ~2-3%, which is honest.",
+            "applied": false
+          }
         },
         {
           "name": "Observability & telemetry stack",
           "definition": "Metrics, logs, traces, dashboards, and the systems that produce/consume them.",
           "keywords": [
             "observability",
-            "observable",
             "observability stack",
             "observability platform",
             "observability tooling",
@@ -4762,7 +5390,6 @@
             "instrument services",
             "instrumenting",
             "metrics",
-            "metric",
             "custom metrics",
             "application metrics",
             "service metrics",
@@ -4775,7 +5402,6 @@
             "tracing",
             "distributed tracing",
             "distributed traces",
-            "spans",
             "dashboards",
             "dashboard",
             "grafana",
@@ -4794,15 +5420,20 @@
             "alerts",
             "alert rules",
             "monitoring",
-            "monitor",
-            "monitors",
             "system monitoring",
             "service monitoring",
             "application monitoring",
             "APM",
-            "application performance monitoring"
+            "application performance monitoring",
+            "golden signals",
+            "three pillars of observability"
           ],
-          "regex_notes": "'monitor'/'monitoring' is broad — it sometimes means physical hardware monitor or generic supervision. Prefer pairings with logs/metrics/traces/alerts or with named tools. 'metric'/'metrics' alone is fine if observability context is plausible; KPI/business-metric guard handled in exclusions."
+          "regex_notes": "'monitor'/'monitoring' is broad — it sometimes means physical hardware monitor or generic supervision. Prefer pairings with logs/metrics/traces/alerts or with named tools. 'metric'/'metrics' alone is fine if observability context is plausible; KPI/business-metric guard handled in exclusions.",
+          "redefine_proposal": {
+            "issue": "The concept conflates (a) telemetry/observability tooling (legitimate) with (b) generic 'monitoring' / 'metric(s)' / 'logs' that fire on security monitoring, business KPIs, audit logs, and frontend perf monitoring.",
+            "suggested_fix": "Treat the concept as a two-tier signal: tier 1 (high-confidence) = named tools + tight terms (Datadog, Grafana, Prometheus, Splunk, ELK, OpenTelemetry, distributed tracing, structured logging, observability, telemetry); tier 2 (generic, guarded) = monitoring/metrics/logs/logging only when co-occurring with tier-1 anchors. Report both.",
+            "applied": false
+          }
         },
         {
           "name": "Service-level reliability targets",
@@ -4914,7 +5545,9 @@
             "brown bag",
             "brown-bag",
             "lunch and learn",
-            "developer enablement"
+            "developer enablement",
+            "data flow diagrams",
+            "C4 diagrams"
           ],
           "regex_notes": "'C4' is short — only match 'C4 model' / 'C4 diagram'."
         },
@@ -4940,11 +5573,6 @@
             "business awareness",
             "business knowledge",
             "business metrics",
-            "business outcomes",
-            "business impact",
-            "business value",
-            "business needs",
-            "business requirements",
             "customer focus",
             "customer-focused",
             "customer focused",
@@ -4974,8 +5602,8 @@
           ],
           "regex_notes": "'KPI' / 'OKR' are clean. 'business' / 'customer' / 'product' alone are too generic; require the compound forms listed.",
           "redefine_proposal": {
-            "issue": "Concept fires on 21.1% of postings, with 'business requirements' (7.1%) and 'business needs' (5.5%) dominating. These overwhelmingly appear as 'translate business requirements/needs into technical solutions' — a one-line cliche that says nothing about depth of product/business literacy.",
-            "suggested_fix": "",
+            "issue": "Concept rate (0.211) is mostly 'business requirements' (n=1371) and 'business needs' (n=1070), which are generic SWE-posting boilerplate. Stripping them leaves a much smaller, more meaningful product/customer-literacy signal.",
+            "suggested_fix": "Drop or hard-guard the four 'business <noun>' generics (requirements, needs, value, outcomes, impact). Promote tighter signals: 'product sense', 'product mindset', 'product thinking', 'product intuition', 'customer empathy', 'user research', 'domain expertise/knowledge', 'KPIs', 'OKRs'. Expected rate after cleanup: ~6-8%.",
             "applied": false
           }
         },
@@ -5028,12 +5656,14 @@
             "non-technical stakeholders",
             "non technical stakeholders",
             "executive communication",
-            "executive presentations"
+            "executive presentations",
+            "stakeholders",
+            "GTM"
           ],
           "regex_notes": "Bare 'stakeholder' / 'communicate' is fluff; only count when in compounds (stakeholder management/alignment/communication, communicate technical concepts, etc.).",
           "redefine_proposal": {
-            "issue": "Concept fires on 26.7% of postings, dominated by 'cross-functional' (17.8%) and 'cross-functional teams' (11.5%) — pure HR boilerplate. The concept does not measure 'context-infrastructure work'; it measures whether the JD was authored by a recruiter who used the standard template.",
-            "suggested_fix": "",
+            "issue": "'cross-functional' and 'cross-functional teams' alone account for ~25% of postings — the topic essentially measures whether the boilerplate phrase is present, not whether real coordination work is described.",
+            "suggested_fix": "Either weight the bare 'cross-functional' lower than the function-named variants ('partner with product/design/PM', 'work with product', 'translate technical concepts'), or require the bare phrase to co-occur with a named non-engineering function within ±15 tokens to count toward the concept.",
             "applied": false
           }
         },
@@ -5065,8 +5695,8 @@
           ],
           "regex_notes": "Distinct from broad 'communication' fluff. Require the writing/written modifier.",
           "redefine_proposal": {
-            "issue": "Concept appears moderate at 9.9%, but 1,123 of the 1,916 hits come from 'written communication' alone — which is the 'excellent verbal and written communication skills' HR cliche, not technical writing. Removing or guarding 'written communication' drops the concept to roughly 4-5%.",
-            "suggested_fix": "",
+            "issue": "'written communication' (n=1123) is generic resume boilerplate ('excellent verbal and written communication') — does not measure technical-writing craft as defined.",
+            "suggested_fix": "Hard-guard 'written communication' to require either 'technical' qualifier, 'documentation' nearby, or a written artifact noun. Concept rate after guard will drop to ~2-3%, which is the honest signal.",
             "applied": false
           }
         },
@@ -5089,7 +5719,6 @@
             "interface documentation",
             "developer portal",
             "developer portals",
-            "developer experience",
             "DX",
             "API contract",
             "API contracts",
@@ -5097,7 +5726,8 @@
             "protobuf",
             "JSON schema",
             "internal developer portals",
-            "MCP server"
+            "MCP server",
+            "service catalog"
           ],
           "regex_notes": "'DX' is short — match only when adjacent to 'developer experience'."
         }
@@ -5379,6 +6009,90 @@
           "concept": "Architecture decision records & RFCs",
           "reason": "",
           "guard": ""
+        },
+        {
+          "pattern": "monitoring",
+          "concept": "Observability & telemetry stack",
+          "reason": "Generic verb across security ('security monitoring'), sysadmin patch management, M&S team activity reports, business case monitoring.",
+          "guard": "Require co-occurrence with one of: alerting, logging, dashboards, observability, telemetry, metrics, traces, Prometheus, Datadog, Grafana, Splunk, ELK, New Relic, CloudWatch, SLO, OpenTelemetry — or limit to compounds 'application monitoring', 'service monitoring', 'system monitoring'."
+        },
+        {
+          "pattern": "metrics",
+          "concept": "Observability & telemetry stack",
+          "reason": "Hits on 'business metrics like CSAT, NPS, NDR', 'quality metrics', 'reliability and performance metrics' — captures product/QA metrics, not telemetry.",
+          "guard": "Require co-occurrence with logs/traces/dashboards/observability/alerts/Prometheus/Datadog/Grafana, OR exclude when preceded by 'business', 'quality', 'KPI', 'success'."
+        },
+        {
+          "pattern": "logs",
+          "concept": "Observability & telemetry stack",
+          "reason": "Generic ('inspecting application logs', 'logs and reproduction steps in defect tracking'); also 'change logs' / 'audit logs' contexts.",
+          "guard": "Require co-occurrence with metrics OR traces OR observability OR aggregation/centralized/structured."
+        },
+        {
+          "pattern": "logging",
+          "concept": "Observability & telemetry stack",
+          "reason": "Often appears as a feature of CI/CD or generic 'best practices for logging, monitoring, error handling' boilerplate.",
+          "guard": "Require either a tool (Datadog, Splunk, ELK, Loki) OR a qualifier (centralized, structured, distributed, aggregation) within the same window."
+        },
+        {
+          "pattern": "snowflake",
+          "concept": "Data-pipeline & data-integration hygiene",
+          "reason": "Snowflake is a data warehouse product but also generic SQL skill demand — fires on resumes that just list it as a checkbox skill rather than discussing pipeline hygiene.",
+          "guard": "Acceptable as-is for the data-warehousing concept, but document that this is a tool-mention proxy, not a hygiene/quality signal. Consider downweighting versus 'data quality' / 'data validation' for the hygiene interpretation."
+        },
+        {
+          "pattern": "redshift",
+          "concept": "Data-pipeline & data-integration hygiene",
+          "reason": "Same as snowflake — tool checkbox.",
+          "guard": "Same downweighting note; this is technology-stack signal, not hygiene practice signal."
+        },
+        {
+          "pattern": "databricks",
+          "concept": "Data-pipeline & data-integration hygiene",
+          "reason": "Tool-checkbox listing alongside Azure stack.",
+          "guard": "Same as snowflake/redshift."
+        },
+        {
+          "pattern": "cross-functional",
+          "concept": "Cross-functional communication & coordination",
+          "reason": "Boilerplate ('Collaborate with cross-functional teams' appears in ~17% of postings) — no specific coordination work described.",
+          "guard": "Keep but document as boilerplate filler; consider weighting only when paired with a named function (product, design, PM, marketing, legal, support, sales, data) rather than the bare phrase."
+        },
+        {
+          "pattern": "cross-functional teams",
+          "concept": "Cross-functional communication & coordination",
+          "reason": "Same boilerplate as above; literal phrase.",
+          "guard": "Same — pair with a function-name within ±15 tokens."
+        },
+        {
+          "pattern": "written communication",
+          "concept": "Technical writing craft",
+          "reason": "Almost always part of generic 'excellent verbal and written communication skills' resume boilerplate, not technical-writing craft.",
+          "guard": "Require co-occurrence with technical/clear/excellent + a writing-artifact noun (documentation, design doc, RFC, runbook), OR exclude when adjacent to 'verbal'."
+        },
+        {
+          "pattern": "ability to write",
+          "concept": "Technical writing craft",
+          "reason": "Hits on 'ability to write SQL queries', 'ability to write robust code in Python' — coding-skill phrasing, not writing craft.",
+          "guard": "Require the next noun to be in {documentation, technical, design, clearly, design documents, specs, technical documents}; exclude when followed by SQL/code/Python/queries."
+        },
+        {
+          "pattern": "writing skills",
+          "concept": "Technical writing craft",
+          "reason": "Hits include 'SQL query writing skills', 'XML Writing Skills'.",
+          "guard": "Require preceded by 'technical' OR 'business' OR 'documentation'; exclude SQL/query/code modifiers."
+        },
+        {
+          "pattern": "KPI",
+          "concept": "Product & business literacy",
+          "reason": "Singular acronym hits include 'Azure Cloud is being used by KPI' (company name), 'KPI workshop', 'KPI objectives' as generic targets.",
+          "guard": "Require company-name disambiguation OR pair with 'metrics'/'targets'/'dashboards'; or fold all signal into 'KPIs' (plural is cleaner)."
+        },
+        {
+          "pattern": "DX",
+          "concept": "API & interface documentation",
+          "reason": "Vast majority of hits are 'Salesforce DX' (a Salesforce dev-tool suite), not Developer Experience.",
+          "guard": "Require not preceded by 'Salesforce'; OR require co-occurrence with 'developer experience' / 'devex' / 'internal developer platform'."
         }
       ],
       "calibration_recommendations": "Run the matcher on a stratified sample (~300 postings across 2024 and 2026, mixed seniority) and pull a hit list per concept. (1) Verify that bare-token matches for 'documentation', 'docs', 'data', 'context', 'monitor', 'metrics', 'communication', 'stakeholder', 'RFC' are gated by their compound/guard rules — measure precision before/after the guard. (2) For 'cross-functional' and 'stakeholder' compounds, expect near-100% saturation in senior JDs; consider reporting per-posting *count* (density) rather than binary presence. (3) Decompose role/seniority cells (junior/mid/senior/staff+/EM) before time-trend interpretation: senior+ JDs already mention ADRs, runbooks, and observability heavily, so a temporal shift is meaningful only conditional on level. (4) Spot-check named-tool hits (Datadog, Grafana, dbt, Airflow) against a list of role titles to ensure they are not data-engineer-only artifacts contaminating SWE counts. (5) Track the 'technical writing' concept separately from 'cross-functional communication' — they have different signal profiles and the hypothesis (humans pivot to context curation) predicts the former should rise faster than the latter.",
@@ -5487,6 +6201,109 @@
         "adds": 74,
         "redefines": 41,
         "dedupe": 4
+      }
+    },
+    {
+      "applied_at": "2026-05-06T01:10:09+00:00",
+      "source": "paper/vocab_lists/calibration/edit_recommendations.json",
+      "summary": {
+        "people_management": {
+          "drops": 17,
+          "guards_as_drops": 14,
+          "guards_as_exclusions": 12,
+          "adds": 9,
+          "redefines": 5,
+          "reconcile_drops": 0,
+          "dedupe": 0,
+          "missing_concept": 0,
+          "missing_keyword": 0
+        },
+        "orchestration": {
+          "drops": 9,
+          "guards_as_drops": 6,
+          "guards_as_exclusions": 5,
+          "adds": 11,
+          "redefines": 4,
+          "reconcile_drops": 0,
+          "dedupe": 0,
+          "missing_concept": 0,
+          "missing_keyword": 0
+        },
+        "verification": {
+          "drops": 8,
+          "guards_as_drops": 3,
+          "guards_as_exclusions": 11,
+          "adds": 17,
+          "redefines": 5,
+          "reconcile_drops": 0,
+          "dedupe": 0,
+          "missing_concept": 0,
+          "missing_keyword": 0
+        },
+        "mentorship": {
+          "drops": 30,
+          "guards_as_drops": 1,
+          "guards_as_exclusions": 33,
+          "adds": 15,
+          "redefines": 8,
+          "reconcile_drops": 0,
+          "dedupe": 0,
+          "missing_concept": 0,
+          "missing_keyword": 0
+        },
+        "performance": {
+          "drops": 52,
+          "guards_as_drops": 4,
+          "guards_as_exclusions": 14,
+          "adds": 13,
+          "redefines": 10,
+          "reconcile_drops": 0,
+          "dedupe": 0,
+          "missing_concept": 0,
+          "missing_keyword": 0
+        },
+        "process_scaffolding": {
+          "drops": 12,
+          "guards_as_drops": 3,
+          "guards_as_exclusions": 15,
+          "adds": 11,
+          "redefines": 5,
+          "reconcile_drops": 0,
+          "dedupe": 0,
+          "missing_concept": 0,
+          "missing_keyword": 0
+        },
+        "legacy_stack": {
+          "drops": 17,
+          "guards_as_drops": 0,
+          "guards_as_exclusions": 14,
+          "adds": 17,
+          "redefines": 7,
+          "reconcile_drops": 0,
+          "dedupe": 0,
+          "missing_concept": 0,
+          "missing_keyword": 0
+        },
+        "context_infrastructure": {
+          "drops": 23,
+          "guards_as_drops": 0,
+          "guards_as_exclusions": 14,
+          "adds": 12,
+          "redefines": 6,
+          "reconcile_drops": 0,
+          "dedupe": 0,
+          "missing_concept": 0,
+          "missing_keyword": 0
+        }
+      },
+      "totals": {
+        "drops": 168,
+        "guards_as_drops": 31,
+        "guards_as_exclusions": 118,
+        "reconcile_drops": 0,
+        "adds": 105,
+        "redefines": 50,
+        "dedupe": 0
       }
     }
   ]
