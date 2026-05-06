@@ -139,7 +139,7 @@ def s1_1_mcs_sweep(
             reduced_topics[mcs] = np.load(cache_path)
             continue
         from bertopic import BERTopic
-        model = BERTopic.load(str(_model_path(MCS_FITS_DIR, f"mcs_{mcs}")))
+        model = pipeline.load_topic_model_for_reduce(_model_path(MCS_FITS_DIR, f"mcs_{mcs}"))
         try:
             model.reduce_topics(list(docs), nr_topics=30)
             reduced = np.asarray(model.topics_, dtype=np.int64)
@@ -227,7 +227,7 @@ def s1_2_headline_and_k_sweep(
     # Copy the headline model to the canonical location for clarity.
     if not config.RAW_FIT_PATH.exists():
         from bertopic import BERTopic
-        BERTopic.load(str(headline_path)).save(
+        pipeline.load_topic_model_for_reduce(headline_path).save(
             str(config.RAW_FIT_PATH),
             serialization="pickle",
             save_ctfidf=True,
@@ -308,7 +308,7 @@ def s1_2_headline_and_k_sweep(
         if cache.exists():
             head_k_labels = np.load(cache)
         else:
-            model = BERTopic.load(str(config.RAW_FIT_PATH))
+            model = pipeline.load_topic_model_for_reduce(config.RAW_FIT_PATH)
             try:
                 model.reduce_topics(list(docs), nr_topics=k)
                 head_k_labels = np.asarray(model.topics_, dtype=np.int64)
@@ -328,7 +328,7 @@ def s1_2_headline_and_k_sweep(
                 src = config.RAW_FIT_PATH
             else:
                 src = _model_path(SEED_FITS_DIR, f"seed_{seed}_mcs_{headline_mcs}")
-            model = BERTopic.load(str(src))
+            model = pipeline.load_topic_model_for_reduce(src)
             try:
                 model.reduce_topics(list(docs), nr_topics=k)
                 lbl = np.asarray(model.topics_, dtype=np.int64)
@@ -359,12 +359,10 @@ def s1_2_headline_and_k_sweep(
             if pcache.exists():
                 p_lbl = np.load(pcache)
             else:
-                pmodel = BERTopic.load(
-                    str(_model_path(
-                        PERIOD_FITS_DIR,
-                        f"period_{period_label}_mcs_{headline_mcs}"
-                    ))
-                )
+                pmodel = pipeline.load_topic_model_for_reduce(_model_path(
+                    PERIOD_FITS_DIR,
+                    f"period_{period_label}_mcs_{headline_mcs}",
+                ))
                 try:
                     pmodel.reduce_topics(list(info["docs"]), nr_topics=k)
                     p_lbl = np.asarray(pmodel.topics_, dtype=np.int64)
@@ -485,7 +483,7 @@ def s1_6_naming(
     head_k_labels = np.load(INTERIM / f"headline_reducedK{headline_k}.npy")
 
     from bertopic import BERTopic
-    model = BERTopic.load(str(config.RAW_FIT_PATH))
+    model = pipeline.load_topic_model_for_reduce(config.RAW_FIT_PATH)
     model.reduce_topics(list(docs), nr_topics=headline_k)
 
     cluster_ids = sorted({int(t) for t in head_k_labels if t != -1})

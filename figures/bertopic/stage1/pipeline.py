@@ -33,6 +33,60 @@ from figures.bertopic.embedding_cache import load_cache
 
 
 _KEYBERT_AUX_MODEL = "all-MiniLM-L6-v2"
+_AUX_BACKEND = None  # `bertopic.backend.SentenceTransformerBackend`
+
+
+def _aux_embedding_backend():
+    """Cached BERTopic-wrapped embedding backend.
+
+    BERTopic's KeyBERTInspired representation calls `embed_documents` on
+    `topic_model.embedding_model`, which is a backend wrapper, not a bare
+    SentenceTransformer. Use `select_backend` to get the right type so that
+    re-attaching after `BERTopic.load(save_embedding_model=False)` works.
+    """
+    global _AUX_BACKEND
+    if _AUX_BACKEND is None:
+        from bertopic.backend._utils import select_backend
+        _AUX_BACKEND = select_backend(SentenceTransformer(_KEYBERT_AUX_MODEL))
+    return _AUX_BACKEND
+
+
+def load_topic_model(path) -> BERTopic:
+    """`BERTopic.load` + re-attach the auxiliary embedding backend.
+
+    We save with `save_embedding_model=False` to keep `.bertopic` files small.
+    KeyBERTInspired needs a backend with `embed_documents` on the loaded
+    instance during representation refinement (fires inside `reduce_topics`).
+    """
+    model = BERTopic.load(str(path))
+    model.embedding_model = _aux_embedding_backend()
+    return model
+
+
+def make_permissive_vectorizer() -> CountVectorizer:
+    """Vectorizer used after `reduce_topics` to small K.
+
+    BERTopic's c-TF-IDF treats each topic as one document, so min_df=10
+    (intended for the raw 58 k document corpus) requires a term to appear in
+    ≥ 10 of K topics — impossible for K ≤ 10. We swap to a permissive
+    `min_df=2, max_df=1.0` for any reduce_topics path. This is a documented
+    deviation from §4.2 and is recorded in `prereg_log.md`.
+    """
+    stops = list(ENGLISH_STOP_WORDS) + list(config.CUSTOM_STOPWORDS)
+    return CountVectorizer(
+        ngram_range=config.NGRAM_RANGE,
+        min_df=2,
+        max_df=1.0,
+        stop_words=stops,
+        token_pattern=config.TOKEN_PATTERN,
+    )
+
+
+def load_topic_model_for_reduce(path) -> BERTopic:
+    """`load_topic_model` plus a permissive vectorizer for reduce_topics."""
+    model = load_topic_model(path)
+    model.vectorizer_model = make_permissive_vectorizer()
+    return model
 
 
 @dataclass(frozen=True)
@@ -87,7 +141,7 @@ def build_topic_model(
         hdbscan_model=hdbscan_model,
         vectorizer_model=build_count_vectorizer(),
         representation_model=representation_model,
-        embedding_model=SentenceTransformer(_KEYBERT_AUX_MODEL),
+        embedding_model=_aux_embedding_backend(),
         min_topic_size=min_cluster_size,
         calculate_probabilities=config.CALCULATE_PROBABILITIES,
         verbose=False,
